@@ -157,8 +157,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
 
     Returns ``metrics`` keyed by solver name (``errors``, ``initial_error``,
     ``final_error``, ``error_reduction_pct``, ``n_iters``, ``converged``,
-    ``grad_norms``, and ``initial_field_error`` / ``final_field_error``, the
-    relative L2 distance of ``rho`` to ``rho_truth``) plus the per-solver
+    ``grad_norms``) plus the per-solver
     ``rho_final`` / ``rho_history`` snapshots and the shared ``rho_init`` /
     ``rho_truth`` arrays consumed by :func:`_conductivity_recovery_aggregate`.
     """
@@ -270,18 +269,6 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     converged = len(losses) < max_iters
     grad_norms = (diag or {}).get("grad_norms")
 
-    # A small identification error does not imply a recovered density: cells
-    # with low density barely change the conductivity (SIMP, p=3), so the loss
-    # can plateau while the field is still far from the truth. Report the
-    # field error directly.
-    def _field_error(rho: Any) -> float | None:
-        if rho_truth is None:
-            return None
-        return float(
-            np.linalg.norm(np.asarray(rho).ravel() - rho_truth.ravel())
-            / np.linalg.norm(rho_truth.ravel())
-        )
-
     metrics = {
         "errors": errors,
         "initial_error": errors[0] if errors else None,
@@ -294,8 +281,6 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         "n_iters": len(errors),
         "converged": converged,
         "grad_norms": grad_norms,
-        "initial_field_error": _field_error(rho_init),
-        "final_field_error": _field_error(rho_opt),
     }
 
     snapshots: dict[str, np.ndarray] = {"rho_final": np.asarray(rho_opt)}

@@ -513,9 +513,10 @@ _SUITE_RANK_CAPTIONS = {
     "gradient": "Ranked by the best-ε finite-difference error of the gradient "
     "(lower is more trustworthy); direction cosine near 1 confirms the gradient "
     "points the right way.",
-    "cost": "Forward and VJP (backward) wall-clock time, each shown at the "
-    "largest problem size N the solver completed for that pass; ranked by "
-    "forward time (faster is better). Forward-only solvers have no VJP entry. "
+    "cost": "Forward and VJP wall-clock time, each shown at the largest "
+    "problem size N the solver completed for that pass; ranked by forward time "
+    "(faster is better). The VJP time is one gradient from scratch, a forward "
+    "plus an adjoint pass. Forward-only solvers have no VJP entry. "
     "See the reliability note above before comparing across devices.",
     "optimization": "Ranked by the final objective reached within the iteration "
     "budget (lower is better).",

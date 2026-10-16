@@ -167,6 +167,10 @@ class Problem:
     make_inputs: Callable | None = None  # (solver_name, ic, **physics) → dict
     exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
     status_checks: dict[str, list] = field(default_factory=dict)
+    # "<suite>/<experiment>" -> metrics (keys of status.METRIC_SPECS) whose
+    # run-to-run shifts are reported as indicative rather than firm, for
+    # experiments where they depend on the optimizer's path.
+    indicative_metrics: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     # ── Experiment-time deps (threaded into Experiment.fn closures) ─────
     make_ic: dict = field(default_factory=dict)

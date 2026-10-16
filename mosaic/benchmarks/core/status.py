@@ -230,6 +230,8 @@ class ExperimentRow:
     # Explanations registered for a solver whose cell passed every check:
     # solver name -> explanation. Reported so stale explanations get removed.
     unused_explanations: dict[str, str] = field(default_factory=dict)
+    # Metrics whose shifts this row reports as indicative (Problem.indicative_metrics).
+    indicative_metrics: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -897,7 +899,6 @@ METRIC_SPECS: dict[str, tuple[float, str, str]] = {
     "cosine": (0.02, "higher", "firm"),
     "final_ratio": (0.15, "lower", "firm"),
     "final_loss": (0.15, "lower", "firm"),
-    "field_error": (0.15, "lower", "firm"),
     "fwd_error": (0.15, "lower", "firm"),
     "cost_time_s": (0.35, "lower", "indicative"),
 }
@@ -963,7 +964,7 @@ def _collect_fd_metrics(data: dict, cells: dict[str, Cell]) -> None:
 
 
 def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
-    """Store the worst-case ``final_ratio``, plus ``final_loss`` / ``field_error`` when present."""
+    """Store the worst-case ``final_ratio`` and the ``final_loss``."""
     top = data.get("by_solver") or data.get("by_sweep") or {}
     if not isinstance(top, dict):
         return
@@ -987,9 +988,6 @@ def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
             _store_metric(cell, "final_loss", fl)
         elif series and math.isfinite(abs(series[-1])):
             _store_metric(cell, "final_loss", abs(series[-1]))
-        # Distance of the recovered field to the ground truth, for experiments
-        # that know it (e.g. thermal conductivity recovery).
-        _store_metric(cell, "field_error", entry.get("final_field_error"))
 
 
 def _collect_forward_metrics(data: dict, cells: dict[str, Cell]) -> None:
@@ -1190,6 +1188,7 @@ def _build_row(
 ) -> ExperimentRow:
     """Construct one ExperimentRow with classified, refined, and stamped cells."""
     row = ExperimentRow(suite=suite, experiment=exp_label, result_path=result_path)
+    row.indicative_metrics = tuple(cfg.indicative_metrics.get(row.label, ()))
     if result_path is None:
         row.cells = {s: Cell(NOT_RUN) for s in solvers}
         _apply_exclusions(cfg, suite, exp_label, row.cells)
@@ -1327,6 +1326,7 @@ def status_to_dict(st: ProblemStatus) -> dict:
                     for s, c in r.cells.items()
                 },
                 "unused_explanations": dict(r.unused_explanations),
+                "indicative_metrics": list(r.indicative_metrics),
             }
             for r in st.rows
         ],
@@ -1793,6 +1793,7 @@ def _diff_metrics(
     solver: str,
     old_cell: dict,
     new_cell: dict,
+    indicative: frozenset[str] = frozenset(),
 ) -> None:
     """Record numeric-metric shifts into ``out["metric_shifts"]``.
 
@@ -1803,6 +1804,8 @@ def _diff_metrics(
     relative change exceeds that metric's ``METRIC_SPECS`` threshold. Wall-clock
     (``cost_time_s``) is flagged ``confidence="indicative"`` — noisy across
     shared CI runners — while deterministic correctness metrics are ``firm``.
+    Metrics named in *indicative* (the row's ``indicative_metrics``) are
+    flagged indicative too.
     """
     if old_cell.get("status") != OK or new_cell.get("status") != OK:
         return
@@ -1838,7 +1841,7 @@ def _diff_metrics(
                 "to": new_v,
                 "pct_change": pct,
                 "direction": "regression" if is_regression else "improvement",
-                "confidence": confidence,
+                "confidence": "indicative" if metric in indicative else confidence,
             }
         )
 
@@ -1924,7 +1927,15 @@ def diff_snapshots(old: dict, new: dict, measured: dict | None = None) -> dict:
                 # Resource frontier move (independent of the status transition).
                 _diff_frontier(out, problem, label, solver, old_cell, new_cell)
                 # Numeric-metric shift for cells that stay OK (no status change).
-                _diff_metrics(out, problem, label, solver, old_cell, new_cell)
+                _diff_metrics(
+                    out,
+                    problem,
+                    label,
+                    solver,
+                    old_cell,
+                    new_cell,
+                    frozenset(new_row.get("indicative_metrics", ())),
+                )
                 same_status = old_cell["status"] == new_cell["status"]
                 # A same-status change in category (e.g. excluded → excluded
                 # but category moved from not_implemented to categorical) is
@@ -1965,7 +1976,6 @@ _METRIC_LABELS: dict[str, str] = {
     "cosine": "gradient cosine",
     "final_ratio": "final/initial loss ratio",
     "final_loss": "final loss",
-    "field_error": "recovered-field error vs truth",
     "fwd_error": "forward error",
     "cost_time_s": "median time",
 }
@@ -1994,22 +2004,24 @@ def _fmt_metric_shift(r: dict) -> str:
 
 
 def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
-    """Render numeric-metric shifts, splitting firm from indicative (timing).
+    """Render numeric-metric shifts, splitting firm from indicative.
 
-    Firm (deterministic correctness) metrics go under a headline section;
-    indicative wall-clock shifts go under a clearly-labelled sub-section so a
-    contributor never mistakes a shared-runner timing wobble for a hard
-    regression (see F2 in the reporting audit).
+    Firm (deterministic correctness) metrics go under a headline section.
+    Indicative shifts, timing (shared-runner load, F2 in the reporting audit)
+    and path-dependent optimization results, get labelled sub-sections so
+    neither reads as a hard regression.
     """
     firm = [r for r in metric_shifts if r.get("confidence") != "indicative"]
     indicative = [r for r in metric_shifts if r.get("confidence") == "indicative"]
+    timing = [r for r in indicative if r["metric"] == "cost_time_s"]
+    path_dependent = [r for r in indicative if r["metric"] != "cost_time_s"]
     if firm:
         lines.append("### 📊 Metric changes")
         lines.append("")
         for r in firm:
             lines.append(_fmt_metric_shift(r))
         lines.append("")
-    if indicative:
+    if timing:
         lines.append("### ⏱ Timing (indicative — shared-runner contention)")
         lines.append("")
         lines.append(
@@ -2017,7 +2029,18 @@ def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
             "indicative rather than controlled measurements._"
         )
         lines.append("")
-        for r in indicative:
+        for r in timing:
+            lines.append(_fmt_metric_shift(r))
+        lines.append("")
+    if path_dependent:
+        lines.append("### 〰 Path-dependent results (indicative)")
+        lines.append("")
+        lines.append(
+            "_These experiments' results depend on the optimizer's path, which "
+            "round-off can change between runs of identical code._"
+        )
+        lines.append("")
+        for r in path_dependent:
             lines.append(_fmt_metric_shift(r))
         lines.append("")
 

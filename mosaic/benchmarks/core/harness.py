@@ -164,10 +164,13 @@ def run_timed_trials(
     gpu_id: int | None = None,
     image_tag: str | None = None,
     capture_value: bool = False,
+    setup: Callable[[], Any] | None = None,
 ) -> TimedResult:
     """Run ``fn`` n_trials times under a :class:`ResourceSampler`.
 
     Behaviour:
+      * ``setup()``, when given, runs once before the warmup. It is neither
+        timed nor returned, but a failure in it is recorded like one in ``fn``.
       * One unreported warmup ``fn()`` call is performed first to absorb
         per-solver JIT compilation, first-touch CUDA kernel caching, and
         scan-unroll tracing.
@@ -190,6 +193,8 @@ def run_timed_trials(
     failure: dict | None = None
     try:
         with sampler:
+            if setup is not None:
+                setup()
             fn()  # warmup; return value intentionally discarded
             for i in range(n_trials):
                 t0 = time.perf_counter()
