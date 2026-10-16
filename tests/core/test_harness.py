@@ -259,6 +259,39 @@ def test_run_timed_trials_warmup_failure_leaves_times_empty():
     assert "Traceback" in result.failure["traceback"]
 
 
+def test_run_timed_trials_setup_runs_once_before_warmup():
+    """setup() runs once, before the warmup, and is not timed."""
+    calls = []
+
+    result = run_timed_trials(
+        lambda: calls.append("fn"),
+        n_trials=2,
+        wall_limit_s=10.0,
+        setup=lambda: calls.append("setup"),
+    )
+
+    assert result.succeeded
+    assert calls == ["setup", "fn", "fn", "fn"]
+    assert len(result.times) == 2
+
+
+def test_run_timed_trials_setup_failure_is_recorded():
+    """A setup failure is recorded like an fn failure, and fn never runs."""
+    calls = []
+
+    def setup():
+        raise RuntimeError("boom during setup")
+
+    result = run_timed_trials(
+        lambda: calls.append("fn"), n_trials=2, wall_limit_s=10.0, setup=setup
+    )
+
+    assert not result.succeeded
+    assert calls == []
+    assert result.times == []
+    assert "boom during setup" in result.failure["exc_msg"]
+
+
 def test_run_timed_trials_trial_failure_keeps_earlier_times():
     """If trial 2 raises, trial 1's time is still recorded."""
     state = {"i": 0}
