@@ -663,7 +663,14 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
         return None
     enc = solver_encodings(solvers)
 
-    labels = [_SVD_VARIANT_LABELS.get(k, k) for k, _ in variants]
+    labels = []
+    for key, data in variants:
+        physics = data.get("params", {}).get("physics", {})
+        if all(name in physics for name in ("nu", "dt", "steps")):
+            horizon = physics["dt"] * physics["steps"]
+            labels.append(f"ν={physics['nu']:g}  T={horizon:g}s")
+        else:
+            labels.append(_SVD_VARIANT_LABELS.get(key, key))
     styles = [
         _SVD_VARIANT_STYLES[i % len(_SVD_VARIANT_STYLES)] for i in range(len(variants))
     ]

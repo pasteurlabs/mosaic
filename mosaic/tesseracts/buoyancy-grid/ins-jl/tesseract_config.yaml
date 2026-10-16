@@ -1,0 +1,39 @@
+name: ins_buoyancy_grid
+version: "0.1.0"
+description: >
+  Native IncompressibleNavierStokes.jl Boussinesq flow in a closed no-slip square, with transported
+  scalar, centered advection, RK4, and native FFT/DCT pressure projection.
+  CPU implementation with Zygote state reverse-mode differentiation.
+build_config:
+  package_data:
+    - ["./solver.jl", "/opt/ins-buoyancy/solver.jl"]
+  custom_build_steps:
+    - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates gcc g++ && rm -rf /var/lib/apt/lists/*"
+    - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.12/julia-1.12.6-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
+    - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="5.0.0"), Pkg.PackageSpec(name="PythonCall", version="0.9.36"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
+    - 'RUN python -c ''import juliacall; juliacall.Main.seval("using IncompressibleNavierStokes, Zygote")'' && chmod -R 777 /app/julia_env /app/julia_depot'
+env:
+  JULIA_PROJECT: "/app/julia_env"
+  PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
+  PYTHON_JULIACALL_PROJECT: "/app/julia_env"
+  PYTHON_JULIACALL_EXE: "/usr/local/bin/julia"
+  JULIA_DEPOT_PATH: "/app/julia_depot"
+  JULIA_CPU_TARGET: "generic"
+  JULIA_EXECUTABLE: "/usr/local/bin/julia"
+  JULIA_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  JULIA_NUM_PRECOMPILE_TASKS: "2"
+  INS_BUOYANCY_SOLVER_PATH: "/opt/ins-buoyancy/solver.jl"
+metadata:
+  mosaic:
+    name: "INS.jl"
+    backend: julia
+    family: projection
+    scheme: "FV + pressure projection"
+    discretization: FV
+    numerics: "Centered advection, RK4"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"

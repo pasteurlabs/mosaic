@@ -88,6 +88,7 @@ class OptimizationSummary:
     """
 
     final_initial_ratio: float | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
