@@ -62,8 +62,7 @@ For each setup, each solver gets:
 | State | Meaning |
 |---|---|
 | [✓ Pass]{.ck .ck-pass} | Every gate experiment met its criteria. |
-| [✓ Pass, with note]{.ck .ck-note} | A gate was flagged, but the cause is documented and is typically a property of the comparison rather than the solver. |
-| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. |
+| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. Where the cause is documented (often a property of the comparison rather than the solver), the explanation is shown with the reason. |
 | [✗ Fail]{.ck .ck-fail} | A gate errored or produced no valid result. |
 | [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
 | [· Not run]{.ck .ck-notrun} | Not run in this campaign yet. |
@@ -141,7 +140,7 @@ Warp-NS, Exponax, INS.jl, and OpenFOAM on a triply periodic Taylor–Green vorte
 
 Place a fixed budget of material in a clamped beam to make it as stiff as
 possible, differentiating through a finite-element solve. Covers deal.II,
-FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever compliance
+FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D cantilever compliance
 minimization with SIMP penalization.
 :::
 :::

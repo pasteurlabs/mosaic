@@ -13,6 +13,7 @@ import logging
 import os
 import queue
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -375,7 +376,7 @@ def build_all(
             return spec.image_tag
         config_path = cfg.tesseract_dir / spec.dir / "tesseract_config.yaml"
         if config_path.exists():
-            with open(config_path) as f:
+            with open(config_path, encoding="utf-8") as f:
                 tconfig = yaml.safe_load(f)
             image_name = tconfig.get("name", spec.dir)
             return f"{image_name}:{tag}"
@@ -385,8 +386,10 @@ def build_all(
         name = spec.name  # type: ignore[attr-defined]
         tesseract_path = cfg.tesseract_dir / spec.dir
         t0 = time.monotonic()
+        # A bare `tesseract` on PATH can be Tesseract OCR.
+        cli = [sys.executable, "-m", "tesseract_core.sdk.cli"]
         r = subprocess.run(
-            ["tesseract", "build", "--tag", tag, str(tesseract_path)],
+            [*cli, "build", "--tag", tag, str(tesseract_path)],
             capture_output=True,
             text=True,
             check=False,
@@ -464,7 +467,7 @@ def image_tags_no_build(cfg: Problem) -> dict[str, str]:
         else:
             config_path = cfg.tesseract_dir / spec.dir / "tesseract_config.yaml"
             if config_path.exists():
-                with open(config_path) as f:
+                with open(config_path, encoding="utf-8") as f:
                     tconfig = yaml.safe_load(f)
                 image_name = tconfig.get("name", spec.dir)
                 tags[name] = f"{image_name}:latest"
@@ -871,6 +874,13 @@ def run_with_gpu_pool(
 # ── Solver execution ──────────────────────────────────────────────────────────
 
 
+def nonfinite_counts(arr: jax.Array) -> str:
+    """Summarize the NaN/Inf entries of *arr* for a failure message."""
+    n_nan = int(jnp.sum(jnp.isnan(arr)))
+    n_inf = int(jnp.sum(jnp.isinf(arr)))
+    return f"{n_nan} NaN, {n_inf} Inf of {jnp.size(arr)} values"
+
+
 def safe_apply(t: Tesseract, inputs: dict, output_key: str) -> jax.Array | None:
     """Forward pass with exception handling and finiteness check.
 
@@ -889,16 +899,16 @@ def safe_apply(t: Tesseract, inputs: dict, output_key: str) -> jax.Array | None:
     Each call overwrites the previous thread's last error; callers that
     interleave multiple ``safe_apply`` invocations should read the error
     immediately after each failure. The same convention applies to
-    :func:`safe_apply_with_extras`.
+    :func:`safe_apply_with_state`.
     """
-    arr, _, _ = safe_apply_with_extras(t, inputs, output_key, [], [])
+    arr, _ = safe_apply_with_state(t, inputs, output_key)
     return arr
 
 
 def get_last_apply_error() -> str | None:
     """Return the last :func:`safe_apply` failure message for this thread.
 
-    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_extras`
+    Returns ``None`` if no :func:`safe_apply` / :func:`safe_apply_with_state`
     call has failed on this thread, or if a successful call has overwritten
     the slot.
     """
@@ -914,23 +924,22 @@ def _apply_tesseract_with_deadline(t: Tesseract, inputs: dict):
     return apply_tesseract(t, inputs)
 
 
-def safe_apply_with_extras(
+def safe_apply_with_state(
     t: Tesseract,
     inputs: dict,
     output_key: str,
-    extra_scalar_keys: list[str],
     state_keys: list[str] | None = None,
-) -> tuple[jax.Array | None, dict[str, float], dict[str, jax.Array]]:
-    """Forward pass returning (primary array, scalar extras, array state).
+) -> tuple[jax.Array | None, dict[str, jax.Array]]:
+    """Forward pass returning (primary array, further output arrays).
 
-    extra_scalar_keys: output keys to extract as floats (e.g. potential_energy).
-    state_keys:        output keys to return as arrays for state threading
-                       (e.g. velocities for chunked MD stability runs).
+    state_keys: output keys to return as arrays alongside the primary one
+                (e.g. the pressure and body force of an obstacle run).
 
-    Returns (None, {}, {}) on failure.
+    Returns (None, {}) on failure.
     """
     if state_keys is None:
         state_keys = []
+    _tl.last_apply_error = None
     try:
         out = _apply_tesseract_with_deadline(t, inputs)
         if output_key not in out:
@@ -941,23 +950,19 @@ def safe_apply_with_extras(
             )
             print_warn(f"apply failed: {error_msg}")
             _tl.last_apply_error = error_msg
-            return None, {}, {}
+            return None, {}
         arr = out[output_key]
         if not jnp.all(jnp.isfinite(arr)):
-            return None, {}, {}
-        extras = {}
-        for k in extra_scalar_keys:
-            if k in out and out[k] is not None:
-                # Tesseracts return scalar outputs as either a Python scalar or a
-                # shape-(1,) array (e.g. drag); flatten so float() never sees a
-                # multi-element array.
-                v = float(jnp.asarray(out[k]).flatten()[0])
-                if jnp.isfinite(v):
-                    extras[k] = v
+            error_msg = (
+                f"solver output {output_key!r} is not finite ({nonfinite_counts(arr)})"
+            )
+            print_warn(f"apply failed: {error_msg}")
+            _tl.last_apply_error = error_msg
+            return None, {}
         state = {
             k: jnp.array(out[k]) for k in state_keys if k in out and out[k] is not None
         }
-        return arr, extras, state
+        return arr, state
     except Exception as exc:
         _exc_name = type(exc).__name__
         if isinstance(exc, TimeoutError):
@@ -969,4 +974,4 @@ def safe_apply_with_extras(
             error_msg = f"{_exc_name}: {exc}"
         print_warn(f"apply failed: {error_msg}")
         _tl.last_apply_error = error_msg
-        return None, {}, {}
+        return None, {}

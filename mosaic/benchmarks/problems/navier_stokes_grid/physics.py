@@ -11,9 +11,10 @@ import jax
 import jax.numpy as jnp
 
 from mosaic.benchmarks.core.config import SolverSpec
+from mosaic.benchmarks.core.utils import fixed_cfl_dt_steps
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
-from .ics import _uniform_flow
+from . import cylinder
 
 _LBM_SOLVERS = {"xlb"}
 
@@ -22,66 +23,54 @@ def make_inputs(
     spec: SolverSpec,
     ic: jax.Array,
     *,
+    resolution: int | None = None,
+    t_end: float = cylinder.T_END,
+    **physics: Any,
+) -> dict:
+    """Build the solver input dict.
+
+    Physics with a ``resolution`` (cells per cylinder diameter) describe the
+    DFG 2D-1 channel, where ``ic`` is the inlet profile and everything but the
+    simulated time ``t_end`` follows from the benchmark (see
+    :func:`.cylinder.channel_inputs`). All other physics describe the
+    periodic box.
+    """
+    if resolution is not None:
+        base = cylinder.channel_inputs(ic, resolution, t_end)
+    else:
+        base = _periodic_inputs(spec, ic, **physics)
+    return {**base, **spec.input_overrides}
+
+
+def _periodic_inputs(
+    spec: SolverSpec,
+    ic: jax.Array,
+    *,
     nu: float,
     dt: float,
     steps: int,
     domain_extent: float = 2 * jnp.pi,
     lbm_N_base: int | None = None,
-    obstacle: dict | None = None,
-    U_mean: float = 0.5,
+    cfl_N_base: int | None = None,
     **_: Any,
 ) -> dict:
-    """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
+    """Periodic-box inputs, applying LBM dt-scaling when ``lbm_N_base`` is set.
 
-    When ic is 1-D (shape (N,)) it is treated as an inflow profile for drag
-    optimisation (v0 = uniform background at U_mean, ic → inflow_profile field).
+    ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver, before
+    any LBM scaling.
     """
-    if ic.ndim == 1:
-        N = ic.shape[0]
-        _dt, _steps = dt, steps
-        if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-            _dt = dt * min(1.0, lbm_N_base / N)
-            _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
-        base = {
-            "v0": _uniform_flow(N, U=U_mean),
-            "inflow_profile": ic,
-            "viscosity": jnp.array([nu], dtype=jnp.float32),
-            "dt": jnp.array([_dt], dtype=jnp.float32),
-            "steps": _steps,
-            "domain_extent": float(domain_extent),
-        }
-        if obstacle is not None:
-            base["obstacle"] = obstacle
-            base["boundary_conditions"] = {
-                "x_lo": {"type": "periodic"},
-                "x_hi": {"type": "periodic"},
-                "y_lo": {"type": "no_slip"},
-                "y_hi": {"type": "no_slip"},
-            }
-        return {**base, **spec.input_overrides}
-
     N = ic.shape[0]
-    _dt, _steps = dt, steps
+    _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
     if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-        _dt = dt * min(1.0, lbm_N_base / N)
-        _steps = max(1, round(steps * max(1.0, N / lbm_N_base)))
-
-    base = {
+        _dt = _dt * min(1.0, lbm_N_base / N)
+        _steps = max(1, round(_steps * max(1.0, N / lbm_N_base)))
+    return {
         "v0": ic,
         "viscosity": jnp.array([nu], dtype=jnp.float32),
         "dt": jnp.array([_dt], dtype=jnp.float32),
         "steps": _steps,
         "domain_extent": float(domain_extent),
     }
-    if obstacle is not None:
-        base["obstacle"] = obstacle
-        base["boundary_conditions"] = {
-            "x_lo": {"type": "neumann"},
-            "x_hi": {"type": "neumann"},
-            "y_lo": {"type": "no_slip"},
-            "y_hi": {"type": "no_slip"},
-        }
-    return {**base, **spec.input_overrides}
 
 
 DIAGNOSTICS = FLUID_DIAGNOSTICS

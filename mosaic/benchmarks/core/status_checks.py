@@ -24,6 +24,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from .utils import convergence_order
+
 # A check returns (status, reason) on anomaly, or None on pass / not-applicable.
 CheckOutcome = tuple[str, str] | None
 
@@ -46,11 +48,15 @@ class ForwardSummary:
     those carrying a positive peer median. A point only this solver reached
     has nothing to compare against, so counting it would raise the bar for a
     majority that no amount of bad results could clear.
+
+    ``metrics_by_pval`` holds the full metrics dict of each valid point, for
+    checks on quantities other than ``error``.
     """
 
     errs_by_pval: dict[Any, float] = field(default_factory=dict)
     peer_medians_by_pval: dict[Any, float] = field(default_factory=dict)
     n_valid_points: int = 0
+    metrics_by_pval: dict[Any, dict] = field(default_factory=dict)
 
 
 @dataclass
@@ -80,12 +86,19 @@ class FdCheckSummary:
 class OptimizationSummary:
     """Per-solver summary handed to optimization-suite checks.
 
-    ``final_initial_ratio``: ``loss_final / loss_initial`` for the
-    worst-case (highest-initial-loss) trajectory. A solver that didn't
+    ``final_initial_ratio``: ``loss_final / |loss_initial|`` for the
+    worst-case (highest-|initial-loss|) trajectory. A solver that didn't
     reduce loss has ratio ≥ 1.
+
+    ``final_value``: ``loss_final`` of that trajectory.
+
+    ``peer_final_median``: the median of ``final_value`` across solvers, or
+    ``None`` when fewer than 3 solvers reported one.
     """
 
     final_initial_ratio: float | None = None
+    final_value: float | None = None
+    peer_final_median: float | None = None
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────
@@ -135,6 +148,25 @@ def max_error(threshold: float) -> Callable[[ForwardSummary], CheckOutcome]:
         return (
             "anomaly",
             f"error {worst[1]:.3g} at sweep={worst[0]} > max_error={threshold}",
+        )
+
+    return _check
+
+
+def min_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if the observed order of accuracy in ``N`` is below ``order``.
+
+    For forward experiments that sweep ``N``; see :func:`convergence_order`.
+    Passes when the order can't be measured.
+    """
+
+    def _check(s: ForwardSummary) -> CheckOutcome:
+        measured = convergence_order(s.errs_by_pval)
+        if measured is None or measured >= order:
+            return None
+        return (
+            "anomaly",
+            f"error converges at order {measured:.2f} in N, below min_order={order}",
         )
 
     return _check
@@ -219,6 +251,33 @@ def max_final_ratio(threshold: float) -> Callable[[OptimizationSummary], CheckOu
         return (
             "anomaly",
             f"final/initial = {s.final_initial_ratio:.2f} (> {threshold})",
+        )
+
+    return _check
+
+
+def max_final_peer_dev(
+    threshold: float,
+) -> Callable[[OptimizationSummary], CheckOutcome]:
+    """Optimization suite: anomaly if the final value is more than ``threshold`` from the peer median.
+
+    The deviation is relative and counts on either side, since a solver that
+    ends far below its peers is as suspect as one that ends far above them.
+    Needs at least 3 solvers.
+    """
+
+    def _check(s: OptimizationSummary) -> CheckOutcome:
+        if s.final_value is None or not s.peer_final_median:
+            return None
+        dev = abs(s.final_value - s.peer_final_median) / abs(s.peer_final_median)
+        if dev <= threshold:
+            return None
+        return (
+            "anomaly",
+            (
+                f"final value {s.final_value:.4g} is {100 * dev:.0f}% from the "
+                f"peer median {s.peer_final_median:.4g} (> {threshold})"
+            ),
         )
 
     return _check

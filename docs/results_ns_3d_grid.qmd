@@ -2,16 +2,11 @@
 title: Navier–Stokes (3D)
 ---
 
-::: {.page-meta}
-[F3]{.domain-id .d-F3} [Auto-generated 2026-10-16 14:33 UTC]{.meta-chip} [9 plots]{.meta-chip}
-:::
+> Auto-generated 2026-10-13 13:54 UTC &nbsp;·&nbsp; 9 plots
 
-::: {.domain-hero}
-![](figures/domain_ns_3d_grid.svg){.domain-figure}
+![](figures/domain_ns_3d_grid.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
 
-[Recover the initial velocity field of a 3D turbulent flow from a later snapshot, differentiating through the Navier–Stokes rollout.]{.domain-tagline}
-
-:::
+*Recover the initial velocity field of a 3D turbulent flow from a later snapshot, differentiating through the Navier–Stokes rollout.*
 
 **Fluid flow in 3D.** The 3D counterpart of the 2D fluid problem, and the harder stress test for differentiable simulation: real turbulence lives in 3D, and the gradients are correspondingly more delicate.
 
@@ -19,7 +14,7 @@ We solve the 3D incompressible Navier–Stokes equations $\partial_t \mathbf{u} 
 
 ::: {.callout-tip title='How these results were produced' collapse='true'}
 
-These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
+These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate CPU node, whose processor model can differ between runs. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
 
 :::
 
@@ -29,24 +24,9 @@ Triply-periodic cubic domain $[0, 2\pi]^3$ (the flow wraps around on all three a
 
 :::
 
-## Checks at a glance {.unnumbered}
+## Initial Conditions
 
-::: {.column-page}
-```{=html}
-<div class="checkboards"><section class="checkboard" id="setup-ns-3d"><div class="table-scroll"><table class="ck-table"><thead><tr><th scope="col" class="ck-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Optimization</th><th scope="col">Forward cost</th><th scope="col">VJP cost</th><th scope="col" class="ck-rel">Reliability</th></tr></thead><tbody><tr class="ck-group"><th colspan="7" scope="colgroup">GPU solvers<span> · cost relative to the fastest GPU solver at N=32</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-warp-ns">Warp-NS</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.113 s at N=32">1× (fastest)</td><td class="ck-cost" title="0.53 s at N=32">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">15/16 ok</span><span class="rl rl-fail">1 failed</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-exponax">Exponax</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.18 s at N=32">1.6×</td><td class="ck-cost" title="0.643 s at N=32">1.2×</td><td class="ck-rel"><span class="rl-ok">16/16 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-pict">PICT</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.635 s at N=32">5.6×</td><td class="ck-cost" title="2.62 s at N=32">4.9×</td><td class="ck-rel"><span class="rl-ok">15/16 ok</span><span class="rl rl-fail">1 failed</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-phiflow">PhiFlow</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 5 of 5 gate experiments run · baseline: error 0.147 at sweep=8 is 43.1× peer median (0.00341); threshold k=3.0"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="3.4 s at N=32">30×</td><td class="ck-cost" title="10.4 s at N=32">20×</td><td class="ck-rel"><span class="rl-ok">10/16 ok</span><span class="rl rl-flag">1 flagged</span><span class="rl rl-fail">5 failed</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-xlb">XLB</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 5 of 5 gate experiments run · baseline: error 0.273 at sweep=8 is 80.2× peer median (0.00341); threshold k=3.0"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="7.49 s at N=32">66×</td><td class="ck-cost" title="172 s at N=32">324×</td><td class="ck-rel"><span class="rl-ok">15/16 ok</span><span class="rl rl-flag">1 flagged</span></td></tr></tbody><tbody><tr class="ck-group"><th colspan="7" scope="colgroup">CPU solvers<span> · cost relative to the fastest CPU solver at N=64</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-ins-jl">INS.jl</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 5 of 5 gate experiments run · baseline: error 0.147 at sweep=8 is 43.1× peer median (0.00341); threshold k=3.0"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · fd_check: best-ε median FD rel_err 2.36e-03 &gt; max_rel_err=1e-03"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="4.33 s at N=64">1× (fastest)</td><td class="ck-cost" title="68.9 s at N=64">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">14/16 ok</span><span class="rl rl-flag">2 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-openfoam">OpenFOAM</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 5 of 5 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · fd_check: standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · recovery_constant_ic_bfgs_proj: standard icoFoam is non-differentiable forward-only solver"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cost" title="28.2 s at N=64">6.5×</td><td class="ck-cost ck-cost-na">—</td><td class="ck-rel"><span class="rl-ok">7/7 ok</span></td></tr></tbody></table></div><div class="ck-foot"><p class="ck-summary">Passes every check: Warp-NS, Exponax, PICT.</p><details class="ck-flags"><summary>Why cells are flagged (11)</summary><ul><li><strong>Warp-NS</strong> · <code>gradient/horizon_sweep_limits</code> · <span class="fl-failed">failed</span> — result is NaN</li><li><strong>PICT</strong> · <code>gradient/horizon_sweep_limits</code> · <span class="fl-failed">failed</span> — errored (no message recorded)</li><li><strong>PhiFlow</strong> · <code>forward/baseline</code> · <span class="fl-anomaly">flagged</span> — error 0.147 at sweep=8 is 43.1× peer median (0.00341); threshold k=3.0</li><li><strong>PhiFlow</strong> · <code>cost/spatial_cost</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>PhiFlow</strong> · <code>cost/temporal_cost</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>PhiFlow</strong> · <code>cost/vjp_cost/by_N</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>PhiFlow</strong> · <code>cost/vjp_cost/by_steps</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>PhiFlow</strong> · <code>gradient/horizon_sweep_limits</code> · <span class="fl-failed">failed</span> — result is NaN</li><li><strong>XLB</strong> · <code>forward/baseline</code> · <span class="fl-anomaly">flagged</span> — error 0.273 at sweep=8 is 80.2× peer median (0.00341); threshold k=3.0</li><li><strong>INS.jl</strong> · <code>forward/baseline</code> · <span class="fl-anomaly">flagged</span> — error 0.147 at sweep=8 is 43.1× peer median (0.00341); threshold k=3.0</li><li><strong>INS.jl</strong> · <code>gradient/fd_check</code> · <span class="fl-anomaly">flagged</span> — best-ε median FD rel_err 2.36e-03 &gt; max_rel_err=1e-03</li></ul></details><details class="ck-flags"><summary>Not supported (1 solver)</summary><ul><li><strong>OpenFOAM</strong> · 9 experiments — standard icoFoam has no VJP to benchmark; standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract; standard icoFoam is non-differentiable forward-only solver</li></ul></details></div></section></div>
-```
-
-:::
-
-*Pass / borderline / fail per suite, from the same results as the sections below. See [How to read the checks](results.qmd#reading) for what each state means and how cost is compared.*
-
-## Initial Conditions {#suite-ics .suite-heading data-suite="ics"}
-
-::: {.suite-intro}
 Visualisation of each initial condition (the starting field a run is launched from) available for this problem. IC plots are generated without running any solver.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -77,21 +57,17 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/ns-3d-grid/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
-:::
+## Forward
 
-## Forward {#suite-forward .suite-heading data-suite="forward"}
-
-::: {.suite-intro}
 **Is the prediction right?** Forward-pass benchmarks check each solver's output against a trusted reference (and an analytic solution where one exists): inter-solver agreement, field-level diagnostics, and long-run stability.
-:::
 
-::: {.exp-card}
+### Agreement
 
-### Agreement {#exp-forward-agreement}
-
-3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a converged spectral reference. (The 3D TGV initial condition is not advection-free, so the linearized analytic decay is only a short-horizon consistency check, not an accuracy reference.)
+3D velocity magnitude fields and kinetic energy spectra per solver, swept over viscosity ν, compared against a converged spectral reference. (The 3D TGV initial condition is not advection-free, so the linearized analytic decay is only a short-horizon consistency check, not an accuracy reference.) The reference is an Exponax run at N=64, spectrally truncated to N=16. Exponax's low error here, and its top place in the forward ranking, therefore largely measure agreement with its own higher-resolution solution.
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -124,13 +100,11 @@ Sweeps `nu` ∈ {0.001, 0.01, 0.05}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/forward/agreement/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/forward/agreement/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/forward/agreement/agreement.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Baseline {#exp-forward-baseline}
+### Baseline
 
 Relative error vs grid resolution N at steps=1; validates single-step forward accuracy across 3D solvers.
 
@@ -164,13 +138,13 @@ Sweeps `N` ∈ {8, 16, 32}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/forward/baseline/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/forward/baseline/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/forward/baseline/agreement.png" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Mean rel. error |
 |---|---|
 | Exponax | 6.27e-06 |
@@ -182,15 +156,11 @@ Sweeps `N` ∈ {8, 16, 32}
 | XLB | 4.35e-02 |
 :::
 
-*Sorted by mean relative error against the reference solution (lower is closer to the reference; whether a difference matters depends on the task, see the checks at the top of the page).*
+*Ranked by mean relative error against the reference solution (lower is more accurate).*
 
-## Cost {#suite-cost .suite-heading data-suite="cost"}
+## Cost
 
-::: {.suite-intro}
 **What does it cost?** Wall-clock scaling of the forward and VJP passes with problem size $N$ and the number of integration steps. Timings come from dedicated runners with no concurrent workloads; see the reliability note at the top of the page before reading absolute numbers.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -252,33 +222,29 @@ Sweeps `steps` ∈ {10, 50, 100}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
+**Solver ranking**
+
+::: {.sortable-table}
+| Solver | Forward time | VJP time |
+|---|---|---|
+| Warp-NS | 0.138 s @ N=64 | 0.594 s @ N=64 |
+| PICT | 1.13 s @ N=64 | 4.16 s @ N=64 |
+| Exponax | 1.55 s @ N=64 | 6.09 s @ N=64 |
+| PhiFlow | 3.4 s @ N=32 | 10.4 s @ N=32 |
+| INS.jl | 4.33 s @ N=64 | 68.9 s @ N=64 |
+| OpenFOAM | 28.2 s @ N=64 | — |
+| XLB | 181 s @ N=64 | 565 s @ N=48 |
 :::
 
-[Results by solver]{.eyebrow}
+*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
-::: {.sortable-table .leaderboard}
-| Solver | Device | Forward time | VJP time |
-|---|---|---|---|
-| Warp-NS | GPU | 0.138 s @ N=64 | 0.594 s @ N=64 |
-| PICT | GPU | 1.13 s @ N=64 | 4.16 s @ N=64 |
-| Exponax | GPU | 1.55 s @ N=64 | 6.09 s @ N=64 |
-| PhiFlow | GPU | 3.4 s @ N=32 | 10.4 s @ N=32 |
-| XLB | GPU | 181 s @ N=64 | 565 s @ N=48 |
-| INS.jl | CPU | 4.33 s @ N=64 | 68.9 s @ N=64 |
-| OpenFOAM | CPU | 28.2 s @ N=64 | — |
-:::
+## Gradient
 
-*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; GPU solvers first, each group sorted by forward time. Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
-
-## Gradient {#suite-gradient .suite-heading data-suite="gradient"}
-
-::: {.suite-intro}
 **Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -430,13 +396,11 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/jacobian_svd_comparison.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Finite-Difference Check {#exp-gradient-fd-check}
+### Finite-Difference Check
 
 Finite-difference gradient error U-curves and direction cosine vs perturbation ε for each solver on the 3D Taylor-Green vortex IC.
 
@@ -471,14 +435,14 @@ Finite-difference gradient error U-curves and direction cosine vs perturbation �
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/fd_check/gradient_fields.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Horizon Sweep Limits {#exp-gradient-horizon-sweep-limits}
+### Horizon Sweep Limits
 
 Per-solver rollout-limit table reporting step count at first failure, failure type, and wall time per successful step.
 
@@ -518,13 +482,13 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/gradient/horizon_sweep_limits/horizon_sweep_limits.png" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
 | Warp-NS | 1.30e-05 | 1.53e-10 |
@@ -535,17 +499,13 @@ Sweeps `steps` ∈ {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240}
 | INS.jl | 2.36e-03 | 4.69e-06 |
 :::
 
-*Sorted by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
+*Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
-## Optimization {#suite-optimization .suite-heading data-suite="optimization"}
+## Optimization
 
-::: {.suite-intro}
 **Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
-:::
 
-::: {.exp-card}
-
-### Initial-Condition Recovery (L-BFGS) {#exp-optimization-recovery-constant-ic-bfgs-proj}
+### Initial-Condition Recovery (L-BFGS)
 
 Final IC recovery error per solver from zero-initialised L-BFGS optimisation with divergence-free projection.
 
@@ -592,13 +552,13 @@ Sweeps `steps` ∈ {100}
 
 :::
 
-![](../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-3d-grid/optimization/recovery_constant_ic_bfgs_proj/recovery_evolution.gif" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Final IC recovery error | Converged |
 |---|---|---|
 | PICT | 1.55e-03 | yes |
@@ -609,4 +569,4 @@ Sweeps `steps` ∈ {100}
 | XLB | 5.01e-02 | yes |
 :::
 
-*Sorted by the final objective reached within the iteration budget (lower is better).*
+*Ranked by the final objective reached within the iteration budget (lower is better).*

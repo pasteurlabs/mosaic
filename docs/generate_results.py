@@ -88,13 +88,14 @@ PROBLEM_TAGLINES = {
 # Shared "how the results were produced" callout, surfaced near the top of
 # every results page (hardware + reliability \u2014 issue 6). The benchmark runs on
 # GitHub Actions runners: GPU solvers on a Tesla T4 node, CPU-only solvers
-# (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Wall times therefore
+# (``uses_gpu: false``) on a separate CPU node. Wall times therefore
 # reflect commodity cloud hardware, not a tuned workstation.
 RESULTS_PROVENANCE = (
     "These are **example results**, produced automatically on GitHub Actions "
     "runners and refreshed on every release. Each solver runs on its intended "
     "device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers "
-    "(OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and "
+    "(OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate "
+    "CPU node, whose processor model can differ between runs. Accuracy and "
     "gradient metrics are hardware-independent and reproducible. Wall-clock "
     "numbers reflect commodity cloud hardware and can vary by 10\u201315% between "
     "runs, so read them for relative scaling between solvers rather than as "
@@ -114,8 +115,8 @@ PROBLEM_DESCRIPTIONS = {
         "Initial condition recovery with 12k degrees of freedom."
     ),
     "structural-mesh": (
-        "deal.II, FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever "
-        "compliance minimization with SIMP penalization."
+        "deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D "
+        "cantilever compliance minimization with SIMP penalization."
     ),
     "thermal-mesh": (
         "deal.II, FEniCS, Firedrake, JAX-FEM, and torch-fem on 2D steady-state "
@@ -125,9 +126,10 @@ PROBLEM_DESCRIPTIONS = {
 
 PROBLEM_BC_DESCRIPTIONS = {
     "ns-grid": (
-        "Channel domain [0,8]\u00d7[0,2] with cylinder obstacle at (2,1), radius 0.25. "
-        "Inflow on left, advective outflow on right, no-slip walls top/bottom. "
-        "Periodic TGV experiments use [0,2\u03c0]\u00b2."
+        "Periodic experiments use [0,2\u03c0]\u00b2. The cylinder experiments use the "
+        "Sch\u00e4fer\u2013Turek DFG 2D-1 channel [0,2.2]\u00d7[0,0.41]: cylinder of "
+        "diameter 0.1 at (0.2,0.2), parabolic inflow, zero-gradient outflow at p=0, "
+        "no-slip walls, Re=20."
     ),
     "ns-3d-grid": (
         "Triply periodic box [0,2\u03c0]\u00b3. Incompressibility enforced via "
@@ -265,7 +267,7 @@ def _get_config(problem: str):
     """Lazily import and return the problem config.
 
     ``mosaic.benchmarks.problems`` transitively imports the full compute stack
-    (jax, jaxlib, matplotlib, scipy, ...), which is hundreds of MB resident.
+    (jax, jaxlib, scipy, ...), which is hundreds of MB resident.
     Importing it at module load OOM-kills resource-constrained docs builders
     (e.g. Read the Docs) even when there are no results to describe. Defer the
     import to the few call sites that actually need problem metadata.
@@ -521,9 +523,10 @@ _SUITE_RANK_CAPTIONS = {
     "gradient": "Sorted by the best-ε finite-difference error of the gradient "
     "(lower is more trustworthy); direction cosine near 1 confirms the gradient "
     "points the right way.",
-    "cost": "Forward and VJP (backward) wall-clock time, each shown at the "
-    "largest problem size N the solver completed for that pass; GPU solvers "
-    "first, each group sorted by forward time. Forward-only solvers have no VJP "
+    "cost": "Forward and VJP wall-clock time, each shown at the largest "
+    "problem size N the solver completed for that pass; GPU solvers first, "
+    "each group sorted by forward time. The VJP time is one gradient from "
+    "scratch, a forward plus an adjoint pass. Forward-only solvers have no VJP "
     "entry. "
     "See the reliability note above before comparing across devices.",
     "optimization": "Sorted by the final objective reached within the iteration "
@@ -618,6 +621,26 @@ def _img_src(problem: str, suite: str, experiment: str, png: Path) -> str:
 
 def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
     return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
+
+
+def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
+    """Interactive version of a plot, or None if none was exported.
+
+    The plot harness writes the Vega-Lite spec ``<plot>.vl.json`` next to each
+    ``<plot>.png`` from the same chart definition. The figure fetches it
+    lazily (docs/charts.html) and keeps the PNG as the fallback when there is
+    no JS or the chart fails to load.
+    """
+    if not png.with_suffix(".vl.json").exists():
+        return None
+    src = _img_src(problem, suite, experiment, png)
+    spec = src.removesuffix(".png") + ".vl.json"
+    return (
+        "```{=html}\n"
+        f'<figure class="m-chart" data-spec="{spec}">'
+        f'<img class="m-chart-fallback" src="{src}" alt="" loading="lazy">'
+        "</figure>\n```"
+    )
 
 
 def _sweep_line(params: dict) -> str:
@@ -749,9 +772,9 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                 continue
             suite = suite_dir.name
 
-            # Suite-level PNGs/GIFs (e.g. cost.png sitting directly in the suite dir)
+            # Suite-level PNGs (e.g. cost.png sitting directly in the suite dir)
             suite_pngs = _sort_pngs(
-                [f for f in suite_dir.iterdir() if f.suffix in (".png", ".gif")]
+                [f for f in suite_dir.iterdir() if f.suffix == ".png"]
             )
             if suite_pngs:
                 tree.setdefault(problem, {}).setdefault(suite, {})[""] = suite_pngs
@@ -770,9 +793,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     continue
                 if "_debug" in exp_dir.name:
                     continue
-                pngs = _sort_pngs(
-                    [f for f in exp_dir.iterdir() if f.suffix in (".png", ".gif")]
-                )
+                pngs = _sort_pngs([f for f in exp_dir.iterdir() if f.suffix == ".png"])
                 if pngs:
                     tree.setdefault(problem, {}).setdefault(suite, {})[exp_dir.name] = (
                         pngs
@@ -785,7 +806,7 @@ def _scan_results() -> dict[str, dict[str, dict[str, list[Path]]]]:
                     if "_debug" in sub_dir.name:
                         continue
                     sub_pngs = _sort_pngs(
-                        [f for f in sub_dir.iterdir() if f.suffix in (".png", ".gif")]
+                        [f for f in sub_dir.iterdir() if f.suffix == ".png"]
                     )
                     if not sub_pngs:
                         continue
@@ -928,7 +949,8 @@ def generate_qmd_for_problem(
 
             lines.append("")
             for png in pngs:
-                lines.append(_img_tag(problem, suite, experiment, png))
+                chart = _chart_block(problem, suite, experiment, png)
+                lines.append(chart or _img_tag(problem, suite, experiment, png))
             lines += ["", ":::", ""]
 
         # Best-solver leaderboard, shown below the suite's plots (issue 8).

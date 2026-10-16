@@ -1,9 +1,9 @@
 name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Semi-Lagrangian advection with CG pressure projection, unconditionally stable at large dt.
-  Gradients via JAX autodiff combined with analytic adjoint rules through the same
-  simulation code.
+  2nd-order central-difference advection (explicit Euler) with CG pressure projection.
+  The cylinder channel uses phiflow's wind-tunnel boundaries and a staircase cylinder.
+  Gradients via JAX autodiff with adjoint CG solves.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
@@ -20,9 +20,9 @@ metadata:
     name: "PhiFlow"
     backend: jax
     family: projection
-    scheme: "semi-Lagrangian + projection"
+    scheme: "central-difference advection + projection"
     discretization: FD
-    numerics: "Semi-Lagrangian, Euler"
+    numerics: "2nd-order central FD (advective form), explicit Euler, CG pressure projection"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true

@@ -1,8 +1,10 @@
 name: warp_ns_navier_stokes_grid
 version: "0.1.0"
 description: >
-  IPCS projection scheme implemented in NVIDIA Warp CUDA kernels with FFT pressure Poisson
-  on periodic domains. Gradients via wp.Tape kernel-level VJP.
+  Chorin projection scheme with explicit Euler time stepping, implemented in NVIDIA Warp
+  CUDA kernels with FFT pressure Poisson on periodic domains. The cylinder channel uses a
+  staggered grid, a staircase cylinder and a conjugate-gradient pressure Poisson solve.
+  Gradients via wp.Tape kernel-level VJP, with adjoint CG solves.
 build_config:
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
@@ -14,9 +16,9 @@ metadata:
     name: "Warp-NS"
     backend: warp
     family: fd
-    scheme: "IPCS (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP"
+    scheme: "Chorin projection (2D+3D), spectral FFT / CG Neumann Poisson, wp.Tape VJP"
     discretization: FD
-    numerics: "IPCS, SSP-RK3"
+    numerics: "Projection, Euler"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

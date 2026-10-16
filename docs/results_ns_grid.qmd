@@ -2,16 +2,11 @@
 title: Navier–Stokes (2D)
 ---
 
-::: {.page-meta}
-[F2]{.domain-id .d-F2} [Auto-generated 2026-10-16 14:33 UTC]{.meta-chip} [13 plots]{.meta-chip}
-:::
+> Auto-generated 2026-10-13 13:54 UTC &nbsp;·&nbsp; 13 plots
 
-::: {.domain-hero}
-![](figures/domain_ns_grid.svg){.domain-figure}
+![](figures/domain_ns_grid.png){width=100% style="max-width:560px; display:block; margin:0 auto 0.5rem;"}
 
-[Optimize the inflow of a 2D channel flow to minimize drag on a cylinder, differentiating through an incompressible fluid solver.]{.domain-tagline}
-
-:::
+*Optimize the inflow of a 2D channel flow to minimize drag on a cylinder, differentiating through an incompressible fluid solver.*
 
 **Fluid flow in 2D.** We simulate an incompressible fluid (think of stirred water) and differentiate through the simulation. The headline question is whether each solver returns a trustworthy gradient as the flow becomes chaotic.
 
@@ -19,7 +14,7 @@ Formally, we solve the 2D incompressible Navier–Stokes equations $\partial_t \
 
 ::: {.callout-tip title='How these results were produced' collapse='true'}
 
-These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
+These are **example results**, produced automatically on GitHub Actions runners and refreshed on every release. Each solver runs on its intended device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers (OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate CPU node, whose processor model can differ between runs. Accuracy and gradient metrics are hardware-independent and reproducible. Wall-clock numbers reflect commodity cloud hardware and can vary by 10–15% between runs, so read them for relative scaling between solvers rather than as absolute timings. For numbers that reflect *your* setup, [run the benchmarks yourself](getting-started.qmd) on your target hardware.
 
 :::
 
@@ -29,24 +24,9 @@ Doubly-periodic square domain $[0, 2\pi]^2$ (the flow wraps around at every edge
 
 :::
 
-## Checks at a glance {.unnumbered}
+## Initial Conditions
 
-::: {.column-page}
-```{=html}
-<div class="checkboards"><section class="checkboard" id="setup-ns-2d-periodic"><header class="ck-head"><div class="ck-title"><span class="domain-id d-F2">F2</span><div><h3>Periodic box (Taylor–Green, multimode)</h3><span class="ck-domain">Navier–Stokes (2D)</span></div></div><div class="ck-meta"></div></header><div class="table-scroll"><table class="ck-table"><thead><tr><th scope="col" class="ck-solver">Solver</th><th scope="col">Forward</th><th scope="col">Gradient</th><th scope="col">Forward cost</th><th scope="col">VJP cost</th><th scope="col" class="ck-rel">Reliability</th></tr></thead><tbody><tr class="ck-group"><th colspan="6" scope="colgroup">GPU solvers<span> · cost relative to the fastest GPU solver at N=192</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-warp-ns">Warp-NS</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 7 of 7 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.744 s at N=192">14×</td><td class="ck-cost" title="2.08 s at N=192">3.7×</td><td class="ck-rel"><span class="rl-ok">18/18 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-pict">PICT</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 7 of 7 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="2.03 s at N=192">37×</td><td class="ck-cost" title="7.02 s at N=192">12×</td><td class="ck-rel"><span class="rl-ok">18/18 ok</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-phiflow">PhiFlow</a></th><td class="ck-cell"><span class="ck ck-note" title="Pass, with note · 7 of 7 gate experiments run · agreement/tgv: phiflow&#x27;s double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average output conversion fix worsened error 9×; upstream library change required"><span class="ck-glyph" aria-hidden="true">✓</span>Pass, with note</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="41.7 s at N=192">762×</td><td class="ck-cost" title="125 s at N=192">222×</td><td class="ck-rel"><span class="rl-ok">15/18 ok</span><span class="rl rl-flag">1 flagged</span><span class="rl rl-fail">2 failed</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-jax-cfd">jax-cfd</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 7 of 7 gate experiments run · agreement/tgv: error 0.0145 at sweep=0.001 is 6.0× peer median (0.00241); threshold k=3.0 · baseline: staggered MAC grid double-interpolation: collocated TGV IC -&gt; staggered faces -&gt; collocated output gives sin^2(pi/N) round-trip error at all N; 35-40x above collocated peers · tgv_nu_sweep: error 0.0145 at sweep=0.0001 is 6.0× peer median (0.00241); threshold k=3.0"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.0674 s at N=192">1.2×</td><td class="ck-cost" title="6.02 s at N=192">11×</td><td class="ck-rel"><span class="rl-ok">15/18 ok</span><span class="rl rl-flag">3 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-xlb">XLB</a></th><td class="ck-cell"><span class="ck ck-fail" title="Fail · 7 of 7 gate experiments run · agreement/multimode: all entries failed · agreement/tgv: error 0.274 at sweep=0.001 is 113.7× peer median (0.00241); threshold k=3.0 · baseline: error 0.00704 at sweep=128 is 11.7× peer median (0.000602); threshold k=3.0 · tgv_nu_sweep: error 0.275 at sweep=0.0001 is 114.2× peer median (0.00241); threshold k=3.0"><span class="ck-glyph" aria-hidden="true">✗</span>Fail</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="0.0547 s at N=192">1× (fastest)</td><td class="ck-cost" title="0.563 s at N=192">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">14/18 ok</span><span class="rl rl-flag">3 flagged</span><span class="rl rl-fail">1 failed</span></td></tr></tbody><tbody><tr class="ck-group"><th colspan="6" scope="colgroup">CPU solvers<span> · cost relative to the fastest CPU solver at N=256</span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-ins-jl">INS.jl</a></th><td class="ck-cell"><span class="ck ck-note" title="Pass, with note · 7 of 7 gate experiments run · baseline: staggered MAC grid double-interpolation: collocated TGV IC -&gt; staggered faces -&gt; collocated output gives sin^2(pi/N) round-trip error at all N; 35-40x above collocated peers"><span class="ck-glyph" aria-hidden="true">✓</span>Pass, with note</span></td><td class="ck-cell"><span class="ck ck-pass" title="Pass · 2 of 2 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cost" title="1.2 s at N=256">1× (fastest)</td><td class="ck-cost" title="10.2 s at N=256">1× (fastest)</td><td class="ck-rel"><span class="rl-ok">17/18 ok</span><span class="rl rl-flag">1 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-openfoam">OpenFOAM</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 7 of 7 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · fd_check: standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract · param_sweep: standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cost" title="35.3 s at N=256">29×</td><td class="ck-cost ck-cost-na">—</td><td class="ck-rel"><span class="rl-ok">9/9 ok</span></td></tr></tbody></table></div><div class="ck-foot"><p class="ck-summary">Passes every check: INS.jl, Warp-NS, PICT, PhiFlow.</p><details class="ck-flags"><summary>Why cells are flagged (11)</summary><ul><li><strong>INS.jl</strong> · <code>forward/baseline</code> · <span class="fl-note">flagged, explained</span> — staggered MAC grid double-interpolation: collocated TGV IC -&gt; staggered faces -&gt; collocated output gives sin^2(pi/N) round-trip error at all N; 35-40x above collocated peers</li><li><strong>PhiFlow</strong> · <code>forward/agreement/tgv</code> · <span class="fl-note">flagged, explained</span> — phiflow&#x27;s double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average output conversion fix worsened error 9×; upstream library change required</li><li><strong>PhiFlow</strong> · <code>cost/spatial_cost</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>PhiFlow</strong> · <code>cost/vjp_cost/by_N</code> · <span class="fl-failed">failed</span> — RuntimeError: Error 500 from Tesseract</li><li><strong>jax-cfd</strong> · <code>forward/agreement/tgv</code> · <span class="fl-anomaly">flagged</span> — error 0.0145 at sweep=0.001 is 6.0× peer median (0.00241); threshold k=3.0</li><li><strong>jax-cfd</strong> · <code>forward/baseline</code> · <span class="fl-note">flagged, explained</span> — staggered MAC grid double-interpolation: collocated TGV IC -&gt; staggered faces -&gt; collocated output gives sin^2(pi/N) round-trip error at all N; 35-40x above collocated peers</li><li><strong>jax-cfd</strong> · <code>forward/tgv_nu_sweep</code> · <span class="fl-anomaly">flagged</span> — error 0.0145 at sweep=0.0001 is 6.0× peer median (0.00241); threshold k=3.0</li><li><strong>XLB</strong> · <code>forward/agreement/multimode</code> · <span class="fl-failed">failed</span> — all entries failed</li><li><strong>XLB</strong> · <code>forward/agreement/tgv</code> · <span class="fl-note">flagged, explained</span> — error 0.274 at sweep=0.001 is 113.7× peer median (0.00241); threshold k=3.0</li><li><strong>XLB</strong> · <code>forward/baseline</code> · <span class="fl-note">flagged, explained</span> — error 0.00704 at sweep=128 is 11.7× peer median (0.000602); threshold k=3.0</li><li><strong>XLB</strong> · <code>forward/tgv_nu_sweep</code> · <span class="fl-note">flagged, explained</span> — error 0.275 at sweep=0.0001 is 114.2× peer median (0.00241); threshold k=3.0</li></ul></details><details class="ck-flags"><summary>Not supported (1 solver)</summary><ul><li><strong>OpenFOAM</strong> · 9 experiments — standard icoFoam has no VJP to benchmark; standard icoFoam is non-differentiable (C++, no AD path); DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract</li></ul></details></div></section><section class="checkboard" id="setup-ns-2d-cylinder"><header class="ck-head"><div class="ck-title"><span class="domain-id d-F2">F2</span><div><h3>Channel flow past a cylinder</h3><span class="ck-domain">Navier–Stokes (2D)</span></div></div><div class="ck-meta"><span class="ck-task">Optimization task: inflow optimization for drag</span></div></header><div class="table-scroll"><table class="ck-table"><thead><tr><th scope="col" class="ck-solver">Solver</th><th scope="col">Forward</th><th scope="col">Optimization</th><th scope="col" class="ck-rel">Reliability</th></tr></thead><tbody><tr class="ck-group"><th colspan="4" scope="colgroup">GPU solvers<span></span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-phiflow">PhiFlow</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · drag_opt: final/initial = 0.85 (&gt; 0.5)"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-rel"><span class="rl-ok">1/2 ok</span><span class="rl rl-flag">1 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-xlb">XLB</a></th><td class="ck-cell"><span class="ck ck-pass" title="Pass · 1 of 1 gate experiments run"><span class="ck-glyph" aria-hidden="true">✓</span>Pass</span></td><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · drag_opt: final/initial = 0.69 (&gt; 0.5)"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-rel"><span class="rl-ok">1/2 ok</span><span class="rl rl-flag">1 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-pict">PICT</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · cylinder: error 0.672 at sweep=0.05 &gt; max_error=0.5"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · drag_opt: final/initial = 0.74 (&gt; 0.5)"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-rel"><span class="rl-ok">0/2 ok</span><span class="rl rl-flag">2 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-jax-cfd">jax-cfd</a></th><td class="ck-cell"><span class="ck ck-na" title="Not supported · cylinder: periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · drag_opt: periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-rel ck-cost-na">—</td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-warp-ns">Warp-NS</a></th><td class="ck-cell"><span class="ck ck-na" title="Not supported · cylinder: warp-ns is periodic-only; obstacle/inflow flows are not supported"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · drag_opt: warp-ns is periodic-only; obstacle/inflow flows are not supported"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-rel ck-cost-na">—</td></tr></tbody><tbody><tr class="ck-group"><th colspan="4" scope="colgroup">CPU solvers<span></span></th></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-openfoam">OpenFOAM</a></th><td class="ck-cell"><span class="ck ck-borderline" title="Borderline · 1 of 1 gate experiments run · cylinder: error 0.694 at sweep=0.05 &gt; max_error=0.5"><span class="ck-glyph" aria-hidden="true">!</span>Borderline</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · drag_opt: standard icoFoam is non-differentiable forward-only solver"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-rel"><span class="rl-ok">0/1 ok</span><span class="rl rl-flag">1 flagged</span></td></tr><tr><th scope="row" class="ck-solver"><a href="solvers.qmd#navier-stokes-grid-ins-jl">INS.jl</a></th><td class="ck-cell"><span class="ck ck-na" title="Not supported · cylinder: this tesseract represents the cylinder by hard-mask Brinkman penalization (velocity zeroed after each projection), which is projection-inconsistent and diverges; INS.jl itself supports the obstacle via a finite Brinkman forcing term with its native channel BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers handle non-periodic BCs), but that route is not implemented here"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-cell"><span class="ck ck-na" title="Not supported · drag_opt: this tesseract represents the cylinder by hard-mask Brinkman penalization (velocity zeroed after each projection), which is projection-inconsistent and diverges; INS.jl itself supports the obstacle via a finite Brinkman forcing term with its native channel BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers handle non-periodic BCs), but that route is not implemented here"><span class="ck-glyph" aria-hidden="true">—</span>Not supported</span></td><td class="ck-rel ck-cost-na">—</td></tr></tbody></table></div><div class="ck-foot"><p class="ck-summary">No solver passes every check yet.</p><details class="ck-flags"><summary>Why cells are flagged (5)</summary><ul><li><strong>PhiFlow</strong> · <code>optimization/drag_opt</code> · <span class="fl-anomaly">flagged</span> — final/initial = 0.85 (&gt; 0.5)</li><li><strong>XLB</strong> · <code>optimization/drag_opt</code> · <span class="fl-anomaly">flagged</span> — final/initial = 0.69 (&gt; 0.5)</li><li><strong>PICT</strong> · <code>forward/cylinder</code> · <span class="fl-anomaly">flagged</span> — error 0.672 at sweep=0.05 &gt; max_error=0.5</li><li><strong>PICT</strong> · <code>optimization/drag_opt</code> · <span class="fl-anomaly">flagged</span> — final/initial = 0.74 (&gt; 0.5)</li><li><strong>OpenFOAM</strong> · <code>forward/cylinder</code> · <span class="fl-anomaly">flagged</span> — error 0.694 at sweep=0.05 &gt; max_error=0.5</li></ul></details><details class="ck-flags"><summary>Not supported (4 solvers)</summary><ul><li><strong>OpenFOAM</strong> · 1 experiments — standard icoFoam is non-differentiable forward-only solver</li><li><strong>INS.jl</strong> · 2 experiments — this tesseract represents the cylinder by hard-mask Brinkman penalization (velocity zeroed after each projection), which is projection-inconsistent and diverges; INS.jl itself supports the obstacle via a finite Brinkman forcing term with its native channel BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers handle non-periodic BCs), but that route is not implemented here</li><li><strong>jax-cfd</strong> · 2 experiments — periodic FFT pressure solve + IBM volume penalization is incompatible with cylinder obstacle channel BCs</li><li><strong>Warp-NS</strong> · 2 experiments — warp-ns is periodic-only; obstacle/inflow flows are not supported</li></ul></details></div></section></div>
-```
-
-:::
-
-*Pass / borderline / fail per suite, from the same results as the sections below. See [How to read the checks](results.qmd#reading) for what each state means and how cost is compared.*
-
-## Initial Conditions {#suite-ics .suite-heading data-suite="ics"}
-
-::: {.suite-intro}
 Visualisation of each initial condition (the starting field a run is launched from) available for this problem. IC plots are generated without running any solver.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -87,19 +67,15 @@ Visualisation of each initial condition (the starting field a run is launched fr
 
 :::
 
-![](../mosaic-results/ns-grid/ics/ics.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/ics/ics.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/ics/ics.png" alt="" loading="lazy"></figure>
+```
 
-:::
+## Forward
 
-## Forward {#suite-forward .suite-heading data-suite="forward"}
-
-::: {.suite-intro}
 **Is the prediction right?** Forward-pass benchmarks check each solver's output against a trusted reference (and an analytic solution where one exists): inter-solver agreement, field-level diagnostics, and long-run stability.
-:::
 
-::: {.exp-card}
-
-### Baseline {#exp-forward-baseline}
+### Baseline
 
 Relative error vs grid resolution $N$ at steps=1; validates single-step forward accuracy across solvers.
 
@@ -135,13 +111,11 @@ Sweeps `N` ∈ {16, 32, 64, 128}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/baseline/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/baseline/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/baseline/agreement.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Cylinder {#exp-forward-cylinder}
+### Cylinder
 
 Vorticity snapshots and kinetic-energy evolution vs time for each solver across a sweep of viscosities.
 
@@ -185,13 +159,11 @@ Sweeps `nu` ∈ {0.05, 0.02, 0.01, 0.005}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/cylinder/fields_raw.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/cylinder/fields_raw.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/cylinder/fields_raw.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Tgv Nu Sweep {#exp-forward-tgv-nu-sweep}
+### Tgv Nu Sweep
 
 Relative error vs viscosity $\nu$ for each solver at a fixed TGV initial condition.
 
@@ -228,13 +200,13 @@ Sweeps `nu` ∈ {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05}
 
 :::
 
-![](../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/forward/tgv_nu_sweep/agreement.png" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Mean rel. error |
 |---|---|
 | Warp-NS | 6.20e-04 |
@@ -246,15 +218,11 @@ Sweeps `nu` ∈ {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05}
 | XLB | 2.63e-01 |
 :::
 
-*Sorted by mean relative error against the reference solution (lower is closer to the reference; whether a difference matters depends on the task, see the checks at the top of the page).*
+*Ranked by mean relative error against the reference solution (lower is more accurate).*
 
-## Cost {#suite-cost .suite-heading data-suite="cost"}
+## Cost
 
-::: {.suite-intro}
 **What does it cost?** Wall-clock scaling of the forward and VJP passes with problem size $N$ and the number of integration steps. Timings come from dedicated runners with no concurrent workloads; see the reliability note at the top of the page before reading absolute numbers.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -316,33 +284,29 @@ Sweeps `steps` ∈ {10, 50, 100, 500, 1000}
 
 :::
 
-![](../mosaic-results/ns-grid/cost/cost.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/cost/cost.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/cost/cost.png" alt="" loading="lazy"></figure>
+```
 
+**Solver ranking**
+
+::: {.sortable-table}
+| Solver | Forward time | VJP time |
+|---|---|---|
+| Warp-NS | 0.0971 s @ N=256 | 0.511 s @ N=256 |
+| jax-cfd | 0.114 s @ N=256 | 18.2 s @ N=256 |
+| XLB | 0.117 s @ N=256 | 1.47 s @ N=256 |
+| INS.jl | 1.2 s @ N=256 | 10.2 s @ N=256 |
+| PICT | 2.57 s @ N=256 | 8.12 s @ N=256 |
+| OpenFOAM | 35.3 s @ N=256 | — |
+| PhiFlow | 41.7 s @ N=192 | 125 s @ N=192 |
 :::
 
-[Results by solver]{.eyebrow}
+*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; ranked by forward time (faster is better). Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
 
-::: {.sortable-table .leaderboard}
-| Solver | Device | Forward time | VJP time |
-|---|---|---|---|
-| Warp-NS | GPU | 0.0971 s @ N=256 | 0.511 s @ N=256 |
-| jax-cfd | GPU | 0.114 s @ N=256 | 18.2 s @ N=256 |
-| XLB | GPU | 0.117 s @ N=256 | 1.47 s @ N=256 |
-| PICT | GPU | 2.57 s @ N=256 | 8.12 s @ N=256 |
-| PhiFlow | GPU | 41.7 s @ N=192 | 125 s @ N=192 |
-| INS.jl | CPU | 1.2 s @ N=256 | 10.2 s @ N=256 |
-| OpenFOAM | CPU | 35.3 s @ N=256 | — |
-:::
+## Gradient
 
-*Forward and VJP (backward) wall-clock time, each shown at the largest problem size N the solver completed for that pass; GPU solvers first, each group sorted by forward time. Forward-only solvers have no VJP entry. See the reliability note above before comparing across devices.*
-
-## Gradient {#suite-gradient .suite-heading data-suite="gradient"}
-
-::: {.suite-intro}
 **Is the gradient right?** Gradient benchmarks compare each solver's AD/adjoint gradient against a finite-difference ground truth. We report magnitude error (relative $L^2$) and direction agreement (cosine similarity) across parameter, resolution, and horizon sweeps. The horizon sweep in particular exposes how gradients degrade as the rollout lengthens.
-:::
-
-::: {.exp-card}
 
 
 ::: {.callout-note collapse='true' title='Settings'}
@@ -523,13 +487,11 @@ Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/jacobian_svd_comparison.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Finite-Difference Check {#exp-gradient-fd-check}
+### Finite-Difference Check
 
 U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ together with subspace cosine; validates VJP correctness.
 
@@ -564,14 +526,14 @@ U-curves of finite-difference gradient error vs perturbation size $\varepsilon$ 
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/fd_check/fd_check.png){.lightbox}
-![](../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/fd_check.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/fd_check.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/fd_check/gradient_fields.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Parameter Sweep {#exp-gradient-param-sweep}
+### Parameter Sweep
 
 Gradient norm, best-$\varepsilon$ FD error, direction cosine, and U-curves vs the sweep parameter.
 
@@ -616,13 +578,11 @@ Sweeps `nu` ∈ {0.05, 0.01, 0.005, 0.001}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/param_sweep/best_eps_vs_param.png" alt="" loading="lazy"></figure>
+```
 
-:::
-
-::: {.exp-card}
-
-### Horizon Sweep {#exp-gradient-horizon-sweep}
+### Horizon Sweep
 
 Gradient norm, FD error, and direction cosine vs rollout horizon $T = \mathrm{steps}\cdot dt$.
 
@@ -669,13 +629,13 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 
 :::
 
-![](../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/gradient/horizon_sweep/horizon_sweep.png" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Best-ε FD error | 1 − cosine |
 |---|---|---|
 | PhiFlow | 7.44e-06 | 1.10e-10 |
@@ -686,17 +646,13 @@ Sweeps `steps` ∈ {5, 10, 20, 40, 80, 160, 320}
 | PICT | 8.84e-04 | 5.62e-07 |
 :::
 
-*Sorted by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
+*Ranked by the best-ε finite-difference error of the gradient (lower is more trustworthy); direction cosine near 1 confirms the gradient points the right way.*
 
-## Optimization {#suite-optimization .suite-heading data-suite="optimization"}
+## Optimization
 
-::: {.suite-intro}
 **Can you optimize through it?** End-to-end optimization benchmarks run a gradient-based optimizer using each solver's own gradients: recovery of initial conditions or physical parameters, topology optimization, and drag minimization. This is the ultimate test, since a gradient can pass the finite-difference check yet still fail to drive a full optimization loop.
-:::
 
-::: {.exp-card}
-
-### Drag Optimisation {#exp-optimization-drag-opt}
+### Drag Optimisation
 
 Drag convergence curves per solver, optimised vs initial inflow profiles, and final drag coefficient comparison.
 
@@ -737,15 +693,19 @@ Drag convergence curves per solver, optimised vs initial inflow profiles, and fi
 
 :::
 
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.png){.lightbox}
-![](../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png){.lightbox}
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt.png" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_evolution.gif" alt="" loading="lazy"></figure>
+```
+```{=html}
+<figure class="m-chart" data-spec="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.vl.json"><img class="m-chart-fallback" src="../mosaic-results/ns-grid/optimization/drag_opt/drag_opt_fields.png" alt="" loading="lazy"></figure>
+```
 
-:::
+**Solver ranking**
 
-[Results by solver]{.eyebrow}
-
-::: {.sortable-table .leaderboard}
+::: {.sortable-table}
 | Solver | Final drag | Converged |
 |---|---|---|
 | XLB | -4.78e-02 | no |
@@ -753,4 +713,4 @@ Drag convergence curves per solver, optimised vs initial inflow profiles, and fi
 | PhiFlow | -7.09e-04 | no |
 :::
 
-*Sorted by the final objective reached within the iteration budget (lower is better).*
+*Ranked by the final objective reached within the iteration budget (lower is better).*

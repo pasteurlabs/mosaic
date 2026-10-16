@@ -6,8 +6,8 @@
 The benchmark does not rank solvers. For each problem *setup* (one problem
 statement, e.g. periodic Taylor–Green flow or flow past a cylinder) it reports:
 
-* **Checks** — forward, gradient and optimization, each one of pass, pass with
-  a documented note, borderline, fail, not supported or not run. A check
+* **Checks** — forward, gradient and optimization, each one of pass,
+  borderline, fail, not supported or not run. A check
   combines the status of the setup's gate experiments for that suite, using the
   pass criteria (``status_check``) each problem config declares for them; see
   :func:`_check`. Diagnostic experiments (Jacobian spectra, horizon sweeps,
@@ -143,12 +143,10 @@ SETUPS = [
     },
 ]
 
-# Check states, in order of severity (worst last). ``note`` is a pass whose
-# anomaly flag has a documented explanation.
-STATES = ["pass", "note", "borderline", "fail", "na", "notrun"]
+# Check states, in order of severity (worst last).
+STATES = ["pass", "borderline", "fail", "na", "notrun"]
 STATE_LABELS = {
     "pass": "Pass",
-    "note": "Pass, with note",
     "borderline": "Borderline",
     "fail": "Fail",
     "na": "Not supported",
@@ -156,7 +154,6 @@ STATE_LABELS = {
 }
 STATE_GLYPHS = {
     "pass": "✓",
-    "note": "✓",
     "borderline": "!",
     "fail": "✗",
     "na": "—",
@@ -197,18 +194,22 @@ def _reason(cell: dict) -> str:
     why = (cell.get("reason") or "").strip()
     why = why.split("Traceback", 1)[0].rstrip(" :")
     why = why.removeprefix("error: ")
-    return {"nan": "result is NaN", "error": "errored (no message recorded)"}.get(
+    why = {"nan": "result is NaN", "error": "errored (no message recorded)"}.get(
         why, why
     )
+    # A documented explanation annotates the measured reason; it does not
+    # change the cell's status (same rule as ``mosaic status``).
+    note = (cell.get("explanation") or "").strip()
+    return f"{why} (explained: {note})" if note else why
 
 
 def _cell_kind(cell: dict) -> str:
-    """ok | note | anomaly | failed | na | notrun for one snapshot cell."""
+    """ok | anomaly | failed | na | notrun for one snapshot cell."""
     st = cell.get("status")
     if st == "ok":
         return "ok"
     if st == "anomaly":
-        return "note" if cell.get("category") == "explained" else "anomaly"
+        return "anomaly"
     if st == "failed":
         return "failed"
     if st == "excluded" and cell.get("category") in _PERMANENT:
@@ -219,8 +220,8 @@ def _cell_kind(cell: dict) -> str:
 def _check(cells: list[tuple[str, dict]]) -> dict:
     """Combine the gate cells of one suite into a check.
 
-    Any failed gate fails the check; otherwise any anomaly makes it borderline;
-    otherwise an explained anomaly passes with a note. A solver whose every
+    Any failed gate fails the check; otherwise any anomaly (explained or not)
+    makes it borderline. A solver whose every
     gate is a permanent exclusion is "not supported"; one with no gate run is
     "not run".
     """
@@ -235,8 +236,6 @@ def _check(cells: list[tuple[str, dict]]) -> dict:
         state = "fail"
     elif any(k == "anomaly" for _, k, _ in run):
         state = "borderline"
-    elif any(k == "note" for _, k, _ in run):
-        state = "note"
     else:
         state = "pass"
     reasons = [(label, k, _reason(c)) for label, k, c in kinds if k not in ("ok",)]
@@ -364,7 +363,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 (
                     lab,
                     "ok"
-                    if lab.startswith("cost/") and _cell_kind(c) in ("anomaly", "note")
+                    if lab.startswith("cost/") and _cell_kind(c) == "anomaly"
                     else _cell_kind(c),
                     c,
                 )
@@ -373,7 +372,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
             counted = [k for k in kinds if k[1] != "na"]
             reliability = {
                 "ok": sum(1 for _, k, _ in counted if k == "ok"),
-                "flagged": sum(1 for _, k, _ in counted if k in ("anomaly", "note")),
+                "flagged": sum(1 for _, k, _ in counted if k == "anomaly"),
                 "failed": sum(1 for _, k, _ in counted if k == "failed"),
                 "notrun": sum(1 for _, k, _ in counted if k == "notrun"),
                 "total": len(counted),
@@ -381,7 +380,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
             flags = [
                 (lab, k, _reason(c))
                 for lab, k, c in kinds
-                if k in ("anomaly", "note", "failed", "notrun")
+                if k in ("anomaly", "failed", "notrun")
             ]
             unsupported = [(lab, _reason(c)) for lab, k, c in kinds if k == "na"]
             out_rows.append(
@@ -520,7 +519,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     passing = [
         r["name"]
         for r in setup["rows"]
-        if all(r["checks"][s]["state"] in ("pass", "note") for s in suites)
+        if all(r["checks"][s]["state"] == "pass" for s in suites)
     ]
     summary = (
         "Passes every check: " + ", ".join(_esc(n) for n in passing) + "."
@@ -531,12 +530,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     flag_items = []
     for r in setup["rows"]:
         for lab, kind, why in r["flags"]:
-            word = {
-                "anomaly": "flagged",
-                "note": "flagged, explained",
-                "failed": "failed",
-                "notrun": "not run",
-            }[kind]
+            word = {"anomaly": "flagged", "failed": "failed", "notrun": "not run"}[kind]
             flag_items.append(
                 f"<li><strong>{_esc(r['name'])}</strong> · <code>{_esc(lab)}</code> · "
                 f'<span class="fl-{kind}">{word}</span>'
@@ -633,7 +627,7 @@ def per_solver_summary(data: dict) -> dict[str, list[dict]]:
                     "setup": setup["setup"],
                     "states": states,
                     "worst": worst,
-                    "n_pass": sum(v in ("pass", "note") for v in supported),
+                    "n_pass": sum(v == "pass" for v in supported),
                     "n_supported": len(supported),
                 }
             )

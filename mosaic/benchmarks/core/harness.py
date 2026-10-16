@@ -45,7 +45,17 @@ def classify_failure(exc_name: str, exc_str: str) -> str:
     Returns one of: ``container_died``, ``OOM``, ``timeout``, ``nan``, ``error``.
     """
     s = exc_str.lower()
-    if exc_name == "ContainerDied":
+    # A Tesseract server that dies mid-request (OOM-killed, segfault, abort in
+    # a native extension) drops the HTTP connection instead of returning an
+    # error response. The client then raises ``requests.ConnectionError``
+    # whose message depends on who closed the socket: the dying process, the
+    # Docker port proxy, or nothing listening on the retry.
+    if exc_name == "ContainerDied" or (
+        "connection aborted" in s
+        or "connection reset" in s
+        or "remote end closed connection" in s
+        or "connection refused" in s
+    ):
         return "container_died"
     # Unambiguous out-of-memory markers across CUDA / XLA / Torch / cuBLAS /
     # cuDNN / the OS OOM-killer. Kept conservative (only memory-specific
@@ -154,10 +164,13 @@ def run_timed_trials(
     gpu_id: int | None = None,
     image_tag: str | None = None,
     capture_value: bool = False,
+    setup: Callable[[], Any] | None = None,
 ) -> TimedResult:
     """Run ``fn`` n_trials times under a :class:`ResourceSampler`.
 
     Behaviour:
+      * ``setup()``, when given, runs once before the warmup. It is neither
+        timed nor returned, but a failure in it is recorded like one in ``fn``.
       * One unreported warmup ``fn()`` call is performed first to absorb
         per-solver JIT compilation, first-touch CUDA kernel caching, and
         scan-unroll tracing.
@@ -180,6 +193,8 @@ def run_timed_trials(
     failure: dict | None = None
     try:
         with sampler:
+            if setup is not None:
+                setup()
             fn()  # warmup; return value intentionally discarded
             for i in range(n_trials):
                 t0 = time.perf_counter()

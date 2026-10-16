@@ -48,33 +48,19 @@ DUMMY_THERMAL_MESH = (
 
 
 @pytest.fixture(autouse=True)
-def _no_savefig(monkeypatch):
-    """Skip the final to-disk ``Figure.savefig`` render for every test here.
+def _no_png(monkeypatch):
+    """Skip the PNG rasterisation of every chart for every test here.
 
     The plot tests only verify that the plot pipeline *runs* against the dummy
     corpus — the rendered files themselves are never inspected and are thrown
-    away with the temp results dir. Rasterising + writing them is ~84% of the
-    plot-test wall time (the figure is still fully constructed; only the final
-    ``savefig`` render is skipped), so stubbing it out is a large, safe speedup.
-
-    Only the *disk* case is stubbed: we no-op when the destination is a path
-    (str / ``os.PathLike``), but fall through to the real ``savefig`` when it's
-    a file-like buffer. Matplotlib's ``Animation.save`` renders each frame via
-    ``fig.savefig(BytesIO(), ...)``, so the GIF-producing optimization plots
-    still work. Scoped to this file via ``monkeypatch``; real runs unaffected.
+    away with the temp results dir. The chart is still fully built, validated
+    against the Vega-Lite schema and written as ``.vl.json``; only the
+    vl-convert render to PNG is skipped. Scoped to this file via
+    ``monkeypatch``; real runs unaffected.
     """
-    import os
+    import vl_convert
 
-    from matplotlib.figure import Figure
-
-    real_savefig = Figure.savefig
-
-    def _maybe_savefig(self, fname, *args, **kwargs):
-        if isinstance(fname, str | os.PathLike):
-            return None
-        return real_savefig(self, fname, *args, **kwargs)
-
-    monkeypatch.setattr(Figure, "savefig", _maybe_savefig)
+    monkeypatch.setattr(vl_convert, "vegalite_to_png", lambda *_a, **_kw: b"")
 
 
 @pytest.fixture
@@ -117,8 +103,46 @@ def test_dummy_apply_loads_via_tesseract_api():
         assert "vector_jacobian_product" in t.available_endpoints
         v0 = np.zeros((4, 4, 1, 2), dtype=np.float32)
         out = t.apply({"v0": v0})
-        assert set(out) == {"result", "drag"}
+        assert out["result"] is not None
         assert np.asarray(out["result"]).shape == v0.shape
+
+
+def test_dummy_raises_on_unsupported_boundary_conditions():
+    """The BC contract: a solver raises on conditions it does not implement."""
+    import numpy as np
+    from tesseract_core import Tesseract
+
+    from .helpers import channel_inputs
+
+    inputs = channel_inputs(10)
+    with Tesseract.from_tesseract_api(str(DUMMY_NS_GRID)) as t:
+        out = t.apply(inputs)
+        assert np.asarray(out["body_force"]).shape == (inputs["steps"], 2)
+        bcs = {**inputs["boundary_conditions"], "x_hi": {"type": "no_slip"}}
+        with pytest.raises(Exception, match="supports fully periodic"):
+            t.apply({**inputs, "boundary_conditions": bcs})
+
+
+def test_cylinder_scores_the_dummy_against_the_literature(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """The dummy returns the reference force, so its Cd matches the reference."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
+
+    cfg.add_experiment(
+        "forward/dummy_cylinder",
+        cylinder.cylinder,
+        ic={"name": "dfg_inflow", "seed": 0},
+        physics={"resolution": [10]},
+    )
+    result = cfg.experiments["forward/dummy_cylinder"].fn(cfg, tags)
+    metrics = [r["metrics"] for r in result["results"] if r["metrics"].get("valid")]
+    assert metrics
+    for m in metrics:
+        assert m["cd"] == pytest.approx(cylinder.CD_REF, rel=1e-5)
+        assert m["error"] < 1e-5
 
 
 def test_forward_baseline_runs_with_dummy(ns_grid_tags, tmp_path, monkeypatch):
@@ -215,6 +239,231 @@ def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monke
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
     assert "results" in on_disk
+
+
+@pytest.mark.parametrize("kernel_name", ["agreement", "physical_laws"])
+def test_forward_nonfinite_output_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A solver returning NaN fails its cell, and the reason reaches status."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    # A distinct tag for the same dummy lets the patched apply tell the
+    # poisoned solver apart from its peers.
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_apply = runner._apply_tesseract_with_deadline
+
+    def apply_nan_for_bad(t, inputs):
+        out = real_apply(t, inputs)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+        return out
+
+    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", apply_nan_for_bad)
+
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_nonfinite",
+        getattr(forward, kernel_name),
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+        diagnostics={"mean": lambda out, **_: float(jnp.mean(out))},
+    )
+    cfg.experiments["forward/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    bad_entries = [e for e in data["results"] if e["solver"] == bad]
+    assert len(bad_entries) == 2
+    for e in bad_entries:
+        assert e["metrics"]["valid"] is False
+        assert "'result' is not finite" in e["metrics"]["error"]
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "not finite" in cells[bad].reason
+    assert all(cells[s].status == OK for s in cfg.solver_names if s != bad)
+
+
+def test_agreement_single_solver_is_unscored(ns_grid_tags, tmp_path, monkeypatch):
+    """Alone, a solver has no consensus to be scored against: it is left
+    unscored (not run), not failed. With its peers' snapshots cached on disk
+    from an earlier run, it is scored against them.
+    """
+    from mosaic.benchmarks.core.status import NOT_RUN, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_single",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_single"].fn
+
+    alone = run(cfg, {solo: tags[solo]})
+    assert [e["metrics"] for e in alone["results"]] == [
+        {"status": "skipped", "unscored": True, "reason": forward._NO_REFERENCE}
+    ] * 2
+    assert _classify_result(alone, [solo], [])[solo].status == NOT_RUN
+
+    run(cfg, tags)
+    with_cache = run(cfg, {solo: tags[solo]})
+    solo_entries = [e for e in with_cache["results"] if e["solver"] == solo]
+    assert [e["metrics"]["valid"] for e in solo_entries] == [True, True]
+
+
+@pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep"])
+def test_gradient_nonfinite_vjp_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A NaN VJP fails the cell with its reason; a sweep runs on past it."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, _classify_result
+    from mosaic.benchmarks.problems.shared import gradient
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_vjp = gradient._vjp_grad
+    bad_calls = []
+
+    # Only the poisoned solver's first VJP is NaN, so a sweep's second point
+    # shows whether the sweep carried on.
+    def vjp_nan_once_for_bad(*args):
+        g = real_vjp(*args)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            bad_calls.append(None)
+            if len(bad_calls) == 1:
+                g = jnp.full_like(g, jnp.nan)
+        return g
+
+    monkeypatch.setattr(gradient, "_vjp_grad", vjp_nan_once_for_bad)
+
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "gradient/dummy_nonfinite",
+        getattr(gradient, kernel_name),
+        ic={"name": "multimode", "seed": 0},
+        physics={
+            "N": 4,
+            "nu": [0.01, 0.05] if kernel_name == "param_sweep" else 0.01,
+            "dt": 0.01,
+            "steps": 1,
+        },
+        fd={"eps_values": [1e-1], "n_dirs": 2},
+    )
+    cfg.experiments["gradient/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "gradient" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    if kernel_name == "param_sweep":
+        bad_entries = sorted(
+            (e for e in data["results"] if e["solver"] == bad),
+            key=lambda e: float(e["sweep_value"]),
+        )
+        assert [e["metrics"].get("status") for e in bad_entries] == ["failed", None]
+        assert bad_entries[0]["metrics"]["failure_type"] == "nan"
+        assert bad_entries[1]["metrics"]["grad_norm"] is not None
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "VJP returned non-finite gradient" in cells[bad].reason
+    # OpenFOAM has no VJP and is never selected, hence not_run.
+    assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
+
+
+@pytest.mark.parametrize(
+    ("failure", "only_seed_1"),
+    [("target", False), ("optim", False), ("target", True), ("optim", True)],
+)
+def test_recovery_failure_fails_with_reason(
+    failure, only_seed_1, tmp_path, monkeypatch
+):
+    """A NaN target or a failed optimization fails the cell with that reason,
+    whether every seed fails or only one of them.
+    """
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.navier_stokes_3d_grid import optimization
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = get_config("ns-3d-grid")
+    bad, good = "PICT", "XLB"
+    tags = {
+        bad: f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}",
+        good: f"inprocess:{DUMMY_NS_GRID}",
+    }
+
+    calls = {"apply": 0, "optim": 0}
+
+    def is_bad(kind: str) -> bool:
+        if runner.current_worker_context().image_tag != tags[bad]:
+            return False
+        calls[kind] += 1
+        # Seeds run in order, so the second call is ic_seed=1.
+        return calls[kind] == 2 if only_seed_1 else True
+
+    if failure == "target":
+        real_apply = optimization.apply_tesseract
+
+        def apply_nan_for_bad(t, inputs):
+            out = real_apply(t, inputs)
+            if is_bad("apply"):
+                out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+            return out
+
+        monkeypatch.setattr(optimization, "apply_tesseract", apply_nan_for_bad)
+        expected = (
+            "target forward failed for 1 of 3 ic_seeds: ic_seed=1: target is not finite"
+            if only_seed_1
+            else "target forward failed for every ic_seed: ic_seed=0: target is not finite"
+        )
+    else:
+        real_lbfgs = optimization._run_lbfgs
+
+        def lbfgs_fails_for_bad(*args, **kwargs):
+            if is_bad("optim"):
+                raise FloatingPointError("optimization loss is not finite (nan)")
+            return real_lbfgs(*args, **kwargs)
+
+        monkeypatch.setattr(optimization, "_run_lbfgs", lbfgs_fails_for_bad)
+        expected = (
+            "optimization failed for 1 of 3 ic_seeds: ic_seed=1: FloatingPointError"
+            if only_seed_1
+            else "optimization failed for every ic_seed: ic_seed=0: FloatingPointError"
+        )
+
+    data = cfg.experiments["optimization/recovery_constant_ic_bfgs_proj"].fn(cfg, tags)
+
+    cells = _classify_result(data, [bad, good], [])
+    assert cells[bad].status == FAILED
+    assert expected in cells[bad].reason
+    assert cells[good].status == OK
 
 
 # ── Every-experiment parametrized smoke test ─────────────────────────────────
@@ -445,7 +694,7 @@ def _problem_plot_pairs():
 
 
 _DEGENERATE_DATA_HINTS = (
-    "no positive values",  # matplotlib log-scale on all-zero data
+    "no positive values",  # log-scale on all-zero data
     "can not be log-scaled",
     "zero-size array",  # np.min / np.max on empty arrays
     "empty array",
@@ -475,9 +724,6 @@ def test_plot_runs_on_dummy_results(problem, plot_key, dummy_corpus):
     dummy returns constants, but the plot pipeline itself must execute
     without raising.
     """
-    import matplotlib
-
-    matplotlib.use("Agg")
     from mosaic.benchmarks.problems import get_config
 
     cfg = get_config(problem)

@@ -51,3 +51,6 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://github.com/JuliaTopOpt/TopOpt.jl"
+    # The solver itself lives in mosaic_shared; changing it re-benchmarks TopOpt.jl.
+    shared_sources:
+      - mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl

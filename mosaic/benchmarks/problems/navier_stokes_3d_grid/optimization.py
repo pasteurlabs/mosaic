@@ -254,10 +254,12 @@ def _compute_targets_for_val(
 ) -> dict:
     """Forward-solve each seed's true IC to produce target outputs.
 
-    Skips seeds whose forward pass fails or produces invalid output.
-    Returns ``{seed: target_array}``.
+    Returns ``{seed: target_array}``. Raises with each failed seed's reason if
+    any seed's forward pass fails or produces invalid output, so a result never
+    silently averages over fewer seeds than configured.
     """
     targets: dict[int, jax.Array] = {}
+    failures: list[str] = []
     for s in ic_seeds:
         try:
             inp_true = make_inputs(
@@ -273,10 +275,25 @@ def _compute_targets_for_val(
             print_warn(
                 f"{name} {exp_key} target forward failed at {sweep_key}={val} ic_seed={s}: {exc}"
             )
+            failures.append(f"ic_seed={s}: {type(exc).__name__}: {exc}")
             continue
         if is_valid(tgt):
             targets[s] = tgt
+        else:
+            failures.append(f"ic_seed={s}: target is not finite")
+    if failures:
+        raise RuntimeError(
+            f"target forward failed for {_which_seeds(failures, targets)}: "
+            f"{'; '.join(failures)}"
+        )
     return targets
+
+
+def _which_seeds(failures: list, successes: Any) -> str:
+    """Describe the failed seeds as "every ic_seed" or "k of n ic_seeds"."""
+    if not successes:
+        return "every ic_seed"
+    return f"{len(failures)} of {len(failures) + len(successes)} ic_seeds"
 
 
 def _aggregate_trial_results(
@@ -378,8 +395,12 @@ def _run_one_seed_trial(
     output_key: str,
     domain_extent: float,
     exp_key: str,
+    failures: list[str],
 ) -> dict | None:
-    """Run a single per-seed optimisation trial; returns a result dict or None."""
+    """Run a single per-seed optimisation trial; returns a result dict or None.
+
+    On ``None`` the optimizer's error has been appended to ``failures``.
+    """
     from mosaic.benchmarks.core.console import console
 
     def loss_fn(ic: Any, _t: Any = t, _target: Any = target_k, _val: Any = val) -> Any:
@@ -437,6 +458,7 @@ def _run_one_seed_trial(
         print_warn(
             f"{name} {exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
         )
+        failures.append(f"ic_seed={s}: {type(exc).__name__}: {exc}")
         return None
     final_ic_error = error_fn(ic_opt, ic_true_k)
     final_ic_div = (
@@ -476,7 +498,7 @@ def _precompute_sigma_target(
 ) -> Any:
     """For sigma sweep: forward the primary true IC to produce the shared target.
 
-    Returns the target array, or ``None`` if forward failed or output invalid.
+    Returns the target array; raises if the forward fails or is not finite.
     """
     try:
         inputs_true_fixed = make_inputs(
@@ -487,12 +509,11 @@ def _precompute_sigma_target(
         )
         target = apply_tesseract(t, inputs_true_fixed)[output_key]
     except Exception as exc:
-        from mosaic.benchmarks.core.console import print_warn
-
-        print_warn(f"{name} {exp_key} target forward failed: {exc}")
-        return None
+        raise RuntimeError(
+            f"{exp_key} target forward failed: {type(exc).__name__}: {exc}"
+        ) from exc
     if not is_valid(target):
-        return None
+        raise ValueError(f"{exp_key} target forward output is not finite")
     return target
 
 
@@ -864,24 +885,23 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     )
 
     # ── Per-val target setup ────────────────────────────────────────────
+    # A target or optimisation failure persists a None entry for this solver,
+    # then raises: the framework records the reason and fails the cell.
     if is_sigma_sweep:
-        sigma_target = _precompute_sigma_target(
-            name=name,
-            t=t,
-            ic_true=ic_true,
-            phys=phys,
-            make_inputs=make_inputs,
-            output_key=output_key,
-            domain_extent=domain_extent,
-            exp_key=exp_key,
-        )
-        if sigma_target is None:
-            # Persist a None entry for this val and ask the framework to
-            # short-circuit the remaining sweep (sigma_target failure is a
-            # function of name + ic_true + phys, not val — it would fail
-            # identically for every subsequent val).
+        try:
+            sigma_target = _precompute_sigma_target(
+                name=name,
+                t=t,
+                ic_true=ic_true,
+                phys=phys,
+                make_inputs=make_inputs,
+                output_key=output_key,
+                domain_extent=domain_extent,
+                exp_key=exp_key,
+            )
+        except Exception:
             partial_writer.write(name, None)
-            return {"metrics": None, "stop_sweep": True}
+            raise
         ic_init_at_val = _build_sigma_perturbed_ic(
             ic_true,
             float(val),
@@ -895,22 +915,23 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     else:
         ic_init_at_val = ic_init_dict[primary_seed]
         seeds_for_val = ic_seeds
-        target_for_seed = _compute_targets_for_val(
-            name,
-            exp_key,
-            val,
-            sweep_key,
-            ic_seeds,
-            ic_true_dict,
-            phys,
-            t,
-            make_inputs=make_inputs,
-            output_key=output_key,
-            domain_extent=domain_extent,
-        )
-        if not target_for_seed:
+        try:
+            target_for_seed = _compute_targets_for_val(
+                name,
+                exp_key,
+                val,
+                sweep_key,
+                ic_seeds,
+                ic_true_dict,
+                phys,
+                t,
+                make_inputs=make_inputs,
+                output_key=output_key,
+                domain_extent=domain_extent,
+            )
+        except Exception:
             partial_writer.write(name, None)
-            return {"metrics": None}
+            raise
 
     console.print(
         f"  [{color}]{name}[/] {exp_key} {sweep_key}={val} starting "
@@ -919,6 +940,7 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
 
     # ── Per-seed trial loop ──────────────────────────────────────────────
     trial_results: list[dict] = []
+    trial_failures: list[str] = []
     primary_hist: list | None = None
     primary_ic_err_hist: list[float] = []
 
@@ -958,6 +980,7 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
             output_key=output_key,
             domain_extent=domain_extent,
             exp_key=exp_key,
+            failures=trial_failures,
         )
         if trial is None:
             continue
@@ -967,9 +990,12 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
             primary_ic_err_hist = trial["_ic_err_hist"]
         trial_results.append(trial)
 
-    if not trial_results:
+    if trial_failures:
         partial_writer.write(name, None)
-        return {"metrics": None}
+        raise RuntimeError(
+            f"optimization failed for {_which_seeds(trial_failures, trial_results)}: "
+            f"{'; '.join(trial_failures)}"
+        )
 
     entry = _aggregate_trial_results(
         trial_results,

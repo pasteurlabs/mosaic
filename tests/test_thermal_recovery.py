@@ -5,7 +5,7 @@
 
 The Tesseract call is replaced by a loss that is minimised exactly at the
 ground-truth density, so these tests exercise the kernel's own optimisation
-plumbing (bounds, reparametrisation, reported metrics) without a solver.
+plumbing (bounds, reparametrisation, snapshots) without a solver.
 """
 
 from __future__ import annotations
@@ -60,12 +60,18 @@ def _run_kernel(monkeypatch, optimizer: str, max_iters: int) -> dict:
     return recovery.conductivity_recovery(None, ctx)
 
 
-@pytest.mark.parametrize("optimizer", ["bfgs", "adam"])
-def test_recovery_reports_field_error_and_respects_bounds(monkeypatch, optimizer):
-    out = _run_kernel(monkeypatch, optimizer, max_iters=100)
-    m = out["metrics"]
+def _field_error(rho: np.ndarray) -> float:
+    truth = np.asarray(_two_gaussians(**_PHYS))
+    return float(np.linalg.norm(rho - truth) / np.linalg.norm(truth))
 
-    assert m["final_field_error"] < m["initial_field_error"]
+
+@pytest.mark.parametrize("optimizer", ["bfgs", "adam"])
+def test_recovery_approaches_truth_and_respects_bounds(monkeypatch, optimizer):
+    out = _run_kernel(monkeypatch, optimizer, max_iters=100)
+
+    assert _field_error(out["snapshots"]["rho_final"]) < _field_error(
+        out["shared"]["rho_init"]
+    )
     for rho in [out["snapshots"]["rho_final"], *out["snapshots"]["rho_history"]]:
         assert rho.min() >= _PHYS["x_min"] - 1e-6
         assert rho.max() <= 1.0 + 1e-6
@@ -77,7 +83,7 @@ def test_bfgs_recovers_the_truth(monkeypatch):
     Also checks that snapshots hold densities rather than the latent variable.
     """
     out = _run_kernel(monkeypatch, "bfgs", max_iters=100)
-    assert out["metrics"]["final_field_error"] < 1e-2
+    assert _field_error(out["snapshots"]["rho_final"]) < 1e-2
     np.testing.assert_allclose(
         out["snapshots"]["rho_history"][-1], out["snapshots"]["rho_final"], atol=1e-2
     )

@@ -52,3 +52,6 @@ metadata:
     uses_gpu: false
     internal_dtype: float32
     doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"
+    # The solver itself lives in mosaic_shared; changing it re-benchmarks INS.jl.
+    shared_sources:
+      - mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl

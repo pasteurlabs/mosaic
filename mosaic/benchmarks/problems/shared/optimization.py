@@ -26,6 +26,7 @@ error-vs-target trajectories without writing their own loop.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import jax
@@ -47,6 +48,14 @@ def _append_aux(aux_history: dict | None, aux: Any) -> None:
         aux_history.setdefault(label, []).append(float(val))
 
 
+def _check_finite_loss(loss_val: float, i: int) -> None:
+    """Raise once the loss goes NaN/Inf: the optimiser cannot recover from it."""
+    if not math.isfinite(loss_val):
+        raise FloatingPointError(
+            f"optimization loss is not finite ({loss_val}) at iteration {i}"
+        )
+
+
 def _run_optim(
     loss_fn: Any,
     init_x: Any,
@@ -66,8 +75,15 @@ def _run_optim(
     record_diagnostics: bool = False,
     div_fn: Any = None,
     grad_proj_fn: Any = None,
+    min_rel_improvement: float = 0.0,
 ) -> tuple:
     """Adam with patience-based early stopping.
+
+    Stops after ``patience`` iterations without an improvement, where an
+    improvement is a loss below the best so far by more than
+    ``min_rel_improvement`` times its magnitude. The best only moves on such
+    an improvement, so small gains accumulate against it and a slow, steady
+    descent still resets the count.
 
     When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)`` and each
     aux label's per-iter trace lands in ``aux_history[label]`` (caller
@@ -84,6 +100,8 @@ def _run_optim(
       * ``grad_norms``: per-iter ``‖∇L‖₂``
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
+
+    Raises ``FloatingPointError`` as soon as the loss is NaN/Inf.
     """
     optimizer = optax.adam(lr)
     opt_state = optimizer.init(init_x)
@@ -109,8 +127,9 @@ def _run_optim(
         if clip_fn is not None:
             x = clip_fn(x)
         loss_val = float(loss)
+        _check_finite_loss(loss_val, i)
         losses.append(loss_val)
-        if loss_val < best:
+        if i == 0 or loss_val < best - min_rel_improvement * abs(best):
             best, no_improve = loss_val, 0
         else:
             no_improve += 1
@@ -124,6 +143,37 @@ def _run_optim(
         if no_improve >= patience:
             break
     return x, losses, diag
+
+
+def _outside_domain_if_nonfinite(loss_fn: Any) -> Any:
+    """Wrap ``loss_fn`` so a point whose value or gradient is not usable reads as +inf.
+
+    optax's zoom linesearch treats an infinite value as outside the domain and
+    backtracks. A trial step with a finite value but an infinite gradient, or
+    one large enough that its dot products overflow (e.g. a float32 adjoint
+    that blew up while the forward did not), was instead accepted. It then
+    put inf into L-BFGS's history and every later step was NaN. The gradient
+    counts as usable when its squared norm is finite. Where value and
+    gradient are usable the wrapper returns them unchanged.
+    """
+
+    def value_and_grad(x: Any) -> tuple:
+        value, grad = jax.value_and_grad(loss_fn)(x)
+        grad_sq = sum(jnp.vdot(g, g) for g in jax.tree.leaves(grad))
+        finite = jnp.isfinite(value) & jnp.isfinite(grad_sq)
+        value = jnp.where(finite, value, jnp.inf)
+        grad = jax.tree.map(lambda g: jnp.where(finite, g, jnp.zeros_like(g)), grad)
+        return value, grad
+
+    @jax.custom_vjp
+    def wrapped(x: Any) -> Any:
+        return value_and_grad(x)[0]
+
+    def bwd(grad: Any, cotangent: Any) -> tuple:
+        return (jax.tree.map(lambda g: cotangent * g, grad),)
+
+    wrapped.defvjp(value_and_grad, bwd)
+    return wrapped
 
 
 def _run_lbfgs(
@@ -165,7 +215,8 @@ def _run_lbfgs(
     work without modification.
 
     Returns ``(final_x, losses, diag)`` where ``diag`` is
-    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`.
+    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`, and so does
+    the ``FloatingPointError`` on a NaN/Inf loss.
     """
     if has_aux:
 
@@ -176,15 +227,18 @@ def _run_lbfgs(
     else:
         _scalar_loss = loss_fn
         vg = jax.value_and_grad(loss_fn)
+    _linesearch_loss = _outside_domain_if_nonfinite(_scalar_loss)
 
     import os
-    import resource
 
     _mosaic_lbfgs_diag = os.environ.get("MOSAIC_LBFGS_DIAG", "0") == "1"
 
     def _probe(label: str, i: int) -> None:
         if not _mosaic_lbfgs_diag:
             return
+        # POSIX-only, so imported only when the diagnostic is asked for.
+        import resource
+
         rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         try:
             live = len(jax.live_arrays())
@@ -214,7 +268,7 @@ def _run_lbfgs(
             grad = grad_proj_fn(grad)
         grad_norm = jnp.linalg.norm(grad.ravel())
         updates, opt_state = solver.update(
-            grad, opt_state, x, value=value, grad=grad, value_fn=_scalar_loss
+            grad, opt_state, x, value=value, grad=grad, value_fn=_linesearch_loss
         )
         x = optax.apply_updates(x, updates)
         if clip_fn is not None:
@@ -234,6 +288,7 @@ def _run_lbfgs(
             _append_aux(aux_history, aux)
         grad_norms.append(float(grad_norm))
         loss_val = float(value)
+        _check_finite_loss(loss_val, i)
         losses.append(loss_val)
         _probe("after-step", i)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:

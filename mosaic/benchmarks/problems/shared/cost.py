@@ -6,7 +6,7 @@
 Three kernels:
   * :func:`spatial_cost`  — forward pass timing vs N (fixed step count)
   * :func:`temporal_cost` — forward pass timing vs step count (fixed N)
-  * :func:`vjp_cost`      — VJP (backward pass) timing, registered twice in
+  * :func:`vjp_cost`      — VJP request timing, registered twice in
                             each problem config (``by_N`` / ``by_steps``
                             variants) since the framework supports one
                             sweep axis at a time and the on-disk schema
@@ -57,13 +57,17 @@ from mosaic.benchmarks.core.harness import run_timed_trials
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import current_worker_context
 from mosaic.benchmarks.core.utils import active_differentiable_solvers, active_solvers
-from mosaic.benchmarks.problems.shared.gradient import _vjp_grad
 
 _SPATIAL_WALL_S = 1000
 
 
 def _timed_kernel(
-    t: Any, ctx: KernelContext, *, timed_call: Any, capture_value: bool = False
+    t: Any,
+    ctx: KernelContext,
+    *,
+    timed_call: Any,
+    capture_value: bool = False,
+    setup: Any = None,
 ) -> dict:
     """Shared body for every cost kernel — run ``timed_call`` under :func:`run_timed_trials`.
 
@@ -81,6 +85,7 @@ def _timed_kernel(
         gpu_id=worker.gpu_id,
         image_tag=worker.image_tag,
         capture_value=capture_value,
+        setup=setup,
     )
 
     record = result.as_record()
@@ -262,11 +267,26 @@ def vjp_cost(t: Any, ctx: KernelContext) -> dict:
     sweeping ``steps`` at fixed ``N``. Each variant produces its own
     ``result.json`` under ``cost/vjp_cost/<variant_name>/`` and shares
     the same kernel + aggregate; the aggregate keys output by sweep_key.
+
+    Times only the ``vector_jacobian_product`` request, which recomputes the
+    forward solution in every solver, so one gradient from scratch. The
+    cotangent of ``sum(output**2)`` comes from one untimed ``apply``.
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    cotangent: dict[str, np.ndarray] = {}
+
+    def set_cotangent() -> None:
+        out = t.apply(inputs)[ctx.output_key]
+        cotangent[ctx.output_key] = 2.0 * np.asarray(out)
+
+    def vjp() -> Any:
+        return t.vector_jacobian_product(
+            inputs,
+            vjp_inputs=[ctx.ic_key],
+            vjp_outputs=[ctx.output_key],
+            cotangent_vector=cotangent,
+        )[ctx.ic_key]
+
     return _timed_kernel(
-        t,
-        ctx,
-        timed_call=lambda: _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key),
-        capture_value=True,
+        t, ctx, timed_call=vjp, setup=set_cotangent, capture_value=True
     )

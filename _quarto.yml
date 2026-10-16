@@ -15,6 +15,10 @@ project:
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
     - python docs/generate.py
+  # Interactive chart specs, written next to each PNG by the plot harness;
+  # fetched at runtime, so Quarto can't discover them from the pages.
+  resources:
+    - "mosaic-results/**/*.vl.json"
   render:
     - docs/index.qmd
     - docs/getting-started.qmd
@@ -85,8 +89,10 @@ format:
     html-math-method: mathjax
     # Enable click-to-zoom for images tagged {.lightbox} (the result plots).
     lightbox: true
-    # Click-to-sort for the solver-ranking tables (.sortable-table).
+    # Click-to-sort for the per-suite results tables (.sortable-table).
     include-after-body:
       - docs/sortable-tables.html
-      # Search/filter, detail dialogs and the scoreboard axis switcher.
+      # Search/filter and detail dialogs.
       - docs/mosaic-ui.html
+      # Interactive Vega-Lite charts on the results pages.
+      - docs/charts.html

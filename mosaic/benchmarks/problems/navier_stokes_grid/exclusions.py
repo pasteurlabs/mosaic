@@ -25,93 +25,47 @@ if TYPE_CHECKING:
 
 # ── Reusable constants ───────────────────────────────────────────────────────
 
-STAGGERED_MAC_BIAS = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "staggered MAC grid double-interpolation: collocated TGV IC -> "
-    "staggered faces -> collocated output gives sin^2(pi/N) round-trip "
-    "error at all N; 35-40x above collocated peers",
-)
 JAX_CFD_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "periodic FFT pressure solve + IBM volume penalization is incompatible "
-    "with cylinder obstacle channel BCs",
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract implements only periodic flows; jax-cfd itself has "
+    "non-periodic pressure solvers for channel flows, which are not wired "
+    "up here",
 )
 INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "this tesseract represents the cylinder by hard-mask Brinkman "
-    "penalization (velocity zeroed after each projection), which is "
-    "projection-inconsistent and diverges; INS.jl itself supports the "
-    "obstacle via a finite Brinkman forcing term with its native channel "
-    "BCs (Dirichlet inflow, pressure outflow, LU/DCT pressure solvers "
-    "handle non-periodic BCs), but that route is not implemented here",
-)
-WARP_NS_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.CATEGORICAL,
-    "warp-ns is periodic-only; obstacle/inflow flows are not supported",
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract implements only periodic flows; INS.jl itself supports "
+    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
+    "Brinkman forcing, which are not wired up here",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam has no VJP to benchmark",
+    "OpenFOAM has no VJP to benchmark",
 )
 OPENFOAM_NON_DIFFERENTIABLE_GRAD = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable (C++, no AD path); "
+    "OpenFOAM is non-differentiable (C++, no AD path); "
     "DAFoam/OpenFOAM-AD exist but are not deployed in this tesseract",
 )
 OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "standard icoFoam is non-differentiable forward-only solver",
+    "OpenFOAM is a non-differentiable, forward-only solver",
 )
-XLB_MA_FLOOR = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "irreducible O(Ma²) LBM compressibility error floor: at fixed "
-    "dt=0.01, Ma=u·dt/dx grows with N; at N=128 Ma~0.2 giving ~0.007 "
-    "error floor (230× peers); anomalous at all N",
-)
-XLB_DX2_FLOOR = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "same root cause as forward/agreement/tgv — automatic k=9 sub-stepping reduces Ma 0.88→0.098 "
-    "but residual O(dx²) LBM spatial discretization gives 11-24× peer errors "
-    "at all nu values (0.0001–0.05); 0.0309 at nu=0.05 is 12.0× peer median; "
-    "not reducible by further sub-stepping (tested k=9..27); valid=True",
-)
-PHIFLOW_TGV_DAMPING = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "phiflow's double CenteredGrid↔StaggeredGrid resampling gives 4.18% amplitude "
-    "damping (ratio=0.9582); cosine=0.9999924 (pattern correct); arithmetic-average "
-    "output conversion fix worsened error 9×; upstream library change required",
-)
-XLB_TGV_LBM_FLOOR = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "automatic k=9 sub-steps reduce Ma 0.88→0.098 (81× Ma² reduction); "
-    "errors drop from 0.216-0.278 → 0.026-0.031 (11-24× peers); "
-    "remaining floor is O(dx²) LBM spatial discretization at N=64, not reducible "
-    "by further sub-stepping (tested k=9..27); valid=True",
+PICT_DRAG_OPT_TOO_SLOW = Exclusion(
+    ExclusionCategory.INFEASIBLE,
+    "each drag_opt iteration runs a full forward and VJP through PICT's "
+    "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
+    "experiment takes hours on the benchmark GPU",
 )
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
-    "warp_ns": WARP_NS_NO_OBSTACLE,
 }
 
 
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
     # Forward
-    problem.exclude(
-        "forward/baseline",
-        {
-            "jax_cfd": STAGGERED_MAC_BIAS,
-            "ins_jl": STAGGERED_MAC_BIAS,
-            "xlb": XLB_MA_FLOOR,
-        },
-    )
-    problem.exclude(
-        "forward/agreement/tgv",
-        {"phiflow": PHIFLOW_TGV_DAMPING, "xlb": XLB_TGV_LBM_FLOOR},
-    )
-    problem.exclude("forward/tgv_nu_sweep", {"xlb": XLB_DX2_FLOOR})
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
@@ -123,4 +77,4 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
-    problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
+    problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})

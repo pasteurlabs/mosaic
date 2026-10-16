@@ -76,6 +76,35 @@ def get_hardware_info() -> dict:
     return info
 
 
+def hardware_by_solver(result: dict) -> dict[str, dict]:
+    """Map each solver in a schema_version=1 result to its hardware record.
+
+    A result written by one run carries a single ``extras.hardware`` record
+    for every solver that produced metrics. Merging results from different
+    machines (the CPU and GPU jobs in CI) replaces it with a per-solver
+    ``extras.hardware_by_solver`` map, see :func:`merge_hardware`.
+    """
+    extras = result.get("extras", {})
+    if "hardware_by_solver" in extras:
+        return extras["hardware_by_solver"]
+    hw = extras.get("hardware")
+    if not hw:
+        return {}
+    return {e["solver"]: hw for e in result.get("results", []) if e.get("metrics")}
+
+
+def merge_hardware(merged_extras: dict, a: dict, b: dict) -> None:
+    """Record each solver's hardware from results *a* and *b* in *merged_extras*.
+
+    *b* wins per solver. The single ``hardware`` record is dropped, since it
+    can describe only one of the machines.
+    """
+    hw = {**hardware_by_solver(a), **hardware_by_solver(b)}
+    if hw:
+        merged_extras.pop("hardware", None)
+        merged_extras["hardware_by_solver"] = hw
+
+
 def has_gpu() -> bool:
     """Return True if at least one NVIDIA GPU is visible via NVML."""
     nvml = _nvml_ready()

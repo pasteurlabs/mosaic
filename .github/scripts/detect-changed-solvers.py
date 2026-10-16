@@ -7,7 +7,10 @@
 
 Reads changed file paths from stdin (one per line) and prints a JSON
 matrix of ``[{"domain": "...", "solver": "..."}]`` entries for solvers
-whose directories contain changed files.
+whose directories contain changed files, or that list a changed file under
+``metadata.mosaic.shared_sources`` in their ``tesseract_config.yaml``. The
+latter is for solver code kept outside the solver's directory, such as
+INS.jl's Julia solver in ``mosaic_shared``.
 
 Prints ``[]`` if nothing changed.
 
@@ -32,35 +35,29 @@ def main() -> None:
         print("[]")
         return
 
-    # Discover all solver dirs (any dir with tesseract_config.yaml)
-    solver_dirs: list[str] = []
-    for cfg in sorted(TESSERACTS_DIR.rglob("tesseract_config.yaml")):
-        rel = str(cfg.parent.relative_to(TESSERACTS_DIR))
-        solver_dirs.append(rel)
-
-    # Match changed files to solver directories
+    # Match changed files to solver directories (any dir with
+    # tesseract_config.yaml) and to the shared sources each solver lists.
     changed: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for solver_rel in solver_dirs:
+    for cfg_path in sorted(TESSERACTS_DIR.rglob("tesseract_config.yaml")):
+        solver_rel = str(cfg_path.parent.relative_to(TESSERACTS_DIR))
+        with open(cfg_path) as f:
+            mosaic_meta = ((yaml.safe_load(f) or {}).get("metadata") or {}).get(
+                "mosaic"
+            ) or {}
         prefix = f"mosaic/tesseracts/{solver_rel}/"
-        if any(f.startswith(prefix) for f in diff_files) and solver_rel not in seen:
-            seen.add(solver_rel)
-            parts = solver_rel.split("/", 1)
-            entry: dict[str, str]
-            if len(parts) == 2:
-                entry = {"domain": parts[0], "solver": parts[1]}
-            else:
-                # Top-level solver (no domain subdirectory)
-                entry = {"domain": parts[0], "solver": parts[0]}
-            # Read the display name from tesseract_config.yaml if available.
-            cfg_path = TESSERACTS_DIR / solver_rel / "tesseract_config.yaml"
-            if cfg_path.exists():
-                with open(cfg_path) as f:
-                    tcfg = yaml.safe_load(f) or {}
-                display = (tcfg.get("metadata") or {}).get("mosaic", {}).get("name", "")
-                if display:
-                    entry["display_name"] = display
-            changed.append(entry)
+        shared = set(mosaic_meta.get("shared_sources") or [])
+        if not any(f.startswith(prefix) or f in shared for f in diff_files):
+            continue
+        parts = solver_rel.split("/", 1)
+        entry: dict[str, str]
+        if len(parts) == 2:
+            entry = {"domain": parts[0], "solver": parts[1]}
+        else:
+            # Top-level solver (no domain subdirectory)
+            entry = {"domain": parts[0], "solver": parts[0]}
+        if mosaic_meta.get("name"):
+            entry["display_name"] = mosaic_meta["name"]
+        changed.append(entry)
 
     json.dump(changed, sys.stdout)
     print()

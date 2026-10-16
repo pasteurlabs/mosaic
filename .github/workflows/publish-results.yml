@@ -63,9 +63,22 @@ jobs:
             VERSION="${HEAD_BRANCH#bot/release/}"
           fi
 
-          # Find the Benchmark workflow run for this PR's head SHA
-          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${HEAD_SHA}&status=completed&event=pull_request" \
-            --jq '.workflow_runs | map(select(.conclusion == "success")) | sort_by(.updated_at) | last | .id' 2>/dev/null || true)
+          # Find the newest successful Benchmark run for this PR's head SHA that
+          # produced results. A later run on the same commit without results
+          # (e.g. after relabelling to benchmark:none) must not hide it. With
+          # no such run, fall back to the newest successful one.
+          RUN_IDS=$(gh api "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${HEAD_SHA}&status=completed&event=pull_request" \
+            --jq '.workflow_runs | map(select(.conclusion == "success")) | sort_by(.updated_at) | reverse | .[].id' 2>/dev/null || true)
+          RUN_ID=""
+          for ID in $RUN_IDS; do
+            N=$(gh api "repos/${{ github.repository }}/actions/runs/${ID}/artifacts" \
+              --jq '[.artifacts[] | select((.name | startswith("results-")) and (.expired | not))] | length' 2>/dev/null || echo 0)
+            if [[ "$N" -gt 0 ]]; then
+              RUN_ID=$ID
+              break
+            fi
+          done
+          RUN_ID=${RUN_ID:-$(echo "$RUN_IDS" | head -n 1)}
 
           if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
             echo "No successful Benchmark run found for PR #${PR_NUM} (SHA ${HEAD_SHA}) — skipping"
@@ -199,7 +212,8 @@ jobs:
         # first: the baseline artifact stores data only (plots stripped on
         # upload) and only the merged PR's solver re-ran, so without this the
         # rendered docs would omit every baseline solver's plots.
-        # --plots-only is no-Docker/no-GPU.
+        # --plots-only is no-Docker/no-GPU; each plot is written as a PNG plus
+        # its interactive (Vega-Lite) spec.
         if: steps.find.outputs.should_publish == 'true'
         run: |
           uv run mosaic run --plots-only
@@ -232,6 +246,7 @@ jobs:
         run: |
           # Remove derived files that are regenerated at docs-build time
           find mosaic-results/ -name "*.png" -delete 2>/dev/null || true
+          find mosaic-results/ -name "*.vl.json" -delete 2>/dev/null || true
           find mosaic-results/ -name "*.gif" -delete 2>/dev/null || true
           find mosaic-results/ -name "result_partial.json" -delete 2>/dev/null || true
           find mosaic-results/ -name "*.lock" -delete 2>/dev/null || true

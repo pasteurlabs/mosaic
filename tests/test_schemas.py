@@ -58,3 +58,157 @@ def test_ns_grid_input_declares_canonical_fields():
     expected_subset = {"v0", "viscosity", "dt", "steps"}
     missing = expected_subset - field_names
     assert not missing, f"NS grid InputSchema lost canonical fields: {missing}"
+
+
+_CHANNEL = {
+    "x_lo": {"type": "dirichlet"},
+    "x_hi": {"type": "neumann"},
+    "y_lo": {"type": "no_slip"},
+    "y_hi": {"type": "no_slip"},
+}
+_CYLINDER = {"shape": "cylinder", "center": [0.2, 0.2], "radius": 0.05}
+
+
+def _channel_inputs(**overrides):
+    import numpy as np
+
+    inputs = {
+        "v0": np.zeros((220, 41, 1, 2), dtype=np.float32),
+        "domain_extent": [2.2, 0.41],
+        "boundary_conditions": _CHANNEL,
+        "obstacle": _CYLINDER,
+        "inflow_profile": np.ones(41, dtype=np.float32),
+    }
+    return {**inputs, **overrides}
+
+
+@needs_runtime
+def test_ns_grid_scalar_extent_is_a_square():
+    """A scalar extent is a square."""
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+
+    s = InputSchema(v0=np.zeros((16, 16, 1, 2), dtype=np.float32), domain_extent=1.0)
+    assert s.extent == (1.0, 1.0)
+    assert s.dx == 1.0 / 16
+
+
+@needs_runtime
+def test_ns_grid_periodic_box_rejects_extent_list():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="scalar domain_extent"):
+        InputSchema(
+            v0=np.zeros((16, 16, 1, 2), dtype=np.float32), domain_extent=[1.0, 1.0]
+        )
+
+
+@needs_runtime
+def test_ns_grid_rectangular_channel_validates():
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+
+    s = InputSchema(**_channel_inputs())
+    assert s.extent == (2.2, 0.41)
+    assert s.dx == 0.01
+
+
+@needs_runtime
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"domain_extent": 2.2}, "isotropic"),
+        ({"domain_extent": [2.2, 0.5]}, "isotropic"),
+        ({"domain_extent": [2.2, 0.41, 1.0]}, "entries"),
+        ({"obstacle": None}, "require an obstacle"),
+        ({"boundary_conditions": {**_CHANNEL, "x_lo": {"type": "no_slip"}}}, "x_lo"),
+        ({"boundary_conditions": {**_CHANNEL, "x_hi": {"type": "periodic"}}}, "both"),
+        ({"obstacle": {"shape": "cylinder", "center": [0.2, 0.2]}}, "radius"),
+    ],
+)
+def test_ns_grid_schema_rejects_inconsistent_inputs(overrides, match):
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match=match):
+        InputSchema(**_channel_inputs(**overrides))
+
+
+@needs_runtime
+def test_ns_grid_inflow_profile_must_match_the_grid():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match=r"\(41,\)"):
+        InputSchema(**_channel_inputs(inflow_profile=np.ones(40, dtype=np.float32)))
+
+
+@needs_runtime
+def test_ns_grid_channel_check_accepts_the_two_benchmark_setups():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic,
+        check_periodic_or_channel,
+    )
+
+    periodic = InputSchema(v0=np.zeros((16, 16, 1, 2), dtype=np.float32))
+    check_periodic(periodic, "solver")
+    check_periodic_or_channel(periodic, "solver")
+    check_periodic_or_channel(InputSchema(**_channel_inputs()), "solver")
+
+
+@needs_runtime
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"inflow_profile": None},
+        {"obstacle": {"shape": "box", "center": [0.2, 0.2], "half_widths": [0.05] * 2}},
+        {"boundary_conditions": {**_CHANNEL, "y_hi": {"type": "neumann"}}},
+    ],
+)
+def test_ns_grid_channel_check_rejects_other_channels(overrides):
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic_or_channel,
+    )
+
+    inputs = InputSchema(**_channel_inputs(**overrides))
+    with pytest.raises(ValueError, match="solver supports a fully periodic box"):
+        check_periodic_or_channel(inputs, "solver")
+
+
+@needs_runtime
+def test_ns_grid_periodic_checks_reject_an_obstacle_in_a_periodic_box():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from mosaic_shared.problems.navier_stokes_grid.channel import (
+        check_periodic,
+        check_periodic_or_channel,
+    )
+
+    inputs = InputSchema(
+        v0=np.zeros((16, 16, 1, 2), dtype=np.float32),
+        domain_extent=1.0,
+        obstacle={"shape": "cylinder", "center": [0.5, 0.5], "radius": 0.1},
+    )
+    for check in (check_periodic, check_periodic_or_channel):
+        with pytest.raises(ValueError, match="without an obstacle"):
+            check(inputs, "solver")
+    with pytest.raises(ValueError, match="only fully periodic"):
+        check_periodic(InputSchema(**_channel_inputs()), "solver")
+
+
+@needs_runtime
+def test_ns_grid_solid_cells_are_the_cells_centered_inside_the_cylinder():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid.channel import solid_cells
+
+    # Cell centers at 0.5, 1.5, 2.5, 3.5; the four around (2, 2) lie at
+    # distance sqrt(0.5) < 1, the next ring at sqrt(2.5) > 1.
+    solid = solid_cells(4, 5, 1.0, [2.0, 2.0], 1.0)
+    expected = np.zeros((4, 5), dtype=bool)
+    expected[1:3, 1:3] = True
+    np.testing.assert_array_equal(solid, expected)

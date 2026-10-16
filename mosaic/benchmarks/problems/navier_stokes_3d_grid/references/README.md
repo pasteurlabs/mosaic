@@ -42,3 +42,15 @@ mosaic reference -p ns-3d-grid -e forward/agreement
 The converged strategy (reference solver + resolution) is registered in
 `CONVERGED_REFERENCES` in `mosaic/benchmarks/core/reference.py`. Regeneration
 builds the reference solver's tesseract image (Docker required).
+
+## `forward_baseline.npz`
+
+The accuracy reference for the `forward/baseline` resolution sweep
+(`N ∈ [8, 16, 32]`). Each `reference_{i}` is the velocity field at `t = 1.28`
+on the `i`-th grid, spectrally truncated from one Exponax run at `N=64`
+(`dt = 0.02`, 64 steps, the benchmark's CFL number).
+
+Generating the reference from an `N=128` run instead changes it by `1.2e-5`
+(relative L2) on every grid, far below the errors the experiment measures.
+
+Regenerate with `mosaic reference -p ns-3d-grid -e forward/baseline`.
