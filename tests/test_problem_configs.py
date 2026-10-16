@@ -105,6 +105,15 @@ def test_exclusion_keys_match_experiments(problem_config):
             ), f"{solver_name}: exclusion key {exc_key!r} matches no experiment"
 
 
+def test_indicative_metrics_name_experiments_and_metrics(problem_config):
+    """Every indicative-metric override names a registered experiment and a known metric."""
+    from mosaic.benchmarks.core.status import METRIC_SPECS
+
+    for label, metrics in problem_config.indicative_metrics.items():
+        assert label in problem_config.experiments, label
+        assert set(metrics) <= METRIC_SPECS.keys(), (label, metrics)
+
+
 def test_unknown_problem_raises():
     with pytest.raises(ValueError, match="Unknown problem"):
         get_config("nonexistent-problem")
