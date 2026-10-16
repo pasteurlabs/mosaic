@@ -15,11 +15,12 @@ Runs ``ns_solver.jl`` from this checkout inside an existing INS.jl image
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+from .helpers import image_available
 
 _IMAGE = "ins_navier_stokes_grid:latest"
 _SRC_DIR = (
@@ -45,24 +46,7 @@ end
 """
 
 
-def _image_available() -> bool:
-    if shutil.which("docker") is None:
-        return False
-    try:
-        return (
-            subprocess.run(
-                ["docker", "image", "inspect", _IMAGE],
-                capture_output=True,
-                timeout=30,
-                check=False,
-            ).returncode
-            == 0
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-
-
-@pytest.mark.skipif(not _image_available(), reason=f"{_IMAGE} not available")
+@pytest.mark.skipif(not image_available(_IMAGE), reason=f"{_IMAGE} not available")
 def test_apply_matches_vjp_rollout():
     result = subprocess.run(
         [

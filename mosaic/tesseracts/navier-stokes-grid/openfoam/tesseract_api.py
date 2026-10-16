@@ -1,21 +1,27 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""OpenFOAM icoFoam tesseract for incompressible NS on periodic Cartesian grids.
+"""OpenFOAM tesseract for incompressible Navier-Stokes on Cartesian grids.
 
-Wraps OpenFOAM icoFoam (transient, laminar, incompressible) with:
+Periodic mode (fully periodic boundary conditions), solved with icoFoam (PISO):
   - 2-D: N×N Cartesian grid, cyclic x/y, empty z patches  (v0 shape (N,N,1,2))
   - 3-D: N×N×N Cartesian grid, cyclic x/y/z patches       (v0 shape (N,N,N,3))
   - IC written from v0 as nonuniform OpenFOAM volVectorField
   - Final velocity field parsed back to same shape as v0
-  - No VJP/JVP (forward-only baseline)
 
-Channel mode (activated when ``inputs.obstacle`` is not None):
-  - INLET/OUTLET BCs in x, cyclic BCs in y, empty z patches (2-D only)
-  - No-slip obstacle enforcement via fvConstraints fixedValue + topoSet cylinderToCell (OF12)
-  - Uses foamRun -solver incompressibleFluid (NOT legacy icoFoam) so fvConstraints are applied
+Channel mode (a cylinder obstacle in the DFG 2D-1 channel, 2-D only), solved
+with ``foamRun -solver incompressibleFluid`` (PIMPLE):
+  - Body-fitted mesh: an O-grid around the cylinder inside a Cartesian channel
+  - Inlet profile from ``inflow_profile``, zero-gradient outlet with p = 0,
+    no-slip walls and cylinder
+  - Force on the cylinder from the ``forces`` function object at every step
+  - Velocity and pressure sampled at the canonical cell centers
+
+Forward only: no VJP/JVP.
 """
 
+import math
+import os
 import re
 import subprocess
 import tempfile
@@ -28,17 +34,48 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.schema_types import ObstacleShape
+from pydantic import model_validator
 
 # OpenFOAM Foundation v12 environment (installed from openfoam.org)
 _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
 
 
+# OpenFOAM runs one non-periodic configuration, the DFG 2D-1 channel.
+_CHANNEL_BCS = {
+    "x_lo": "dirichlet",
+    "x_hi": "neumann",
+    "y_lo": "no_slip",
+    "y_hi": "no_slip",
+}
+
+
 class InputSchema(_CanonicalInputSchema):
-    """Input schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
+    """Input schema for the OpenFOAM Navier-Stokes tesseract."""
+
+    @model_validator(mode="after")
+    def _check_supported_bcs(self) -> "InputSchema":
+        bc = self.boundary_conditions
+        if bc.is_fully_periodic and self.obstacle is None:
+            return self
+        faces = {face: getattr(bc, face).type.value for face in _CHANNEL_BCS}
+        if (
+            faces != _CHANNEL_BCS
+            or self.inflow_profile is None
+            or self.v0.shape[-1] != 2
+            or self.obstacle is None
+            or self.obstacle.shape != ObstacleShape.CYLINDER
+        ):
+            raise ValueError(
+                "openfoam supports fully periodic BCs without an obstacle, or a "
+                f"2-D cylinder in the channel {_CHANNEL_BCS} with an "
+                f"inflow_profile; got {faces}"
+            )
+        return self
 
 
 class OutputSchema(_CanonicalOutputSchema):
-    """Output schema for the OpenFOAM icoFoam Navier-Stokes tesseract."""
+    """Output schema for the OpenFOAM Navier-Stokes tesseract."""
 
 
 # ---------------------------------------------------------------------------
@@ -209,17 +246,8 @@ boundary
     (system_dir / "blockMeshDict").write_text(content)
 
 
-def _write_control_dict(
-    system_dir: Path, dt: float, end_time: float, *, use_foam_run: bool = False
-) -> None:
+def _write_control_dict(system_dir: Path, dt: float, end_time: float) -> None:
     n_steps = max(1, round(end_time / dt))
-    if use_foam_run:
-        # foamRun -solver incompressibleFluid supports fvModels/fvConstraints (OF12).
-        # Legacy icoFoam (applications/legacy) does NOT load fvModels and therefore
-        # silently ignores the fixedValueConstraint — the obstacle is never enforced.
-        app_line = "application     foamRun;\nsolver          incompressibleFluid;"
-    else:
-        app_line = "application     icoFoam;"
     content = f"""\
 FoamFile
 {{
@@ -228,7 +256,7 @@ FoamFile
     class       dictionary;
     object      controlDict;
 }}
-{app_line}
+application     icoFoam;
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
@@ -266,60 +294,43 @@ snGradSchemes   { default corrected; }
     (system_dir / "fvSchemes").write_text(content)
 
 
-def _write_fv_solution(system_dir: Path, *, use_pimple: bool = False) -> None:
-    # foamRun -solver incompressibleFluid uses PIMPLE; legacy icoFoam uses PISO.
-    # PIMPLE (foamRun incompressibleFluid) also requires a UFinal solver entry
-    # because the PIMPLE outer-corrector loop solves for UFinal at the last corrector.
-    loop_dict = "PIMPLE" if use_pimple else "PISO"
-    if use_pimple:
-        u_solver = """\
-    U
+def _write_fv_solution(system_dir: Path) -> None:
+    # The momentum predictor starts from the previous step's U, and a loose
+    # tolerance leaves part of each step's update unsolved. On fine grids,
+    # where steps are small and many, that becomes an error floor.
+    content = """\
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+solvers
+{
+    p
     {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
-        tolerance       1e-05;
-        relTol          0;
+        solver          PCG;
+        preconditioner  DIC;
+        tolerance       1e-06;
+        relTol          0.05;
     }
-    UFinal { $U; }"""
-    else:
-        # The momentum predictor starts from the previous step's U, and a loose
-        # tolerance leaves part of each step's update unsolved. On fine grids,
-        # where steps are small and many, that becomes an error floor.
-        u_solver = """\
+    pFinal { $p; relTol 0; }
     U
     {
         solver          smoothSolver;
         smoother        symGaussSeidel;
         tolerance       1e-08;
         relTol          0;
-    }"""
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      fvSolution;
-}}
-solvers
-{{
-    p
-    {{
-        solver          PCG;
-        preconditioner  DIC;
-        tolerance       1e-06;
-        relTol          0.05;
-    }}
-    pFinal {{ $p; relTol 0; }}
-{u_solver}
-}}
-{loop_dict}
-{{
+    }
+}
+PISO
+{
     nCorrectors              2;
     nNonOrthogonalCorrectors 0;
     pRefCell                 0;
     pRefValue                0;
-}}
+}
 """
     (system_dir / "fvSolution").write_text(content)
 
@@ -458,426 +469,502 @@ boundaryField
 
 
 # ---------------------------------------------------------------------------
-# Channel-mode case writers
+# Channel mode: body-fitted DFG 2D-1 case
 # ---------------------------------------------------------------------------
 
+# Radial cell growth in the O-grid, cylinder cell size over square cell size.
+_RADIAL_GRADING = 0.5
+# Cell growth along the wake block, outlet cell size over the cell size next
+# to the cylinder.
+_WAKE_GRADING = 10.0
+# Largest Courant number of an internal step, estimated from the peak inflow
+# speed and the smallest cell. Outer steps longer than that are sub-stepped.
+_MAX_COURANT = 1.0
+# Fewest cells per MPI process. Smaller meshes run serially.
+_CELLS_PER_PROCESS = 10_000
 
-def _write_block_mesh_dict_channel(system_dir: Path, N: int, L: float) -> None:
-    """BlockMeshDict for a 2-D channel: INLET/OUTLET in x, cyclic y, empty z.
-
-    Vertex numbering matches the periodic case (same hex block):
-      0=(0,0,0)  1=(L,0,0)  2=(L,L,0)  3=(0,L,0)
-      4=(0,0,dz) 5=(L,0,dz) 6=(L,L,dz) 7=(0,L,dz)
-
-    Patch face winding (right-hand normal pointing outward):
-      INLET   (x=0) : (0 3 7 4)  → normal in -x direction; reversed so OF sees +outward
-      OUTLET  (x=L) : (1 5 6 2)  → normal in +x direction
-      WALL_BOT(y=0) : (0 4 5 1)  → normal in -y direction
-      WALL_TOP(y=L) : (3 2 6 7)  → normal in +y direction
-      FRONT   (z=0) : (0 1 2 3)  → normal in -z direction
-      BACK    (z=dz): (4 7 6 5)  → normal in +z direction
-
-    WALL_BOT / WALL_TOP are declared as cyclic neighbours so the y-direction
-    is periodic, consistent with other solvers.
-    """
-    dz = L / N
-    content = f"""\
+_FOAM_HEADER = """\
 FoamFile
 {{
     version     2.0;
     format      ascii;
-    class       dictionary;
-    object      blockMeshDict;
+    class       {cls};
+    object      {obj};
 }}
+"""
+
+
+def _write_channel_block_mesh_dict(
+    system_dir: Path,
+    extent: tuple[float, float],
+    dx: float,
+    center: tuple[float, float],
+    radius: float,
+) -> float:
+    """Write the blockMeshDict of a 2-D channel with an O-grid around the cylinder.
+
+    The lines x = cx ± 2r and y = cy ± 2r cut the channel into 3 × 3 blocks.
+    The outer blocks are Cartesian with spacing ``dx``, except that the cells
+    downstream of the cylinder grow towards the outlet. The center square
+    holds four O-grid blocks between its sides and the cylinder, with
+    4 × 4r/dx cells around the cylinder and 2r/dx cells radially, shrinking
+    towards the wall. One cell thick in z.
+
+    Returns the smallest cell size, on the cylinder wall.
+    """
+    lx, ly = extent
+    cx, cy = center
+    half_side = 2 * radius
+    if not (
+        cx - half_side > 0
+        and cx + half_side < lx
+        and cy - half_side > 0
+        and cy + half_side < ly
+    ):
+        raise NotImplementedError(
+            "openfoam needs the square of side 2D around the cylinder to lie "
+            "inside the channel"
+        )
+    xs = (0.0, cx - half_side, cx + half_side, lx)
+    ys = (0.0, cy - half_side, cy + half_side, ly)
+    nx = [max(1, round((xs[i + 1] - xs[i]) / dx)) for i in range(3)]
+    ny = [max(1, round((ys[j + 1] - ys[j]) / dx)) for j in range(3)]
+    # Geometric growth from dx to _WAKE_GRADING dx over the wake block.
+    wake = xs[3] - xs[2]
+    q = (wake - dx) / (wake - _WAKE_GRADING * dx)
+    nx[2] = max(1, round(1 + math.log(_WAKE_GRADING) / math.log(q)))
+    n_side, n_rad = nx[1], max(2, nx[1] // 2)
+
+    # 2-D vertices: the 4 × 4 block corners (index 4 j + i), then the points
+    # on the cylinder at 225°, 315°, 45° and 135°. The z = dz copies follow.
+    c = radius / math.sqrt(2)
+    pts = [(x, y) for y in ys for x in xs]
+    pts += [(cx - c, cy - c), (cx + c, cy - c), (cx + c, cy + c), (cx - c, cy + c)]
+    n = len(pts)
+    dz = dx
+    vertices = [f"({x:.10g} {y:.10g} 0)" for x, y in pts]
+    vertices += [f"({x:.10g} {y:.10g} {dz:.10g})" for x, y in pts]
+
+    def corner(i: int, j: int) -> int:
+        return 4 * j + i
+
+    def hex_block(v: list[int], cells: tuple[int, int], grading: str) -> str:
+        ids = " ".join(str(k) for k in [*v, *(k + n for k in v)])
+        return f"hex ({ids}) ({cells[0]} {cells[1]} 1) simpleGrading ({grading} 1)"
+
+    blocks = [
+        hex_block(
+            [corner(i, j), corner(i + 1, j), corner(i + 1, j + 1), corner(i, j + 1)],
+            (nx[i], ny[j]),
+            f"{_WAKE_GRADING if i == 2 else 1} 1",
+        )
+        for j in range(3)
+        for i in range(3)
+        if (i, j) != (1, 1)
+    ]
+    # O-grid blocks run counter-clockwise, with local x along the square side
+    # and local y inwards from the square to the cylinder.
+    square = [corner(1, 1), corner(2, 1), corner(2, 2), corner(1, 2)]
+    circle = [16, 17, 18, 19]
+    for k in range(4):
+        v = [square[k], square[(k + 1) % 4], circle[(k + 1) % 4], circle[k]]
+        blocks.append(hex_block(v, (n_side, n_rad), f"1 {_RADIAL_GRADING}"))
+
+    edges = []
+    for k in range(4):
+        angle = math.radians(270 + 90 * k)
+        mid = (cx + radius * math.cos(angle), cy + radius * math.sin(angle))
+        for z, off in ((0.0, 0), (dz, n)):
+            edges.append(
+                f"arc {circle[k] + off} {circle[(k + 1) % 4] + off} "
+                f"({mid[0]:.10g} {mid[1]:.10g} {z:.10g})"
+            )
+
+    def face(a: int, b: int) -> str:
+        # a → b runs along the boundary with the fluid on its left, so the
+        # face normal points out of the domain.
+        return f"({a} {b} {b + n} {a + n})"
+
+    patches = {
+        "inlet": ("patch", [face(corner(0, j + 1), corner(0, j)) for j in range(3)]),
+        "outlet": ("patch", [face(corner(3, j), corner(3, j + 1)) for j in range(3)]),
+        "walls": (
+            "wall",
+            [face(corner(i, 0), corner(i + 1, 0)) for i in range(3)]
+            + [face(corner(i + 1, 3), corner(i, 3)) for i in range(3)],
+        ),
+        "cylinder": (
+            "wall",
+            [face(circle[(k + 1) % 4], circle[k]) for k in range(4)],
+        ),
+    }
+    boundary = "\n".join(
+        f"    {name}\n    {{\n        type {kind};\n"
+        f"        faces ({' '.join(faces)});\n    }}"
+        for name, (kind, faces) in patches.items()
+    )
+    nl = "\n    "
+    content = (
+        _FOAM_HEADER.format(cls="dictionary", obj="blockMeshDict")
+        + f"""\
 scale   1;
 
 vertices
 (
-    (0 0 0)        // 0
-    ({L} 0 0)      // 1
-    ({L} {L} 0)    // 2
-    (0 {L} 0)      // 3
-    (0 0 {dz})     // 4
-    ({L} 0 {dz})   // 5
-    ({L} {L} {dz}) // 6
-    (0 {L} {dz})   // 7
+    {nl.join(vertices)}
 );
 
 blocks
 (
-    hex (0 1 2 3 4 5 6 7) ({N} {N} 1) simpleGrading (1 1 1)
+    {nl.join(blocks)}
+);
+
+edges
+(
+    {nl.join(edges)}
 );
 
 boundary
 (
-    INLET
-    {{
-        type patch;
-        faces ((0 4 7 3));
-    }}
-    OUTLET
-    {{
-        type patch;
-        faces ((1 2 6 5));
-    }}
-    WALL_BOT
-    {{
-        type cyclic;
-        neighbourPatch WALL_TOP;
-        faces ((0 1 5 4));
-    }}
-    WALL_TOP
-    {{
-        type cyclic;
-        neighbourPatch WALL_BOT;
-        faces ((3 7 6 2));
-    }}
-    FRONT
-    {{
-        type empty;
-        faces ((0 3 2 1));
-    }}
-    BACK
-    {{
-        type empty;
-        faces ((4 5 6 7));
-    }}
+{boundary}
 );
+
+defaultPatch
+{{
+    name    frontAndBack;
+    type    empty;
+}}
 """
+    )
     (system_dir / "blockMeshDict").write_text(content)
 
+    # The smallest cell lies on the wall at mid-side, where the O-grid blocks
+    # are thinnest. Radially it is the last of n_rad geometrically graded cells.
+    q = _RADIAL_GRADING ** (1 / (n_rad - 1))
+    first = (half_side - radius) * (1 - q) / (1 - q**n_rad)
+    return min(first * q ** (n_rad - 1), 2 * math.pi * radius / (4 * n_side))
 
-def _write_initial_u_channel(case_dir: Path, v0: np.ndarray, inflow_vel: float) -> None:
-    """Write 0/U for channel mode (2-D only).
 
-    Internal field is taken from v0 (same x-fastest ordering as periodic case).
-    Boundary conditions:
-      INLET    — fixedValue at inflow_vel
-      OUTLET   — inletOutlet (prevents back-flow)
-      WALL_BOT — cyclic
-      WALL_TOP — cyclic
-      FRONT    — empty
-      BACK     — empty
-    """
-    N = v0.shape[0]
-    n_cells = N * N
-    vel = v0[:, :, 0, :]  # (N, N, 2)
-    vx = vel[:, :, 0].T.ravel()
-    vy = vel[:, :, 1].T.ravel()
-    lines = "\n".join(f"({vx[k]:.8g} {vy[k]:.8g} 0)" for k in range(n_cells))
+def _write_channel_control_dict(
+    system_dir: Path, dt: float, n_steps: int, center: tuple[float, float]
+) -> None:
+    """Write the foamRun controlDict, recording the force on the cylinder at every step."""
+    content = (
+        _FOAM_HEADER.format(cls="dictionary", obj="controlDict")
+        + f"""\
+application     foamRun;
+solver          incompressibleFluid;
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         {n_steps * dt:.15g};
+deltaT          {dt:.15g};
+writeControl    timeStep;
+writeInterval   {n_steps};
+writeFormat     ascii;
+writePrecision  12;
+writeCompression off;
+timeFormat      general;
+timePrecision   12;
+runTimeModifiable false;
 
-    content = f"""\
-FoamFile
+functions
 {{
-    version     2.0;
-    format      ascii;
-    class       volVectorField;
-    object      U;
-}}
-dimensions      [0 1 -1 0 0 0 0];
-
-internalField   nonuniform List<vector>
-{n_cells}
-(
-{lines}
-)
-;
-
-boundaryField
-{{
-    INLET    {{ type fixedValue; value uniform ({inflow_vel:.8g} 0 0); }}
-    OUTLET   {{ type inletOutlet; inletValue uniform (0 0 0); value uniform (0 0 0); }}
-    WALL_BOT {{ type cyclic; }}
-    WALL_TOP {{ type cyclic; }}
-    FRONT    {{ type empty; }}
-    BACK     {{ type empty; }}
-}}
-"""
-    (case_dir / "0" / "U").write_text(content)
-
-
-def _write_initial_p_channel(case_dir: Path) -> None:
-    """Write 0/p for channel mode.
-
-    INLET  — zeroGradient (pressure free at inlet)
-    OUTLET — fixedValue 0  (reference pressure)
-    WALL_BOT/TOP — cyclic
-    FRONT/BACK — empty
-    """
-    content = """\
-FoamFile
-{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      p;
-}
-dimensions      [0 2 -2 0 0 0 0];
-
-internalField   uniform 0;
-
-boundaryField
-{
-    INLET    { type zeroGradient; }
-    OUTLET   { type fixedValue; value uniform 0; }
-    WALL_BOT { type cyclic; }
-    WALL_TOP { type cyclic; }
-    FRONT    { type empty; }
-    BACK     { type empty; }
-}
-"""
-    (case_dir / "0" / "p").write_text(content)
-
-
-def _write_topo_set_dict(system_dir: Path, cx: float, cy: float, r: float) -> None:
-    """Write system/topoSetDict to select cylinder cells as 'obstacleZone'.
-
-    ``cx``, ``cy``, ``r`` must be in physical (mesh) coordinates, not normalized.
-    The cylinder axis runs in the z-direction through (cx, cy).
-    We use z-extents beyond the mesh so all cells on the axis are captured.
-    """
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      topoSetDict;
-}}
-actions
-(
+    forces
     {{
-        name    obstacleZone;
-        type    cellSet;
-        action  new;
-        source  cylinderToCell;
-        point1  ({cx:.8g} {cy:.8g} -1.0);
-        point2  ({cx:.8g} {cy:.8g}  2.0);
-        radius  {r:.8g};
+        type            forces;
+        libs            ("libforces.so");
+        writeControl    timeStep;
+        writeInterval   1;
+        executeAtStart  no;
+        patches         (cylinder);
+        rho             rhoInf;
+        rhoInf          1;
+        CofR            ({center[0]:.10g} {center[1]:.10g} 0);
     }}
-);
+}}
 """
-    (system_dir / "topoSetDict").write_text(content)
+    )
+    (system_dir / "controlDict").write_text(content)
 
 
-def _write_fv_constraints(system_dir: Path) -> None:
-    """Write system/fvConstraints with fixedValue constraint on 'obstacleZone'.
+def _write_channel_numerics(system_dir: Path, constant_dir: Path, nu: float) -> None:
+    """fvSchemes, fvSolution and the laminar transport model for channel mode.
 
-    OpenFOAM 12 (openfoam.org) separates fvModels (source terms) from
-    fvConstraints (hard constraints).  The correct file is ``system/fvConstraints``
-    (NOT ``constant/fvModels``; also NOT ``constant/fvConstraints`` — OF12 reads
-    fvConstraints from ``system/``, matching tutorials like channel395 and ductSecondaryFlow).
-
-    The OF12 ``fixedValue`` fvConstraint (TypeName "fixedValue", not the longer
-    "fixedValueConstraint") enforces U = (0 0 0) on all cells in the obstacleZone
-    cellSet at every time step by calling ``fvConstraints().constrain(UEqn)`` inside
-    the PIMPLE loop.
-
-    Previous attempt wrote ``constant/fvModels`` with ``type fixedValueConstraint``
-    and flat ``field``/``value`` keys.  Both were wrong:
-      1. ``fixedValueConstraint`` is not a registered fvModel type (it is an fvConstraint);
-         OF12 throws "Unknown fvModel fixedValueConstraint" and aborts.
-      2. Even if the type name were correct, ``fixedValueConstraint`` reads its field
-         values from a ``fieldValues {}`` subdictionary, not flat keys — the flat-key
-         format would have triggered ``FatalIOError`` on ``subDict("fieldValues")``.
-      3. Legacy ``icoFoam`` (applications/legacy) does NOT call ``fvConstraints`` at all
-         and ignores the file entirely regardless of its content — the channel solver
-         must use ``foamRun -solver incompressibleFluid`` which does call
-         ``fvConstraints().constrain()`` in the PIMPLE loop.
+    Second-order in space and implicit Euler in time, which damps the start-up
+    transient on the way to the steady state.
     """
-    content = """\
-FoamFile
+    (system_dir / "fvSchemes").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvSchemes")
+        + """\
+ddtSchemes      { default Euler; }
+gradSchemes     { default Gauss linear; }
+divSchemes
 {
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      fvConstraints;
+    default         none;
+    div(phi,U)      Gauss linear;
+    div((nuEff*dev2(T(grad(U))))) Gauss linear;
 }
-brinkman
+laplacianSchemes { default Gauss linear corrected; }
+interpolationSchemes { default linear; }
+snGradSchemes   { default corrected; }
+"""
+    )
+    (system_dir / "fvSolution").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvSolution")
+        + """\
+solvers
 {
-    type            fixedValue;
-    active          yes;
-    select          cellSet;
-    cellSet         obstacleZone;
-    fieldValues
+    p
     {
-        U           uniform (0 0 0);
+        solver          GAMG;
+        smoother        DICGaussSeidel;
+        tolerance       1e-08;
+        relTol          0.01;
     }
+    pFinal { $p; relTol 0; }
+    U
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-08;
+        relTol          0;
+    }
+    UFinal { $U; }
+}
+PIMPLE
+{
+    momentumPredictor        yes;
+    nOuterCorrectors         1;
+    nCorrectors              2;
+    nNonOrthogonalCorrectors 1;
 }
 """
-    (system_dir / "fvConstraints").write_text(content)
+    )
+    _write_transport_properties(constant_dir, nu)
+    (constant_dir / "momentumTransport").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="momentumTransport")
+        + "simulationType  laminar;\n"
+    )
 
 
-def _run_openfoam_channel(
-    v0: np.ndarray,
-    inflow_vel: float,
-    nu: float,
-    dt: float,
-    end_time: float,
-    N: int,
-    L: float,
-    obstacle_dict: dict | None,
-) -> tuple[np.ndarray, np.ndarray | None]:
-    """Run foamRun (incompressibleFluid) in channel mode (2-D only) and return (velocity, pressure).
+def _parse_vectors(text: str) -> np.ndarray:
+    """``(n, 3)`` array from the body of an OpenFOAM ``List<vector>``."""
+    return np.array(
+        [r.split() for r in re.findall(r"\(([^()]+)\)", text)], dtype=np.float64
+    )
 
-    Steps:
-      1. Write blockMeshDict (INLET/OUTLET/cyclic-y/empty-z) + run blockMesh
-      2. If obstacle present: write topoSetDict + run topoSet to create cellSet,
-         then write system/fvConstraints with fixedValue constraint (OF12 no-slip enforcement)
-      3. Write controlDict / fvSchemes / fvSolution / physicalProperties / turbulenceProperties
-      4. Write initial U (channel BCs) and p (channel BCs)
-      5. Run foamRun -solver incompressibleFluid
-      6. Read and return velocity and pressure fields
 
-    NOTE: channel mode uses ``foamRun -solver incompressibleFluid`` (OF12 modern path),
-    NOT legacy ``icoFoam``.  The modern solver calls ``fvConstraints().constrain()`` at
-    every time step, which is required for ``fixedValue`` (fvConstraints) to
-    enforce no-slip on the obstacle cellSet.  Legacy ``icoFoam`` does not load fvConstraints
-    at all and silently ignores those files, producing unconstrained flow.
-    The modern solver requires PIMPLE (not PISO) in fvSolution, and a UFinal solver entry.
+def _read_cell_centers(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Mesh cell centers ``(n_cells, 3)`` and inlet face centers ``(n_faces, 3)``."""
+    _run_of("foamPostProcess -func writeCellCentres -time 0", workdir)
+    text = (workdir / "0" / "C").read_text()
+    cells = re.search(
+        r"internalField\s+nonuniform\s+List<vector>\s+\d+\s*\((.*?)\)\s*;",
+        text,
+        re.DOTALL,
+    )
+    inlet = re.search(
+        r"inlet\s*\{[^{}]*?value\s+nonuniform\s+List<vector>\s+\d+\s*\((.*?)\)\s*;",
+        text,
+        re.DOTALL,
+    )
+    for name in ("C", "Cx", "Cy", "Cz"):
+        (workdir / "0" / name).unlink(missing_ok=True)
+    return _parse_vectors(cells.group(1)), _parse_vectors(inlet.group(1))
+
+
+def _bilinear(field: np.ndarray, dx: float, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Bilinear interpolation of a cell-centered ``(nx, ny, c)`` field at (x, y)."""
+    nx, ny = field.shape[:2]
+    fx = np.clip(x / dx - 0.5, 0, nx - 1)
+    fy = np.clip(y / dx - 0.5, 0, ny - 1)
+    i = np.minimum(fx.astype(int), nx - 2)
+    j = np.minimum(fy.astype(int), ny - 2)
+    wx, wy = (fx - i)[:, None], (fy - j)[:, None]
+    return (
+        (1 - wx) * (1 - wy) * field[i, j]
+        + wx * (1 - wy) * field[i + 1, j]
+        + (1 - wx) * wy * field[i, j + 1]
+        + wx * wy * field[i + 1, j + 1]
+    )
+
+
+def _vector_list(v: np.ndarray) -> str:
+    rows = "\n".join(f"({a:.10g} {b:.10g} 0)" for a, b in v)
+    return f"nonuniform List<vector>\n{len(v)}\n(\n{rows}\n)"
+
+
+def _write_channel_fields(
+    case_dir: Path, u_cells: np.ndarray, u_inlet: np.ndarray
+) -> None:
+    """Write 0/U and 0/p with the inlet profile, zero-gradient outlet at p = 0 and no-slip walls."""
+    (case_dir / "0" / "U").write_text(
+        _FOAM_HEADER.format(cls="volVectorField", obj="U")
+        + f"""\
+dimensions      [0 1 -1 0 0 0 0];
+internalField   {_vector_list(u_cells)};
+boundaryField
+{{
+    inlet        {{ type fixedValue; value {_vector_list(u_inlet)}; }}
+    outlet       {{ type zeroGradient; }}
+    walls        {{ type noSlip; }}
+    cylinder     {{ type noSlip; }}
+    frontAndBack {{ type empty; }}
+}}
+"""
+    )
+    (case_dir / "0" / "p").write_text(
+        _FOAM_HEADER.format(cls="volScalarField", obj="p")
+        + """\
+dimensions      [0 2 -2 0 0 0 0];
+internalField   uniform 0;
+boundaryField
+{
+    inlet        { type zeroGradient; }
+    outlet       { type fixedValue; value uniform 0; }
+    walls        { type zeroGradient; }
+    cylinder     { type zeroGradient; }
+    frontAndBack { type empty; }
+}
+"""
+    )
+
+
+def _sample(
+    workdir: Path, points: np.ndarray, n_procs: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """U ``(n, 2)`` and p ``(n,)`` at ``points`` at the final time.
+
+    Uses the ``probes`` function object with cell-point interpolation, which
+    is exact at cell centers and honors the boundary values on the walls.
     """
+    locations = "\n".join(f"({x:.12g} {y:.12g} {z:.12g})" for x, y, z in points)
+    (workdir / "system" / "sample").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="sample")
+        + f"""\
+probes
+{{
+    type                probes;
+    libs                ("libsampling.so");
+    fields              (U p);
+    interpolationScheme cellPoint;
+    probeLocations
+    (
+{locations}
+    );
+}}
+"""
+    )
+    cmd = "foamPostProcess -dict system/sample -latestTime"
+    _run_of(_parallel(cmd, n_procs), workdir)
+    (out_dir,) = (workdir / "postProcessing" / "probes").iterdir()
+
+    def last_row(name: str) -> str:
+        lines = (out_dir / name).read_text().splitlines()
+        return next(ln for ln in reversed(lines) if ln and not ln.startswith("#"))
+
+    u = _parse_vectors(last_row("U"))
+    p = np.array(last_row("p").split()[1:], dtype=np.float64)
+    if len(u) != len(points) or len(p) != len(points):
+        raise RuntimeError(
+            f"probes returned {len(u)} velocities and {len(p)} pressures for "
+            f"{len(points)} points"
+        )
+    if np.abs(u).max() > 1e100 or np.abs(p).max() > 1e100:
+        raise RuntimeError("some sample points lie outside the mesh")
+    return u[:, :2], p
+
+
+def _read_forces(workdir: Path, depth: float) -> np.ndarray:
+    """Total force on the cylinder per unit depth at every internal step, ``(n, 2)``."""
+    (path,) = (workdir / "postProcessing" / "forces").glob("*/forces.dat")
+    rows = [
+        ln.replace("(", " ").replace(")", " ").split()
+        for ln in path.read_text().splitlines()
+        if ln and not ln.startswith("#")
+    ]
+    data = np.array(rows, dtype=np.float64)
+    # Columns: time, pressure force (x y z), viscous force (x y z), then the
+    # moments.
+    return (data[:, 1:3] + data[:, 4:6]) / depth
+
+
+def _decompose(workdir: Path, n_cells: int) -> int:
+    """Split the case over the available cores; returns the number of processes."""
+    n_procs = min(len(os.sched_getaffinity(0)), n_cells // _CELLS_PER_PROCESS)
+    if n_procs < 2:
+        return 1
+    (workdir / "system" / "decomposeParDict").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="decomposeParDict")
+        + f"numberOfSubdomains {n_procs};\nmethod          scotch;\n"
+    )
+    _run_of("decomposePar", workdir)
+    return n_procs
+
+
+def _parallel(cmd: str, n_procs: int) -> str:
+    """``cmd`` run on ``n_procs`` MPI processes of a decomposed case."""
+    return f"mpirun -np {n_procs} {cmd} -parallel" if n_procs > 1 else cmd
+
+
+def _run_channel(inputs: InputSchema) -> dict:
+    """Solve the DFG channel on a body-fitted mesh and return canonical-grid outputs."""
+    v0 = np.asarray(inputs.v0, dtype=np.float64)[:, :, 0, :]
+    nx, ny = v0.shape[:2]
+    dx = inputs.dx
+    extent = inputs.extent
+    center = tuple(float(c) for c in inputs.obstacle.center)
+    radius = float(inputs.obstacle.radius)
+    nu = float(inputs.viscosity[0])
+    dt = float(inputs.dt[0])
+    profile = np.asarray(inputs.inflow_profile, dtype=np.float64)
+    y_canonical = (np.arange(ny) + 0.5) * dx
+
     with tempfile.TemporaryDirectory() as tmpdir:
         workdir = Path(tmpdir) / "case"
         (workdir / "0").mkdir(parents=True)
         (workdir / "constant").mkdir()
         (workdir / "system").mkdir()
 
-        # Solver config (must be written before blockMesh, which requires controlDict)
-        # Channel mode: use foamRun + incompressibleFluid (supports fvModels/fvConstraints).
-        _write_control_dict(workdir / "system", dt, end_time, use_foam_run=True)
-
-        # Mesh
-        _write_block_mesh_dict_channel(workdir / "system", N, L)
+        h_min = _write_channel_block_mesh_dict(
+            workdir / "system", extent, dx, center, radius
+        )
+        courant = float(np.abs(profile).max()) * dt / h_min
+        substeps = max(1, math.ceil(courant / _MAX_COURANT))
+        n_steps = inputs.steps * substeps
+        _write_channel_control_dict(workdir / "system", dt / substeps, n_steps, center)
+        _write_channel_numerics(workdir / "system", workdir / "constant", nu)
         _run_of("blockMesh", workdir)
 
-        # Obstacle cellSet + no-slip constraint
-        if obstacle_dict is not None:
-            cx = obstacle_dict["center"][0] * L
-            cy = obstacle_dict["center"][1] * L
-            r = obstacle_dict["radius"] * L
-            _write_topo_set_dict(workdir / "system", cx, cy, r)
-            _run_of("topoSet", workdir)
-            _write_fv_constraints(workdir / "system")
-        _write_fv_schemes(workdir / "system")
-        # Channel mode: use PIMPLE (required by foamRun incompressibleFluid).
-        _write_fv_solution(workdir / "system", use_pimple=True)
-        _write_transport_properties(workdir / "constant", nu)
-        _write_turbulence_properties(workdir / "constant")
+        cells, inlet = _read_cell_centers(workdir)
+        u_cells = _bilinear(v0, dx, cells[:, 0], cells[:, 1])
+        u_inlet = np.zeros((len(inlet), 2))
+        u_inlet[:, 0] = np.interp(inlet[:, 1], y_canonical, profile)
+        _write_channel_fields(workdir, u_cells, u_inlet)
 
-        # Initial conditions
-        _write_initial_u_channel(workdir, v0, inflow_vel)
-        _write_initial_p_channel(workdir)
+        n_procs = _decompose(workdir, len(cells))
+        _run_of(_parallel("foamRun", n_procs), workdir)
 
-        # Solve — foamRun picks up the solver from controlDict.
-        _run_of("foamRun", workdir)
+        forces = _read_forces(workdir, depth=dx)
+        if len(forces) != n_steps:
+            raise RuntimeError(f"expected {n_steps} force samples, got {len(forces)}")
 
-        result = _read_final_velocity(workdir, N, ndim=2)
-        pressure = _read_final_pressure(workdir, N, ndim=2)
+        xc = (np.arange(nx) + 0.5) * dx
+        X, Y = np.meshgrid(xc, y_canonical, indexing="ij")
+        fluid = (X - center[0]) ** 2 + (Y - center[1]) ** 2 >= radius**2
+        points = np.stack([X[fluid], Y[fluid], np.full(fluid.sum(), dx / 2)], axis=1)
+        u, p = _sample(workdir, points, n_procs)
 
-    return result, pressure
-
-
-# ---------------------------------------------------------------------------
-# Output parser
-# ---------------------------------------------------------------------------
-
-
-def _read_final_pressure(workdir: Path, N: int, ndim: int) -> np.ndarray | None:
-    """Read the latest time directory and return pressure as float32 array.
-
-    2-D: shape (N, N)   (same x-fastest ordering as _read_final_velocity)
-    3-D: shape (N, N, N)
-    Returns None if the pressure field cannot be parsed.
-    """
-    time_dirs = []
-    for d in workdir.iterdir():
-        if d.is_dir():
-            try:
-                t = float(d.name)
-                if t > 0:
-                    time_dirs.append((t, d))
-            except ValueError:
-                pass
-    if not time_dirs:
-        return None
-    latest_dir = max(time_dirs, key=lambda x: x[0])[1]
-    p_file = latest_dir / "p"
-    if not p_file.exists():
-        return None
-    text = p_file.read_text()
-    m = re.search(
-        r"internalField\s+nonuniform\s+List<scalar>\s+\d+\s*\(\s*(.*?)\s*\)\s*;",
-        text,
-        re.DOTALL,
-    )
-    if not m:
-        # Try uniform
-        mu = re.search(r"internalField\s+uniform\s+([-\d.eE+]+)\s*;", text)
-        if mu:
-            val = float(mu.group(1))
-            if ndim == 2:
-                return np.full((N, N), val, dtype=np.float32)
-            return np.full((N, N, N), val, dtype=np.float32)
-        return None
-    rows = m.group(1).split()
-    n_cells = N**ndim
-    if len(rows) != n_cells:
-        return None
-    flat = np.array([float(r) for r in rows], dtype=np.float32)
-    if ndim == 2:
-        # Same C-order reshape as velocity: [iy, ix] → [ix, iy]
-        return flat.reshape(N, N).T.copy()
-    else:
-        return flat.reshape(N, N, N).transpose(2, 1, 0).copy()
-
-
-def _compute_drag_numpy_of(
-    ux: np.ndarray,
-    pressure: np.ndarray,
-    obstacle: dict | None,
-    viscosity: float,
-    domain_extent: float,
-) -> np.ndarray | None:
-    """Compute x-direction drag on obstacle via discrete surface integral (OpenFOAM).
-
-    Args:
-        ux:          x-velocity (N, N), collocated.
-        pressure:    pressure field (N, N).
-        obstacle:    obstacle dict or None.
-        viscosity:   kinematic viscosity ν.
-        domain_extent: side length of domain.
-
-    Returns:
-        shape (1,) float32 or None.
-    """
-    if obstacle is None or not obstacle.get("shape"):
-        return None
-    N = ux.shape[0]
-    cx = obstacle["center"][0] * N
-    cy = obstacle["center"][1] * N
-    r = obstacle["radius"] * N
-    dx = domain_extent / N
-
-    x = np.arange(N, dtype=np.float32)
-    y = np.arange(N, dtype=np.float32)
-    X, Y = np.meshgrid(x, y, indexing="ij")
-    solid_mask = (X - cx) ** 2 + (Y - cy) ** 2 < r**2
-    fluid_mask = ~solid_mask
-
-    solid_right = np.roll(solid_mask, -1, axis=0)
-    solid_left = np.roll(solid_mask, 1, axis=0)
-    surf_right = fluid_mask & solid_right
-    surf_left = fluid_mask & solid_left
-
-    p_drag = np.sum(
-        np.where(surf_right, pressure * dx, 0.0)
-        + np.where(surf_left, -pressure * dx, 0.0)
-    )
-    visc_drag = np.sum(
-        np.where(surf_right, -viscosity * ux, 0.0)
-        + np.where(surf_left, viscosity * ux, 0.0)
-    )
-    return np.array([p_drag + visc_drag], dtype=np.float32)
+    velocity = np.zeros((nx, ny, 1, 2), dtype=np.float32)
+    velocity[fluid, 0] = u
+    pressure = np.zeros((nx, ny, 1), dtype=np.float32)
+    pressure[fluid, 0] = p
+    return {
+        "result": velocity,
+        "pressure": pressure,
+        "body_force": forces[substeps - 1 :: substeps].astype(np.float32),
+    }
 
 
 def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
@@ -934,12 +1021,12 @@ def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
-    """Run OpenFOAM icoFoam and return the final velocity and drag."""
-    if inputs.inflow_profile is not None:
-        raise NotImplementedError(
-            "openfoam does not support inflow_profile. "
-            "Use jax-cfd, phiflow, xlb, or lettuce for inflow-profile optimisation."
-        )
+    """Run OpenFOAM and return the final velocity.
+
+    With an obstacle, also return the final pressure and the force history.
+    """
+    if inputs.obstacle is not None:
+        return _run_channel(inputs)
 
     nu = float(inputs.viscosity[0])
     dt = float(inputs.dt[0])
@@ -949,46 +1036,6 @@ def apply(inputs: InputSchema) -> OutputSchema:
     end_time = inputs.steps * dt
     v0 = np.asarray(inputs.v0, dtype=np.float32)
 
-    # Obstacle dict for drag computation and channel-mode dispatch
-    obs = inputs.obstacle
-    obstacle_dict = None
-    if obs is not None:
-        obstacle_dict = {
-            "shape": obs.shape.value,
-            "center": list(obs.center),
-            "radius": float(obs.radius) if obs.radius is not None else 0.0,
-        }
-
-    # ------------------------------------------------------------------
-    # Channel mode: activated when an obstacle is specified (2-D only).
-    # Uses INLET/OUTLET BCs in x, cyclic y, Brinkman penalization.
-    # ------------------------------------------------------------------
-    if obstacle_dict is not None and ndim == 2:
-        # Derive inflow velocity as the mean x-velocity at the left column of v0.
-        inflow_vel = float(v0[:, 0, 0, 0].mean())
-
-        result, pressure = _run_openfoam_channel(
-            v0=v0,
-            inflow_vel=inflow_vel,
-            nu=nu,
-            dt=dt,
-            end_time=end_time,
-            N=N,
-            L=L,
-            obstacle_dict=obstacle_dict,
-        )
-
-        ux = result[:, :, 0, 0]  # (N, N)
-        p = pressure if pressure is not None else np.zeros((N, N), dtype=np.float32)
-        drag = _compute_drag_numpy_of(ux, p, obstacle_dict, nu, L)
-
-        out = {"result": result}
-        out["drag"] = drag if drag is not None else np.zeros((1,), dtype=np.float32)
-        return out
-
-    # ------------------------------------------------------------------
-    # Periodic mode: fully periodic Cartesian domain (original behaviour).
-    # ------------------------------------------------------------------
     with tempfile.TemporaryDirectory() as tmpdir:
         workdir = Path(tmpdir) / "case"
         (workdir / "0").mkdir(parents=True)
@@ -1009,25 +1056,15 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
         result = _read_final_velocity(workdir, N, ndim)
 
-        # Compute drag if there is an obstacle (2-D only).
-        # In periodic mode this is a post-hoc surface integral on the periodic field.
-        drag = None
-        if obstacle_dict is not None and ndim == 2:
-            pressure = _read_final_pressure(workdir, N, ndim)
-            ux = result[:, :, 0, 0]  # (N, N) from (N, N, 1, 2)
-            p = pressure if pressure is not None else np.zeros((N, N), dtype=np.float32)
-            drag = _compute_drag_numpy_of(ux, p, obstacle_dict, nu, L)
-
-    out = {"result": result}
-    out["drag"] = drag if drag is not None else np.zeros((1,), dtype=np.float32)
-    return out
+    return {"result": result}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Return output shapes and dtypes without running the solver."""
     v0 = abstract_inputs.v0
     shape = v0["shape"] if isinstance(v0, dict) else tuple(v0.shape)
-    return {
-        "result": {"shape": shape, "dtype": "float32"},
-        "drag": {"shape": (1,), "dtype": "float32"},
-    }
+    out = {"result": {"shape": shape, "dtype": "float32"}}
+    if abstract_inputs.obstacle is not None:
+        out["pressure"] = {"shape": shape[:3], "dtype": "float32"}
+        out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    return out

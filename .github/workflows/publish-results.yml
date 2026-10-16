@@ -63,9 +63,22 @@ jobs:
             VERSION="${HEAD_BRANCH#bot/release/}"
           fi
 
-          # Find the Benchmark workflow run for this PR's head SHA
-          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${HEAD_SHA}&status=completed&event=pull_request" \
-            --jq '.workflow_runs | map(select(.conclusion == "success")) | sort_by(.updated_at) | last | .id' 2>/dev/null || true)
+          # Find the newest successful Benchmark run for this PR's head SHA that
+          # produced results. A later run on the same commit without results
+          # (e.g. after relabelling to benchmark:none) must not hide it. With
+          # no such run, fall back to the newest successful one.
+          RUN_IDS=$(gh api "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${HEAD_SHA}&status=completed&event=pull_request" \
+            --jq '.workflow_runs | map(select(.conclusion == "success")) | sort_by(.updated_at) | reverse | .[].id' 2>/dev/null || true)
+          RUN_ID=""
+          for ID in $RUN_IDS; do
+            N=$(gh api "repos/${{ github.repository }}/actions/runs/${ID}/artifacts" \
+              --jq '[.artifacts[] | select((.name | startswith("results-")) and (.expired | not))] | length' 2>/dev/null || echo 0)
+            if [[ "$N" -gt 0 ]]; then
+              RUN_ID=$ID
+              break
+            fi
+          done
+          RUN_ID=${RUN_ID:-$(echo "$RUN_IDS" | head -n 1)}
 
           if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
             echo "No successful Benchmark run found for PR #${PR_NUM} (SHA ${HEAD_SHA}) — skipping"

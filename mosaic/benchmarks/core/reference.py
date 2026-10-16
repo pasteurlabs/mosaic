@@ -166,13 +166,9 @@ def extract_references_from_fields(
 # Reasons an experiment lands here:
 #   - consensus-based (mesh domains): no analytic solution, needs trimmed-mean
 #     across all solvers — but single-solver CI jobs have only one peer;
-#   - designated reference solver on different hardware: e.g. the cylinder
-#     experiment uses OpenFOAM (CPU) as reference, but GPU-only solvers can't
-#     see OpenFOAM's output during their aggregate pass.
+#   - converged reference: a high-fidelity run stands in for the analytic
+#     solution (see CONVERGED_REFERENCES).
 PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
-    "ns-grid": [
-        "forward/cylinder",
-    ],
     # The 3D TGV forward references are *converged* spectral runs, not the
     # linearized analytic decay (issue #123). Their strategy lives in
     # CONVERGED_REFERENCES below.

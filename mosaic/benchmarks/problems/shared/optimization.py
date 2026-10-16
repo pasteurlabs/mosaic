@@ -75,8 +75,15 @@ def _run_optim(
     record_diagnostics: bool = False,
     div_fn: Any = None,
     grad_proj_fn: Any = None,
+    min_rel_improvement: float = 0.0,
 ) -> tuple:
     """Adam with patience-based early stopping.
+
+    Stops after ``patience`` iterations without an improvement, where an
+    improvement is a loss below the best so far by more than
+    ``min_rel_improvement`` times its magnitude. The best only moves on such
+    an improvement, so small gains accumulate against it and a slow, steady
+    descent still resets the count.
 
     When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)`` and each
     aux label's per-iter trace lands in ``aux_history[label]`` (caller
@@ -122,7 +129,7 @@ def _run_optim(
         loss_val = float(loss)
         _check_finite_loss(loss_val, i)
         losses.append(loss_val)
-        if loss_val < best:
+        if i == 0 or loss_val < best - min_rel_improvement * abs(best):
             best, no_improve = loss_val, 0
         else:
             no_improve += 1
