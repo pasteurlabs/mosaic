@@ -75,3 +75,57 @@ def test_lbfgs_unchanged_where_finite(monkeypatch):
     x_ref, losses_ref, _ = _run_lbfgs(loss, jnp.zeros(4), max_iters=15)
     assert losses == losses_ref
     assert jnp.array_equal(x, x_ref)
+
+
+def _nan_gradient_at_calls(bad_calls: set[int]):
+    """A ``grad_proj_fn`` that returns a NaN gradient on the given 0-based calls.
+
+    ``_run_lbfgs`` calls it once per iteration, on the gradient at the
+    iterate, so this stands in for a solver whose gradient at an accepted
+    iterate is not the one the line search saw there.
+    """
+    calls = {"n": 0}
+
+    def host(g):
+        n = calls["n"]
+        calls["n"] += 1
+        return g * float("nan") if n in bad_calls else g
+
+    def proj(g):
+        return jax.pure_callback(host, jax.ShapeDtypeStruct(g.shape, g.dtype), g)
+
+    return proj
+
+
+def _bowl(x):
+    return jnp.sum((x - jnp.arange(4.0)) ** 2) + 0.1 * jnp.sum(x**4)
+
+
+def test_lbfgs_restarts_from_last_finite_iterate():
+    """A non-finite gradient at one iterate sends L-BFGS back to the previous
+    iterate with an empty history, and the run still converges.
+    """
+    x, losses, diag = _run_lbfgs(
+        _bowl, jnp.zeros(4), max_iters=30, grad_proj_fn=_nan_gradient_at_calls({3})
+    )
+    _, losses_ref, _ = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=30)
+    assert diag["restarts"] == [3]
+    assert jnp.all(jnp.isfinite(x))
+    assert all(jnp.isfinite(jnp.asarray(losses)))
+    assert losses[-1] == pytest.approx(losses_ref[-1], rel=1e-5, abs=1e-6)
+
+
+def test_lbfgs_raises_when_restart_is_not_finite_either():
+    """Two non-finite iterates in a row still fail the run."""
+    with pytest.raises(FloatingPointError, match="not finite"):
+        _run_lbfgs(
+            _bowl,
+            jnp.zeros(4),
+            max_iters=30,
+            grad_proj_fn=_nan_gradient_at_calls({3, 4}),
+        )
+
+
+def test_lbfgs_without_restarts_reports_none():
+    _, _, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=15)
+    assert diag["restarts"] == []

@@ -316,6 +316,10 @@ def _aggregate_trial_results(
         "grad_norms": first_diag.get("grad_norms"),
         "grad_divs": first_diag.get("grad_divs"),
         "ic_divs": first_diag.get("ic_divs"),
+        # L-BFGS only: iterations at which it went back to the last finite iterate.
+        "restarts_trials": [
+            (r.get("diag") or {}).get("restarts") for r in trial_results
+        ],
         "ic_error_history": primary_ic_err_hist,
         "ic_error_init": float(np.mean([r["ic_error_init"] for r in trial_results])),
         "final_ic_error": float(np.mean(all_fice)),
