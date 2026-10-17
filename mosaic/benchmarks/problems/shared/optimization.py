@@ -215,8 +215,10 @@ def _run_lbfgs(
     work without modification.
 
     Returns ``(final_x, losses, diag)`` where ``diag`` is
-    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`, and so does
-    the ``FloatingPointError`` on a NaN/Inf loss.
+    ``{"grad_norms": [...], "restarts": [...]}``, ``restarts`` listing the
+    iterations at which L-BFGS went back to the last finite iterate. Shape
+    matches :func:`_run_optim`. A ``FloatingPointError`` is raised when the
+    initial point, or the first iterate after a restart, is not finite.
     """
     if has_aux:
 
@@ -281,14 +283,34 @@ def _run_lbfgs(
     x = init_x
     losses: list[float] = []
     grad_norms: list[float] = []
+    restarts: list[int] = []
+    # The last iterate whose loss and gradient were finite. The line search
+    # only accepts points it evaluated as finite, but the step can still land
+    # on a non-finite iterate: a solver whose loss or gradient is not
+    # reproducible to the last bit can return a different value there than the
+    # line search saw, and a curvature pair with s·y near zero can make the
+    # search direction non-finite. L-BFGS then goes back to the last finite
+    # iterate and restarts with an empty history, once in a row at most.
+    x_good = None
     _probe("init", -1)
     for i in range(max_iters):
+        x_in = x
         x, opt_state, value, grad_norm, aux = step(x, opt_state)
+        loss_val = float(value)
+        if not (math.isfinite(loss_val) and math.isfinite(float(grad_norm))):
+            if x_good is None or (restarts and restarts[-1] == i - 1):
+                _check_finite_loss(loss_val, i)
+                raise FloatingPointError(
+                    f"optimization gradient is not finite ({float(grad_norm)}) "
+                    f"at iteration {i}"
+                )
+            x, opt_state = x_good, solver.init(x_good)
+            restarts.append(i)
+            continue
+        x_good = x_in
         if has_aux:
             _append_aux(aux_history, aux)
         grad_norms.append(float(grad_norm))
-        loss_val = float(value)
-        _check_finite_loss(loss_val, i)
         losses.append(loss_val)
         _probe("after-step", i)
         if snap_interval > 0 and (i + 1) % snap_interval == 0:
@@ -300,4 +322,4 @@ def _run_lbfgs(
             log_fn(i + 1, loss_val)
         if grad_norms[-1] < 1e-7:
             break
-    return x, losses, {"grad_norms": grad_norms}
+    return x, losses, {"grad_norms": grad_norms, "restarts": restarts}
