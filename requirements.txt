@@ -34,9 +34,9 @@ attrs==26.1.0
     #   referencing
 botocore==1.43.106
     # via aiobotocore
-cachetools==7.2.1
+cachetools==7.2.3
     # via mlflow-skinny
-certifi==2026.7.22
+certifi==2026.10.18
     # via requests
 cffi==2.1.1 ; platform_python_implementation != 'PyPy'
     # via cryptography
@@ -52,17 +52,17 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via typer
 cryptography==50.0.2
     # via google-auth
-databricks-sdk==0.151.0
+databricks-sdk==0.153.0
     # via mlflow-skinny
 debugpy==1.8.22
     # via tesseract-core
 docker==7.2.0
     # via mosaic-bench
-fastapi==0.141.1
+fastapi==0.143.0
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==4.1.1
+filelock==4.2.3
     # via mosaic-bench
 frozenlist==1.8.0
     # via
@@ -74,9 +74,9 @@ fsspec==2026.9.0
     #   tesseract-core
 gitdb==4.0.12
     # via gitpython
-gitpython==3.2.0
+gitpython==3.2.1
     # via mlflow-skinny
-google-auth==2.61.0
+google-auth==2.62.0
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
@@ -129,7 +129,7 @@ ml-dtypes==0.6.0
     # via
     #   jax
     #   jaxlib
-mlflow-skinny==3.16.1
+mlflow-skinny==3.17.0
     # via tesseract-core
 multidict==6.9.1
     # via
@@ -148,7 +148,7 @@ numpy==2.4.6 ; python_full_version < '3.12'
     #   pandas
     #   scipy
     #   tesseract-core
-numpy==2.5.3 ; python_full_version >= '3.12'
+numpy==2.5.4 ; python_full_version >= '3.12'
     # via
     #   jax
     #   jaxlib
@@ -162,6 +162,7 @@ nvidia-ml-py==13.615.71
     # via mosaic-bench
 opentelemetry-api==1.45.1
     # via
+    #   fastapi
     #   mlflow-skinny
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
@@ -175,13 +176,14 @@ opt-einsum==3.4.0
     # via jax
 optax==0.2.8
     # via mosaic-bench
-orjson==3.12.0
+orjson==3.13.0
     # via tesseract-core
 packaging==26.3
     # via
     #   altair
     #   mlflow-skinny
     #   tesseract-core
+    #   tesseract-jax
 pandas==3.0.6
     # via mosaic-bench
 pip==26.2.1
@@ -190,7 +192,7 @@ propcache==0.5.4
     # via
     #   aiohttp
     #   yarl
-protobuf==6.33.6
+protobuf==7.36.2
     # via
     #   databricks-sdk
     #   mlflow-skinny
@@ -201,16 +203,16 @@ pyasn1==0.6.4
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
-pybase64==1.5.0
+pybase64==1.5.1
     # via tesseract-core
 pycparser==3.11 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
-pydantic==2.13.5
+pydantic==2.14.1
     # via
     #   fastapi
     #   mlflow-skinny
     #   tesseract-core
-pydantic-core==2.46.5
+pydantic-core==2.50.1
     # via pydantic
 pygments==2.21.0
     # via rich
@@ -267,19 +269,19 @@ smmap==5.0.3
     # via gitdb
 sqlparse==0.6.0
     # via mlflow-skinny
-starlette==1.7.0
+starlette==1.9.0
     # via
     #   fastapi
     #   mlflow-skinny
-tesseract-core==1.14.0
+tesseract-core==1.15.0
     # via
     #   mosaic-bench
     #   tesseract-jax
 tesseract-jax==0.4.0 ; python_full_version < '3.12'
     # via mosaic-bench
-tesseract-jax==0.4.1 ; python_full_version >= '3.12'
+tesseract-jax==0.5.0 ; python_full_version >= '3.12'
     # via mosaic-bench
-typer==0.27.2
+typer==0.27.3
     # via
     #   mosaic-bench
     #   tesseract-core
@@ -311,13 +313,13 @@ urllib3==2.8.0
     #   databricks-sdk
     #   docker
     #   requests
-uvicorn==0.53.0
+uvicorn==0.54.0
     # via
     #   mlflow-skinny
     #   tesseract-core
 vl-convert-python==1.9.0.post1
     # via mosaic-bench
-wrapt==2.5.0
+wrapt==2.5.1
     # via aiobotocore
 yarl==1.25.1
     # via aiohttp
