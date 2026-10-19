@@ -6,8 +6,8 @@
 Two layers:
 
 * Reusable :class:`Exclusion` constants for failure modes that recur across
-  multiple experiments (e.g. the staggered MAC double-interpolation bias hits
-  both jax_cfd and ins_jl on forward/baseline).
+  multiple experiments (e.g. OpenFOAM's per-step cost explains both
+  cost/spatial_cost and cost/temporal_cost).
 * :func:`register` — applies every ``problem.exclude(...)`` call, so
   ``config.py`` keeps a single ``_register_exclusions(problem)`` line and the
   long reason strings live here instead of cluttering the assembly.
@@ -56,6 +56,23 @@ PICT_DRAG_OPT_TOO_SLOW = Exclusion(
     "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
     "experiment takes hours on the benchmark GPU",
 )
+PICT_PISO_SPLITTING_FLOOR = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "PICT runs PISO with its default two pressure correctors, and its "
+    "momentum predictor carries no pressure gradient. The splitting error "
+    "this leaves scales with ν·dt/dx², which grows as the grid is refined at "
+    "fixed CFL, so the error levels off on the finest grids and the observed "
+    "order drops. More correctors remove the floor at a multiple of the wall "
+    "time and reverse-mode memory",
+)
+OPENFOAM_SERIAL_IMPLICIT_COST = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "OpenFOAM runs icoFoam on one CPU core, while most peers run on the GPU. "
+    "Each PISO step solves the momentum equation once and the pressure "
+    "equation twice with PCG/DIC, the setup of the icoFoam tutorials. The "
+    "pressure solve's iteration count grows in proportion to N, so the cost "
+    "per step grows roughly as N³",
+)
 
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
@@ -66,9 +83,12 @@ _OBSTACLE_GATE = {
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
     # Forward
+    problem.exclude("forward/baseline", {"pict": PICT_PISO_SPLITTING_FLOOR})
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
+    problem.exclude("cost/spatial_cost", {"openfoam": OPENFOAM_SERIAL_IMPLICIT_COST})
+    problem.exclude("cost/temporal_cost", {"openfoam": OPENFOAM_SERIAL_IMPLICIT_COST})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below
