@@ -482,8 +482,7 @@ void StructSolver::run()
 
 int main(int argc, char *argv[])
 {
-  // The solver is serial, and this binary runs once per request: initializing
-  // MPI just to cap the thread count would add MPI start-up to every request.
+  // The solver is serial, and this binary runs once per request, so avoid expensive MPI setup here
   MultithreadInfo::set_thread_limit(1);
 
   if (argc < 2) {
