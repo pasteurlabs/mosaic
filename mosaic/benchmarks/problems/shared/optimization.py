@@ -176,13 +176,17 @@ def _run_lbfgs(
     onto the divergence-free subspace.
 
     L-BFGS-B iterates in float64 and ``loss_fn`` receives ``x`` in
-    ``init_x``'s dtype. It stops after ``max_iters`` iterations, when no entry
-    of the projected gradient exceeds 1e-7, or when its line search fails from
-    an empty history.
+    ``init_x``'s dtype. It stops after ``max_iters`` iterations, when the
+    gradient's 2-norm falls below 1e-7, or when its line search fails from an
+    empty history. SciPy's own gradient test is off: it bounds the largest
+    entry, which on a large ``x`` fires orders of magnitude earlier.
 
-    A trial point with a non-finite loss or gradient is reported as a value
-    above every loss seen so far, so the line search backtracks. Reporting
-    ``inf`` would make L-BFGS-B stop and claim convergence. Evaluations are
+    A trial point with a non-finite loss or gradient is reported as the loss
+    at the current iterate plus its magnitude, which the line search always
+    rejects. Reporting ``inf`` would make L-BFGS-B stop and claim convergence.
+    The reported value scales with the loss: one far above it makes the line
+    search shrink the step until ``x`` no longer changes at ``loss_fn``'s
+    precision, and the run then ends as converged. Evaluations are
     cached by ``x`` at ``loss_fn``'s precision, so a restart from an accepted
     iterate reuses its value without asking the solver again.
 
@@ -192,9 +196,9 @@ def _run_lbfgs(
 
     Returns ``(final_x, losses, diag)``. ``losses`` and ``diag["grad_norms"]``
     cover ``init_x`` and every iterate, ending at ``final_x``.
-    ``diag["converged"]`` is SciPy's ``success`` flag, false when the run hit
-    ``max_iters`` or the line search failed. Raises ``FloatingPointError``
-    when the loss at ``init_x`` is not finite.
+    ``diag["converged"]`` is false when the run hit ``max_iters`` or the line
+    search failed. Raises ``FloatingPointError`` when the loss at ``init_x``
+    is not finite.
     """
     shape, dtype = init_x.shape, init_x.dtype
     vg = jax.value_and_grad(loss_fn, has_aux=has_aux)
@@ -214,7 +218,6 @@ def _run_lbfgs(
 
     # Evaluations since the last accepted iterate, plus that iterate.
     evals: dict[bytes, tuple] = {}
-    best = [math.inf]
 
     def evaluate(z: np.ndarray) -> tuple:
         key = to_x(z).tobytes()
@@ -223,15 +226,13 @@ def _run_lbfgs(
             value = float(value)
             grad = np.asarray(grad, dtype=np.float64).ravel()
             finite = math.isfinite(value) and np.all(np.isfinite(grad))
-            if finite:
-                best[0] = min(best[0], value)
             evals[key] = (value, grad, aux, finite)
         return evals[key]
 
     def objective(z: np.ndarray) -> tuple:
         value, grad, _, finite = evaluate(z)
         if not finite:
-            return 2.0 * abs(best[0]) + 1.0, np.zeros_like(grad)
+            return losses[-1] + abs(losses[-1]), np.zeros_like(grad)
         return value, grad
 
     losses: list[float] = []
@@ -266,6 +267,8 @@ def _run_lbfgs(
 
     def callback(intermediate_result: scipy.optimize.OptimizeResult) -> None:
         record(intermediate_result.x)
+        if grad_norms[-1] < 1e-7:
+            raise StopIteration
 
     res = scipy.optimize.minimize(
         objective,
@@ -274,10 +277,11 @@ def _run_lbfgs(
         method="L-BFGS-B",
         bounds=None if bounds is None else scipy.optimize.Bounds(*bounds),
         callback=callback,
-        options={"maxiter": max_iters, "gtol": 1e-7, "ftol": 0.0},
+        options={"maxiter": max_iters, "gtol": 0.0, "ftol": 0.0},
     )
     # L-BFGS-B does not call back on the iterate at which it converges.
     if not np.array_equal(res.x, last_z[0]):
         record(res.x)
-    diag = {"grad_norms": grad_norms, "converged": bool(res.success)}
+    converged = res.success or grad_norms[-1] < 1e-7
+    diag = {"grad_norms": grad_norms, "converged": bool(converged)}
     return jnp.asarray(to_x(res.x)), losses, diag

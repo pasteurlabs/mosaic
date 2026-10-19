@@ -94,6 +94,19 @@ def test_lbfgs_recovers_from_nonfinite_trial_points(nan_calls):
     assert diag["converged"]
 
 
+@pytest.mark.parametrize("nan_call", [20, 40])
+def test_lbfgs_recovers_from_nonfinite_trial_point_at_small_loss(nan_call):
+    """A non-finite trial point doesn't end a run whose loss is far below 1."""
+
+    def small(x):
+        return 1e-5 * 0.5 * jnp.sum(jnp.logspace(-4, 0, x.size) * (x - 1.0) ** 2)
+
+    proj, _ = _counting_grad_proj({nan_call})
+    _, losses, _ = _run_lbfgs(small, jnp.zeros(4096), max_iters=150, grad_proj_fn=proj)
+    _, losses_ref, _ = _run_lbfgs(small, jnp.zeros(4096), max_iters=150)
+    assert losses[-1] < 2 * losses_ref[-1]
+
+
 def test_lbfgs_evaluates_each_point_once():
     proj, seen = _counting_grad_proj()
     _, losses, _ = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50, grad_proj_fn=proj)
@@ -113,6 +126,19 @@ def test_lbfgs_respects_bounds():
     x, _, _ = _run_lbfgs(_bowl, jnp.full(4, 0.5), max_iters=50, bounds=(0.25, 1.0))
     assert jnp.all((x >= 0.25) & (x <= 1.0))
     assert jnp.any(x == 1.0)
+
+
+def test_lbfgs_stops_on_gradient_two_norm():
+    """On a large ``x`` the run continues until the gradient's 2-norm is below 1e-7,
+    not just its largest entry.
+    """
+
+    def spread(x):
+        return 0.5 * jnp.sum(jnp.logspace(-2, 0, x.size) * (x - 1.0) ** 2)
+
+    _, _, diag = _run_lbfgs(spread, jnp.zeros(10_000), max_iters=500)
+    assert diag["converged"]
+    assert diag["grad_norms"][-1] < 1e-7
 
 
 def test_lbfgs_reports_convergence():
