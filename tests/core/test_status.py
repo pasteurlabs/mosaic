@@ -837,6 +837,32 @@ class TestMetricCollection(unittest.TestCase):
         cell = self._collect("forward", "agreement", data)
         self.assertAlmostEqual(cell.metrics["fwd_error"], 0.2)
 
+    def test_analytic_check_median_error_and_worst_cosine(self) -> None:
+        data = {
+            "schema_version": 1,
+            "sweep": {"key": "nu", "values": ["1", "2", "3"]},
+            "results": [
+                {
+                    "solver": "s",
+                    "sweep_value": "1",
+                    "metrics": {"error": 0.1, "cosine": 0.99, "valid": True},
+                },
+                {
+                    "solver": "s",
+                    "sweep_value": "2",
+                    "metrics": {"error": 0.3, "cosine": 0.9, "valid": True},
+                },
+                {
+                    "solver": "s",
+                    "sweep_value": "3",
+                    "metrics": {"status": "failed", "error": "VJP returned NaN"},
+                },
+            ],
+        }
+        cell = self._collect("gradient", "analytic_check", data)
+        self.assertAlmostEqual(cell.metrics["rel_err"], 0.2)
+        self.assertAlmostEqual(cell.metrics["cosine"], 0.9)
+
     def test_optimization_final_ratio_from_trajectory(self) -> None:
         data = {
             "schema_version": 1,

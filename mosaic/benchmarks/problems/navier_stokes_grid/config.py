@@ -5,7 +5,7 @@
 
 The problem definition is split across these modules:
 
-- :mod:`.ics`          — IC generators and the ``_tgv_analytic`` reference.
+- :mod:`.ics`          — IC generators and the analytic TGV solution and gradient.
 - :mod:`.physics`      — input factory (``make_inputs``); ``DIAGNOSTICS`` is
                          re-exported from
                          :mod:`mosaic.benchmarks.problems.shared.diagnostics`.
@@ -46,8 +46,10 @@ from mosaic.benchmarks.problems.shared.cost import (
     temporal_cost,
     vjp_cost,
 )
+from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_free
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
+    analytic_check,
     fd_check,
     jacobian_svd,
     param_sweep,
@@ -59,6 +61,7 @@ from mosaic.benchmarks.problems.shared.plots.forward import (
     plot_physical_laws,
 )
 from mosaic.benchmarks.problems.shared.plots.gradient import (
+    plot_analytic_check,
     plot_fd_check,
     plot_horizon_sweep,
     plot_jacobian_svd_comparison,
@@ -69,7 +72,7 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from . import cylinder
 from .exclusions import register as _register_exclusions
-from .ics import _multimode, _tgv, _tgv_analytic
+from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt
@@ -355,6 +358,32 @@ problem.add_experiment(
         max_rel_err(1e-3),
         rel_err_peer_outlier(50.0),
     ],
+)
+problem.add_experiment(
+    "gradient/analytic_check",
+    analytic_check,
+    plot_description=(
+        "Relative error and 1 − cosine of each solver's gradient of"
+        " $J = \\sum \\lvert\\mathbf{u}(T)\\rvert^2$ with respect to the TGV"
+        " initial field, against the exact gradient"
+        " $\\nabla J = 2 e^{-4\\nu T}\\,\\mathbf{u}_0$. The closed form holds for"
+        " divergence-free perturbations, so each gradient is compared after"
+        " projecting out its curl-free part. There is no finite-difference step to"
+        " tune, but the error includes the forward discretization error."
+    ),
+    ic={"name": "tgv", "seed": 0},
+    # At N=16, jax-cfd and PhiFlow lose 7% of the gradient to averaging the
+    # collocated field onto their staggered grid and back. That scales the TGV
+    # mode by cos²(dx/2), and the gradient picks the factor up twice. At N=32
+    # it is 2%, which leaves room to see errors in the gradient itself.
+    physics={"N": 32, "dt": 0.05, "steps": 20, "nu": [0.001, 0.005, 0.01, 0.02, 0.05]},
+    reference=_tgv_analytic_grad,
+    project=project_divergence_free,
+    plot=plot_analytic_check,
+    # Provisional. In-process CPU runs at N=32 and nu = 0.01 gave errors of
+    # 0.019 (jax-cfd, PhiFlow), 0.005 (Warp-NS) and 0.035 (XLB). INS.jl and
+    # PICT have not been measured.
+    status_check=[median_k(3.0), max_error(0.1)],
 )
 problem.add_experiment(
     "gradient/param_sweep",

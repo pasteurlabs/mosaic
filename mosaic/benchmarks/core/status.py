@@ -859,12 +859,19 @@ def _v1_to_legacy_view(data: dict) -> dict:
     return view
 
 
+def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
+    return suite == "gradient" and exp_label.split("/")[0] == "analytic_check"
+
+
 def _refine_for_suite(
     suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: list
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
-    if suite == "forward":
+    # The analytic gradient check records an error against a reference per
+    # sweep point, the same shape as a forward result, so it takes the same
+    # checks.
+    if suite == "forward" or _is_analytic_grad_check(suite, exp_label):
         _refine_forward(view, cells, checks)
     elif suite == "cost":
         _refine_cost(view, cells, checks)
@@ -963,6 +970,33 @@ def _collect_fd_metrics(data: dict, cells: dict[str, Cell]) -> None:
         _store_metric(cell, "cosine", best_cos)
 
 
+def _collect_analytic_grad_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store the median ``error`` as ``rel_err`` and the worst ``cosine`` per OK solver."""
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        errs: list[float] = []
+        cosines: list[float] = []
+        for sub in entry.values():
+            if not isinstance(sub, dict) or sub.get("valid") is not True:
+                continue
+            e, c = sub.get("error"), sub.get("cosine")
+            if isinstance(e, int | float) and math.isfinite(e):
+                errs.append(float(e))
+            if isinstance(c, int | float) and math.isfinite(c):
+                cosines.append(float(c))
+        if errs:
+            _store_metric(cell, "rel_err", _median(errs))
+        if cosines:
+            _store_metric(cell, "cosine", min(cosines))
+
+
 def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
     """Store the worst-case ``final_ratio`` and the ``final_loss``."""
     top = data.get("by_solver") or data.get("by_sweep") or {}
@@ -1034,6 +1068,8 @@ def _collect_metrics_for_suite(
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
     if suite == "cost":
         _collect_cost_metrics(view, cells)
+    elif _is_analytic_grad_check(suite, exp_label):
+        _collect_analytic_grad_metrics(view, cells)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",

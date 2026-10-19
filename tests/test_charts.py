@@ -19,6 +19,7 @@ from mosaic.benchmarks.problems.shared.plots.charts.common import (
 # Every PNG stem the results pages show (docs/generate_results.py).
 EXPECTED = {
     "agreement",
+    "analytic_check",
     "best_eps_vs_param",
     "conductivity_recovery_convergence",
     "convergence_curves",

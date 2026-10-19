@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Initial conditions and the analytic TGV reference."""
+"""Initial conditions and the analytic TGV references."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
 def _multimode(N: int, L: float = 2 * jnp.pi, seed: int = 42, **_: Any) -> jax.Array:
@@ -58,3 +59,19 @@ def _tgv_analytic(
 # handed. ``multimode`` is a random ring with no closed form, and scoring it
 # against this would measure the gap between two unrelated flows.
 _tgv_analytic.supported_ics = frozenset({"tgv"})
+
+
+def _tgv_analytic_grad(ic: np.ndarray, nu: float, t: float) -> np.ndarray:
+    """Exact gradient of ``J = sum(u(t)**2)`` w.r.t. a TGV initial field ``ic``.
+
+    In Navier–Stokes linearized about the TGV solution ``U``, both advection
+    terms drop out of ``d/dt <U, δu>`` for a divergence-free perturbation
+    ``δu``, because each reduces to ``δu`` against a gradient field. Only
+    viscous decay remains, so ``<U(t), δu(t)> = e^{-4νt} <U0, δu0>`` and
+    ``∇J = 2 e^{-4νt} U0`` at any TGV amplitude.
+
+    The closed form does not cover curl-free perturbations. The solvers take
+    ``v0`` as given, so their gradients have a curl-free part as well, which
+    the analytic gradient check projects out before comparing.
+    """
+    return 2.0 * np.exp(-4.0 * nu * t) * np.asarray(ic, dtype=np.float64)
