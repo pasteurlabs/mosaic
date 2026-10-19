@@ -34,6 +34,7 @@ _EXPERIMENT_ORDER = [
     "diagnostics",
     "stability",
     "fd_check",
+    "analytic_check",
     "param_sweep",
     "resolution_sweep",
     "horizon_sweep",
@@ -190,6 +191,7 @@ EXPERIMENT_LABELS = {
     "diagnostics": "Diagnostics",
     "stability": "Stability",
     "fd_check": "Finite-Difference Check",
+    "analytic_check": "Analytic Gradient Check",
     "param_sweep": "Parameter Sweep",
     "resolution_sweep": "Resolution Sweep",
     "horizon_sweep": "Horizon Sweep",
@@ -224,6 +226,7 @@ _PNG_ORDER = [
     # gradient / recovery
     "fd_check",
     "gradient_fields",
+    "analytic_check",
     "param_sweep",
     "resolution_sweep",
     "horizon_sweep",

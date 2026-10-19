@@ -328,7 +328,7 @@ def test_agreement_single_solver_is_unscored(ns_grid_tags, tmp_path, monkeypatch
     assert [e["metrics"]["valid"] for e in solo_entries] == [True, True]
 
 
-@pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep"])
+@pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep", "analytic_check"])
 def test_gradient_nonfinite_vjp_fails_with_reason(
     kernel_name, ns_grid_tags, tmp_path, monkeypatch
 ):
@@ -337,6 +337,7 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
 
     from mosaic.benchmarks.core import runner
     from mosaic.benchmarks.core.status import FAILED, _classify_result
+    from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
     from mosaic.benchmarks.problems.shared import gradient
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
@@ -362,23 +363,28 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
     # shared config other tests iterate over.
     monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
     monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    swept = kernel_name in ("param_sweep", "analytic_check")
     cfg.add_experiment(
         "gradient/dummy_nonfinite",
         getattr(gradient, kernel_name),
-        ic={"name": "multimode", "seed": 0},
+        ic={
+            "name": "tgv" if kernel_name == "analytic_check" else "multimode",
+            "seed": 0,
+        },
         physics={
             "N": 4,
-            "nu": [0.01, 0.05] if kernel_name == "param_sweep" else 0.01,
+            "nu": [0.01, 0.05] if swept else 0.01,
             "dt": 0.01,
             "steps": 1,
         },
         fd={"eps_values": [1e-1], "n_dirs": 2},
+        reference=_tgv_analytic_grad,
     )
     cfg.experiments["gradient/dummy_nonfinite"].fn(cfg, tags)
 
     json_path = tmp_path / "ns-grid" / "gradient" / "dummy_nonfinite" / "result.json"
     data = json.loads(json_path.read_text())
-    if kernel_name == "param_sweep":
+    if swept:
         bad_entries = sorted(
             (e for e in data["results"] if e["solver"] == bad),
             key=lambda e: float(e["sweep_value"]),
@@ -392,6 +398,35 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
     assert "VJP returned non-finite gradient" in cells[bad].reason
     # OpenFOAM has no VJP and is never selected, hence not_run.
     assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
+
+
+def test_analytic_check_scores_every_sweep_point(ns_grid_tags, tmp_path, monkeypatch):
+    """The registered analytic check records one scored point per viscosity.
+
+    The dummies' VJP is zero, which gives a relative error of 1 and an
+    amplitude error of -1.
+    """
+    from mosaic.benchmarks.core.status import OK, _classify_result
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    exp = cfg.experiments["gradient/analytic_check"]
+    exp.fn(cfg, tags)
+
+    out_dir = tmp_path / "ns-grid" / "gradient" / "analytic_check"
+    data = json.loads((out_dir / "result.json").read_text())
+    nus = data["sweep"]["values"]
+    solver = cfg.solver_names[0]
+    entries = [e for e in data["results"] if e["solver"] == solver]
+    assert sorted(float(e["sweep_value"]) for e in entries) == sorted(map(float, nus))
+    for e in entries:
+        assert e["metrics"]["valid"] is True
+        assert e["metrics"]["error"] == pytest.approx(1.0)
+        assert e["metrics"]["amplitude_err"] == pytest.approx(-1.0)
+    assert _classify_result(data, [solver], [])[solver].status == OK
+
+    cfg.plot_fns["gradient/analytic_check"](cfg)
+    assert (out_dir / "analytic_check.vl.json").exists()
 
 
 @pytest.mark.parametrize(

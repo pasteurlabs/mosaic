@@ -49,6 +49,7 @@ from mosaic.benchmarks.core.io import (
     try_load_json,
 )
 from mosaic.benchmarks.core.utils import is_valid
+from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_free
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
 
 # ── Divergence-free helpers ───────────────────────────────────────────────────
@@ -62,7 +63,7 @@ def _is_velocity_field(u: np.ndarray) -> bool:
 def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     """Max |∇·u| computed spectrally (exact for periodic fields).
 
-    Uses the same FFT machinery as ``_project_divergence_free``:
+    Uses the same FFT machinery as :func:`project_divergence_free`:
     ``∇·u = IFFT(Σ_i  i k_i  û_i)``.  For a spectrally divergence-free field
     this returns near-machine-precision values (~1e-14), unlike central
     finite differences which give O(0.1) residuals at high wavenumbers.
@@ -84,40 +85,8 @@ def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     return float(np.max(np.abs(div)))
 
 
-def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
-    """Helmholtz-project a periodic velocity field onto ∇·u = 0.
-
-    Spectral projection: û_df_i = û_i − k_i (k·û) / |k|²
-    Handles both 2D (N, N, 1, 2) and 3D (N, N, N, 3) shapes.
-    """
-    nd = u.shape[-1]
-    squeeze = u.ndim > nd + 1  # True for (N,N,1,2); False for (N,N,N,3)
-    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
-
-    N = v.shape[0]
-    # Physical wavenumbers for a periodic box of size domain_extent.
-    k1d = np.fft.fftfreq(N) * N * (2.0 * np.pi / domain_extent)
-    grids = np.meshgrid(*([k1d] * nd), indexing="ij")  # nd arrays, each (N,...,N)
-    k2 = sum(k**2 for k in grids)
-    k2_safe = np.where(k2 == 0.0, 1.0, k2)  # avoid ÷0 at k=0
-
-    spatial_axes = tuple(range(nd))
-    v_hat = np.fft.fftn(v, axes=spatial_axes)  # (..., nd), complex
-
-    k_dot_u = sum(grids[i] * v_hat[..., i] for i in range(nd))  # scalar field
-
-    v_hat_df = np.stack(
-        [v_hat[..., i] - grids[i] * k_dot_u / k2_safe for i in range(nd)],
-        axis=-1,
-    )
-
-    v_df = np.fft.ifftn(v_hat_df, axes=spatial_axes).real
-    v_df = v_df.reshape(u.shape) if squeeze else v_df
-    return v_df.astype(u.dtype)
-
-
 def _project_divergence_free_jax(u: jax.Array, domain_extent: float) -> jax.Array:
-    """JAX-traceable variant of :func:`_project_divergence_free`.
+    """JAX-traceable variant of :func:`project_divergence_free`.
 
     Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS step so the
     whole iteration is one trace.
@@ -159,7 +128,7 @@ def _project_ic_with_log(
         return raw
     raw_np = np.asarray(raw)
     div_before = _max_divergence(raw_np, domain_extent)
-    projected = _project_divergence_free(raw_np, domain_extent)
+    projected = project_divergence_free(raw_np, domain_extent)
     div_after = _max_divergence(projected, domain_extent)
     console.print(
         f"  [dim]{label}[/dim]  "

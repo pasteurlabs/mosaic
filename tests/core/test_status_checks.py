@@ -352,6 +352,15 @@ class TestForwardPipeline:
     def test_no_checks_is_a_noop(self) -> None:
         assert all(c.status == OK for c in self._run([]).values())
 
+    def test_analytic_gradient_check_takes_the_same_checks(self) -> None:
+        """``gradient/analytic_check`` records forward-shaped errors per sweep point."""
+        cells = {s: Cell(OK) for s in self.DATA["by_solver"]}
+        _refine_for_suite(
+            "gradient", "analytic_check", self.DATA, cells, [median_k(3.0)]
+        )
+        assert cells["outlier"].status == ANOMALY
+        assert cells["peer_a"].status == OK
+
     def test_points_no_peer_reached_do_not_raise_the_bar(self) -> None:
         """A point only one solver reached must not count toward the majority.
 
