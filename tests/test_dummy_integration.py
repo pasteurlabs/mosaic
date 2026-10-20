@@ -328,6 +328,36 @@ def test_agreement_single_solver_is_unscored(ns_grid_tags, tmp_path, monkeypatch
     assert [e["metrics"]["valid"] for e in solo_entries] == [True, True]
 
 
+def test_agreement_only_rerun_uses_cached_peers(ns_grid_tags, tmp_path, monkeypatch):
+    """An ``--only`` rerun of one solver keeps every solver in ``tags``; the
+    ones it did not rerun still count through their cached snapshots.
+    """
+    from mosaic.benchmarks.core import cell_filter
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_only",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_only"].fn
+
+    run(cfg, tags)
+    cell_filter.set_active({("forward/dummy_only", solo): True})
+    try:
+        rerun = run(cfg, tags)
+    finally:
+        cell_filter.set_active(None)
+    solo_entries = [e for e in rerun["results"] if e["solver"] == solo]
+    assert [e["metrics"].get("valid") for e in solo_entries] == [True, True]
+
+
 @pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep", "analytic_check"])
 def test_gradient_nonfinite_vjp_fails_with_reason(
     kernel_name, ns_grid_tags, tmp_path, monkeypatch
