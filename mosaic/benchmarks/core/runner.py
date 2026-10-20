@@ -507,6 +507,14 @@ def _experiment_already_complete(suite_dir: object, name: str) -> bool:
     return bool(subdirs and all((p / "result.json").exists() for p in subdirs))
 
 
+def _has_cells_to_rerun(exp_key: str) -> bool:
+    """Whether an active ``--only`` filter selects a cell of *exp_key*."""
+    from .cell_filter import get_active
+
+    active = get_active()
+    return bool(active) and any(key == exp_key for key, _ in active)
+
+
 def run_suite(
     cfg: Problem,
     tags: dict[str, str],
@@ -563,8 +571,10 @@ def run_suite(
             )
             continue
         print_rule(f"experiment: {name} [{ei}/{n_experiments}]")
-        if skip_completed and _experiment_already_complete(
-            suite_dir, f"{name}{suffix}"
+        if (
+            skip_completed
+            and _experiment_already_complete(suite_dir, f"{name}{suffix}")
+            and not _has_cells_to_rerun(f"{suite_name}/{name}")
         ):
             print_skip(f"{name}: existing results found — re-use under --continue")
             results[name] = {"status": "skipped_continue"}
