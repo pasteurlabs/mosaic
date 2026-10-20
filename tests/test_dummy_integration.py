@@ -828,3 +828,53 @@ def test_agreement_reference_matches_the_ic(
     )
     result = cfg.experiments[f"forward/dummy_ref_{ic_name}"].fn(cfg, tags)
     assert result["extras"]["reference_label"] == expected_label
+
+
+def test_continue_keeps_solvers_finished_before_a_crash(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """Solvers checkpointed before a crash are not rerun on --continue, and
+    their metrics and snapshots still reach the result and the consensus.
+    """
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    first, victim = cfg.solver_names[:2]
+    tags = {
+        first: tags[first],
+        victim: f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}",
+    }
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_resume",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_resume"].fn
+    real_apply = forward.safe_apply
+    ran = []
+
+    def crash_on_victim(*args, **kwargs):
+        tag = runner.current_worker_context().image_tag
+        ran.append(tag)
+        if tag == tags[victim] and kill:
+            raise KeyboardInterrupt
+        return real_apply(*args, **kwargs)
+
+    monkeypatch.setattr(forward, "safe_apply", crash_on_victim)
+    kill = True
+    with pytest.raises(KeyboardInterrupt):
+        run(cfg, tags)
+
+    kill = False
+    ran.clear()
+    resumed = run(cfg, tags, resume=True)
+    assert tags[first] not in ran
+    assert {e["solver"]: e["metrics"].get("valid") for e in resumed["results"]} == {
+        first: True,
+        victim: True,
+    }
