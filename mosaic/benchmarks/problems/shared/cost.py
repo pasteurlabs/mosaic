@@ -140,20 +140,6 @@ def _cost_aggregate(
 ) -> dict:
     """Build unified result envelope for cost experiments."""
     flat_results = _flatten_by_solver(by_solver, sweep_key)
-    # Add empty entries for solvers not in by_solver
-    present = {e["solver"] for e in flat_results}
-    for s in cfg.solvers:
-        if s.name not in present:
-            if sweep_key:
-                for val in sweep_values:
-                    flat_results.append(
-                        {"solver": s.name, "sweep_value": str(val), "metrics": {}}
-                    )
-            else:
-                flat_results.append(
-                    {"solver": s.name, "sweep_value": None, "metrics": {}}
-                )
-
     extras: dict = {"hardware": get_hardware_info()}
     if os.environ.get("CI"):
         extras["_isolation_note"] = _CI_ISOLATION_NOTE

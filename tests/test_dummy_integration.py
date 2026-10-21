@@ -358,6 +358,38 @@ def test_agreement_only_rerun_uses_cached_peers(ns_grid_tags, tmp_path, monkeypa
     assert [e["metrics"].get("valid") for e in solo_entries] == [True, True]
 
 
+def test_cost_only_rerun_keeps_other_solvers_timings(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """An ``--only`` rerun of one solver's cost cell leaves its peers' timings on disk."""
+    from mosaic.benchmarks.core import cell_filter
+    from mosaic.benchmarks.core.io import load_experiment_result
+    from mosaic.benchmarks.problems.shared import cost
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "cost/dummy_only",
+        cost.spatial_cost,
+        physics={"N": [4], "nu": 0.01, "dt": 0.01, "steps": 1},
+        cost={"n_trials": 1},
+    )
+    run = cfg.experiments["cost/dummy_only"].fn
+
+    run(cfg, tags)
+    cell_filter.set_active({("cost/dummy_only", solo): True})
+    try:
+        run(cfg, tags)
+    finally:
+        cell_filter.set_active(None)
+    saved = load_experiment_result(tmp_path / cfg.name / "cost" / "dummy_only")
+    timed = {e["solver"] for e in saved["results"] if "mean" in e["metrics"]}
+    assert timed == set(cfg.solver_names)
+
+
 @pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep", "analytic_check"])
 def test_gradient_nonfinite_vjp_fails_with_reason(
     kernel_name, ns_grid_tags, tmp_path, monkeypatch
