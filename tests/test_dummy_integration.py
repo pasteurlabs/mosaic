@@ -927,6 +927,9 @@ _PARTIAL_KERNELS = (
     "fd_check",
     "param_sweep",
     "analytic_check",
+    "spatial_cost",
+    "temporal_cost",
+    "vjp_cost",
 )
 
 # Metrics measured afresh on every run: timings (``cost_time_s`` is the status
@@ -945,11 +948,12 @@ _MEASURED = {
 def _register_partial_kernel(cfg, kernel_name: str) -> str:
     """Register a small *kernel_name* experiment on *cfg* and return its key."""
     from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
-    from mosaic.benchmarks.problems.shared import forward, gradient
+    from mosaic.benchmarks.problems.shared import cost, forward, gradient
 
     multimode = {"name": "multimode", "seed": 0}
     physics = {"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1}
     fd = {"eps_values": [1e-1], "n_dirs": 2}
+    trials = {"n_trials": 1}
     suite, kernel_fn, spec = {
         "agreement": ("forward", forward.agreement, {"ic": multimode}),
         "physical_laws": (
@@ -970,6 +974,21 @@ def _register_partial_kernel(cfg, kernel_name: str) -> str:
             "gradient",
             gradient.analytic_check,
             {"ic": {"name": "tgv", "seed": 0}, "reference": _tgv_analytic_grad},
+        ),
+        "spatial_cost": (
+            "cost",
+            cost.spatial_cost,
+            {"physics": {**physics, "N": [4, 8], "nu": 0.01}, "cost": trials},
+        ),
+        "temporal_cost": (
+            "cost",
+            cost.temporal_cost,
+            {"physics": {**physics, "nu": 0.01, "steps": [1, 2]}, "cost": trials},
+        ),
+        "vjp_cost": (
+            "cost",
+            cost.vjp_cost,
+            {"physics": {**physics, "N": [4, 8], "nu": 0.01}, "cost": trials},
         ),
     }[kernel_name]
     exp_key = f"{suite}/dummy_partial_{kernel_name}"
@@ -1010,6 +1029,7 @@ def _saved_run(cfg, exp_key: str) -> tuple[dict, dict, dict]:
     """What runs of *exp_key* left on disk: result.json, fields and status."""
     import dataclasses
 
+    from mosaic.benchmarks.core.hardware import hardware_by_solver
     from mosaic.benchmarks.core.io import results_dir
     from mosaic.benchmarks.core.status import collect_status
 
@@ -1019,6 +1039,11 @@ def _saved_run(cfg, exp_key: str) -> tuple[dict, dict, dict]:
     prov = data.pop("provenance")
     data["tesseract_hashes"] = prov["tesseract_hashes"]
     data["harness_hash"] = prov["harness_hash"]
+    # A merge records the machine per solver instead of once for the run.
+    hardware = hardware_by_solver(data)
+    if hardware:
+        data["extras"].pop("hardware", None)
+        data["extras"]["hardware_by_solver"] = hardware
     data["results"] = sorted(
         ({**e, "metrics": _unmeasured(e["metrics"])} for e in data["results"]),
         key=lambda e: (e["solver"], str(e["sweep_value"])),
@@ -1106,6 +1131,8 @@ def test_partial_rerun_saves_what_a_full_run_saves(
     monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
     exp_key = _register_partial_kernel(cfg, kernel_name)
     run = cfg.experiments[exp_key].fn
+    # The cost checks compare timings, which no two runs share.
+    monkeypatch.delitem(cfg.status_checks, "cost", raising=False)
 
     ran: list[str] = []
     real_loop = experiment.per_solver_loop
