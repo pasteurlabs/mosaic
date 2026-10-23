@@ -921,7 +921,10 @@ def test_continue_keeps_solvers_finished_before_a_crash(
 # Timings and memory peaks differ from run to run, so only their presence is
 # compared.
 
-_PARTIAL_KERNELS = ("agreement",)
+_PARTIAL_KERNELS = (
+    "agreement",
+    "physical_laws",
+)
 
 # Metrics measured afresh on every run: timings (``cost_time_s`` is the status
 # cell's) and memory peaks.
@@ -944,6 +947,14 @@ def _register_partial_kernel(cfg, kernel_name: str) -> str:
     physics = {"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1}
     suite, kernel_fn, spec = {
         "agreement": ("forward", forward.agreement, {"ic": multimode}),
+        "physical_laws": (
+            "forward",
+            forward.physical_laws,
+            {
+                "ic": multimode,
+                "diagnostics": {"mean": lambda out, **_: float(out.mean())},
+            },
+        ),
     }[kernel_name]
     exp_key = f"{suite}/dummy_partial_{kernel_name}"
     cfg.add_experiment(exp_key, kernel_fn, **{"physics": physics, **spec})
