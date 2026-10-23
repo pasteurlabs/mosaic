@@ -924,6 +924,9 @@ def test_continue_keeps_solvers_finished_before_a_crash(
 _PARTIAL_KERNELS = (
     "agreement",
     "physical_laws",
+    "fd_check",
+    "param_sweep",
+    "analytic_check",
 )
 
 # Metrics measured afresh on every run: timings (``cost_time_s`` is the status
@@ -941,10 +944,12 @@ _MEASURED = {
 
 def _register_partial_kernel(cfg, kernel_name: str) -> str:
     """Register a small *kernel_name* experiment on *cfg* and return its key."""
-    from mosaic.benchmarks.problems.shared import forward
+    from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
+    from mosaic.benchmarks.problems.shared import forward, gradient
 
     multimode = {"name": "multimode", "seed": 0}
     physics = {"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1}
+    fd = {"eps_values": [1e-1], "n_dirs": 2}
     suite, kernel_fn, spec = {
         "agreement": ("forward", forward.agreement, {"ic": multimode}),
         "physical_laws": (
@@ -954,6 +959,17 @@ def _register_partial_kernel(cfg, kernel_name: str) -> str:
                 "ic": multimode,
                 "diagnostics": {"mean": lambda out, **_: float(out.mean())},
             },
+        ),
+        "fd_check": (
+            "gradient",
+            gradient.fd_check,
+            {"ic": multimode, "physics": {**physics, "nu": 0.01}, "fd": fd},
+        ),
+        "param_sweep": ("gradient", gradient.param_sweep, {"ic": multimode, "fd": fd}),
+        "analytic_check": (
+            "gradient",
+            gradient.analytic_check,
+            {"ic": {"name": "tgv", "seed": 0}, "reference": _tgv_analytic_grad},
         ),
     }[kernel_name]
     exp_key = f"{suite}/dummy_partial_{kernel_name}"
