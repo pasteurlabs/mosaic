@@ -910,3 +910,192 @@ def test_continue_keeps_solvers_finished_before_a_crash(
         first: True,
         victim: True,
     }
+
+
+# ── Partial reruns against a full run ────────────────────────────────────────
+#
+# A partial run (``--only`` on one solver's cells, ``-s`` one solver, or
+# ``--continue`` after a crash) merges what it reruns with what is already on
+# disk. What it leaves there must be what a full run leaves: the same
+# result.json, the same field snapshots and the same ``mosaic status``.
+# Timings and memory peaks differ from run to run, so only their presence is
+# compared.
+
+_PARTIAL_KERNELS = ("agreement",)
+
+# Metrics measured afresh on every run: timings (``cost_time_s`` is the status
+# cell's) and memory peaks.
+_MEASURED = {
+    "mean",
+    "std",
+    "trials_s",
+    "wall_time_s",
+    "cost_time_s",
+    "ram_peak_mib",
+    "vram_peak_mib",
+}
+
+
+def _register_partial_kernel(cfg, kernel_name: str) -> str:
+    """Register a small *kernel_name* experiment on *cfg* and return its key."""
+    from mosaic.benchmarks.problems.shared import forward
+
+    multimode = {"name": "multimode", "seed": 0}
+    physics = {"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1}
+    suite, kernel_fn, spec = {
+        "agreement": ("forward", forward.agreement, {"ic": multimode}),
+    }[kernel_name]
+    exp_key = f"{suite}/dummy_partial_{kernel_name}"
+    cfg.add_experiment(exp_key, kernel_fn, **{"physics": physics, **spec})
+    return exp_key
+
+
+def _unmeasured(metrics):
+    """*metrics* with each measured value replaced by a marker."""
+    if not isinstance(metrics, dict):
+        return metrics
+    return {k: "measured" if k in _MEASURED else v for k, v in metrics.items()}
+
+
+def _fields_by_solver(path: Path) -> dict:
+    """The arrays in *path*, keyed by solver name rather than by slot.
+
+    A rerun writes its own solvers first in ``solver_names``, so a positional
+    key such as ``grad_0`` can name another solver than after a full run.
+    """
+    import re
+
+    from mosaic.benchmarks.core.io import try_load_npz
+
+    arrays = try_load_npz(path)
+    names = [str(n) for n in arrays.pop("solver_names", [])]
+    flat = any(key.startswith(f"{n}_") for key in arrays for n in names)
+    fields = {"solver_names": sorted(names)}
+    for key, arr in arrays.items():
+        m = None if flat else re.fullmatch(r"(.+?)_(\d+)(_.*)?", key)
+        if m and int(m[2]) < len(names):
+            key = f"{m[1]}[{names[int(m[2])]}]{m[3] or ''}"
+        fields[key] = arr
+    return fields
+
+
+def _saved_run(cfg, exp_key: str) -> tuple[dict, dict, dict]:
+    """What runs of *exp_key* left on disk: result.json, fields and status."""
+    import dataclasses
+
+    from mosaic.benchmarks.core.io import results_dir
+    from mosaic.benchmarks.core.status import collect_status
+
+    exp_dir = results_dir() / cfg.name / exp_key
+    data = json.loads((exp_dir / "result.json").read_text())
+    # The rest of the provenance is when and how long, not what.
+    prov = data.pop("provenance")
+    data["tesseract_hashes"] = prov["tesseract_hashes"]
+    data["harness_hash"] = prov["harness_hash"]
+    data["results"] = sorted(
+        ({**e, "metrics": _unmeasured(e["metrics"])} for e in data["results"]),
+        key=lambda e: (e["solver"], str(e["sweep_value"])),
+    )
+    fields = {
+        p.name: _fields_by_solver(p)
+        for p in sorted(exp_dir.glob("*.npz"))
+        if p.name != "result_partial.npz"
+    }
+    suite, _, name = exp_key.partition("/")
+    row = next(r for r in collect_status(cfg, [suite]).rows if r.experiment == name)
+    cells = {
+        s: dataclasses.replace(c, metrics=_unmeasured(c.metrics))
+        for s, c in row.cells.items()
+    }
+    return data, fields, cells
+
+
+def _assert_same_run(partial: tuple, full: tuple) -> None:
+    """Assert that *partial* and *full*, from :func:`_saved_run`, are the same."""
+    import numpy as np
+
+    data, fields, cells = partial
+    full_data, full_fields, full_cells = full
+    assert data == full_data
+    assert cells == full_cells
+    assert fields.keys() == full_fields.keys()
+    for name, arrays in fields.items():
+        assert arrays.keys() == full_fields[name].keys(), name
+        for key, arr in arrays.items():
+            np.testing.assert_array_equal(arr, full_fields[name][key], err_msg=key)
+
+
+def _run_partially(how: str, cfg, tags, exp_key, solver: str, monkeypatch) -> None:
+    """Rerun *exp_key* the way ``mosaic run`` does for *how*.
+
+    ``only`` reruns *solver*'s cells (``--only``), ``solvers`` runs *solver*
+    alone (``-s``), and ``continue`` crashes when *solver* starts and then
+    resumes (``--continue``).
+    """
+    import dataclasses
+
+    from mosaic.benchmarks.core import cell_filter, experiment
+
+    run = cfg.experiments[exp_key].fn
+    if how == "only":
+        cell_filter.set_active({(exp_key, solver): True})
+        try:
+            run(cfg, tags)
+        finally:
+            cell_filter.set_active(None)
+        return
+    if how == "solvers":
+        only_solver = dataclasses.replace(cfg, solvers=[cfg.solver(solver)])
+        run(only_solver, {solver: tags[solver]})
+        return
+
+    real_loop = experiment.per_solver_loop
+
+    def crash_on_solver(cfg, tags, names, work, **kwargs):
+        def work_or_crash(name, t):
+            if name == solver:
+                raise KeyboardInterrupt
+            work(name, t)
+
+        return real_loop(cfg, tags, names, work_or_crash, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(experiment, "per_solver_loop", crash_on_solver)
+        with pytest.raises(KeyboardInterrupt):
+            run(cfg, tags)
+    run(cfg, tags, resume=True)
+
+
+@pytest.mark.parametrize("how", ["only", "solvers", "continue"])
+@pytest.mark.parametrize("kernel_name", _PARTIAL_KERNELS)
+def test_partial_rerun_saves_what_a_full_run_saves(
+    kernel_name, how, ns_grid_tags, tmp_path, monkeypatch
+):
+    """``--only``, ``-s`` and ``--continue`` on one solver save what a full run does."""
+    from mosaic.benchmarks.core import experiment
+
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    exp_key = _register_partial_kernel(cfg, kernel_name)
+    run = cfg.experiments[exp_key].fn
+
+    ran: list[str] = []
+    real_loop = experiment.per_solver_loop
+
+    def record_solvers(cfg, tags, names, *args, **kwargs):
+        ran.extend(names)
+        return real_loop(cfg, tags, names, *args, **kwargs)
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path / "full"))
+    with monkeypatch.context() as m:
+        m.setattr(experiment, "per_solver_loop", record_solvers)
+        run(cfg, tags)
+    full = _saved_run(cfg, exp_key)
+
+    # One in the middle, so it has peers that ran before and after it.
+    solver = ran[len(ran) // 2]
+    if how == "continue":
+        monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path / "resumed"))
+    _run_partially(how, cfg, tags, exp_key, solver, monkeypatch)
+    _assert_same_run(_saved_run(cfg, exp_key), full)
