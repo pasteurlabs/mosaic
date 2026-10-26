@@ -68,8 +68,13 @@ def _kolmogorov_forward(ctx: Ctx) -> alt.TopLevelMixin | None:
             per_seed = (m.get(config) or {}).get("per_seed") or []
             if not per_seed:
                 continue
-            errors = np.median([s["errors"] for s in per_seed], axis=0)
-            corr = np.median([s["correlations"] for s in per_seed], axis=0)
+            # result.json stores NaN as null.
+            errors = np.median(
+                np.array([s["errors"] for s in per_seed], dtype=float), axis=0
+            )
+            corr = np.median(
+                np.array([s["correlations"] for s in per_seed], dtype=float), axis=0
+            )
             for t, e, c in zip(m["times"], errors, corr, strict=True):
                 rows.append(
                     {
