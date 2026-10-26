@@ -125,6 +125,24 @@ SETUPS = [
         },
     },
     {
+        "key": "ns-2d-kolmogorov",
+        "short": "Kolmogorov",
+        "problem": "ns-grid",
+        "label": "Navier–Stokes (2D)",
+        "setup": "Forced periodic box (Kolmogorov flow)",
+        "task": "training a neural corrector through the solver",
+        "claims": [
+            "forward/kolmogorov",
+            "forward/kolmogorov_laminar",
+            "optimization/kolmogorov_sil",
+        ],
+        "gates": {
+            "forward": ["forward/kolmogorov_laminar", "forward/kolmogorov"],
+            "gradient": [],
+            "optimization": ["optimization/kolmogorov_sil"],
+        },
+    },
+    {
         "key": "ns-3d",
         "short": "periodic",
         "problem": "ns-3d-grid",
