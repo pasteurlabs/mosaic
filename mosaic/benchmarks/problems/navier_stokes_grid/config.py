@@ -70,12 +70,12 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import cylinder
+from . import cylinder, kolmogorov
 from .exclusions import register as _register_exclusions
 from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt
+from .plots import plot_drag_opt, plot_kolmogorov
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -164,6 +164,16 @@ problem.add_ic(
     description=(
         "Taylor–Green vortex $u=\\sin(x)\\cos(y)$, $v=-\\cos(x)\\sin(y)$; has a closed-form "
         "analytic solution for viscous decay, enabling solver verification."
+    ),
+    plot_params={"N": 64},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "rest",
+    fn=kolmogorov.rest,
+    description=(
+        "The fluid at rest. A constant body force then drives the laminar "
+        "Kolmogorov transient, which has a closed form."
     ),
     plot_params={"N": 64},
     plot=plot_ic,
@@ -297,6 +307,58 @@ problem.add_experiment(
         cylinder.max_cd_err(0.05, resolution=20),
         cylinder.max_cd_drift(1e-3),
     ],
+)
+problem.add_experiment(
+    "forward/kolmogorov_laminar",
+    agreement,
+    plot_description=(
+        "Relative error vs grid resolution $N$ of the flow that the Kolmogorov"
+        " force $(A\\sin(\\kappa y), 0)$, $\\kappa = 4$, drives from rest"
+        " against linear drag, at $t = 2$. The flow stays a shear flow, so it has"
+        " the exact solution $u = (A/\\lambda)(1 - e^{-\\lambda t})"
+        " \\sin(\\kappa y)$ with $\\lambda = \\nu\\kappa^2 + \\alpha$. The"
+        " timestep is small enough that the error is the spatial one."
+    ),
+    ic={"name": "rest", "seed": 0},
+    physics={
+        "N": [32, 64, 128],
+        "nu": 0.05,
+        "dt": 0.002,
+        "steps": 1000,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.laminar_reference,
+    plot=plot_agreement,
+    # A second-order scheme misses this mode by about (κh)²/12 in its
+    # diffusion rate, 1.3% at N = 64, while a wrong 2π/L factor, a flipped
+    # sign or a force half a cell off (a phase error of κh/2) cost 20% or
+    # more. 5% at N = 64 separates the two; the coarser grid only shows the
+    # order. Not peer-relative: the bound comes from the solution.
+    status_check=[max_error(0.05, at=64), min_order(0.8)],
+)
+problem.add_experiment(
+    "forward/kolmogorov",
+    kolmogorov.forward,
+    plot_description=(
+        "Each solver's coarse configuration (64², dt = 0.01) and reference"
+        " configuration (256², dt = 0.0025) against a converged Exponax run at"
+        " 1024², from three turbulent states of the Kolmogorov flow at"
+        " ν = 2·10⁻³, scored on the 64² grid. Relative error and vorticity"
+        " correlation per time, median over the states."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "nu": kolmogorov.VISCOSITY,
+        "dt": kolmogorov.COARSE_DT,
+        "reference_factor": kolmogorov.REFERENCE_FACTOR,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.generate_ground_truth,
+    plot=plot_kolmogorov,
+    # Training against a solver's own reference is an accuracy claim only
+    # where that reference is accurate; see max_reference_ratio. The
+    # threshold follows from that, not from the peers.
+    status_check=[kolmogorov.max_reference_ratio(0.25)],
 )
 # Cost
 problem.add_experiment(

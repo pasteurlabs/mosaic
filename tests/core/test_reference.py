@@ -39,7 +39,11 @@ class TestReferenceFilename:
 class TestSlugToPackage:
     def test_default_hyphen_to_underscore(self):
         assert _domain_slug_to_package("structural-mesh") == "structural_mesh"
-        assert _domain_slug_to_package("ns-grid") == "ns_grid"
+
+    def test_ns_grid_alias(self):
+        # The 2D slug's package is navier_stokes_grid, where its references live.
+        assert _domain_slug_to_package("ns-grid") == "navier_stokes_grid"
+        assert _reference_dir("ns-grid").parent.name == "navier_stokes_grid"
 
     def test_ns_3d_grid_alias(self):
         # The 3D slug does not follow the ``-`` -> ``_`` convention; its
@@ -95,6 +99,20 @@ class TestSpectralDownsample:
         )
         assert ds.shape == (nt, nt, nt, 3)
         np.testing.assert_allclose(ds, direct, atol=1e-12)
+
+    def test_2d_layout_keeps_its_singleton_axis(self):
+        """The ns-grid layout (N, N, 1, C) truncates the two spatial axes only."""
+        n, nt = 32, 16
+        x = np.linspace(0, 2 * np.pi, n, endpoint=False)
+        X, Y = np.meshgrid(x, x, indexing="ij")
+        field = np.stack([np.sin(X) * np.cos(2 * Y), np.cos(3 * X)], -1)[:, :, None]
+        ds = spectral_downsample(field, nt)
+
+        x2 = np.linspace(0, 2 * np.pi, nt, endpoint=False)
+        X2, Y2 = np.meshgrid(x2, x2, indexing="ij")
+        direct = np.stack([np.sin(X2) * np.cos(2 * Y2), np.cos(3 * X2)], -1)
+        assert ds.shape == (nt, nt, 1, 2)
+        np.testing.assert_allclose(ds[:, :, 0], direct, atol=1e-12)
 
     def test_upsample_rejected(self):
         field = np.zeros((8, 8, 8, 3))
@@ -181,10 +199,10 @@ class TestExtractReferencesFromFields:
 
 
 class TestPrecomputedExperiments:
-    def test_ns_grid_scores_against_literature(self):
+    def test_ns_grid_stores_only_the_kolmogorov_ground_truth(self):
         # forward/cylinder is scored against the DFG 2D-1 literature values,
-        # not a stored field.
-        assert "ns-grid" not in PRECOMPUTED_EXPERIMENTS
+        # the TGV experiments against the analytic decay.
+        assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == ["forward/kolmogorov"]
 
     def test_structural_mesh_experiments(self):
         exps = PRECOMPUTED_EXPERIMENTS["structural-mesh"]

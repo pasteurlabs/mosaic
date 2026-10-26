@@ -50,6 +50,13 @@ EXPONAX_EXACT_TGV = Exclusion(
     "steps rather than shrinking with the grid spacing, so no positive order "
     "can be observed",
 )
+OPENFOAM_NO_SOURCE_TERM = Exclusion(
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract runs icoFoam, which has no momentum source term, so it "
+    "cannot apply the body force or the drag; OpenFOAM supports both through "
+    "the foamRun incompressibleFluid solver with an fvModel, which is not "
+    "wired up here",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -102,6 +109,8 @@ def register(problem: Problem) -> None:
         {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
     )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
+    problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
+    problem.exclude("forward/kolmogorov", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
 
     # Cost
     problem.exclude("cost/spatial_cost", {"openfoam": OPENFOAM_SERIAL_IMPLICIT_COST})
