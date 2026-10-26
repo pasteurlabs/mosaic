@@ -1,7 +1,9 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-26. Written so that another agent, for example on a machine
-with a GPU, can continue the work.
+**Status:** 2026-10-26, after a second session on the A100 sandbox. That
+session stopped at the PR #259 gate (below); the state of every backlog item is
+recorded in place. Notes, issue drafts, PR drafts and diagnostic scripts are in
+[cleanup-notes/](cleanup-notes/).
 
 ## Read first
 
@@ -9,6 +11,45 @@ with a GPU, can continue the work.
    interventions, including the four policies and the rollout.
 2. [intervention-spike.md](intervention-spike.md): findings from annotating all
    19 tesseracts. The backlog below comes from it.
+
+## Where things stand
+
+**Gate: PR #259 is waiting for Dion.** Its CI benchmark run reports one Warp-NS
+metric change, ns-grid `gradient/fd_check` rel-error 3.42e-5 → 4.05e-5 (+18%,
+above the 15% reporting threshold), on the T4 runner. Nothing #259 removes is
+reachable from the 2-D path. Locally on the A100, three runs each of `main` and
+#259 give 2.97e-5 to 3.00e-5, and `mosaic status --diff-against` reports no
+change between them. The CI change therefore looks like baseline drift, but it
+was not reproduced on a T4. The handoff said to stop if CI showed a change, so
+the session opened no further PRs after seeing it.
+
+Open pull requests from this pass (all based on `main`, `benchmark:solver`):
+
+| PR   | Item                                                            | Verified                                                                                              |
+| ---- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| #260 | 1: INS.jl and TopOpt.jl solver code into their tesseracts       | both images build; `--suites forward --debug` ok for both; `test_ins_jl_consistency.py` passes        |
+| #261 | 2: JAX-FEM structural setup cache key                           | same-shape, different-coordinate meshes: `main` returns the stale compliance, the fix the fresh one   |
+| #262 | 2: firedrake-heat misfit in float64                             | source_fd_check 2.98e-4 → 5.18e-5; BFGS recovery final loss 5737 → 194 (main reproduces 5737 exactly) |
+| #263 | 3: OpenFOAM Courant sub-stepping removed                        | bit-identical `forward/cylinder`                                                                      |
+| #264 | 3: Warp-NS no-op device scope, eigenvalue and fd_check comments | fields bit-identical, forces within atomics noise                                                     |
+
+Pushed branches without a PR (open once the gate is cleared):
+
+- `refactor/topopt-jl-zygote-gradient` (item 3, `compliance-grad-field`),
+  stacked on #260. Results identical; `cost/vjp_cost` not yet timed. Draft
+  body: `cleanup-notes/pr-drafts/topopt-jl-zygote.md`.
+- `fix/xlb-pin-warp-instead-of-patch` (item 4, XLB packaging): pins
+  `warp-lang==1.12.1` and drops the build-time source patch. 27/27 forward and
+  gradient experiments bit-identical. Draft body:
+  `cleanup-notes/pr-drafts/xlb-warp-pin.md`.
+
+Waiting for Dion:
+
+- whether to remove the `shared_sources` mechanism (no tesseract uses it after
+  #260);
+- the policy 1–4 decision notes and the upstream issue drafts in
+  `cleanup-notes/`;
+- item 6.
 
 ## Decisions and constraints
 
@@ -59,6 +100,8 @@ Intervention ids refer to the spike annotations.
 
 ### 1. Move Julia solver code into its tesseracts
 
+**Done: #260.** Ask Dion about removing `shared_sources` (not asked yet).
+
 No result change.
 
 INS.jl's solver lives in `mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl`,
@@ -83,6 +126,9 @@ equivalent for TopOpt.jl.
 
 ### 2. Bug fixes
 
+**Done: #261 (JAX-FEM, latent, no result change expected), #262 (firedrake-heat,
+results change).**
+
 These may change results; use `benchmark:solver`.
 
 - **JAX-FEM structural setup cache:** keyed on `pts.shape` instead of the
@@ -93,6 +139,23 @@ These may change results; use `benchmark:solver`.
   uses float64 for both.
 
 ### 3. Check, then fix or remove
+
+**Status** (details and numbers in `cleanup-notes/item3-measurements.md`):
+
+- TopOpt.jl `compliance-grad-field`: done, branch pushed, PR not opened.
+- Warp-NS `channel-cg-scoped-device` and `poisson-fd-eigenvalues-3d`: done, #264.
+- OpenFOAM `courant-substepping`: done, #263.
+- XLB channel on BGK: measured, the docstring is right on the current channel
+  (both KBC variants give a non-smooth Cd and unusable gradients). No change.
+- OpenFOAM channel settings: measured except `graded-channel-mesh`.
+  `channel-non-orthogonal-corrector` is required (crash at 20 cells per
+  diameter without it). The tutorial pressure tolerance gives the same Cd about
+  40% faster, a tuning candidate. MPI showed no speed-up at these sizes, and the
+  momentum tolerance can be loosened without changing Cd. No PR yet: these are
+  tuning decisions.
+- FEniCS `mumps-adjoint-monkeypatch`, deal.II solvers and threading, JAX-FEM
+  `umfpack-solver-option`: variant images built, not run. Run
+  `cleanup-notes/diag/quiet_phase.sh` on an otherwise idle box.
 
 GPU needed for the Warp-NS and XLB items.
 
@@ -126,6 +189,13 @@ GPU needed for the Warp-NS and XLB items.
 
 ### 4. Upstream issues
 
+**Drafted, not filed:** `cleanup-notes/upstream-topopt-jl.md` (reproduced on
+0.11.0; master moved to Ferrite 1.x, and 0.14.0 is released),
+`upstream-phiml.md` (reproduced; `jax.grad` fails with `UnexpectedTracerError`),
+`upstream-xlb.md` (fixed on XLB `main` but unreleased, so a release request; the
+pin makes it optional). PICT: not drafted; a reproducer script is in
+`cleanup-notes/diag/pict/` but was not run.
+
 Draft them, but file only after Dion approves.
 
 - **TopOpt.jl:** INP parser bug worked around by `inp-parser-hex-patch`; still
@@ -139,6 +209,10 @@ Draft them, but file only after Dion approves.
   which may remove the build-time patch entirely.
 
 ### 5. Apply the policies
+
+**Notes written, no code changed:** `cleanup-notes/policy1-{xlb,jaxcfd,phiflow,exponax}.md`,
+`policy2-runtime-adaptations.md`, `policy3-setup-deviations.md`,
+`policy4-tuning.md`.
 
 - **Policy 1, choice of scheme.** No GPU needed for the research. For each case,
   find what the library's own documentation and tutorials recommend for this
