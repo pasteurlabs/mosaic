@@ -248,10 +248,19 @@ class TestCheckedInReferences:
         ],
     )
     def test_reference_loadable(self, domain, exp_key):
-        """Each checked-in reference must have at least one reference_* array."""
+        """Each checked-in reference must have at least one reference_* array.
+
+        The Kolmogorov ground truth holds initial states and trajectories
+        instead, one per seed.
+        """
         ref_dir = _reference_dir(domain)
         path = ref_dir / _reference_filename(exp_key)
         with np.load(str(path), allow_pickle=False) as data:
+            if (domain, exp_key) == ("ns-grid", "forward/kolmogorov"):
+                assert any(k.startswith("initial_") for k in data.files)
+                assert any(k.startswith("truth_") for k in data.files)
+                assert "horizon_times" in data
+                return
             ref_keys = [k for k in data.files if k.startswith("reference_")]
             assert len(ref_keys) > 0, f"No reference_* arrays in {path}"
             assert "sweep_values" in data, f"No sweep_values in {path}"
