@@ -65,12 +65,26 @@ def _to_numpy(jl_arr: Any) -> np.ndarray:
     return np.asarray(jl_arr).copy()
 
 
+def _body_force(inputs: InputSchema) -> dict[str, Any]:
+    """Keyword arguments for the body force and drag, empty when there are none.
+
+    Both are 2-D only (the canonical schema rejects them in 3-D).
+    """
+    kwargs: dict[str, Any] = {}
+    if inputs.forcing is not None:
+        kwargs["force"] = _to_julia(np.asarray(inputs.forcing)[:, :, 0, :])
+    if inputs.linear_drag is not None:
+        kwargs["drag"] = float(inputs.linear_drag[0])
+    return kwargs
+
+
 def _run(
     v0: np.ndarray,
     viscosity: float,
     dt: float,
     steps: int,
     domain_extent: float,
+    **body_force: Any,
 ) -> np.ndarray:
     """Forward pass.
 
@@ -92,6 +106,7 @@ def _run(
                 int(steps),
                 int(nx),
                 float(domain_extent),
+                **body_force,
             )
         )  # (nx, ny, 2)
         return result[:, :, np.newaxis, :]  # (nx, ny, 1, 2)
@@ -116,6 +131,7 @@ def _vjp(
     dt: float,
     steps: int,
     domain_extent: float,
+    **body_force: Any,
 ) -> dict:
     """VJP: cotangent w.r.t. result -> gradients w.r.t. v0, viscosity, dt, domain_extent."""
     nx = v0.shape[0]
@@ -133,6 +149,7 @@ def _vjp(
             int(steps),
             int(nx),
             float(domain_extent),
+            **body_force,
         )
         grad_v0_2d = _to_numpy(result[0])
         grad_nu = float(result[1])
@@ -179,6 +196,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         float(inputs.dt[0]),
         inputs.steps,
         inputs.domain_extent,
+        **_body_force(inputs),
     )
     return {"result": result.astype(np.float32)}
 
@@ -201,6 +219,7 @@ def vector_jacobian_product(
         float(inputs.dt[0]),
         inputs.steps,
         inputs.domain_extent,
+        **_body_force(inputs),
     )
     return {key: grads[key] for key in vjp_inputs if key in grads}
 

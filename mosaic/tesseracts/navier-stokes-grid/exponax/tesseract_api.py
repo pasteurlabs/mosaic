@@ -49,6 +49,8 @@ class InputSchema(
     @model_validator(mode="after")
     def _check_periodic_bcs(self) -> "InputSchema":
         check_periodic(self, "exponax")
+        if self.forcing is not None and self.kolmogorov_forcing:
+            raise ValueError("pass either forcing or kolmogorov_forcing, not both")
         return self
 
 
@@ -113,13 +115,24 @@ def exponax_fwd(
     injection_mode: int,
     injection_scale: float,
     boundary_conditions: dict | None = None,
+    forcing: jnp.ndarray | None = None,
+    linear_drag: float | None = None,
     **_kwargs: Any,
 ) -> jnp.ndarray:
     """Run 2D or 3D incompressible Navier-Stokes using exponax.
 
     2D uses the pseudo-spectral streamfunction-vorticity stepper with an
     internal velocity<->vorticity conversion so the interface matches the
-    other CFD tesseracts.
+    other CFD tesseracts. Exponax's 2D steppers evolve q = -ω: they take the
+    stream function from Δψ = q and the velocity from (∂ᵧψ, -∂ₓψ), whose
+    vorticity is -q.
+
+    A ``forcing`` field enters as the injection term of Exponax's Kolmogorov
+    stepper, the spectral curl of the force on the grid as given. Its own
+    ``injection_mode``/``injection_scale`` cannot express the canonical force:
+    Exponax puts sample j at y = j·h, the canonical layout at (j + ½)h, so its
+    sin(κy) is half a cell off. ``linear_drag`` α maps to Exponax's drag λ,
+    which adds λω and so damps for λ < 0.
 
     3D uses the Leray-projected velocity stepper directly.
 
@@ -135,6 +148,8 @@ def exponax_fwd(
         injection_mode: Forcing wavenumber.
         injection_scale: Forcing amplitude.
         boundary_conditions: Boundary condition config (must be fully periodic).
+        forcing: Body force at the grid points, shape of v0 (2D only).
+        linear_drag: Coefficient α of a linear drag -αu (2D only).
 
     Returns:
         Final velocity field, same shape as v0.
@@ -153,15 +168,18 @@ def exponax_fwd(
     }
 
     if ndim == 2:
+        if linear_drag is not None:
+            stepper_kwargs["drag"] = drag - linear_drag
+
         # v0: (N, N, 1, 2) -> squeeze z -> (N, N, 2)
         v = v0[:, :, 0, :]
 
-        # Mean velocity is conserved by incompressible periodic NS (Galilean invariance).
-        # The vorticity formulation strips it (∂const/∂x = 0), so we save and restore it.
+        # The vorticity formulation strips the mean velocity (∂const/∂x = 0),
+        # so we save it and evolve it separately.
         v_mean = jnp.mean(v, axis=(0, 1), keepdims=True)  # (1, 1, 2)
 
-        # velocity -> vorticity: (1, N, N)  (operate on fluctuation only)
-        vort = _velocity_to_vorticity(v - v_mean, domain_extent)
+        # velocity -> Exponax's q = -ω: (1, N, N)  (operate on fluctuation only)
+        q = -_velocity_to_vorticity(v - v_mean, domain_extent)
 
         if kolmogorov_forcing:
             stepper = ex.stepper.KolmogorovFlowVorticity(
@@ -169,6 +187,18 @@ def exponax_fwd(
                 injection_mode=injection_mode,
                 injection_scale=injection_scale,
                 **stepper_kwargs,
+            )
+        elif forcing is not None:
+            stepper = ex.stepper.KolmogorovFlowVorticity(
+                num_spatial_dims=2, injection_scale=0.0, **stepper_kwargs
+            )
+            # The force drives q with -curl f. Exponax builds its injection as
+            # a real array; the force's coefficients need their phase.
+            curl = _velocity_to_vorticity(forcing[:, :, 0, :], domain_extent)
+            stepper = eqx.tree_at(
+                lambda st: st._integrator._nonlinear_fun.injection,
+                stepper,
+                jnp.fft.rfft2(-curl).astype(jnp.complex64),
             )
         else:
             stepper = ex.stepper.NavierStokesVorticity(
@@ -178,10 +208,25 @@ def exponax_fwd(
         def step_fn(carry: Any, _: Any) -> tuple[Any, None]:
             return stepper(carry).astype(carry.dtype), None
 
-        result_vort, _ = jax.lax.scan(step_fn, vort, None, length=steps)
+        result_q, _ = jax.lax.scan(step_fn, q, None, length=steps)
 
-        # vorticity -> velocity: (N, N, 2) -> (N, N, 1, 2); restore conserved mean
-        result = _vorticity_to_velocity(result_vort, domain_extent) + v_mean
+        if forcing is not None or linear_drag is not None:
+            # dū/dt = λū + f̄ under Exponax's drag λ and the mean force f̄.
+            rate = stepper_kwargs["drag"]
+            t_end = dt * steps
+            f_mean = (
+                0.0
+                if forcing is None
+                else jnp.mean(forcing[:, :, 0, :], axis=(0, 1), keepdims=True)
+            )
+            growth = jnp.exp(rate * t_end)
+            # (e^{λT} - 1)/λ, which tends to T as λ → 0 (rate may be traced).
+            safe = jnp.where(rate == 0, 1.0, rate)
+            gain = jnp.where(rate == 0, t_end, (growth - 1.0) / safe)
+            v_mean = v_mean * growth + f_mean * gain
+
+        # q -> velocity: (N, N, 2) -> (N, N, 1, 2); restore the mean
+        result = _vorticity_to_velocity(-result_q, domain_extent) + v_mean
         return result[:, :, None, :]
 
     else:  # 3D
@@ -220,13 +265,13 @@ def apply_jit(inputs: dict) -> dict:
     return {"result": exponax_fwd(**inputs)}
 
 
-_SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale")
+_SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale", "linear_drag")
 
 
 def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
-        if key in d:
+        if d.get(key) is not None:
             d[key] = float(d[key][0])
     return d
 
@@ -245,7 +290,8 @@ def _diff_apply(inputs: dict) -> dict:
     """Forward pass differentiated by jax_vjp, with the scalar params traced."""
     fwd_kwargs = dict(inputs)
     for k in _SCALAR_KEYS:
-        fwd_kwargs[k] = jnp.reshape(fwd_kwargs[k], ())
+        if fwd_kwargs.get(k) is not None:
+            fwd_kwargs[k] = jnp.reshape(fwd_kwargs[k], ())
     return {"result": exponax_fwd(**fwd_kwargs)}
 
 
