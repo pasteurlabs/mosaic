@@ -655,10 +655,14 @@ def run(t: Any, ctx: Any, *, step_factory: Callable = solver_step) -> dict:
     ratios = [row["ratio"] for rows in audits.values() for row in rows]
     metrics["audit_passed"] = _finite(ratios) and max(ratios) <= cfg["audit_tolerance"]
     if not metrics["audit_passed"]:
+        if not _finite(ratios):
+            return _ineligible(
+                metrics, "the reference, its audit or the coarse run diverged"
+            )
         return _ineligible(
             metrics,
-            f"reference audit ratio {max(ratios):.3g} exceeds "
-            f"{cfg['audit_tolerance']} or is not finite",
+            f"the reference differs from its refinement by {max(ratios):.3g} of "
+            f"the coarse gap, above {cfg['audit_tolerance']}",
         )
 
     record = closure(
