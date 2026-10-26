@@ -1,19 +1,26 @@
 # Backlog item 3: measurements, 2026-10-26
 
-All runs on the sandbox A100 box (24 cores), images built from `main` at 6517f75 unless stated. Wall times in the OpenFOAM table were measured while other jobs ran on the box, so treat them as indicative; the planned quiet re-run (`diag/quiet_phase.sh`) did not happen.
+All runs on the sandbox A100 box (24 cores), images built from `main` at 6517f75 unless stated. Timing comparisons ran serially on an otherwise idle box (`diag/quiet_phase.sh`, `diag/followup*.sh` in `diag/`).
 
-## Done, with PRs
+## Outcomes
 
-| Id                                    | Result                                                                                                                                                                                      | PR                                                                                                               |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `compliance-grad-field` (TopOpt.jl)   | Zygote gradient bit-identical to `comp.grad` (nx = 8, 16); gradient and optimization suites identical                                                                                       | branch `refactor/topopt-jl-zygote-gradient`, PR not opened (stacked on #260, `vjp_cost` timing not yet measured) |
-| `channel-cg-scoped-device` (Warp-NS)  | no-op: `_warp_device()` is always Warp's default device; velocity/pressure bit-identical, force within atomics noise                                                                        | #264                                                                                                             |
-| `courant-substepping` (OpenFOAM)      | never triggers: Co = 0.869 / 0.867 at 10 / 20 cells per diameter; bit-identical after removal                                                                                               | #263                                                                                                             |
-| `poisson-fd-eigenvalues-3d` (Warp-NS) | not an exact inverse: one projection leaves 11% of the divergence (smooth field, N = 16), 68% (random); fd_check 1.5e-5 with these eigenvalues, 2.9e-5 with continuous ones. Comments fixed | #264                                                                                                             |
+| Id                                              | Result                                                                                                                                                                                                                                     | PR                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| `compliance-grad-field` (TopOpt.jl)             | Zygote gradient bit-identical to `comp.grad`; suites identical; VJP time the same over three runs                                                                                                                                          | #270 (stacked on #260)            |
+| `channel-cg-scoped-device` (Warp-NS)            | no-op; fields bit-identical, forces within atomics noise                                                                                                                                                                                   | #264                              |
+| `poisson-fd-eigenvalues-3d` (Warp-NS)           | not an exact inverse (11% divergence left on a smooth field at N = 16); no gradient bias (fd_check 1.5e-5 vs 2.9e-5 with continuous eigenvalues). Comments fixed                                                                           | #264                              |
+| `courant-substepping` (OpenFOAM)                | never triggers (Co 0.869 / 0.867); removed, bit-identical                                                                                                                                                                                  | #263                              |
+| OpenFOAM channel settings                       | see table below                                                                                                                                                                                                                            | #269 (stacked on #263)            |
+| XLB channel on BGK                              | docstring confirmed (table below)                                                                                                                                                                                                          | none                              |
+| `mumps-adjoint-monkeypatch` (FEniCS structural) | needed for speed: VJP 11.1 s vs 14.6 s at nx = 128, 3.2 vs 4.7 s at 64, no difference on small meshes; gradients identical (float32). The patch is live: stock `linalg_solve` receives `solver_parameters` but drops them and runs UMFPACK | none; record as `too-slow`, ~1.3x |
+| `umfpack-direct-solve` (deal.II structural)     | CG+SSOR gives the same compliance but is 1.7x slower at nx = 128 (4.9 vs 2.9 s)                                                                                                                                                            | none; keep, record                |
+| `cg-ssor-tight-tolerance` (deal.II heat)        | 1e-8 gives identical forward metrics, 15% faster at nx = 1024 (51 vs 60 s)                                                                                                                                                                 | #266                              |
+| deal.II threading                               | structural cap has no effect (2.93 vs 2.89 s at nx = 128); capping heat costs 8%                                                                                                                                                           | #271 drops the structural cap     |
+| `umfpack-solver-option` (JAX-FEM, both)         | trade-off, see `jaxfem-linear-solver.md`                                                                                                                                                                                                   | decision for Dion                 |
 
 ## XLB channel on BGK
 
-The docstring's claim holds on the current channel (`drag_opt` setup, float64, two smooth inlet-profile directions over ±5% of U_m):
+`drag_opt` setup, float64, two smooth inlet-profile directions over ±5% of U_m:
 
 | Collision    | Cd(profile)                                         | VJP vs central FD |
 | ------------ | --------------------------------------------------- | ----------------- |
@@ -21,26 +28,22 @@ The docstring's claim holds on the current channel (`drag_opt` setup, float64, t
 | stock KBC    | jumps by 0.1 to 0.3 (residual 0.18 over 0.31)       | NaN               |
 | smoothed KBC | residual 0.06 over 0.17                             | off by 10³ to 10⁶ |
 
-No code change. #194's smooth KBC gradients were measured on an older channel. Script: `diag/xlb/`.
+#194's smooth KBC gradients were measured on an older channel. Script: `diag/xlb/`.
 
-## OpenFOAM channel settings (`forward/cylinder`)
+## OpenFOAM channel settings (`forward/cylinder`, two repeats)
 
-Each variant reverts one setting to the `offsetCylinder` tutorial (OpenFOAM 12) or to the simpler choice. Main: Cd 5.56395 / 5.57661 at 10 / 20 cells per diameter, 93 s for both.
-
-| Variant                                | Cd at 10 / 20       | Wall (both) | Reading                                                                                       |
-| -------------------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------------- |
-| U tolerance 1e-5 (tutorial)            | same to 5 digits    | 89 s        | 1e-8 not needed for Cd; keep or loosen                                                        |
-| p GAMG tol 1e-6, relTol 0.1 (tutorial) | same to 5 digits    | 56 s        | 40% faster, same answer: a tuning candidate                                                   |
-| p PCG/DIC instead of GAMG              | same                | 213 s       | GAMG justified (2.3x)                                                                         |
-| no non-orthogonal corrector            | 5.56396 / **crash** | —           | required: diverges at 20 (max Co 11.9, FPE in the momentum solve)                             |
-| serial instead of MPI                  | same                | 90 s        | no measurable benefit at these mesh sizes (≤ 36k cells, 3 processes)                          |
-| no grading                             | —                   | —           | not measured: my variant set the wake grading to 1, which divides by zero in the mesh formula |
+| Variant                                | Cd at 10 / 20 cells per diameter                                   | Wall (both)        |
+| -------------------------------------- | ------------------------------------------------------------------ | ------------------ |
+| `main`                                 | 5.563948193 / 5.576608235                                          | 82–83 s            |
+| p GAMG tol 1e-6, relTol 0.1 (tutorial) | 5.563948158 / 5.576608228                                          | 50 s               |
+| p PCG/DIC instead of GAMG              | 5.563948175 / 5.576608231                                          | 193 s              |
+| serial instead of MPI                  | identical                                                          | 82–83 s            |
+| U tolerance 1e-5 (tutorial)            | same to 5 digits                                                   | ~same (single run) |
+| no non-orthogonal corrector            | 5.56396 / crash (max Co 11.9)                                      | —                  |
+| uniform mesh (grading 0.9999 / 1.0001) | 5.567318 / 5.578718 (Cd closer to 5.5795; Cl, Δp slightly further) | 111 s (single run) |
+| #269 (tutorial p tolerance, serial)    | 5.563948158 / 5.576608228                                          | 53 s               |
 
 Script: `diag/of_variants.py`.
-
-## Built, not run (stopped at the #259 gate)
-
-Variant images exist on the box for: FEniCS structural without `mumps-adjoint-monkeypatch` (`fenics_structural_mesh:nopatch`); deal.II structural uncapped threads (`ds-uncap`) and CG+SSOR (`ds-cg`); deal.II heat thread-capped (`dh-cap`) and CG tolerance 1e-8 (`dh-tol8`); JAX-FEM both with the default `jax_solver` (`jaxsolver`). `diag/quiet_phase.sh` runs them all serially; images vanish on a box reset, `diag/dealii_variants.py` and the worktree recipes rebuild them.
 
 ## Side findings
 

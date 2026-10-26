@@ -1,9 +1,9 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-26, after a second session on the A100 sandbox. That
-session stopped at the PR #259 gate (below); the state of every backlog item is
-recorded in place. Notes, issue drafts, PR drafts and diagnostic scripts are in
-[cleanup-notes/](cleanup-notes/).
+**Status:** 2026-10-26, after a second session on the A100 sandbox. Backlog
+items 1 to 3 are done or decided by measurement, item 4 is drafted, item 5 has
+decision notes. The state of each item is recorded in place. Notes, issue
+drafts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/).
 
 ## Read first
 
@@ -14,39 +14,34 @@ recorded in place. Notes, issue drafts, PR drafts and diagnostic scripts are in
 
 ## Where things stand
 
-**Gate: PR #259 is waiting for Dion.** Its CI benchmark run reports one Warp-NS
-metric change, ns-grid `gradient/fd_check` rel-error 3.42e-5 → 4.05e-5 (+18%,
-above the 15% reporting threshold), on the T4 runner. Nothing #259 removes is
-reachable from the 2-D path. Locally on the A100, three runs each of `main` and
-#259 give 2.97e-5 to 3.00e-5, and `mosaic status --diff-against` reports no
-change between them. The CI change therefore looks like baseline drift, but it
-was not reproduced on a T4. The handoff said to stop if CI showed a change, so
-the session opened no further PRs after seeing it.
+Open pull requests from this pass (all `benchmark:solver`):
 
-Open pull requests from this pass (all based on `main`, `benchmark:solver`):
+| PR   | Item                                                                  | Verified                                                                  |
+| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| #260 | 1: INS.jl and TopOpt.jl solver code into their tesseracts             | both images build, forward suites ok, `test_ins_jl_consistency.py` passes |
+| #261 | 2: JAX-FEM structural setup cache key                                 | reproduced the stale-geometry bug; fixed                                  |
+| #262 | 2: firedrake-heat misfit in float64                                   | source_fd_check 2.98e-4 → 5.18e-5; BFGS final loss 5737 → 194             |
+| #263 | 3: OpenFOAM Courant sub-stepping removed                              | bit-identical                                                             |
+| #264 | 3: Warp-NS no-op device scope, eigenvalue and fd_check comments       | fields bit-identical                                                      |
+| #265 | 4: XLB `warp-lang==1.12.1` pin instead of the build-time source patch | 27/27 experiments bit-identical                                           |
+| #266 | 3: deal.II heat CG tolerance 1e-12 → 1e-8                             | forward identical, −15% at nx = 1024                                      |
+| #269 | 3: OpenFOAM tutorial pressure tolerance, serial run (stacked on #263) | Cd within 6e-9, 82 → 53 s                                                 |
+| #270 | 3: TopOpt.jl gradient via Zygote (stacked on #260)                    | bit-identical gradients, same VJP time                                    |
+| #271 | 3: deal.II structural default threading                               | forward identical, cost unchanged                                         |
 
-| PR   | Item                                                            | Verified                                                                                              |
-| ---- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| #260 | 1: INS.jl and TopOpt.jl solver code into their tesseracts       | both images build; `--suites forward --debug` ok for both; `test_ins_jl_consistency.py` passes        |
-| #261 | 2: JAX-FEM structural setup cache key                           | same-shape, different-coordinate meshes: `main` returns the stale compliance, the fix the fresh one   |
-| #262 | 2: firedrake-heat misfit in float64                             | source_fd_check 2.98e-4 → 5.18e-5; BFGS recovery final loss 5737 → 194 (main reproduces 5737 exactly) |
-| #263 | 3: OpenFOAM Courant sub-stepping removed                        | bit-identical `forward/cylinder`                                                                      |
-| #264 | 3: Warp-NS no-op device scope, eigenvalue and fd_check comments | fields bit-identical, forces within atomics noise                                                     |
-
-Pushed branches without a PR (open once the gate is cleared):
-
-- `refactor/topopt-jl-zygote-gradient` (item 3, `compliance-grad-field`),
-  stacked on #260. Results identical; `cost/vjp_cost` not yet timed. Draft
-  body: `cleanup-notes/pr-drafts/topopt-jl-zygote.md`.
-- `fix/xlb-pin-warp-instead-of-patch` (item 4, XLB packaging): pins
-  `warp-lang==1.12.1` and drops the build-time source patch. 27/27 forward and
-  gradient experiments bit-identical. Draft body:
-  `cleanup-notes/pr-drafts/xlb-warp-pin.md`.
+**CI baseline drift.** PR #259 (dead-code removal) and #264 both show
+ns-grid `gradient/fd_check` for Warp-NS at 3.42e-5 → 4.04e-5, and #260 shows
+INS.jl's at +19%, although none of these PRs can affect that cell. Locally
+main and #259 are indistinguishable (2.97–3.00e-5 over three runs each). The
+ns-grid fd_check baseline probably predates #250, which changed that check;
+not confirmed. #262's report also shows ±40% cost shifts on Firedrake
+structural cells it does not touch. Read single-cell CI metric changes with
+this in mind.
 
 Waiting for Dion:
 
-- whether to remove the `shared_sources` mechanism (no tesseract uses it after
-  #260);
+- removing the `shared_sources` mechanism (no tesseract uses it after #260);
+- JAX-FEM's linear solver (`cleanup-notes/jaxfem-linear-solver.md`);
 - the policy 1–4 decision notes and the upstream issue drafts in
   `cleanup-notes/`;
 - item 6.
@@ -100,7 +95,7 @@ Intervention ids refer to the spike annotations.
 
 ### 1. Move Julia solver code into its tesseracts
 
-**Done: #260.** Ask Dion about removing `shared_sources` (not asked yet).
+**Done: #260.** Removing `shared_sources` is waiting for Dion.
 
 No result change.
 
@@ -140,22 +135,11 @@ These may change results; use `benchmark:solver`.
 
 ### 3. Check, then fix or remove
 
-**Status** (details and numbers in `cleanup-notes/item3-measurements.md`):
-
-- TopOpt.jl `compliance-grad-field`: done, branch pushed, PR not opened.
-- Warp-NS `channel-cg-scoped-device` and `poisson-fd-eigenvalues-3d`: done, #264.
-- OpenFOAM `courant-substepping`: done, #263.
-- XLB channel on BGK: measured, the docstring is right on the current channel
-  (both KBC variants give a non-smooth Cd and unusable gradients). No change.
-- OpenFOAM channel settings: measured except `graded-channel-mesh`.
-  `channel-non-orthogonal-corrector` is required (crash at 20 cells per
-  diameter without it). The tutorial pressure tolerance gives the same Cd about
-  40% faster, a tuning candidate. MPI showed no speed-up at these sizes, and the
-  momentum tolerance can be loosened without changing Cd. No PR yet: these are
-  tuning decisions.
-- FEniCS `mumps-adjoint-monkeypatch`, deal.II solvers and threading, JAX-FEM
-  `umfpack-solver-option`: variant images built, not run. Run
-  `cleanup-notes/diag/quiet_phase.sh` on an otherwise idle box.
+**Done.** Outcomes and numbers in `cleanup-notes/item3-measurements.md`:
+TopOpt.jl #270; Warp-NS #264; OpenFOAM #263 and #269; deal.II #266 and #271;
+XLB channel, FEniCS `mumps-adjoint-monkeypatch` and deal.II
+`umfpack-direct-solve` measured as needed (keep, record the evidence); JAX-FEM
+`umfpack-solver-option` is a size-dependent trade-off waiting for Dion.
 
 GPU needed for the Warp-NS and XLB items.
 
@@ -189,12 +173,10 @@ GPU needed for the Warp-NS and XLB items.
 
 ### 4. Upstream issues
 
-**Drafted, not filed:** `cleanup-notes/upstream-topopt-jl.md` (reproduced on
-0.11.0; master moved to Ferrite 1.x, and 0.14.0 is released),
-`upstream-phiml.md` (reproduced; `jax.grad` fails with `UnexpectedTracerError`),
-`upstream-xlb.md` (fixed on XLB `main` but unreleased, so a release request; the
-pin makes it optional). PICT: not drafted; a reproducer script is in
-`cleanup-notes/diag/pict/` but was not run.
+**Drafted, not filed:** `cleanup-notes/upstream-{topopt-jl,phiml,pict,xlb}.md`.
+TopOpt.jl, PhiML and PICT are reproduced. TopOpt.jl 0.14.0 and PICT `master`
+are newer than our pins and untested. XLB's fix is on its `main` but
+unreleased; #265 pins Warp instead, so that issue is only a release request.
 
 Draft them, but file only after Dion approves.
 
