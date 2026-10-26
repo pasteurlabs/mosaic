@@ -88,9 +88,6 @@ _TESSERACT_SLUG = "navier-stokes-grid"
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 
-# Exponax is a 3D-only spectral solver; exclude it from the 2D suite.
-_SOLVERS.pop("exponax", None)
-
 # Plot styling lives in mosaic.benchmarks.problems.shared.plots.solver_styles, not in YAML.
 apply_styles(_SOLVERS)
 
