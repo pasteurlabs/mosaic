@@ -70,12 +70,12 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import cylinder, kolmogorov
+from . import cylinder, kolmogorov, sil, sil_status
 from .exclusions import register as _register_exclusions
 from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt, plot_kolmogorov
+from .plots import plot_drag_opt, plot_kolmogorov, plot_kolmogorov_sil
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -535,6 +535,67 @@ problem.add_experiment(
     # known.
     status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )
+_SIL_PHYSICS = {
+    "N": kolmogorov.COARSE_N,
+    "nu": kolmogorov.VISCOSITY,
+    "dt": kolmogorov.COARSE_DT,
+    "reference_factor": kolmogorov.REFERENCE_FACTOR,
+    **kolmogorov.FORCING_PHYSICS,
+}
+_SIL_DESCRIPTION = (
+    "A small CNN corrects each solver's coarse Kolmogorov flow (64², ν = 2·10⁻³)"
+    " every 0.1 time units, trained against that solver's own 256² reference"
+    " in four arms: uncorrected, supervised one-interval pairs, a K-interval"
+    " rollout with the gradient stopped at the solver, and the same rollout"
+    " differentiated through the solver (solver in the loop). Relative error of"
+    " each arm's rollout against the reference on held-out states, and the"
+    " paired gap closed and value of the solver gradient."
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil",
+    sil.solver_in_loop,
+    plot_description=_SIL_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    # The CI-sized comparison: one unroll, one network seed and learning rate,
+    # one test state. It shows that a solver can be trained through, at what
+    # cost; the campaign below measures how much the gradient helps.
+    optim={
+        "unrolls": [4],
+        "updates": 32,
+        "model_seeds": [0],
+        "learning_rates": [1e-3],
+        "validation_interval": 16,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5]},
+        "train_frames": 24,
+        "eval_frames": 40,
+    },
+    plot=plot_kolmogorov_sil,
+    # Feasibility only: no arm has to win. See sil_status.
+    status_check=[sil_status.feasible()],
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil_campaign",
+    sil.solver_in_loop,
+    plot_description=_SIL_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    # The full comparison, on demand: hours per solver. The learning-rate grid
+    # sits where the pilot's validation chose the top of {1e-4, 3e-4, 1e-3}
+    # for every arm.
+    optim={
+        "unrolls": [1, 4, 16],
+        "updates": 256,
+        "model_seeds": [0, 1, 2],
+        "learning_rates": [3e-4, 1e-3, 3e-3],
+        "validation_interval": 32,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5, 6, 7]},
+        "train_frames": 32,
+        "eval_frames": 40,
+    },
+    plot=plot_kolmogorov_sil,
+    status_check=[sil_status.feasible()],
+    on_demand=True,
+)
+
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",

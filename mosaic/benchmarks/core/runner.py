@@ -533,7 +533,8 @@ def run_suite(
         cfg:             Problem instance.
         tags:            solver name → image tag mapping.
         experiments:     {name: callable(cfg, tags) → dict}
-        to_run:          subset of names to run; None runs all.
+        to_run:          subset of names to run; None runs all but the
+                         on-demand ones.
         plots:           if True, call matching entries in plot_fns after experiments.
         plot_fns:        {name: callable(cfg)} for plot generation; None skips
                          plots. Entries whose name starts with ``"_extra/"`` are
@@ -554,7 +555,14 @@ def run_suite(
     _current_problem = (
         cfg.name
     )  # label containers so cleanup only kills this problem's containers
-    to_run = to_run or list(experiments)
+    if not to_run:
+        to_run = [
+            name
+            for name in experiments
+            if not getattr(
+                cfg.experiments.get(f"{suite_name}/{name}"), "on_demand", False
+            )
+        ]
     suffix = "_debug" if (overrides or {}).get("debug") else ""
     suite_dir = results_dir() / cfg.name / suite_name
     n_experiments = len(to_run)
