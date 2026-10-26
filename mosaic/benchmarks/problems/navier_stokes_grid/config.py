@@ -549,7 +549,10 @@ _SIL_DESCRIPTION = (
     " rollout with the gradient stopped at the solver, and the same rollout"
     " differentiated through the solver (solver in the loop). Relative error of"
     " each arm's rollout against the reference on held-out states, and the"
-    " paired gap closed and value of the solver gradient."
+    " paired gap closed and value of the solver gradient. The errors are"
+    " measured against each solver's own reference, so they count as accuracy"
+    " only where the solver passes forward/kolmogorov; elsewhere they say how"
+    " well training reproduces that solver's own finer discretization."
 )
 problem.add_experiment(
     "optimization/kolmogorov_sil",
