@@ -19,6 +19,8 @@ built here.
 
 from __future__ import annotations
 
+import shutil
+
 import numpy as np
 import pytest
 
@@ -50,7 +52,10 @@ def solver(request):
         pytest.skip(f"{image} not built")
     from tesseract_core import Tesseract
 
-    with Tesseract.from_image(image, gpus=["all"]) as t:
+    # CI builds some of these images on runners without GPUs, where the JAX
+    # solvers fall back to the CPU.
+    gpus = ["all"] if shutil.which("nvidia-smi") else None
+    with Tesseract.from_image(image, gpus=gpus) as t:
         yield request.param, t, extra
 
 
