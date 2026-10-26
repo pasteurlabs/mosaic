@@ -169,11 +169,12 @@ def _sil_errors(ctx: Ctx) -> alt.TopLevelMixin | None:
     rows = []
     for solver, m in _sil_entries(ctx):
         interval = m["interval"]
-        unc = np.asarray(m["evaluation"]["uncorrected"]["errors"])
+        # result.json stores NaN as null.
+        unc = np.array(m["evaluation"]["uncorrected"]["errors"], dtype=float)
         for K in m["config"]["unrolls"]:
             curves = {"uncorrected": unc.reshape(-1, unc.shape[-1])}
             for arm in ("supervised", "stopped", "sil"):
-                e = np.asarray(m["evaluation"][f"K{K}/{arm}"]["errors"])
+                e = np.array(m["evaluation"][f"K{K}/{arm}"]["errors"], dtype=float)
                 curves[arm] = e.reshape(-1, e.shape[-1])
             for arm, e in curves.items():
                 for i, (med, lo, hi) in enumerate(
@@ -225,7 +226,7 @@ def _sil_paired(ctx: Ctx) -> alt.TopLevelMixin | None:
             )
             rows += [
                 {"solver": solver, "unroll": K, "measure": label, "value": v}
-                for v in np.ravel(values)
+                for v in np.ravel(np.array(values, dtype=float))
             ]
     if not rows:
         return None
