@@ -286,7 +286,10 @@ GROUND_TRUTH_SEEDS = {
 }
 
 # Exponax resolutions and spin-up: a burn-in at BURN_IN_N, then the truth at
-# TRUTH_N with CONVERGENCE_N alongside to show convergence.
+# TRUTH_N with CONVERGENCE_N alongside to show convergence. The initial states
+# are kept band-limited to INITIAL_N, deep in the dissipation range of this
+# flow, which regenerates the smallest scales within a fraction of a time unit.
+INITIAL_N = 128
 TRUTH_N = 1024
 CONVERGENCE_N = 512
 BURN_IN_N = 512
@@ -337,11 +340,10 @@ def generate_ground_truth(
     :data:`TRUTH_N`. For the test seeds the run at :data:`CONVERGENCE_N` from
     the same state measures how long the truth is converged.
 
-    Returns ``initial_<seed>`` at the reference grid of the coarse
-    configuration and, for the test seeds, ``truth_<seed>`` at the times
-    :data:`HORIZON_TIMES` on the coarse grid, plus the convergence record.
+    Returns ``initial_<seed>`` at :data:`INITIAL_N` and, for the test seeds,
+    ``truth_<seed>`` at the times :data:`HORIZON_TIMES` on the coarse grid,
+    plus the convergence record.
     """
-    reference_n = COARSE_N * REFERENCE_FACTOR
     test = set(GROUND_TRUTH_SEEDS["test"])
     out: dict[str, np.ndarray] = {}
     frame_of = {t: round(t / TRUTH_FRAME) - 1 for t in HORIZON_TIMES}
@@ -349,7 +351,7 @@ def generate_ground_truth(
         v = np.asarray(_multimode(BURN_IN_N, DOMAIN_EXTENT, seed=seed))
         v = _run(advance, v, BURN_IN_TIME)[-1]
         # The truth starts from exactly the field the solvers get.
-        initial = np.asarray(resample(v, reference_n))
+        initial = np.asarray(resample(v, INITIAL_N))
         start = np.asarray(resample(initial, TRUTH_N))
         out[f"initial_{seed}"] = initial
         log(f"seed {seed}: burned in for {BURN_IN_TIME:g}")
