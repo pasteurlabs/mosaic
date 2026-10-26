@@ -27,3 +27,75 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.firedrakeproject.org/"
+    interventions:
+      - id: setup-tape-replay
+        level: L0
+        scope: [cantilever]
+        what: >
+          Records the pyadjoint tape (gmsh mesh round-trip, spaces, forms, one annotated
+          solve) once per (mesh, BC, material) and evaluates each later call by replaying
+          the cached `ReducedFunctional` at the new rho.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it every call rebuilds the mesh via a gmsh file and DMPlex. PR #229
+            measured forward 5.36 -> 1.97 s (nx=128) and 1.32 -> 0.45 s (nx=64), VJP
+            13.45 -> 6.30 s and 3.30 -> 1.43 s. These include the reusable-variational-solver
+            change, which was not measured separately.
+          evidence: >
+            PR #229 (6c30c16) description; comment block above `_SOLVER_PARAMETERS`.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Documented pyadjoint workflow; the hash-keyed cache exists because tesseract
+          calls are stateless. Unlike fenics-structural, where the same change bought ~0.4%,
+          here it is a 2.7x forward speedup, because the Firedrake mesh import is far more
+          expensive than the FEniCS XDMF import.
+      - id: reusable-variational-solver
+        level: L1
+        scope: [cantilever]
+        what: >
+          Solves through `LinearVariationalProblem`/`LinearVariationalSolver` instead of
+          `solve(a == L, ...)`, so pyadjoint keeps the forward and adjoint solvers across
+          tape replays and MUMPS reuses its symbolic factorisation.
+        why:
+          consequence: too-slow
+          symptom: >
+            PETSc logs in PR #229 show one numeric and no symbolic factorisation per
+            replayed `apply` with this change. Its share of the speedup reported under
+            setup-tape-replay was not measured.
+          evidence: >
+            PR #229 (6c30c16) description ("What changes", tape reuse bullet).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Ambiguous between L0 and L1. `LinearVariationalSolver` is documented public API,
+          but that pyadjoint keeps the solver across replays only via that path is an
+          implementation detail, found from PETSc logs rather than documentation. Under
+          rule 5 the effect needs a separate measurement.
+      - id: tsfc-kernel-warmup
+        level: L1
+        scope: [cantilever]
+        what: >
+          The first tape a process records is replayed and differentiated twice right
+          after recording, so that a TSFC kernel compiled only on the second
+          replay-then-derivative sweep is built during the harness's warm-up call.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it the ~1.5 s compile lands in the first timed VJP trial. PR #229 reports
+            it inflated the mean about 10x at small sizes (structural cost/vjp_cost/by_steps
+            0.60 -> 0.066 s, measured locally).
+          evidence: >
+            PR #229 (6c30c16) description, Notes; comment block above `_SOLVER_PARAMETERS`.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Not a solver setting at all but an accommodation to the harness's timing
+          protocol (a single warm-up call). The compile cost is real and is still paid once
+          per process; it is just moved out of the timed trials. Found by profiling, hence
+          L1; it could also be read as L2 (user code on public API). Whether it belongs in
+          the ladder or in the harness's warm-up policy is an open question.

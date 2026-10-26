@@ -454,9 +454,11 @@ void StructSolver::assemble_system()
 
 void StructSolver::solve_system()
 {
+  // mosaic-intervention: umfpack-direct-solve
   SparseDirectUMFPACK direct;
   direct.initialize(system_matrix);
   direct.vmult(solution, system_rhs);
+  // mosaic-intervention-end: umfpack-direct-solve
 
   // Compliance C = F^T U  (using the original RHS before BC modification)
   compliance = system_rhs_original * solution;
@@ -482,8 +484,10 @@ void StructSolver::run()
 
 int main(int argc, char *argv[])
 {
+  // mosaic-intervention: serial-without-mpi
   // The solver is serial, and this binary runs once per request, so avoid expensive MPI setup here
   MultithreadInfo::set_thread_limit(1);
+  // mosaic-intervention-end: serial-without-mpi
 
   if (argc < 2) {
     std::cerr << "Usage: struct_solver input.json\n";

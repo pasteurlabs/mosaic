@@ -8,8 +8,10 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
 env:
+  # mosaic-intervention: jax-gpu-memory-env
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
   XLA_PYTHON_CLIENT_MEM_FRACTION: "0.6"
+  # mosaic-intervention-end: jax-gpu-memory-env
 
 metadata:
   mosaic:
@@ -24,3 +26,76 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://fkoehler.site/exponax/"
+    interventions:
+      - id: no-dealiasing
+        level: L0
+        method_change: true
+        scope: [periodic-3d]
+        what: >
+          Passes dealiasing_fraction=1.0 to the Navier-Stokes steppers, turning
+          off exponax's default 2/3-rule dealiasing of the nonlinear term.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            None measured. The only stated reason is "to match other solvers"
+            (the FD/FV peers do not truncate high modes).
+          evidence: >
+            Inline comment in exponax_fwd, unchanged since the initial commit
+            c47498a. No PR, test or measurement found.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented option, so L0, but it changes the discrete method
+          (pseudo-spectral without dealiasing admits aliasing errors), so
+          method_change under rule 4. The motivation is comparability, not
+          necessity, and none of the consequence categories describes it.
+          inaccurate-forward is a guess. The setting matters beyond Exponax's
+          own row: an Exponax run at N=64 is the converged reference for
+          ns-3d-grid forward/agreement and forward/baseline
+          (mosaic/benchmarks/core/reference.py), so this choice shapes every
+          peer's score there.
+      - id: vorticity-velocity-conversion
+        level: L2
+        scope: []
+        what: >
+          The 2D path converts velocity to vorticity with a spectral curl, runs
+          exponax's vorticity stepper, and converts back with a spectral
+          Biot-Savart inversion, restoring the mean velocity that the vorticity
+          form drops.
+        why:
+          consequence: cannot-express
+          symptom: >
+            The 2D exponax Navier-Stokes steppers in use evolve vorticity; the
+            benchmark's state is velocity. Without the conversion and mean
+            restoration, a 2D velocity IC cannot be passed in, and a non-zero
+            mean flow would be lost.
+          evidence: >
+            Code comments in exponax_fwd and _vorticity_to_velocity (initial
+            commit c47498a). Whether exponax 0.2.0 offers a 2D velocity-form
+            stepper or a conversion helper was not checked.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          No benchmark setup exercises this. Exponax is removed from ns-grid
+          (navier_stokes_grid/config.py: "Exponax is a 3D-only spectral
+          solver"), so the 2D path never runs, and the scope is empty. Arguably
+          this is exact marshalling for a spectral representation rather than
+          an intervention.
+      - id: jax-gpu-memory-env
+        level: L0
+        scope: [periodic-3d]
+        what: >
+          Disables JAX's GPU memory preallocation and caps its pool at 60% of
+          device memory.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            None recorded. JAX preallocates 75% of GPU memory by default, which
+            would presumably distort the VRAM-peak measurement and could starve
+            other processes on a shared GPU.
+          evidence: none found (present since the initial commit c47498a)
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team

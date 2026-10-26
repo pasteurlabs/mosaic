@@ -22,6 +22,7 @@ import numpy as np
 from dolfin import *  # noqa: F403
 from dolfin_adjoint import *  # noqa: F403
 
+# mosaic-intervention: mumps-adjoint-monkeypatch
 # Legacy dolfin-adjoint (e.g. dolfin-adjoint==2019.1.0 from conda-forge, as
 # pinned in tesseract_environment.yaml) does not propagate the forward
 # solve's `solver_parameters` to the adjoint linear solve, which then
@@ -39,6 +40,7 @@ try:
     _fa_compat.linalg_solve = _adjoint_linalg_solve_mumps
 except ImportError:
     pass
+# mosaic-intervention-end: mumps-adjoint-monkeypatch
 
 from mosaic_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -184,6 +186,7 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
     return facet_markers
 
 
+# mosaic-intervention: nodal-misfit-block
 # ---------------------------------------------------------------------------
 # Identification error as a tape-recorded operation
 # ---------------------------------------------------------------------------
@@ -289,6 +292,9 @@ def nodal_squared_error(T: Function, target: np.ndarray, mask: np.ndarray) -> An
     return output
 
 
+# mosaic-intervention-end: nodal-misfit-block
+
+
 # ---------------------------------------------------------------------------
 # Core solver
 # ---------------------------------------------------------------------------
@@ -336,6 +342,7 @@ def nodal_squared_error(T: Function, target: np.ndarray, mask: np.ndarray) -> An
 # every value is zero, which leaves the solution unchanged) so a gradient
 # w.r.t. source is always well-defined from the one shared solve.
 
+# mosaic-intervention: setup-tape-replay
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 
 
@@ -368,6 +375,9 @@ def _setup_cache_key(
         h.update(np.ascontiguousarray(arr).tobytes())
     h.update(np.array([k_max, p_exp], dtype=np.float64).tobytes())
     return h.hexdigest()
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _build_reduced_functionals(
@@ -463,12 +473,14 @@ def _build_reduced_functionals(
         bcs.append(bc)
 
     # ---- Solve -------------------------------------------------------------
+    # mosaic-intervention: mumps-forward-solver
     # mumps: UMFPACK (the FEniCS default) runs out of memory at moderate mesh
     # sizes; the adjoint solve picks this up too (see the mumps patch above).
     # This `solver_parameters` choice is captured on the Block and reused by
     # every later replay automatically.
     T_sol = Function(V)
     solve(a == L, T_sol, bcs, solver_parameters={"linear_solver": "mumps"})
+    # mosaic-intervention-end: mumps-forward-solver
 
     # ---- Objective: thermal compliance ------------------------------------
     # C = ∮_Γ_N q_n · T dΓ
@@ -479,6 +491,7 @@ def _build_reduced_functionals(
         J_form = J_form + q_n * T_sol * ds_N(k + 1)
     J = assemble(J_form)
 
+    # mosaic-intervention: nodal-misfit-block
     # ---- Objective: identification error -----------------------------------
     # I = Σ_v mask_v (T_v − T_target,v), recorded on the tape by
     # NodalSquaredErrorBlock. mask is 0 at nodes the caller supplied no target
@@ -492,6 +505,7 @@ def _build_reduced_functionals(
     mask_at_dofs = has_target.astype(np.float64)
 
     I_err = nodal_squared_error(T_sol, target_at_dofs, mask_at_dofs)
+    # mosaic-intervention-end: nodal-misfit-block
 
     controls = [Control(rho_fn), Control(source_fn)]
     Chat = ReducedFunctional(J, controls)
@@ -508,6 +522,7 @@ def _build_reduced_functionals(
     }
 
 
+# mosaic-intervention: setup-tape-replay
 def _get_reduced_functionals(
     pts: np.ndarray,
     cells: np.ndarray,
@@ -552,6 +567,9 @@ def _get_reduced_functionals(
     _SETUP_CACHE.clear()
     _SETUP_CACHE[key] = entry
     return entry
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _gradient_pair(
@@ -606,6 +624,7 @@ def _solve_forward(
     source_fn.vector()[:] = src_reordered
 
     J = entry["Chat"]([rho_fn, source_fn])
+    # mosaic-intervention: read-replayed-block-output
     # `ReducedFunctional.__call__` replays EVERY block on the tape, not only
     # those the functional depends on, so the identification-error block has
     # been recomputed by that same call and both objectives come out of one
@@ -616,6 +635,7 @@ def _solve_forward(
     # ORIGINAL block variables' checkpoints rather than mutating the setup
     # objects in place, so values must be read back through them.)
     I_err = float(entry["I_err"].block_variable.saved_output)
+    # mosaic-intervention-end: read-replayed-block-output
 
     return {
         "Chat": entry["Chat"],

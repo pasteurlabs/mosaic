@@ -35,3 +35,170 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.openfoam.com/documentation/overview"
+    interventions:
+      - id: momentum-tolerance
+        level: L0
+        scope: [periodic, periodic-3d]
+        what: >
+          Solves the icoFoam momentum predictor (smoothSolver, symGaussSeidel)
+          to an absolute tolerance of 1e-8 instead of the 1e-5 the tesseract
+          used before. The rest of fvSolution follows the icoFoam tutorial
+          setup.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            At 1e-5 the 2D TGV resolution-convergence error stalls at 2.7e-4
+            between N=64 and N=128 (forward/baseline borderline). At 1e-8 it
+            reaches 5.9e-5 at N=128 and 3.3e-5 at N=256. A tighter pressure
+            tolerance or more PISO correctors change nothing. 3D never showed
+            the floor because its sweep stops at N=32. Wall time unchanged
+            within noise.
+          evidence: >
+            PR #222 (table of U tolerances from 1e-5 to 1e-9), merged through
+            #234 (4837125). The ns-grid forward/baseline convergence test
+            (#214) reproduces the floor.
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Tightening a tolerance until the result stops depending on it
+          converges a numerical-error control; the project treats that as
+          correct use, not tuning (PR #232 notes). L0 fits, but this fixes a
+          misconfiguration rather than working around anything. The 1e-5
+          baseline was the tesseract's own earlier value, which I believe
+          matches the icoFoam cavity tutorial (not checked).
+      - id: channel-momentum-tolerance
+        level: L0
+        scope: [cylinder]
+        what: >
+          Same 1e-8 momentum tolerance in the foamRun incompressibleFluid
+          channel case.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Not measured on the channel. Extrapolated from the periodic error
+            floor.
+          evidence: >
+            PR #222 notes: "The channel (PIMPLE) path has the same loose
+            tolerance; the cylinder rewrite will cover it." Rewritten in #239.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Split from momentum-tolerance only because the evidence differs by
+          setup. The marker region is the whole fvSolution template, shared
+          with channel-pressure-gamg and channel-non-orthogonal-corrector,
+          because the setting is one line inside a string literal.
+      - id: channel-pressure-gamg
+        level: L0
+        scope: [cylinder]
+        what: >
+          Pressure solved with GAMG (DICGaussSeidel smoother) to 1e-8, relTol
+          0.01, on the channel. The periodic case uses PCG/DIC to 1e-6, relTol
+          0.05.
+        why:
+          consequence: too-slow
+          symptom: >
+            None recorded.
+          evidence: >
+            None found. Introduced in #239 without a stated reason.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          OpenFOAM has no default linear solver, so every case has to choose
+          one and "non-default" can only mean "different from a tutorial".
+          GAMG is common in OpenFOAM's incompressibleFluid tutorials (my
+          recollection, not checked), so this may not be an intervention at
+          all. The tight 1e-8 tolerance is probably the more consequential
+          choice and is also unexplained.
+      - id: channel-non-orthogonal-corrector
+        level: L0
+        scope: [cylinder]
+        what: >
+          One non-orthogonal corrector (nNonOrthogonalCorrectors 1) on the
+          body-fitted O-grid. The periodic case uses 0.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            None recorded. Standard OpenFOAM practice on non-orthogonal meshes.
+          evidence: >
+            None found. Introduced in #239.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Ordinary documented use, recorded because it departs from the
+          periodic setup. PICT on the same kind of mesh has its non-orthogonal
+          correction switched off (pict orthogonal-scheme-on-o-grid).
+      - id: graded-channel-mesh
+        level: L0
+        scope: [cylinder]
+        what: >
+          O-grid cells shrink radially to half the size of the square's cells
+          at the cylinder wall, and the wake block coarsens geometrically to
+          10 dx at the outlet.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            None recorded. With this mesh OpenFOAM's Cd error is -0.28% at 10
+            and -0.05% at 20 cells/D (#239), but no run without grading is
+            reported.
+          evidence: >
+            None found beyond the #239 results table.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Mesh design is where much of a body-fitted solver's accuracy comes
+          from, and the ladder does not say whether it is setup or
+          intervention. The mechanism is documented blockMesh grading (L0).
+          By my arithmetic the smallest cell is about 0.35 dx at both
+          resolutions, so "10 cells per diameter" means different things for
+          different solvers. PICT's O-grid is ungraded. The wake coarsening is
+          presumably for speed (too-slow); no evidence either way.
+      - id: courant-substepping
+        level: L0
+        scope: [cylinder]
+        what: >
+          Splits each prescribed time step into ceil(Co) internal steps, with
+          Co estimated from the peak inflow speed and the smallest cell, and
+          returns the force at the end of each outer step.
+        why:
+          consequence: crash
+          symptom: >
+            None recorded. The consequence category is a guess based on the
+            usual Co < 1 guidance for PISO.
+          evidence: >
+            None found. Introduced in #239.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Probably dormant. With dt from cylinder.time_step and the smallest
+          cell of about 0.35 dx, the estimated Co is about 0.87 at both 10 and
+          20 cells/D (my arithmetic), so substeps = 1 in every benchmark setup,
+          including drag_opt, whose profiles stay at or below U_m. If it
+          triggered, it would change the prescribed dt, which the ladder does
+          not cover. OpenFOAM's documented adjustTimeStep/maxCo does the same
+          job; the tesseract implements a fixed equivalent in Python.
+      - id: mpi-decomposition
+        level: L0
+        scope: [cylinder]
+        what: >
+          Decomposes the channel case with scotch and runs foamRun and the
+          probe sampling under mpirun, one process per 10,000 cells up to the
+          available cores, when that gives at least two processes.
+        why:
+          consequence: too-slow
+          symptom: >
+            None recorded.
+          evidence: >
+            None found. Introduced in #239.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Performance only, documented OpenFOAM usage. The periodic path runs
+          serially (OPENFOAM_SERIAL_IMPLICIT_COST), so OpenFOAM's parallelism
+          differs between setups. The cost experiments use the periodic box.

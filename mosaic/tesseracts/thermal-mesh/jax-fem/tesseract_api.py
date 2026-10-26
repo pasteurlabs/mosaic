@@ -274,14 +274,17 @@ def setup(
         additional_info=(vn_value_fns,),
     )
 
+    # mosaic-intervention: umfpack-solver-option
     fwd_pred = ad_wrapper(
         problem,
         solver_options={"umfpack_solver": {}},
         adjoint_solver_options={"umfpack_solver": {}},
     )
+    # mosaic-intervention-end: umfpack-solver-option
     return problem, fwd_pred
 
 
+# mosaic-intervention: setup-cache
 # `_SETUP_CACHE` holds one (problem, fwd_pred) pair per (mesh, BC)
 # combination, i.e. everything `setup` depends on. Building a JAX-FEM
 # `Problem` precomputes shape functions and boundary indices and compiles its
@@ -328,6 +331,9 @@ def _cached_setup(
     return _SETUP_CACHE[key]
 
 
+# mosaic-intervention-end: setup-cache
+
+
 def apply_fn(inputs: dict) -> dict:
     """Compute the thermal compliance given a density field.
 
@@ -337,11 +343,13 @@ def apply_fn(inputs: dict) -> dict:
     Returns:
         Dictionary containing the thermal compliance and identification error.
     """
+    # mosaic-intervention: setup-cache
     problem, fwd_pred = _cached_setup(
         pts=inputs["hex_mesh"]["points"][: inputs["hex_mesh"]["n_points"]],
         cells=inputs["hex_mesh"]["faces"][: inputs["hex_mesh"]["n_faces"]],
         boundary_conditions=inputs["boundary_conditions"],
     )
+    # mosaic-intervention-end: setup-cache
 
     n_cells = inputs["hex_mesh"]["n_faces"]
     rho = inputs["rho"][:n_cells]

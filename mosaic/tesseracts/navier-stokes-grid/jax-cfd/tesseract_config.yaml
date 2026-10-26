@@ -8,9 +8,13 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
 env:
+  # mosaic-intervention: xla-gpu-flags
   XLA_FLAGS: "--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"
+  # mosaic-intervention-end: xla-gpu-flags
+  # mosaic-intervention: jax-gpu-memory-env
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
   XLA_PYTHON_CLIENT_MEM_FRACTION: "0.6"
+  # mosaic-intervention-end: jax-gpu-memory-env
 
 metadata:
   mosaic:
@@ -25,3 +29,118 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/google/jax-cfd"
+    interventions:
+      - id: central-advection-rk4
+        level: L0
+        method_change: false
+        scope: [periodic]
+        what: >
+          Passes convect=advection.convect_linear and
+          time_stepper=time_stepping.classic_rk4 to
+          semi_implicit_navier_stokes instead of its default van Leer
+          advection with forward Euler.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            With the default scheme, TGV errors were 1.3e-2 to 1.5e-2, 5-6x the
+            peer median, and the resolution-convergence test gave order 1.25
+            (3.1e-3 at N=128); gradient/fd_check best-eps error was 5.5e-4.
+            With central advection + RK4: 2.3e-3 (1.0x peers), order 2.00
+            (5.8e-4 at N=128), fd_check 9.3e-6. Central advection under forward
+            Euler gave NaN on 2000-step runs at nu=1e-4; under RK2 it gave NaN
+            in all 5 higher-CFL probes. Cost: forward 2-3x slower, VJP peak
+            memory at N=128 / 1000 steps 6.2 GB -> 1.6 GB.
+          evidence: >
+            PR #225 (consolidated into #232, merged as 4837125 / #234), with a
+            before/after benchmark table and a scheme comparison table;
+            rationale comment at tesseract_api.py above step_fn. PR #225 also
+            reports that removing the limiter alone (plain Lax-Wendroff) left
+            the order at 1.23, which ruled out limiter clipping as the cause.
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Both options are public functions in jax_cfd.base with docstrings, so
+          L0 by the letter. But the jax-cfd README/demos use the default scheme,
+          and this combination was found by a trial-and-error comparison of
+          schemes, which the L1 description also covers. The choice also
+          replaces the scheme a typical user would run, which could be read as
+          a method change (rule 4) or as engineering away an artefact of the
+          default method (rule 3). The O(dt) Lax-Wendroff time correction is
+          arguably exactly such an artefact. Compare PICT, whose default PISO
+          corrector count was deliberately left alone (PICT_PISO_SPLITTING_FLOOR).
+      - id: collocated-staggered-interpolation
+        level: L2
+        scope: [periodic]
+        what: >
+          Hand-written periodic two-point averages move the cell-centred
+          benchmark velocity onto jax-cfd's staggered faces before the rollout
+          and back to the cell centres afterwards.
+        why:
+          consequence: cannot-express
+          symptom: >
+            jax-cfd's state is a staggered GridVariable; the benchmark's v0 and
+            result are cell-centred, so some conversion is unavoidable. The
+            round trip damps mode k by cos^2(pi k/N), an error floor that does
+            not shrink with dt (2.41e-3 at N=64 per PR #225).
+          evidence: >
+            Present since the initial commit c47498a. The resulting floor is
+            described in the STAGGERED_ROUND_TRIP explained anomaly
+            (navier_stokes_3d_grid/exclusions.py, applied there to INS.jl and
+            PhiFlow; jax-cfd does not run ns-3d-grid) and in PR #225.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Borderline baseline. It is layout marshalling in purpose, but it is
+          numerics that leave a visible error in the results. jax-cfd seems to
+          ship a public interpolation module (jax_cfd.base.interpolation.linear)
+          that probably does the same averaging, so this may be "user code
+          duplicating a public primitive" rather than "providing what the
+          library lacks". Not checked against the installed jax-cfd 0.2.1.
+          PhiFlow uses the library's own CenteredGrid->StaggeredGrid
+          resampling for the same step, which is not recorded there.
+      - id: xla-gpu-flags
+        level: L1
+        scope: [periodic]
+        what: >
+          Sets XLA_FLAGS to disable cuBLASLt and GEMM autotuning.
+        why:
+          consequence: crash
+          symptom: >
+            For jax-cfd, nothing is written down. The identical flags in the
+            PhiFlow tesseract are justified as preventing a "Failed to
+            initialize BLAS support" crash when the GPU is busy (cuBLASLt) and
+            CUDA OOM in 3D recovery runs on 16 GiB V100s (autotuning). jax-cfd
+            runs only the 2D ns-grid setups.
+          evidence: >
+            Introduced in dbd4538 "ensure reproducibility of results (#24)",
+            whose description only says "Tweaks to make all solvers pass".
+            Rationale only by analogy with phiflow/tesseract_config.yaml.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          This configures the JAX/XLA backend, not jax-cfd. XLA flags are
+          listed in XLA's sources and partly in its docs, so L0 vs L1 is
+          unclear. It is also unclear whether backend/runtime settings belong
+          on the solver's ladder at all.
+      - id: jax-gpu-memory-env
+        level: L0
+        scope: [periodic]
+        what: >
+          Disables JAX's GPU memory preallocation and caps its pool at 60% of
+          device memory.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            None recorded. JAX documents that it preallocates 75% of GPU memory
+            by default, which would presumably distort the harness's VRAM-peak
+            measurement and could starve other processes on a shared GPU.
+          evidence: none found (present since the initial commit c47498a)
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Documented JAX environment variables. Probably harness hygiene rather
+          than something the solver needs to pass a check.

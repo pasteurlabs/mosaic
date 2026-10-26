@@ -8,15 +8,21 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
   custom_build_steps:
+    # mosaic-intervention: xlb-ibm-stepper-import-patch
     # xlb 0.3.1's operator/stepper/__init__.py unconditionally imports IBMStepper,
     # which does `from warp.utils import ScopedTimer`. ScopedTimer was moved out of
     # warp.utils in warp-lang>=1.10, but xlb 0.3.1's metadata pins warp-lang>=1.10,
     # so any install of xlb 0.3.1 explodes on `import xlb`. We don't use IBMStepper,
     # so drop that line from the stepper package's __init__.
     - 'RUN python3 -c "import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()[''purelib'']) / ''xlb/operator/stepper/__init__.py''; p.write_text(''''.join(l for l in p.read_text().splitlines(keepends=True) if ''ibm_stepper'' not in l))"'
+    # mosaic-intervention-end: xlb-ibm-stepper-import-patch
 env:
+  # mosaic-intervention: xla-gpu-autotune-off
   XLA_FLAGS: "--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"
+  # mosaic-intervention-end: xla-gpu-autotune-off
+  # mosaic-intervention: xla-no-preallocate
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  # mosaic-intervention-end: xla-no-preallocate
 
 metadata:
   mosaic:
@@ -31,3 +37,418 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/Autodesk/XLB"
+    interventions:
+      - id: xlb-ibm-stepper-import-patch
+        level: L3
+        scope: [all]
+        what: >
+          A build step deletes the `ibm_stepper` import from the installed
+          xlb/operator/stepper/__init__.py, patching XLB's source at build time.
+        why:
+          consequence: crash
+          symptom: >
+            `import xlb` fails. xlb 0.3.1's stepper package unconditionally
+            imports IBMStepper, whose module does `from warp.utils import
+            ScopedTimer`, and xlb 0.3.1 accepts any warp-lang>=1.10, so the
+            resolver installs a Warp release without that name. The tesseract
+            never uses IBMStepper.
+          evidence: >
+            Comment in this file, added in 8c9003e ("fix build"). The import
+            chain is confirmed in XLB v0.3.1's xlb/operator/stepper/__init__.py,
+            ibm_stepper.py:11 and setup.py ("warp-lang>=1.10.0"). The comment's
+            "moved out of warp.utils in warp-lang>=1.10" is imprecise: Warp
+            1.10-1.12's warp/utils.py still resolves the name via a deprecation
+            __getattr__ (Autodesk/XLB#157 shows only a DeprecationWarning on
+            1.11.1), and the name and the fallback are both gone from
+            warp/utils.py in 1.13.0 and 1.15.0. No failing build log in the repo.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A clear L3 by the ladder's definition (build-time patch of solver
+          source), but it fixes a packaging bug that has nothing to do with the
+          numerics. Pinning warp-lang<1.13 in tesseract_requirements.txt would
+          probably avoid it without touching XLB's source (inferred, not
+          tried), so the L3 here reflects a choice of workaround, not something
+          the solver forces. No upstream issue found (searched Autodesk/XLB
+          for "ScopedTimer" and "warp.utils"), which rule 2 requires.
+
+      - id: xla-gpu-autotune-off
+        level: L1
+        scope: [all]
+        what: >
+          Sets XLA_FLAGS to disable cuBLASLt and GEMM autotuning, both as a
+          Dockerfile ENV and again at import time if the autotune flag is
+          missing.
+        why:
+          consequence: crash
+          symptom: >
+            On a V100 (compute capability 7.0) with JAX 0.10.x the cuBLAS GEMM
+            autotuner fails with DEVICE_TYPE_INVALID. No reason is recorded for
+            --xla_gpu_enable_cublaslt=false, and nothing records whether the
+            current benchmark GPUs (T4, A100) need either flag.
+          evidence: >
+            Comment at the top of tesseract_api.py, present since the initial
+            commit c47498a. The same flags appear in the jax-cfd and phiflow
+            configs. No log or issue found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Configures the JAX/XLA runtime, not XLB. XLA flags are not part of
+          JAX's documented user configuration, so L1. It may also affect
+          cost (no GEMM autotuning), which is unmeasured.
+
+      - id: xla-no-preallocate
+        level: L0
+        scope: [all]
+        what: >
+          Sets XLA_PYTHON_CLIENT_PREALLOCATE=false so JAX allocates GPU memory
+          on demand.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            None recorded. JAX by default preallocates most of the GPU's memory
+            on first use. Presumably this setting keeps the recorded VRAM peak
+            meaningful and leaves memory for other processes, but nobody wrote
+            that down.
+          evidence: >
+            none found. Present since the initial commit c47498a, and in the
+            jax-cfd, exponax and phiflow configs and the docs/tutorial.qmd
+            template.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented JAX option, so L0. Arguably measurement hygiene of the
+          harness rather than an intervention in the solver.
+
+      - id: float64-everywhere
+        level: L0
+        scope: [all]
+        what: >
+          Enables jax_enable_x64 and runs apply() and the VJP with XLB's
+          FP64FP64 precision policy, casting outputs back to float32.
+          XLB_VJP_FP32=1 switches everything back to float32.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            Per the code comments, near omega≈2 float32 cancellation corrupts
+            the gradients and float32 gradients fail gradient/fd_check. Running
+            apply() in the same precision as the VJP keeps the two computing
+            the same function, which the fd_check requires. No float32 fd_check
+            number is recorded anywhere.
+          evidence: >
+            Comments at jax_enable_x64, _USE_F64_DIFF and in apply(), citing
+            issue #125. Issue #125 (open) argues the other way: it attributes
+            XLB's VJP/forward cost outlier partly to this choice and proposes
+            measuring float32 against fd_check, with no result recorded. The
+            setting dates to the initial commit c47498a; the switch came in
+            #135.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented precision policy, so L0. It has a cost
+          side effect (FP64 throughput on the T4) that issue #125 is about. It
+          can be switched off (XLB_VJP_FP32), as the design doc suggests.
+          Part of the motivation is the benchmark's own consistency
+          requirement between apply() and VJP, not only solver accuracy.
+
+      - id: kbc-collision-low-viscosity
+        level: L1
+        scope: [periodic, periodic-3d]
+        what: >
+          Periodic runs switch the collision operator from BGK to KBC (the
+          smoothed variant, see smooth-kbc-stabiliser) when the relaxation
+          rate omega exceeds 1.8. The channel always uses BGK.
+        why:
+          consequence: non-finite
+          symptom: >
+            Per the comment, BGK becomes unstable as tau approaches 0.5
+            (omega approaches 2). No measurement of BGK above omega = 1.8 on
+            these setups is recorded. Issue #38 reports that an offline NumPy
+            BGK copy of the periodic path stayed finite at every viscosity on
+            multimode (at Ma≈0.26, before sub-stepping), which is weak
+            counter-evidence.
+          evidence: >
+            Comment at _OMEGA_KBC. The 1.8 threshold is in the initial commit
+            c47498a with no recorded derivation. The channel's exclusion
+            ("KBC's stabiliser switches erratically ... makes the drag a
+            non-smooth function of the inlet profile") is stated in
+            _select_collision's docstring, added in #239.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Choosing KBC is a documented XLB option (L0), but the threshold is
+          neither documented nor measured, so L1. Partly configuration and
+          partly code. BGK's instability as tau approaches 0.5 is a known
+          property of the method, so switching operators on a schedule sits
+          close to rule 3: the XLB column reports a BGK/KBC hybrid whose
+          operator depends on viscosity, dt and N.
+
+      - id: smooth-kbc-stabiliser
+        level: L3
+        method_change: true
+        scope: [periodic, periodic-3d]
+        what: >
+          Subclasses XLB's KBC and re-registers its JAX implementation with a
+          modified stabiliser: delta = 1e-3 <Δs|Δs> and a floor
+          eta = (32 eps)^2 are added to the ratio in gamma, so that gamma tends to its BGK
+          value where the flow is resolved and at rest.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            With stock KBC, the reverse-mode directional derivative on TGV
+            (float64, nu=0.01, dt=0.01, 100 steps) is 7.4e9 times central FD
+            at N=32 and -1.8e7 times at N=64, against ≈1.0 for BGK (#194).
+            With the smoothing, VJP/FD at N=32 goes from -2.7e9 to 1.00005
+            (#232). The eta floor addresses a second, forward symptom: at rest,
+            KBC's ratio is rounding residue and device-dependent, so the
+            ns-3d recovery from a zero IC gave IC error 0.067 on CPU and A100
+            but 0.246 on the T4. With the floor it gives 0.080 on both CPU
+            and A100 (#234).
+          evidence: >
+            Issue #194, which includes a reproduction script and traces the
+            cause to gamma = 1/beta - (2 - 1/beta) sp1 / (1e-32 + sp2) in XLB
+            v0.3.1's xlb/operator/collision/kbc.py:81. PR #232 and PR #234
+            (merged as 4837125).
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          It replaces a library component's algorithm, so L3, but only through
+          public class names and XLB's own Operator.register_backend
+          extension mechanism. There is no monkeypatching or private import,
+          so a lint would not flag it, and one could argue for L2 (a custom
+          operator on public primitives). It changes the collision operator,
+          so method_change applies, and rule 4 would require a separate
+          "XLB (smoothed KBC)" entry, which does not exist. The unbounded
+          derivative comes from KBC's published stabiliser formula, so this
+          is arguably an engineered-away artefact of the method (rule 3)
+          rather than a bug fix. No upstream issue found.
+
+      - id: xlb-init-per-velocity-set
+        level: L1
+        scope: [all]
+        what: >
+          Calls xlb.init() again with the matching velocity set before
+          constructing each operator bundle.
+        why:
+          consequence: crash
+          symptom: >
+            Building the D3Q27 KBC bundle after xlb.init() with D2Q9 fails at
+            jit-compile time with "dot_general requires contracting dimensions
+            to have the same shape, got (9,) and (27,)", because KBC reads the
+            number of velocities from a global singleton.
+          evidence: >
+            Docstring of _make_ops, present since the initial commit c47498a.
+            No log or upstream issue found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          It uses the public xlb.init(), but the need to re-initialise global
+          state per velocity set is undocumented behaviour, so L1. Arguably an
+          upstream bug, for which rule 2 asks for an upstream issue.
+
+      - id: sqrt-checkpointing
+        level: L2
+        scope: [all]
+        what: >
+          Runs the time loop as nested jax.lax.scan blocks of about √steps
+          steps, with jax.checkpoint on the inner block, so reverse mode keeps
+          only the block-boundary states.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            A plain scan stores every step's populations for the reverse
+            pass. The docstring quotes 110 GB at N=64 against a 0.3 GB forward.
+          evidence: >
+            Docstring of _checkpointed_scan; PR #135 ("unlocks larger problem
+            sizes in 3D", context #125). PR #233 later notes that "XLB's 3D
+            VJP at N=64 still fails on the 16 GB T4; its stored trajectory
+            needs ~110 GB". It is unclear whether that describes the
+            checkpointed code.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          jax.checkpoint is documented JAX, and the design doc lists
+          checkpointing under L0. XLB itself offers no checkpointing, and the
+          √steps schedule is user code. The level depends on whether "the
+          solver" means XLB or JAX, which the ladder does not say for a
+          library built on an AD framework. Recorded as L2.
+
+      - id: ma-targeted-substepping
+        level: L1
+        scope: [periodic, cylinder, periodic-3d]
+        what: >
+          Runs each benchmark dt as k LBM steps of dt/k, with k chosen from the
+          concrete inputs so the lattice Mach number is at most 0.1. Periodic
+          runs above N=64 lower that target in proportion to 1/N (diffusive
+          scaling). The channel keeps 0.1.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            With sub-stepping off, ns-grid TGV (N=64, dt=0.05) ran at Ma≈0.88
+            with errors 0.216-0.274, 84-114 times the peer median (#38). On an
+            offline NumPy copy, sub-stepping alone (k=9) gave 0.031-0.035
+            (#38). Together with consistent-initial-populations, TGV error went
+            from 0.22-0.27 to 0.9-1.3e-3 and the #214 convergence order from
+            0.0 to 2.0 (2D) and 0.2 to 2.3 (3D) (#232). Cost: k=9 at N=256
+            (#232).
+          evidence: >
+            Issue #38, PR #232 (merged in 4837125 via #234). A sub-stepping
+            mechanism with a fixed u_max existed since c47498a but was disabled
+            by default. Per #38 it was turned off because it made drag_opt
+            plateau.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          XLB works in lattice units, so every user has to choose the lattice
+          time step, and keeping Ma ≲ 0.1 is standard LBM practice. That makes
+          it close to L0 or even baseline (expressing the prescribed dt). The
+          target values and the diffusive scaling above N=64 are our choices,
+          hence L1. It overlaps with lbm-harness-dt-scaling, which rescales dt
+          for XLB in the harness.
+
+      - id: lbm-harness-dt-scaling
+        level: L1
+        scope: [periodic-3d]
+        what: >
+          In ns-3d-grid experiments that set lbm_N_base=16 (forward/agreement,
+          forward/physical_laws, the cost runs), the harness gives XLB, and
+          only XLB, dt scaled by 16/N and proportionally more steps.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            None recorded. Presumably it keeps the lattice Mach number fixed
+            under refinement, which the tesseract's own sub-stepping now also
+            does.
+          evidence: >
+            none found. _LBM_SOLVERS and lbm_N_base are in the initial commit
+            c47498a. ns-grid has the same code path, but no ns-grid experiment
+            sets lbm_N_base.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        location:
+          - mosaic/benchmarks/problems/navier_stokes_3d_grid/physics.py
+          - mosaic/benchmarks/problems/navier_stokes_3d_grid/config.py
+        classification_notes: >
+          Lives in the harness's problem definitions, not in the tesseract or
+          mosaic_shared. It changes the problem statement one solver receives
+          (dt, steps), which also changes cost comparisons. This is the design
+          doc's open question on interventions in the harness. It may be
+          redundant with ma-targeted-substepping.
+
+      - id: consistent-initial-populations
+        level: L2
+        scope: [periodic, periodic-3d]
+        what: >
+          Periodic runs start from populations consistent with v0: density
+          from a spectral pressure-Poisson solve, plus the first-order
+          Chapman-Enskog non-equilibrium part (Mei et al. 2006), instead of
+          feq(rho=1, v0).
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Equilibrium-only initialisation leaves out pressure and viscous
+            stress, which appear as acoustic and start-up transients. #38
+            attributes the 3D N=8 baseline outlier (error 0.273, 80 times
+            peers) to this transient. On the offline copy, adding both terms
+            brought TGV with k=9 to 6-8e-4 and the 3D baselines to
+            0.032/0.0031/0.0025 (#38). For the combined effect with
+            sub-stepping, see ma-targeted-substepping (#232).
+          evidence: >
+            Issue #38, PR #232 (merged in 4837125 via #234).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The benchmark prescribes a velocity IC, and an LBM needs
+          populations, so some user code mapping one to the other is
+          unavoidable. Doing it consistently could count as expressing the
+          prescribed IC (baseline) rather than L2. It does not change the
+          scheme. Whether XLB ships an equivalent initialiser was not checked.
+
+      - id: manual-lbm-loop
+        level: L2
+        scope: [periodic, periodic-3d]
+        what: >
+          The periodic time loop is assembled from XLB's Stream, Macroscopic,
+          QuadraticEquilibrium and collision operators inside a jax.lax.scan,
+          instead of XLB's IncompressibleNavierStokesStepper. The channel's
+          loop is part of channel-boundary-conditions.
+        why:
+          consequence: too-slow
+          symptom: >
+            The initial description says the pure-JAX scan gives "O(1) compile
+            time". No measurement, and nothing says whether XLB's stepper
+            would be differentiable or usable under scan.
+          evidence: >
+            Initial tesseract_config.yaml description in c47498a. Nothing
+            later.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          It uses only public XLB operators, so L2, but it re-assembles the
+          solver from the library's parts, so "XLB" here means XLB's operators
+          in our loop.
+
+      - id: channel-boundary-conditions
+        level: L2
+        scope: [cylinder]
+        what: >
+          The DFG channel is written by hand on XLB's operators: boundary link
+          masks for the staircase cylinder, halfway bounce-back on the walls
+          and cylinder, velocity bounce-back at the inlet, an anti-bounce-back
+          outlet, the momentum-exchange force, and its own sub-stepped,
+          checkpointed time loop.
+        why:
+          consequence: cannot-express
+          symptom: >
+            No record of why XLB's own boundary conditions were not used. XLB
+            v0.3.1 ships halfway bounce-back, Zou-He, regularized, equilibrium
+            and extrapolation-outflow BCs and a momentum-transfer operator. A
+            plausible reason is that they are tied to XLB's stepper and
+            boundary maskers, which the hand-written scan loop bypasses
+            (inferred, not checked).
+          evidence: >
+            none found. Written in #239. The earlier obstacle code (initial
+            commit c47498a) was also hand-written.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The consequence category is a guess. If XLB's BCs would have worked,
+          this is a choice of convenience, and the ladder has no way to record
+          "user code where the library has an equivalent".
+
+      - id: channel-characteristic-outlet
+        level: L2
+        scope: [cylinder]
+        what: >
+          The outlet density follows the outgoing characteristic,
+          1 + (u_x - ū_x)/cs, relative to the fully developed profile with the
+          inlet's flux, instead of a plain p = 0 face.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Per the docstring, a plain p = 0 face reflects the start-up
+            pressure waves, which then ring between inlet and outlet almost
+            undamped at nu = 1e-3. That would presumably trip the drift check
+            on the force history in forward/cylinder. No number recorded.
+          evidence: >
+            Docstring of _channel_run, added in #239.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A non-reflecting outlet is standard LBM practice. The waves come from
+          LBM's weak compressibility, so this is close to rule 3, but choosing a
+          boundary condition is also part of expressing the setup.

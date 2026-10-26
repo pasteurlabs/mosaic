@@ -54,3 +54,93 @@ metadata:
     # The solver itself lives in mosaic_shared; changing it re-benchmarks TopOpt.jl.
     shared_sources:
       - mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl
+    interventions:
+      - id: inp-parser-hex-patch
+        level: L3
+        scope: [cantilever]
+        what: >
+          Redefines extract_boundary_matrix inside TopOpt.jl's internal
+          TopOptProblems.InputOutput.INP.Parser module via Core.eval, with a
+          Dict{Any,Bool} face table and plain sorting instead of
+          Ferrite.sortface. The replacement copies upstream's use of Base
+          internals (Base.ht_keyindex2!, Base._setindex!).
+        why:
+          consequence: crash
+          symptom: >
+            Loading the hex (C3D8) mesh through InpStiffness fails: the
+            upstream function types its face table as Dict{NTuple{dim,Int},Bool}
+            (3-tuples for dim=3), which cannot hold the 4-node faces of a hex,
+            and per the code comment Ferrite v0.3.0 has no sortface method for
+            4-tuples. No captured error message.
+          evidence: >
+            Comment at topopt_solver.jl lines 4-14 (initial commit c47498a).
+            The Dict{NTuple{dim,Int},Bool} typing is visible in TopOpt.jl
+            v0.11.0 src/TopOptProblems/IO/INP/Parser/inp_to_ferrite.jl and is
+            unchanged in v0.14.0 and on master. No upstream issue found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        location:
+          [mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl]
+        classification_notes: >
+          Clearly L3: it replaces a function inside a library-internal module.
+          It is a workaround for an apparent upstream bug, so rule 2 asks for
+          an upstream issue, and none exists. It does not change the
+          discretisation (the function only flags boundary faces). An L2 route
+          that skips the INP parser, building the Ferrite grid and problem
+          directly, may exist but was not explored.
+      - id: compliance-grad-field
+        level: L1
+        scope: [cantilever]
+        what: >
+          Reads the gradient from the undocumented Compliance.grad field after
+          evaluating comp(x), instead of differentiating comp with Zygote as
+          TopOpt.jl documents.
+        why:
+          consequence: null
+          symptom: >
+            None known. In TopOpt.jl v0.11.0 (src/Functions/compliance.jl) the
+            ChainRulesCore rrule for Compliance is itself
+            `out = comp(x); out_grad = copy(comp.grad)`, so the documented
+            Zygote path would return the same vector. Skipping Zygote may save
+            some overhead; this has not been measured.
+          evidence: >
+            Initial commit c47498a, VJP docstring: "analytical SIMP adjoint
+            (comp.grad), no extra linear solve". The rrule needs no extra
+            linear solve either.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        location:
+          [mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl]
+        classification_notes: >
+          Reads library internals but changes nothing, and no necessity can be
+          shown, so under rule 5 it should be replaced by the documented call
+          or removed from the record. topopt_vjp (second marked region) is not
+          called from tesseract_api.py. Zygote, ChainRulesCore, Nonconvex and
+          NonconvexMMA are installed in the image but not loaded.
+      - id: setup-cache
+        level: L0
+        scope: [cantilever]
+        what: >
+          Caches the InpStiffness problem, FEASolver and Compliance objects in a
+          Dict keyed by a hash of mesh, boundary conditions and material
+          parameters, so repeated calls skip writing and parsing the INP file
+          and building the solver.
+        why:
+          consequence: too-slow
+          symptom: >
+            Not measured. Without it, every apply and VJP call writes, parses
+            and deletes an INP file and rebuilds the FE problem before solving.
+          evidence: >
+            Code comment "to cache the setup" (initial commit c47498a); no
+            measurement.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        location:
+          [mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl]
+        classification_notes: >
+          Fits no level well; see the setup-cache entries of the JAX-FEM
+          tesseracts. The markers interleave with the problem construction
+          inside the if-block, which line-range markers express awkwardly.

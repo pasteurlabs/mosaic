@@ -24,3 +24,247 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/NVIDIA/warp"
+    interventions:
+      - id: warp-ns-hand-written-solver
+        level: L2
+        scope: [periodic, cylinder, periodic-3d]
+        what: >
+          The entire Navier-Stokes solver is ours, written on Warp primitives:
+          explicit-Euler Chorin projection with central differences, a
+          tile-FFT spectral Poisson solve on periodic boxes, a staggered-grid
+          staircase channel with a CG Poisson solve, the momentum-exchange
+          force on the cylinder, and wp.Tape reverse mode throughout.
+        why:
+          consequence: cannot-express
+          symptom: >
+            Warp provides kernels, tile FFTs, sparse/linear solvers and a tape,
+            but no flow solver, so no setup can be run without writing one.
+          evidence: >
+            NVIDIA/warp discussion #1636, where the Mosaic authors describe the
+            solver as their own. The FFT pattern is taken from Warp's
+            warp/examples/core/example_fft_poisson_navier_stokes_2d.py (code
+            comment above the tile-FFT section).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The ladder expects this, and the design doc calls it informative.
+          Inside the L2 region, though, every numerical and performance
+          decision is ours, so the ladder cannot tell a textbook
+          implementation from a heavily benchmark-tuned one. The periodic path
+          was restructured in #132 following performance and AD advice from a
+          Warp developer in NVIDIA/warp#1636 (native adjoints instead of
+          record_func, on-device tile FFTs, kernel fusion, separate forward
+          and taped buffer policies), which made it the fastest ns-grid
+          backend ("but also the most tuned one", per the same thread). That
+          advice is neither L4 (it involves no unreleased code) nor a
+          maintainer review of the final code, and the ladder has no slot for
+          it. The periodic 2-D structure also mirrors an official Warp example,
+          which in spirit is "settings from official tutorials" (L0).
+
+      - id: bluestein-non-pow2-fft
+        level: L2
+        scope: [periodic, periodic-3d]
+        what: >
+          Grids whose size is not a power of two run their spectral Poisson
+          solve through a Bluestein chirp-z transform built from power-of-two
+          wp.tile_fft calls. Power-of-two grids keep the native path.
+        why:
+          consequence: crash
+          symptom: >
+            wp.tile_fft (cuFFTDx) only compiles power-of-two lengths on the
+            GPU, so the benchmark's non-power-of-two sizes (N=192 in 2-D, N=48
+            in 3-D) crashed at LTO-compile time.
+          evidence: >
+            Section comment in tesseract_api.py and PR #132. The Bluestein path
+            itself was mis-scaled until PR #232/#234 (4837125). It returned NaN
+            at N=192 and 3-D N=48, and tests/test_warp_ns_fft.py now checks
+            both paths against NumPy. The test checks correctness, not the
+            crash without it.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A workaround for a Warp limitation using public primitives, so L2.
+          It does not change the discretisation (exact DFT to float32
+          roundoff). The ladder cannot distinguish this from the rest of the
+          hand-written solver. It is recorded separately because it exists only
+          to get around a library limitation.
+
+      - id: adjoint-grad-clip-3d
+        level: L2
+        scope: [periodic-3d]
+        what: >
+          Optional per-step clipping of the 3-D velocity adjoint into [-c, c],
+          with NaN/Inf replaced by 0, registered with tape.record_func.
+          Currently inactive: no caller passes adjoint_grad_clip.
+        why:
+          consequence: non-finite
+          symptom: >
+            Per the comments, the projection adjoint overflows float32 in
+            turbulent high-Re regimes. No number recorded.
+          evidence: >
+            Comments in _clip_and_sanitize_3d_kernel and ns3d_solve_tape,
+            present since the initial commit c47498a, where it defaulted to
+            clip = 10 only for the lid-driven-cavity mode. That mode and the
+            default were removed in de9b37a, so the code is dead.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          If active, it would change the returned gradient exactly where it
+          misbehaves, which is engineering away an artefact (rule 3). Inactive
+          and without evidence, it is a candidate for removal under rule 5.
+
+      - id: poisson-fd-eigenvalues-3d
+        level: L2
+        scope: [periodic-3d]
+        what: >
+          The 3-D spectral Poisson solve divides by the eigenvalues of the
+          compact second-order Laplacian. The 2-D solve uses the continuous
+          eigenvalues -(2πk/L)².
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            Per the docstring, continuous eigenvalues give a relative error of
+            about (πk/N)²/3 per wavenumber (≈1.3% at k=1, N=16), which
+            "compounds across the VJP chain and causes a flat-plateau gradient
+            magnitude bias in the fd_check".
+          evidence: >
+            Docstring of _inv_lambda_3d, present since the initial commit
+            c47498a. Doubtful: a comment in
+            mosaic/benchmarks/problems/navier_stokes_3d_grid/config.py
+            (fbc4242, May 2026) still reports a warp_ns 3-D "systematic
+            backward-magnitude bias (median rel_err ≈ 1.7e-2)" with these
+            eigenvalues. Warp-NS's 3-D fd_check passed only after #132 replaced
+            the hand-written adjoints. In NVIDIA/warp#1636 a Warp developer
+            found one hand-written dt VJP about 32% off finite differences. By
+            my reading, the central-difference divergence and gradient compose
+            to the wide-stencil operator with symbol -Σ sin²(2πk/N)/h², not
+            the compact one, so neither choice makes the projection exactly
+            discrete divergence-free.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A design choice inside our own solver, justified by a benchmark
+          symptom. There is no library method to compare against, so
+          method_change does not apply, and the ladder has nothing to say
+          about it. Recorded to show that benchmark-motivated numerics inside
+          an L2 solver are invisible to the level.
+
+      - id: channel-cg-implicit-adjoint
+        level: L2
+        scope: [cylinder]
+        what: >
+          The backward pass of each channel pressure solve is a hand-written
+          adjoint registered with tape.record_func: another CG solve with the
+          same symmetric operator, warm-started from the previous adjoint
+          solution.
+        why:
+          consequence: no-gradient
+          symptom: >
+            Per the docstring, the pressure solve (warp.optim.linear.cg,
+            captured as a CUDA conditional graph) is not a Warp kernel, so
+            wp.Tape cannot differentiate it. No failing run recorded.
+          evidence: >
+            Docstring of channel_solve (#239).
+            tests/test_warp_ns_cylinder.py::test_drag_gradient_matches_fd checks
+            the resulting drag gradient against central FD. That verifies
+            correctness, not necessity.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A hand-written adjoint replacing wp.Tape for one component, but
+          through the public record_func API, so L2. It differentiates the
+          exact solve rather than the CG iterations truncated at a relative
+          residual of 1e-5. This is standard, but slightly decouples the
+          gradient from the computed forward. It runs against the Warp
+          developer's general advice in #1636 to prefer native adjoints, which
+          was given for the periodic path.
+
+      - id: channel-cg-preconditioner
+        level: L2
+        scope: [cylinder]
+        what: >
+          Preconditions the channel's pressure CG with the exact inverse of the
+          same operator without the cylinder, applied by fast diagonalisation
+          (dense 1-D eigenbases along x and y).
+        why:
+          consequence: too-slow
+          symptom: >
+            Per the docstring, CG needs about 20 iterations instead of 150 at
+            10 cells per diameter. Run time halves at 10 cells per diameter,
+            breaks even at 20 and doubles at 40. So it helps drag_opt (10) and
+            is neutral for the scored forward/cylinder resolution (20).
+          evidence: >
+            Docstring of _channel_pressure_solver (#239).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+
+      - id: channel-cg-graph-capture
+        level: L0
+        scope: [cylinder]
+        what: >
+          On CUDA, the CG iterations run as a captured conditional graph
+          (check_every=0, run=False), replayed per solution buffer, with
+          non-convergence flagged on the device and raised after the run.
+        why:
+          consequence: too-slow
+          symptom: >
+            Per the docstring, this avoids a host sync per residual check. No
+            number recorded.
+          evidence: >
+            Docstring of _channel_pressure_solver (#239).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Documented Warp features (ScopedCapture, conditional graphs, cg
+          options), so L0.
+
+      - id: channel-cg-tolerance
+        level: L0
+        scope: [cylinder]
+        what: >
+          The channel's pressure CG stops at a relative residual of 1e-5, with
+          a 5000-iteration cap.
+        why:
+          consequence: too-slow
+          symptom: >
+            The comment says a tighter tolerance changes Cd by less than 1e-5
+            at 10 cells per diameter. The cost of a tighter tolerance is not
+            recorded.
+          evidence: >
+            Comment at _CHANNEL_CG_TOL (#239), "as in PhiFlow".
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented option. The comment argues the setting is harmless
+          rather than necessary, so the "why" amounts to "no reason to be
+          tighter".
+
+      - id: channel-cg-scoped-device
+        level: L1
+        scope: [cylinder]
+        what: >
+          Constructs warp.optim.linear.cg inside wp.ScopedDevice(device).
+        why:
+          consequence: crash
+          symptom: >
+            Per the comment, the CG solver records its dot-product launches
+            on the default device rather than the operator's. In this
+            tesseract the device is cuda:0 when CUDA is available, which is
+            also Warp's default, so the scope is probably a no-op here.
+          evidence: >
+            Comment in _channel_pressure_solver (#239). No failing run
+            recorded.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Library behaviour learned from reading Warp's source, hence L1.
+          Tiny, and possibly not needed.

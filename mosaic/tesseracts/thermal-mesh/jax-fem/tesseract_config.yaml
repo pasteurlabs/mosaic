@@ -27,3 +27,62 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/deepmodeling/jax-fem"
+    interventions:
+      - id: umfpack-solver-option
+        level: L0
+        scope: [slab]
+        what: >
+          Passes solver_options={"umfpack_solver": {}} for both the forward and
+          the adjoint solve of ad_wrapper, instead of the default jax_solver
+          (Jacobi-preconditioned BiCGSTAB in JAX). This calls
+          scipy.sparse.linalg.spsolve on the host, which runs SuperLU because
+          scikit-umfpack is not installed.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Not demonstrated in Mosaic. JAX-FEM's own source says the SciPy
+            solver "seems to be far better than the jax linear solver", but no
+            run of this tesseract with the default solver exists.
+          evidence: >
+            Identical options in the JAX-FEM topology-optimisation demo
+            (demos/topology_optimization/example.py at 1bdbf06, line 114);
+            comment in jax_fem/solver.py of the 0.0.9 release. No Mosaic commit
+            or test.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented option copied from the official demo, so this is close
+          to plain documented use. The consequence category is a guess: the
+          default could equally be slower rather than less accurate. Side
+          effect: the host-side solve cannot be traced under jax.jit, which is
+          why the JVP/VJP endpoints run eagerly (commit 21aa7d2, PR #81).
+      - id: setup-cache
+        level: L0
+        scope: [slab]
+        what: >
+          Keeps the JAX-FEM Problem and its ad_wrapper in a module-level dict
+          keyed by a hash of the mesh and boundary conditions, so repeated
+          apply/VJP calls on the same mesh skip problem construction. Each
+          endpoint still runs its own forward solve.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it, JAX-FEM took 3124 s for 200 L-BFGS iterations of
+            conductivity_recovery_bfgs on the GPU runner, against about 80 s
+            for FEniCS, Firedrake and torch-fem, with a per-call floor of about
+            0.56 s (apply) and 2.1 s (VJP) that barely changed from nx=16 to
+            nx=128. With it, a warm apply+VJP on a 16x8x1 mesh took 0.14 s
+            instead of 0.68 s on CPU, with bit-identical outputs.
+          evidence: >
+            PR #195 (commit d4a343a) "cache JAX-FEM thermal problem setup
+            across calls". The GPU effect was not measured in the PR.
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Fits no level well. It uses no solver option and adds no numerics; it
+          restores the construct-once, solve-many usage of JAX-FEM's own demos,
+          which Tesseract's stateless per-request calls break. Recorded as L0
+          because it only uses the public API as documented. It could equally
+          be counted as Tesseract glue.

@@ -303,7 +303,9 @@ class _Channel:
 
         self.domain = PISOtorch.Domain(
             2,
+            # mosaic-intervention: channel-in-cell-units
             viscosity_val / dx,
+            # mosaic-intervention-end: channel-in-cell-units
             name="ChannelDomain",
             dtype=dtype,
             device=_DEVICE,
@@ -313,7 +315,9 @@ class _Channel:
         self.vertices: dict[str, np.ndarray] = {}
         self.cells: dict[str, tuple[slice, slice] | None] = {}
         for name, (verts, cells) in layout.items():
+            # mosaic-intervention: channel-in-cell-units
             coords = torch.tensor(verts[None] / dx, dtype=dtype, device=_DEVICE)
+            # mosaic-intervention-end: channel-in-cell-units
             block = self.domain.CreateBlock(
                 vertexCoordinates=coords.contiguous(), name=name
             )
@@ -348,6 +352,7 @@ class _Channel:
 
     # -- cylinder wall ------------------------------------------------------
 
+    # mosaic-intervention: body-force-integration
     def _build_wall(self) -> None:
         """Length, fluid-side normal and first two cells' wall distances of each arc face."""
         cx, cy = self.center
@@ -408,6 +413,8 @@ class _Channel:
         nu = self.viscosity.to(device=_DEVICE, dtype=self.dtype)
         traction = -self.wall_pressure() * n + nu * shear * tangent
         return (traction * self.wall_len).sum(dim=1)
+
+    # mosaic-intervention-end: body-force-integration
 
     # -- transfers between the blocks and the canonical grid ----------------
 
@@ -508,6 +515,7 @@ class _Channel:
             face = torch.stack([ux, torch.zeros_like(ux)])[None, :, :, None]
             bound.setVelocity(face.contiguous())
 
+    # mosaic-intervention: convective-outflow
     def init_outflow(self, profile: torch.Tensor) -> None:
         """Start the outlet faces from the inlet profile, as advected outflow."""
         for bound, (_, rows) in zip(self.outlets, self.inlets, strict=True):
@@ -516,6 +524,8 @@ class _Channel:
             bound.setVelocity(face.contiguous())
             bound.makeVelocityVarying()
         PISOtorch_simulation.balance_boundary_fluxes(self.domain, self.outlets)
+
+    # mosaic-intervention-end: convective-outflow
 
     def _to_canonical(self, field: str, wall: torch.Tensor) -> torch.Tensor:
         """Canonical (nx, ny, C) from a block field and its wall values (C, faces)."""
@@ -537,6 +547,7 @@ class _Channel:
         The outlet value is the mean over the face of the last two cell
         columns extrapolated linearly onto it.
         """
+        # mosaic-intervention: convective-outflow
         p_out = torch.cat(
             [
                 1.5 * self.blocks[n].pressure[0, 0, :, -1]
@@ -545,6 +556,7 @@ class _Channel:
             ]
         ).mean()
         p = self._to_canonical("pressure", self.wall_pressure()[None]) - p_out
+        # mosaic-intervention-end: convective-outflow
         return torch.where(self.solid[:, :, None], torch.zeros_like(p), p)
 
 
@@ -553,6 +565,7 @@ class _Channel:
 # ---------------------------------------------------------------------------
 
 
+# mosaic-intervention: linsolve-failure-detection
 class _LogRecordCollector(logging.Handler):
     """Logging handler that keeps the exceptions attached to log records."""
 
@@ -565,6 +578,10 @@ class _LogRecordCollector(logging.Handler):
             self.exceptions.append(record.exc_info[1])
 
 
+# mosaic-intervention-end: linsolve-failure-detection
+
+
+# mosaic-intervention: warm-start-pressure
 def _warm_cg(
     matrix: PISOtorch.CSRmatrix,
     rhs: torch.Tensor,
@@ -681,6 +698,9 @@ class _WarmStartSimulation(PISOtorch_simulation.Simulation):
         return result, ok
 
 
+# mosaic-intervention-end: warm-start-pressure
+
+
 def _simulate(
     domain: PISOtorch.Domain,
     dt_val: float,
@@ -695,10 +715,12 @@ def _simulate(
     With ``warm_start_tol``, pressure solves start from the previous step's
     pressure and stop at that tolerance.
     """
+    # mosaic-intervention: warm-start-pressure
     if warm_start_tol is None:
         sim_cls = PISOtorch_simulation.Simulation
     else:
         sim_cls = functools.partial(_WarmStartSimulation, solve_tol=warm_start_tol)
+    # mosaic-intervention-end: warm-start-pressure
     sim = sim_cls(
         domain,
         substeps=1,
@@ -715,6 +737,7 @@ def _simulate(
         prep_fn=prep_fn,
         **sim_kwargs,
     )
+    # mosaic-intervention: linsolve-failure-detection
     # Simulation.run() catches a failed linear solve, logs it and stops early
     # while still returning True, which would hand back a partially integrated
     # field. Collect the logged error so it can be raised here instead.
@@ -740,6 +763,7 @@ def _simulate(
         raise RuntimeError(
             f"PICT simulation stopped after {sim.total_step} of {steps} steps"
         )
+    # mosaic-intervention-end: linsolve-failure-detection
 
 
 def _run_periodic(
@@ -791,8 +815,12 @@ def _run_channel(
         torch.float32,
     )
     channel.set_inflow(profile)
+    # mosaic-intervention: convective-outflow
     channel.init_outflow(profile)
+    # mosaic-intervention-end: convective-outflow
     domain = channel.domain
+    # mosaic-intervention: warm-start-pressure
+    # mosaic-intervention: pressure-tol-flux-gate
     # PICT's pressure residual is absolute. The pressure solves start from the
     # previous step's pressure and stop at 1e-8, where Cd matches a solve from
     # zero at 1e-8 to 2e-5 at 10 and 20 cells per diameter. At 1e-6 the
@@ -803,10 +831,13 @@ def _run_channel(
     # 40 cells per diameter), so that one stays above twice the imbalance.
     imbalance = abs(float(domain.GetBoundaryFluxBalance()))
     pressure_tol = max(1e-6, 2 * imbalance)
+    # mosaic-intervention-end: pressure-tol-flux-gate
+    # mosaic-intervention-end: warm-start-pressure
     domain.PrepareSolve()
     channel.set_velocity(v0)
     domain.UpdateDomainData()
 
+    # mosaic-intervention: convective-outflow
     # PICT has no pressure outlet. The outlet velocity is advected out with
     # the mean inflow speed (a convective outflow, zero normal gradient at
     # steady state), pressure is Neumann there, and the returned pressure is
@@ -814,33 +845,51 @@ def _run_channel(
     adv_vel = torch.tensor(
         [[float(profile.detach().mean()), 0.0]], dtype=torch.float32, device=_DEVICE
     )
+    # mosaic-intervention-end: convective-outflow
+    # mosaic-intervention: body-force-integration
     forces: list[torch.Tensor] = []
+    # mosaic-intervention-end: body-force-integration
 
     def _pre_step(domain: PISOtorch.Domain, time_step: Any, **_kw: Any) -> None:
+        # mosaic-intervention: inflow-in-autograd-graph
         # Re-applied every step so that the inflow profile stays in the
         # autograd graph that PISOtorch_diff records during the run.
         channel.set_inflow(profile)
+        # mosaic-intervention-end: inflow-in-autograd-graph
+        # mosaic-intervention: convective-outflow
         PISOtorch_simulation.update_advective_boundaries(
             domain, channel.outlets, adv_vel, time_step.to(_DEVICE)
         )
+        # mosaic-intervention-end: convective-outflow
 
+    # mosaic-intervention: body-force-integration
     def _post_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
         forces.append(channel.body_force())
 
+    # mosaic-intervention-end: body-force-integration
+
     _simulate(
         domain,
+        # mosaic-intervention: channel-in-cell-units
         float(np.asarray(inputs.dt)[0]) / inputs.dx,
+        # mosaic-intervention-end: channel-in-cell-units
         inputs.steps,
         differentiable,
         prep_fn={"PRE": _pre_step, "POST": _post_step},
+        # mosaic-intervention: orthogonal-scheme-on-o-grid
         # PICT's skew correction makes the pressure matrix non-symmetric while
         # it stays singular (pressure is Neumann on every boundary), and on this
         # mesh CG and BiCGStab both break down in the first step. The O-grid
         # is close to orthogonal at the cylinder, and the skewed cells sit at
         # the box corners, a diameter away.
         non_orthogonal=False,
+        # mosaic-intervention-end: orthogonal-scheme-on-o-grid
+        # mosaic-intervention: pressure-tol-flux-gate
         pressure_tol=pressure_tol,
+        # mosaic-intervention-end: pressure-tol-flux-gate
+        # mosaic-intervention: warm-start-pressure
         warm_start_tol=1e-8,
+        # mosaic-intervention-end: warm-start-pressure
     )
     return channel.velocity(), channel.pressure(), torch.stack(forces), domain
 

@@ -274,6 +274,7 @@ snGradSchemes   { default corrected; }
 
 
 def _write_fv_solution(system_dir: Path) -> None:
+    # mosaic-intervention: momentum-tolerance
     # The momentum predictor starts from the previous step's U, and a loose
     # tolerance leaves part of each step's update unsolved. On fine grids,
     # where steps are small and many, that becomes an error floor.
@@ -311,6 +312,7 @@ PISO
     pRefValue                0;
 }
 """
+    # mosaic-intervention-end: momentum-tolerance
     (system_dir / "fvSolution").write_text(content)
 
 
@@ -451,16 +453,22 @@ boundaryField
 # Channel mode: body-fitted DFG 2D-1 case
 # ---------------------------------------------------------------------------
 
+# mosaic-intervention: graded-channel-mesh
 # Radial cell growth in the O-grid, cylinder cell size over square cell size.
 _RADIAL_GRADING = 0.5
 # Cell growth along the wake block, outlet cell size over the cell size next
 # to the cylinder.
 _WAKE_GRADING = 10.0
+# mosaic-intervention-end: graded-channel-mesh
+# mosaic-intervention: courant-substepping
 # Largest Courant number of an internal step, estimated from the peak inflow
 # speed and the smallest cell. Outer steps longer than that are sub-stepped.
 _MAX_COURANT = 1.0
+# mosaic-intervention-end: courant-substepping
+# mosaic-intervention: mpi-decomposition
 # Fewest cells per MPI process. Smaller meshes run serially.
 _CELLS_PER_PROCESS = 10_000
+# mosaic-intervention-end: mpi-decomposition
 
 _FOAM_HEADER = """\
 FoamFile
@@ -508,10 +516,12 @@ def _write_channel_block_mesh_dict(
     ys = (0.0, cy - half_side, cy + half_side, ly)
     nx = [max(1, round((xs[i + 1] - xs[i]) / dx)) for i in range(3)]
     ny = [max(1, round((ys[j + 1] - ys[j]) / dx)) for j in range(3)]
+    # mosaic-intervention: graded-channel-mesh
     # Geometric growth from dx to _WAKE_GRADING dx over the wake block.
     wake = xs[3] - xs[2]
     q = (wake - dx) / (wake - _WAKE_GRADING * dx)
     nx[2] = max(1, round(1 + math.log(_WAKE_GRADING) / math.log(q)))
+    # mosaic-intervention-end: graded-channel-mesh
     n_side, n_rad = nx[1], max(2, nx[1] // 2)
 
     # 2-D vertices: the 4 × 4 block corners (index 4 j + i), then the points
@@ -535,7 +545,9 @@ def _write_channel_block_mesh_dict(
         hex_block(
             [corner(i, j), corner(i + 1, j), corner(i + 1, j + 1), corner(i, j + 1)],
             (nx[i], ny[j]),
+            # mosaic-intervention: graded-channel-mesh
             f"{_WAKE_GRADING if i == 2 else 1} 1",
+            # mosaic-intervention-end: graded-channel-mesh
         )
         for j in range(3)
         for i in range(3)
@@ -547,7 +559,9 @@ def _write_channel_block_mesh_dict(
     circle = [16, 17, 18, 19]
     for k in range(4):
         v = [square[k], square[(k + 1) % 4], circle[(k + 1) % 4], circle[k]]
+        # mosaic-intervention: graded-channel-mesh
         blocks.append(hex_block(v, (n_side, n_rad), f"1 {_RADIAL_GRADING}"))
+        # mosaic-intervention-end: graded-channel-mesh
 
     edges = []
     for k in range(4):
@@ -617,11 +631,13 @@ defaultPatch
     )
     (system_dir / "blockMeshDict").write_text(content)
 
+    # mosaic-intervention: courant-substepping
     # The smallest cell lies on the wall at mid-side, where the O-grid blocks
     # are thinnest. Radially it is the last of n_rad geometrically graded cells.
     q = _RADIAL_GRADING ** (1 / (n_rad - 1))
     first = (half_side - radius) * (1 - q) / (1 - q**n_rad)
     return min(first * q ** (n_rad - 1), 2 * math.pi * radius / (4 * n_side))
+    # mosaic-intervention-end: courant-substepping
 
 
 def _write_channel_control_dict(
@@ -689,6 +705,9 @@ interpolationSchemes { default linear; }
 snGradSchemes   { default corrected; }
 """
     )
+    # mosaic-intervention: channel-momentum-tolerance
+    # mosaic-intervention: channel-pressure-gamg
+    # mosaic-intervention: channel-non-orthogonal-corrector
     (system_dir / "fvSolution").write_text(
         _FOAM_HEADER.format(cls="dictionary", obj="fvSolution")
         + """\
@@ -720,6 +739,9 @@ PIMPLE
 }
 """
     )
+    # mosaic-intervention-end: channel-non-orthogonal-corrector
+    # mosaic-intervention-end: channel-pressure-gamg
+    # mosaic-intervention-end: channel-momentum-tolerance
     _write_transport_properties(constant_dir, nu)
     (constant_dir / "momentumTransport").write_text(
         _FOAM_HEADER.format(cls="dictionary", obj="momentumTransport")
@@ -836,7 +858,9 @@ probes
 """
     )
     cmd = "foamPostProcess -dict system/sample -latestTime"
+    # mosaic-intervention: mpi-decomposition
     _run_of(_parallel(cmd, n_procs), workdir)
+    # mosaic-intervention-end: mpi-decomposition
     (out_dir,) = (workdir / "postProcessing" / "probes").iterdir()
 
     def last_row(name: str) -> str:
@@ -869,6 +893,7 @@ def _read_forces(workdir: Path, depth: float) -> np.ndarray:
     return (data[:, 1:3] + data[:, 4:6]) / depth
 
 
+# mosaic-intervention: mpi-decomposition
 def _decompose(workdir: Path, n_cells: int) -> int:
     """Split the case over the available cores; returns the number of processes."""
     n_procs = min(len(os.sched_getaffinity(0)), n_cells // _CELLS_PER_PROCESS)
@@ -885,6 +910,9 @@ def _decompose(workdir: Path, n_cells: int) -> int:
 def _parallel(cmd: str, n_procs: int) -> str:
     """``cmd`` run on ``n_procs`` MPI processes of a decomposed case."""
     return f"mpirun -np {n_procs} {cmd} -parallel" if n_procs > 1 else cmd
+
+
+# mosaic-intervention-end: mpi-decomposition
 
 
 def _run_channel(inputs: InputSchema) -> dict:
@@ -909,9 +937,11 @@ def _run_channel(inputs: InputSchema) -> dict:
         h_min = _write_channel_block_mesh_dict(
             workdir / "system", extent, dx, center, radius
         )
+        # mosaic-intervention: courant-substepping
         courant = float(np.abs(profile).max()) * dt / h_min
         substeps = max(1, math.ceil(courant / _MAX_COURANT))
         n_steps = inputs.steps * substeps
+        # mosaic-intervention-end: courant-substepping
         _write_channel_control_dict(workdir / "system", dt / substeps, n_steps, center)
         _write_channel_numerics(workdir / "system", workdir / "constant", nu)
         _run_of("blockMesh", workdir)
@@ -922,8 +952,10 @@ def _run_channel(inputs: InputSchema) -> dict:
         u_inlet[:, 0] = np.interp(inlet[:, 1], y_canonical, profile)
         _write_channel_fields(workdir, u_cells, u_inlet)
 
+        # mosaic-intervention: mpi-decomposition
         n_procs = _decompose(workdir, len(cells))
         _run_of(_parallel("foamRun", n_procs), workdir)
+        # mosaic-intervention-end: mpi-decomposition
 
         forces = _read_forces(workdir, depth=dx)
         if len(forces) != n_steps:
@@ -942,7 +974,9 @@ def _run_channel(inputs: InputSchema) -> dict:
     return {
         "result": velocity,
         "pressure": pressure,
+        # mosaic-intervention: courant-substepping
         "body_force": forces[substeps - 1 :: substeps].astype(np.float32),
+        # mosaic-intervention-end: courant-substepping
     }
 
 

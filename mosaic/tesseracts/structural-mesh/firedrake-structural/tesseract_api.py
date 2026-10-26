@@ -318,10 +318,15 @@ _SOLVER_PARAMETERS = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
+# mosaic-intervention: setup-tape-replay
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
+# mosaic-intervention-end: setup-tape-replay
+# mosaic-intervention: tsfc-kernel-warmup
 _ADJOINT_KERNELS_COMPILED = False
+# mosaic-intervention-end: tsfc-kernel-warmup
 
 
+# mosaic-intervention: setup-tape-replay
 def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
     """Hash everything the recorded tape depends on, i.e. all inputs except rho."""
     h = hashlib.sha256()
@@ -329,6 +334,9 @@ def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
         h.update(np.ascontiguousarray(arr).tobytes())
     h.update(np.array(params, dtype=np.float64).tobytes())
     return h.hexdigest()
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _build_reduced_functional(
@@ -439,8 +447,10 @@ def _build_reduced_functional(
 
     # ---- Solve -----------------------------------------------------------
     u_sol = Function(V)
+    # mosaic-intervention: reusable-variational-solver
     problem = LinearVariationalProblem(a, L, u_sol, bcs=bcs)
     LinearVariationalSolver(problem, solver_parameters=_SOLVER_PARAMETERS).solve()
+    # mosaic-intervention-end: reusable-variational-solver
 
     # ---- Objective: structural compliance --------------------------------
     # C = ∫_Γ_N f · u dΓ  (recorded on the pyadjoint tape via assemble)
@@ -478,7 +488,9 @@ def _replay_elasticity(
         Tuple (J_val, entry) where entry is the cache entry built by
         `_build_reduced_functional`, now evaluated at rho.
     """
+    # mosaic-intervention: tsfc-kernel-warmup
     global _ADJOINT_KERNELS_COMPILED
+    # mosaic-intervention-end: tsfc-kernel-warmup
     args = (
         pts,
         cells,
@@ -488,17 +500,21 @@ def _replay_elasticity(
         neumann_values_vals,
     )
     params = (E_max, nu, xmin, penal)
+    # mosaic-intervention: setup-tape-replay
     key = _setup_cache_key(*args, params=params)
     if key not in _SETUP_CACHE:
         _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = _build_reduced_functional(*args, *params)
+        # mosaic-intervention: tsfc-kernel-warmup
         if not _ADJOINT_KERNELS_COMPILED:
             Jhat = _SETUP_CACHE[key]["Jhat"]
             for _ in range(2):
                 Jhat(Jhat.controls[0].control)
                 Jhat.derivative()
             _ADJOINT_KERNELS_COMPILED = True
+        # mosaic-intervention-end: tsfc-kernel-warmup
     entry = _SETUP_CACHE[key]
+    # mosaic-intervention-end: setup-tape-replay
 
     rho_fn = Function(entry["rho_space"])
     rho_fn.dat.data[:] = np.clip(rho_values[entry["fd_to_input_cells"]], 0.0, 1.0)

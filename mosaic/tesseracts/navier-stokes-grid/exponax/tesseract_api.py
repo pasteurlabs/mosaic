@@ -56,6 +56,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Exponax solver output schema."""
 
 
+# mosaic-intervention: vorticity-velocity-conversion
 # ---------------------------------------------------------------------------
 # Spectral velocity <-> vorticity helpers (2D, differentiable via JAX FFT)
 # ---------------------------------------------------------------------------
@@ -94,6 +95,9 @@ def _vorticity_to_velocity(omega: jnp.ndarray, domain_extent: float) -> jnp.ndar
     vx = jnp.real(jnp.fft.ifft2(1j * ky / k2 * omega_hat))
     vy = jnp.real(jnp.fft.ifft2(-1j * kx / k2 * omega_hat))
     return jnp.stack([vx, vy], axis=-1)  # (N, N, 2)
+
+
+# mosaic-intervention-end: vorticity-velocity-conversion
 
 
 # ---------------------------------------------------------------------------
@@ -149,19 +153,23 @@ def exponax_fwd(
         "diffusivity": viscosity,
         "drag": drag,
         "order": order,
+        # mosaic-intervention: no-dealiasing
         "dealiasing_fraction": 1.0,  # disable 2/3-rule truncation to match other solvers
+        # mosaic-intervention-end: no-dealiasing
     }
 
     if ndim == 2:
         # v0: (N, N, 1, 2) -> squeeze z -> (N, N, 2)
         v = v0[:, :, 0, :]
 
+        # mosaic-intervention: vorticity-velocity-conversion
         # Mean velocity is conserved by incompressible periodic NS (Galilean invariance).
         # The vorticity formulation strips it (∂const/∂x = 0), so we save and restore it.
         v_mean = jnp.mean(v, axis=(0, 1), keepdims=True)  # (1, 1, 2)
 
         # velocity -> vorticity: (1, N, N)  (operate on fluctuation only)
         vort = _velocity_to_vorticity(v - v_mean, domain_extent)
+        # mosaic-intervention-end: vorticity-velocity-conversion
 
         if kolmogorov_forcing:
             stepper = ex.stepper.KolmogorovFlowVorticity(
@@ -180,8 +188,10 @@ def exponax_fwd(
 
         result_vort, _ = jax.lax.scan(step_fn, vort, None, length=steps)
 
+        # mosaic-intervention: vorticity-velocity-conversion
         # vorticity -> velocity: (N, N, 2) -> (N, N, 1, 2); restore conserved mean
         result = _vorticity_to_velocity(result_vort, domain_extent) + v_mean
+        # mosaic-intervention-end: vorticity-velocity-conversion
         return result[:, :, None, :]
 
     else:  # 3D

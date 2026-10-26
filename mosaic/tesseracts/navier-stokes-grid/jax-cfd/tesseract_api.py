@@ -72,6 +72,7 @@ def cfd_fwd(
         domain=tuple((0.0, L) for L in domain_sizes),
     )
 
+    # mosaic-intervention: collocated-staggered-interpolation
     # --- staggered grid helper -------------------------------------------
     def interp_to_face(v_comp: Any, own_axis: int) -> Any:
         return 0.5 * (v_comp + jnp.roll(v_comp, -1, axis=own_axis))
@@ -92,6 +93,8 @@ def cfd_fwd(
     def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
+    # mosaic-intervention-end: collocated-staggered-interpolation
+
     # --- NS step function ------------------------------------------------
     # The library's default (van Leer + forward Euler) uses a Lax-Wendroff
     # flux whose time correction assumes pure advection. In incompressible
@@ -104,8 +107,10 @@ def cfd_fwd(
             viscosity=viscosity,
             dt=dt,
             grid=grid,
+            # mosaic-intervention: central-advection-rk4
             convect=cfd.advection.convect_linear,
             time_stepper=cfd.time_stepping.classic_rk4,
+            # mosaic-intervention-end: central-advection-rk4
         ),
         steps=inner_steps,
     )
@@ -116,10 +121,12 @@ def cfd_fwd(
     _, trajectory = rollout_fn(v_grid)
     stag_components = [trajectory[i].array.data[-1] for i in range(ndim)]
 
+    # mosaic-intervention: collocated-staggered-interpolation
     # --- interpolate back to collocated grid ---
     coloc_components = [
         interp_to_coloc(stag_components[i], own_axis=i) for i in range(ndim)
     ]
+    # mosaic-intervention-end: collocated-staggered-interpolation
     result = jnp.stack(coloc_components, axis=-1)
 
     if ndim == 2:

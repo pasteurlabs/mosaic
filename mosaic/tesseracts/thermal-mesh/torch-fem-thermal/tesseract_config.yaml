@@ -30,3 +30,86 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/meyer-nils/torch-fem"
+    interventions:
+      - id: global-default-device
+        level: L1
+        scope: [slab]
+        what: >
+          Sets torch's process-wide default device to the GPU (when present),
+          so tensors that torch-fem allocates internally land on the same
+          device as the mesh, material and load tensors.
+        why:
+          consequence: crash
+          symptom: >
+            On a GPU host, torch-fem's internal torch.zeros/torch.arange calls
+            without device= allocate on the CPU, and the solve fails with a
+            device mismatch against the CUDA tensors. No captured error log.
+          evidence: >
+            Code comments in both torch-fem tesseracts. In torch-fem v0.12.1,
+            src/torchfem/base.py allocates without device= (e.g. lines 102-110,
+            269-275), and upstream's benchmarks/utils.py calls
+            torch.set_default_device itself. Before PR #187 the thermal
+            tesseract additionally monkeypatched torchfem.sparse.sparse_solve
+            for device placement; torch-fem 0.12.1 made that unnecessary.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          torch.set_default_device is documented PyTorch API, but torch-fem's
+          user docs (README, getting_started, installation at v0.12.1) do not
+          say it is required on GPU; the need is visible from torch-fem's
+          source and its benchmark scripts. L1 because it was found by reading
+          source; L0 if the upstream benchmark scripts count as documentation.
+          Written by the torch-fem maintainer (PR #187).
+      - id: gpu-cg-jacobi
+        level: L0
+        scope: [slab]
+        what: >
+          On GPU, passes method="cg", preconditioner="jacobi" to model.solve
+          for the forward and adjoint solves. On CPU, torch-fem chooses.
+        why:
+          consequence: too-slow
+          symptom: >
+            torch-fem 0.12.1 picks a direct solve below 10000 DOFs, which runs
+            in SciPy on the host and copies CUDA data to the CPU and back. At
+            10000 DOFs and above on CUDA without AmgX it already picks CG with
+            Jacobi in torch, so the setting only changes the smaller meshes.
+            No isolated measurement.
+          evidence: >
+            PR #187 ("so the forward and adjoint solves stay on the device");
+            its CI run showed thermal cost/spatial_cost median 0.297 s to
+            0.187 s, flagged as indicative and bundled with the torch-fem
+            0.12.1 upgrade. PR #188 states the choice for structural without a
+            measurement. Default resolution read from torch-fem v0.12.1
+            src/torchfem/sparse.py (resolve_method, resolve_preconditioner).
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Documented keyword arguments (installation.md mentions
+          preconditioner="jacobi"). Written by the torch-fem maintainer.
+      - id: deterministic-kernels
+        level: L0
+        scope: [slab]
+        what: >
+          Enables torch.use_deterministic_algorithms(True, warn_only=True), so
+          torch-fem's CUDA scatter-adds in assembly sum in a fixed order.
+        why:
+          consequence: non-reproducible
+          symptom: >
+            Without it, identical GPU runs differ: the thermal
+            conductivity_recovery_bfgs final loss varied between 241 and 5.7e3,
+            depending on whether the run left a plateau before the iteration
+            cap. With it, runs are identical and end on the plateau (5.69e3),
+            matching FEniCS and JAX-FEM. Cost about 5-15% on thermal, none
+            measurable on structural.
+          evidence: PR #200 (commit 6ad868a), including its benchmark-bot diff.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          "non-reproducible" is not one of the proposed consequence categories;
+          none of them fits. The change made a headline metric worse (final
+          loss 241 to 5.69e3), which is the opposite of what the ladder
+          assumes interventions do. The variability was shown for thermal
+          only; for structural the setting is applied for consistency.

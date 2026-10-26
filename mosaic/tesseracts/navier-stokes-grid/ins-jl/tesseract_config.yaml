@@ -55,3 +55,131 @@ metadata:
     # The solver itself lives in mosaic_shared; changing it re-benchmarks INS.jl.
     shared_sources:
       - mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl
+    interventions:
+      - id: differentiable-rk4-rollout
+        level: L2
+        scope: [periodic, periodic-3d]
+        what: >
+          The VJP differentiates a hand-written, non-mutating RK4 loop over
+          create_right_hand_side (ns_forward_2d/3d) with Zygote.pullback,
+          while apply uses the library's in-place solve_unsteady with
+          RKMethods.RK44.
+        why:
+          consequence: no-gradient
+          symptom: >
+            Presumably Zygote cannot differentiate the in-place solve_unsteady
+            stepper (array mutation), so a gradient needs a non-mutating
+            rollout. Using that rollout for apply as well would cost speed:
+            2.49 s vs 0.56 s for the forward at N=256, 100 steps, CPU. The two
+            paths agree to 4e-14 in Float64 and 2.2e-4 / 1.0e-4 (2D / 3D) in
+            Float32.
+          evidence: >
+            ns_apply docstring in ns_solver.jl; PR #103 (03c0ca1) for the
+            timing and agreement numbers. Nobody explicitly stated that
+            solve_unsteady is not Zygote-differentiable.
+          confidence: inferred
+        upstream: null
+        provenance: maintainer-reviewed
+        location:
+          [mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl]
+        classification_notes: >
+          create_right_hand_side is public and, as far as I know, INS.jl
+          presents it as the AD-compatible entry point. If its docs show
+          exactly this pattern (own loop over the RHS for Zygote), this is L0
+          rather than L2. Not checked against the v5.0.0 docs. The loop was
+          written by the Mosaic team (initial commit). The in-place/non-mutating
+          split comes from PR #103 by INS.jl's author, hence
+          maintainer-reviewed.
+      - id: initial-state-ghost-refresh
+        level: L1
+        scope: [periodic, periodic-3d]
+        what: >
+          apply and the VJP rollout build their start state through one helper
+          (initial_state) that refreshes the ghost layer with apply_bc_u after
+          the initial projection.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            project leaves the ghost layer stale, and the in-place RK stepper
+            evaluates its first stage without refreshing BCs, so apply and the
+            differentiated rollout were different maps for any non-divergence-free
+            input. ns-3d-grid gradient/fd_check was 2.4e-3 (over the 1e-3 limit,
+            flat in eps, the signature of a bias), ns-grid 4.1e-4. With the fix:
+            2.9e-5 and 1.3e-5. apply vs rollout mismatch on a
+            non-divergence-free input: 1.3e-3 / 1.6e-3 without, 1.6e-7 / 1.8e-7
+            with (2D / 3D).
+          evidence: >
+            PR #223 (via #232 / 4837125); regression test
+            tests/test_ins_jl_consistency.py::test_apply_matches_vjp_rollout
+            (skipped without the INS.jl image); initial_state docstring.
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        location:
+          [mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl]
+        classification_notes: >
+          A bug fix in our own two-path design (see differentiable-rk4-rollout),
+          not a workaround of INS.jl. The knowledge it needs (ghost staleness
+          after project, the stepper's first stage) comes from reading the
+          source, hence L1. It could equally be folded into the L2 rollout
+          intervention or dropped as plain bug-fixing.
+      - id: float32-grid-coordinates
+        level: L1
+        scope: [periodic, periodic-3d]
+        what: >
+          Builds the Setup from Float32 coordinates and keeps literals
+          eltype-preserving so the whole solve and its pullback run in Float32.
+        why:
+          consequence: too-slow
+          symptom: >
+            With Float64 coordinates, INS.jl's non-mutating operators allocate
+            from the grid eltype and silently promote the state and Zygote tape
+            to Float64 after the first projection, despite Float32 casts at
+            every interface. The solver then pays Float64 cost with Float32 I/O
+            and reports better-than-float32 gradient errors. No separate cost
+            factor was measured.
+          evidence: >
+            Comment in get_setup_and_psolver (ns_solver.jl); PR #103 (03c0ca1),
+            item 3.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        location:
+          [mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl]
+        classification_notes: >
+          Precision is an L0 kind of choice, but the mechanism (eltype taken
+          from the grid, silent promotion) is undocumented as far as the
+          comment suggests, and it came from the library's author. Does not
+          really fit "why it is necessary": without it the solver is more
+          accurate, not broken. The motivation is comparability with float32
+          peers and honesty of internal_dtype. PR #103 offered the Float64
+          alternative explicitly.
+      - id: collocated-staggered-interpolation
+        level: L2
+        scope: [periodic, periodic-3d]
+        what: >
+          Hand-written periodic two-point averages (coloc_to_stag_*,
+          stag_to_coloc_*) move the cell-centred benchmark velocity onto
+          INS.jl's staggered faces and back.
+        why:
+          consequence: cannot-express
+          symptom: >
+            INS.jl's state is staggered; the benchmark's v0 and result are
+            cell-centred. The round trip scales mode k by cos^2(pi k/N), which
+            leaves a viscosity-independent error that exceeds peers on the
+            coarse ns-3d-grid agreement grid.
+          evidence: >
+            STAGGERED_ROUND_TRIP explained anomaly in
+            mosaic/benchmarks/problems/navier_stokes_3d_grid/exclusions.py
+            (forward/agreement). The helpers have been in the shared solver
+            since the initial commit c47498a.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        location:
+          [mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl]
+        classification_notes: >
+          Borderline baseline (layout marshalling), but it is numerics with a
+          visible effect, one that the project deliberately keeps as an
+          explained anomaly rather than replacing with an exact spectral
+          shift. Recorded so the anomaly can be traced to code.

@@ -33,12 +33,14 @@ from pydantic import model_validator
 
 wp.init()
 
+# mosaic-intervention: warp-ns-hand-written-solver
 # ============================================================
 # @wp.func helpers — inlined by the Warp JIT compiler into every
 # kernel that calls them, so there is zero Python overhead.
 # ============================================================
 
 
+# mosaic-intervention: adjoint-grad-clip-3d
 @wp.func
 def sanitize_float(v: float, clip: float) -> float:
     """Replace NaN/Inf with 0 and clamp to [-clip, clip].
@@ -56,6 +58,9 @@ def sanitize_float(v: float, clip: float) -> float:
     v = min(v, clip)
     v = max(v, -clip)
     return v
+
+
+# mosaic-intervention-end: adjoint-grad-clip-3d
 
 
 # ============================================================
@@ -339,6 +344,7 @@ def pressure_correct_3d_from_complex_kernel(
     uz_new[i, j, k] = uz_star[i, j, k] - dt_ * dpdz
 
 
+# mosaic-intervention: adjoint-grad-clip-3d
 @wp.kernel
 def _clip_and_sanitize_3d_kernel(
     arr: wp.array3d(dtype=wp.float32),
@@ -353,6 +359,9 @@ def _clip_and_sanitize_3d_kernel(
     """
     i, j, k = wp.tid()
     arr[i, j, k] = sanitize_float(arr[i, j, k], clip)
+
+
+# mosaic-intervention-end: adjoint-grad-clip-3d
 
 
 def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
@@ -389,6 +398,7 @@ def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
     return wp.vec2f(v[0] * s, v[1] * s)
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 ####################################################################
 # Non-power-of-two support via Bluestein's algorithm
 #
@@ -690,6 +700,9 @@ def _spectral_poisson_2d_bluestein(
     return out
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
+
+
 @functools.cache
 def _fft_kernels_2d(n: int):
     """Build (and cache) the tiled FFT/transpose kernels for an N×N grid."""
@@ -794,10 +807,12 @@ def _spectral_poisson_2d_core(
     for the taped path too.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path
         # (workspace fusion doesn't apply — always allocates fresh buffers).
         return _spectral_poisson_2d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_2d(n)
     inv_lambda = _inv_lambda_2d(n, domain_extent, device)
 
@@ -888,6 +903,7 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
     }
 
 
+# mosaic-intervention: poisson-fd-eigenvalues-3d
 @functools.cache
 def _inv_lambda_3d(
     n: int, domain_extent: float, device: str, permute: tuple | None = None
@@ -930,6 +946,9 @@ def _inv_lambda_3d(
         dtype=wp.float32,
         device=device,
     )
+
+
+# mosaic-intervention-end: poisson-fd-eigenvalues-3d
 
 
 @functools.cache
@@ -1094,6 +1113,7 @@ def _fft_3d(
     return x
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 @functools.cache
 def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
     """y[k, i, j] = x[i, j, k]: cyclic axis permutation, valid for any ``n``."""
@@ -1171,6 +1191,9 @@ def _spectral_poisson_3d_bluestein(
     return _bluestein_fft_3d(scaled, n, "bwd", device)
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
+
+
 def _spectral_poisson_3d_core(
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
@@ -1192,9 +1215,11 @@ def _spectral_poisson_3d_core(
     ones on every call — used by the forward-only (non-taped) path.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path.
         return _spectral_poisson_3d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_3d(n)
     inv_lambda_permuted = _inv_lambda_3d(n, domain_extent, device, permute=(1, 2, 0))
 
@@ -1629,6 +1654,7 @@ def ns3d_solve_tape(
         cur_ux, cur_uy, cur_uz = ux_wp, uy_wp, uz_wp
 
         for _step_i in range(steps):
+            # mosaic-intervention: adjoint-grad-clip-3d
             # ── Per-step adjoint gradient clipping (stability guard) ───────────
             # Registered before this step's kernels run; because record_func is
             # LIFO, this fires LAST in the step's backward — after
@@ -1672,6 +1698,7 @@ def ns3d_solve_tape(
                     backward=_clip_cur_adj,
                     arrays=[cur_ux, cur_uy, cur_uz],
                 )
+            # mosaic-intervention-end: adjoint-grad-clip-3d
 
             # Step 1: tentative velocity u* = u + dt·(-u·∇u + ν∇²u)
             ux_star = wp.zeros(
@@ -2203,6 +2230,7 @@ def channel_centers_kernel(
     uy[i, j] = 0.5 * (v[i, j] + v[i, j + 1]) * f
 
 
+# mosaic-intervention: channel-cg-preconditioner
 @wp.kernel
 def channel_basis_rows_kernel(
     a: wp.array2d(dtype=wp.float32),
@@ -2235,6 +2263,10 @@ def channel_basis_cols_kernel(
     dst[i, j] = alpha * scale[i, j] * s + beta * y[i, j]
 
 
+# mosaic-intervention-end: channel-cg-preconditioner
+
+
+# mosaic-intervention: channel-cg-graph-capture
 @wp.kernel
 def _flag_unconverged_kernel(
     r_norm_sq: wp.array(dtype=wp.float32),
@@ -2245,10 +2277,15 @@ def _flag_unconverged_kernel(
         flag[0] = 1
 
 
+# mosaic-intervention-end: channel-cg-graph-capture
+
+
+# mosaic-intervention: channel-cg-tolerance
 # Relative residual at which the pressure CG stops, as in PhiFlow. A tighter
 # tolerance changes Cd by less than 1e-5 at 10 cells per diameter.
 _CHANNEL_CG_TOL = 1e-5
 _CHANNEL_CG_MAXITER = 5000
+# mosaic-intervention-end: channel-cg-tolerance
 
 
 def _check_cg_converged(flag: wp.array) -> None:
@@ -2296,6 +2333,7 @@ def _channel_pressure_solver(
     nx, ny = fluid.shape
     n = nx * ny
 
+    # mosaic-intervention: channel-cg-preconditioner
     def second_difference(m: int, last: float) -> np.ndarray:
         t = 2.0 * np.eye(m) - np.eye(m, k=1) - np.eye(m, k=-1)
         t[0, 0], t[-1, -1] = 1.0, last
@@ -2310,6 +2348,7 @@ def _channel_pressure_solver(
     vx, vxt, vy, vyt = (to_wp(m) for m in (vec_x, vec_x.T, vec_y, vec_y.T))
     inv_lam, ones = to_wp(1.0 / np.add.outer(lam_x, lam_y)), to_wp(np.ones((nx, ny)))
     tmp_a, tmp_b = to_wp(np.zeros((nx, ny))), to_wp(np.zeros((nx, ny)))
+    # mosaic-intervention-end: channel-cg-preconditioner
 
     def matvec(x, y, z, alpha, beta):
         wp.launch(
@@ -2319,6 +2358,7 @@ def _channel_pressure_solver(
             device=device,
         )
 
+    # mosaic-intervention: channel-cg-preconditioner
     def precondition(x, y, z, alpha, beta):
         def launch(kernel, inputs):
             wp.launch(kernel, dim=(nx, ny), inputs=inputs, device=device)
@@ -2332,14 +2372,19 @@ def _channel_pressure_solver(
             [tmp_a, vyt, ones, y, float(alpha), float(beta), z],
         )
 
+    # mosaic-intervention-end: channel-cg-preconditioner
+
     def operator(func):
         return warp.optim.linear.LinearOperator(
             (n, n), wp.float32, wp.get_device(device), func
         )
 
+    # mosaic-intervention: channel-cg-graph-capture
     use_graph = wp.get_device(device).is_cuda and wp.is_conditional_graph_supported()
+    # mosaic-intervention-end: channel-cg-graph-capture
     unconverged = wp.zeros(1, dtype=wp.int32, device=device)
     rhs_buffer = wp.zeros(n, dtype=wp.float32, device=device)
+    # mosaic-intervention: channel-cg-scoped-device
     # The solver records its dot-product launches on the default device.
     with wp.ScopedDevice(device):
         cg = warp.optim.linear.cg(
@@ -2349,11 +2394,17 @@ def _channel_pressure_solver(
             tol=_CHANNEL_CG_TOL,
             atol=0.0,
             maxiter=_CHANNEL_CG_MAXITER,
+            # mosaic-intervention: channel-cg-preconditioner
             M=operator(precondition),
+            # mosaic-intervention-end: channel-cg-preconditioner
+            # mosaic-intervention: channel-cg-graph-capture
             check_every=0 if use_graph else 10,
             run=False,
+            # mosaic-intervention-end: channel-cg-graph-capture
         )
+    # mosaic-intervention-end: channel-cg-scoped-device
 
+    # mosaic-intervention: channel-cg-graph-capture
     def run(x: wp.array) -> None:
         _, residual, atol = cg(b=rhs_buffer, x=x)
         if use_graph:
@@ -2378,6 +2429,8 @@ def _channel_pressure_solver(
                 run(x)
             graphs[x.ptr] = capture.graph
         wp.capture_launch(graphs[x.ptr])
+
+    # mosaic-intervention-end: channel-cg-graph-capture
 
     return solve, unconverged
 
@@ -2436,7 +2489,9 @@ def channel_solve(
     force = field((steps, 2))
 
     p_guess = wp.zeros(nx * ny, dtype=wp.float32, device=device)
+    # mosaic-intervention: channel-cg-implicit-adjoint
     adjoint_guess = wp.zeros(nx * ny, dtype=wp.float32, device=device)
+    # mosaic-intervention-end: channel-cg-implicit-adjoint
     solve, unconverged = _channel_pressure_solver(fluid, open_u, open_v, device)
 
     with recording:
@@ -2475,6 +2530,7 @@ def channel_solve(
             )
         solve(rhs.flatten(), p_guess)
         wp.copy(p.flatten(), p_guess)
+        # mosaic-intervention: channel-cg-implicit-adjoint
         if grad:
 
             def adjoint(rhs=rhs, p=p) -> None:
@@ -2482,6 +2538,7 @@ def channel_solve(
                 wp.copy(rhs.grad.flatten(), adjoint_guess)
 
             tape.record_func(backward=adjoint, arrays=[rhs, p])
+        # mosaic-intervention-end: channel-cg-implicit-adjoint
         u_new, v_new = field(u.shape), field(v.shape)
         with recording:
             wp.launch(
@@ -2536,6 +2593,9 @@ def channel_solve(
         "dt": dt_wp,
         "cg_unconverged": unconverged,
     }
+
+
+# mosaic-intervention-end: warp-ns-hand-written-solver
 
 
 # ============================================================

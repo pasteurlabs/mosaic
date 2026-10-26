@@ -28,3 +28,54 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.dealii.org/"
+    interventions:
+      - id: serial-without-mpi
+        level: L0
+        scope: [cantilever]
+        what: >
+          The struct_solver binary caps deal.II at one thread with
+          MultithreadInfo::set_thread_limit(1) instead of the tutorial-style
+          Utilities::MPI::MPI_InitFinalize, so no MPI runtime is started.
+        why:
+          consequence: too-slow
+          symptom: >
+            Open MPI start-up costs about 1.33 s per call, because the
+            tesseract launches the binary once per request. On the A100 the
+            forward call took 1.58 s instead of 0.22 s at nx=8 (4.25 s instead
+            of 3.25 s at nx=128), and structural-mesh cost/temporal_cost was an
+            unexplained anomaly at 29x the peer median. Forward metrics are
+            bitwise identical either way.
+          evidence: >
+            Commit 390bf09 / PR #245 "stop initializing MPI in the deal.II
+            structural solver" (before/after table from
+            `mosaic run -p structural-mesh --suites forward,cost -s deal.II`).
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The slowdown comes from Mosaic's subprocess-per-request design more
+          than from deal.II: a long-lived deal.II program pays MPI start-up
+          once. Both the old and new calls are documented deal.II API. The
+          thermal deal.II binary never initialised MPI and does not cap
+          threads, so the two deal.II tesseracts run with different threading.
+      - id: umfpack-direct-solve
+        level: L0
+        scope: [cantilever]
+        what: >
+          Solves the assembled system with deal.II's SparseDirectUMFPACK
+          instead of the CG+SSOR solver used in the step-8 tutorial the
+          assembly is based on.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Not demonstrated. Presumably a direct solve keeps the forward-only
+            reference independent of an iterative tolerance at SIMP stiffness
+            contrasts of 1e-3, but no comparison with an iterative solve exists.
+          evidence: none found (present since the initial commit c47498a, no rationale recorded).
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          deal.II has no default linear solver, so "non-default" is measured
+          against the tutorial pattern. Arguably this is plain documented use
+          and not an intervention at all.

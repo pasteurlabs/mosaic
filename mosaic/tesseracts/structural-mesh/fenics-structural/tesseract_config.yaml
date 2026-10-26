@@ -25,3 +25,76 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://fenicsproject.org/"
+    interventions:
+      - id: mumps-forward-solver
+        level: L0
+        scope: [cantilever]
+        what: >
+          Forward solve uses MUMPS (`solver_parameters={"linear_solver": "mumps"}`) instead
+          of DOLFIN's default LU backend (UMFPACK).
+        why:
+          consequence: too-slow
+          symptom: >
+            PR #182 measured nx=128 (16 384 cells): apply 10.095 -> 8.783 s, apply+VJP
+            29.520 -> 25.354 s (~1.15x), and attributes essentially all of it to the solver
+            switch because the linear solve is 99.6% of apply time. The out-of-memory claim
+            in the code comment is not substantiated for this setup: the cost sweep stops at
+            nx=128, and issue #180 ran the pre-#182 (UMFPACK) code at nx=128 without failure.
+          evidence: >
+            PR #182 (b7f38a4) description, section 2, and maintainer comment ("~99% of the
+            measured speedup here is from the UMFPACK -> mumps switch"); pasteurlabs/mosaic#180.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Same change as in fenics-heat, but the documented reason (out of memory) only has
+          evidence for the thermal slab at nx=1024. Here the measured effect is a modest
+          speedup that also includes the adjoint patch below. Proposed by J. S. Dokken, a
+          FEniCS developer.
+      - id: mumps-adjoint-monkeypatch
+        level: L3
+        scope: [cantilever]
+        what: >
+          Replaces `fenics_adjoint.types.compat.linalg_solve` at import time with a function
+          that always calls `solve(..., "mumps")`, so the adjoint linear solve also uses MUMPS.
+        why:
+          consequence: too-slow
+          symptom: >
+            No separate measurement. The apply+VJP speedup in PR #182 (29.520 -> 25.354 s
+            at nx=128) includes this patch together with the forward MUMPS switch and tape
+            replay. The out-of-memory failure that motivated the patch was observed for the
+            thermal slab at nx=1024, not for this setup.
+          evidence: >
+            none found specific to cantilever; code copied from fenics-heat in PR #182
+            (b7f38a4), motivated by pasteurlabs/mosaic#180.
+          confidence: inferred
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Clear L3 (assigns an attribute on an imported library module). Under rule 5 its
+          necessity for this setup is not shown; either measure the VJP without it at nx=128
+          or drop it here. The upstream fix exists only in unreleased dolfin-adjoint sources
+          (no release after 2019.1.0); no upstream issue URL was found.
+      - id: setup-tape-replay
+        level: L0
+        scope: [cantilever]
+        what: >
+          Records the pyadjoint tape (mesh, spaces, forms, one annotated solve) once per
+          (mesh, BC, material) and evaluates each later call by replaying the cached
+          `ReducedFunctional` at the new rho.
+        why:
+          consequence: too-slow
+          symptom: >
+            Negligible for this setup: PR #182 instrumentation at nx=128 puts 99.6% of apply
+            time in the linear solve, and "everything the refactor removes lives in the
+            remaining 0.4 %".
+          evidence: >
+            PR #182 (b7f38a4) description, section 2; comment block above `_SETUP_CACHE`.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Its necessity is not shown here; the maintainer kept it "to set a better example
+          for how FEniCS is supposed to be used" (PR #182). `ReducedFunctional` replay is the
+          documented pyadjoint workflow, so this is arguably baseline rather than an
+          intervention. Recorded for symmetry with the other three tesseracts.

@@ -73,9 +73,11 @@ class OutputSchema(
 # forward and adjoint solves stay on the device.  On CPU-only hosts torch-fem
 # picks the solver automatically (SciPy).
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# mosaic-intervention: gpu-cg-jacobi
 _SOLVE_KWARGS: dict[str, Any] = (
     {"method": "cg", "preconditioner": "jacobi"} if _DEVICE.type == "cuda" else {}
 )
+# mosaic-intervention-end: gpu-cg-jacobi
 _DTYPE = torch.float64  # torch-fem defaults to float64 for solver stability
 
 # torch-fem internals assume torch.get_default_dtype() matches the tensors we
@@ -86,8 +88,12 @@ _DTYPE = torch.float64  # torch-fem defaults to float64 for solver stability
 # internal ``torch.zeros/arange(...)`` calls land on the same device as the
 # tensors we construct explicitly with ``device=_DEVICE``.
 torch.set_default_dtype(_DTYPE)
+# mosaic-intervention: global-default-device
 torch.set_default_device(_DEVICE)
+# mosaic-intervention-end: global-default-device
+# mosaic-intervention: deterministic-kernels
 torch.use_deterministic_algorithms(True, warn_only=True)
+# mosaic-intervention-end: deterministic-kernels
 
 
 # SIMP parameters (baked into the InputSchema defaults but kept here as fallbacks)

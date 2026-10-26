@@ -29,3 +29,28 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.dealii.org/"
+    interventions:
+      - id: cg-ssor-tight-tolerance
+        level: L0
+        scope: [slab]
+        what: >
+          Conjugate gradients with SSOR(omega=1.2) preconditioning, stopped at a
+          residual of 1e-12 times the right-hand-side norm with a cap of 50000
+          iterations.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Not demonstrated. Presumably the tight tolerance keeps the
+            forward-only reference, which produces the target temperatures for
+            conductivity recovery, free of solver error; no run with a looser
+            tolerance exists.
+          evidence: none found (present since the initial commit c47498a, no rationale recorded).
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          deal.II has no default linear solver. CG with SSOR(1.2) is the
+          tutorial pattern (step-5 uses the same preconditioner with an
+          absolute tolerance of 1e-12); only the relative tolerance and the
+          iteration cap differ. Arguably plain documented use and not an
+          intervention.

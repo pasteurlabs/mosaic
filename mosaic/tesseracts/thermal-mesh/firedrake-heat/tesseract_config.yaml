@@ -26,3 +26,146 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.firedrakeproject.org/"
+    interventions:
+      - id: setup-tape-replay
+        level: L0
+        scope: [slab]
+        what: >
+          Records the pyadjoint tape (gmsh mesh round-trip, spaces, forms, one annotated
+          solve) once per (mesh, BC, material) and evaluates each later call by replaying
+          the cached reduced functionals at the new (rho, source); rho and source share
+          one tape.
+        why:
+          consequence: too-slow
+          symptom: >
+            PR #229 measured forward 7.55 -> 0.42 s (nx=256) and 126.4 -> 9.3 s (nx=1024),
+            VJP 15.83 -> 1.33 s and 266.6 -> 27.7 s. These include the
+            reusable-variational-solver change and the removal of up to three from-scratch
+            forward solves per VJP (five per gradient evaluation, per PR #182).
+          evidence: >
+            PR #229 (6c30c16) description; PR #182 description (Firedrake findings);
+            comment block above `_SOLVER_PARAMETERS`.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Documented pyadjoint workflow. A large part of the gain comes from no longer
+          rebuilding the tape several times per VJP, which fixes Mosaic's own glue rather
+          than tuning Firedrake.
+      - id: reusable-variational-solver
+        level: L1
+        scope: [slab]
+        what: >
+          Solves through `LinearVariationalProblem`/`LinearVariationalSolver` instead of
+          `solve(a == L, ...)`, so pyadjoint keeps the forward and adjoint solvers across
+          tape replays and MUMPS reuses its symbolic factorisation.
+        why:
+          consequence: too-slow
+          symptom: >
+            PETSc logs in PR #229 show one numeric and no symbolic factorisation per
+            replayed `apply` with this change. Its share of the speedup reported under
+            setup-tape-replay was not measured.
+          evidence: >
+            PR #229 (6c30c16) description ("What changes", tape reuse bullet).
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Ambiguous between L0 and L1. `LinearVariationalSolver` is documented public API,
+          but that pyadjoint keeps the solver across replays only via that path is an
+          implementation detail, found from PETSc logs rather than documentation.
+      - id: tsfc-kernel-warmup
+        level: L1
+        scope: [slab]
+        what: >
+          The first tape a process records is replayed and differentiated twice right
+          after recording, so that a TSFC kernel compiled only on the second
+          replay-then-derivative sweep is built during the harness's warm-up call.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it the ~1 s compile lands in the first timed VJP trial. PR #229 reports
+            it inflated the mean about 10x at small sizes (thermal cost/vjp_cost/by_steps
+            0.47 -> 0.10 s, measured locally).
+          evidence: >
+            PR #229 (6c30c16) description, Notes; comment block above `_SOLVER_PARAMETERS`.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          An accommodation to the harness's timing protocol rather than a solver setting;
+          see the same entry in firedrake-structural.
+      - id: read-replayed-block-output
+        level: L1
+        scope: [slab]
+        what: >
+          After replaying the compliance functional, reads the temperature field from the
+          solve's `block_variable.saved_output` rather than evaluating the temperature
+          functional `That`, relying on a replay recomputing every block on the tape.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it, each `apply` would replay the tape a second time, i.e. one extra
+            forward linear solve per call (by construction; not measured).
+          evidence: >
+            none found beyond the code comment in `_replay_heat`.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Public, non-underscore attributes, but relies on undocumented replay behaviour,
+          hence L1. Same trick as in fenics-heat.
+      - id: nodal-misfit-seed
+        level: L2
+        scope: [slab]
+        what: >
+          The identification-error gradient comes from a reduced functional of the
+          temperature field (`That`) whose adjoint is seeded with a hand-built cofunction
+          dI/dT = 2 (T - T_target) at the nodes that have a target value.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            The objective is a nodal sum (schema: sum((T_nodes - target)^2)) with no direct
+            UFL form. The earlier approximation (L2 integral rescaled by n_nodes/domain_vol)
+            gave gradient/source_fd_check 4.58e-02 (fixed to 3.52e-05, PR #162) and a rho
+            gradient 9% off central differences (median over 8 directions, cosine 0.985)
+            with conductivity_recovery_bfgs final/initial misfit 0.00313 versus 0.00020 after
+            the fix (PR #184).
+          evidence: >
+            PR #162 (f787aa8), PR #184 (c7f6a1a); hand-written adjoint replaced by the
+            seeded `That` derivative in PR #229 (6c30c16) with unchanged gradients.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Counterpart of fenics-heat's nodal-misfit-block, but much smaller: pyadjoint's
+          `ReducedFunctional.derivative(adj_input=...)` with a `Cofunction` lets the seed
+          be supplied from outside without a custom Block. Whether a nodal (vertex)
+          quadrature would let Firedrake express the objective in UFL directly was not
+          checked. The nodal-seed approach came from an external contributor (H. Singh,
+          #162/#184); the current form is from PR #229. `cannot-express` would also fit as
+          the consequence.
+      - id: skip-absent-neumann-tags
+        level: L2
+        scope: [slab]
+        what: >
+          Records which Neumann facet tags actually exist in the generated mesh and drops
+          `ds(tag)` terms for absent tags from the load and the compliance forms.
+        why:
+          consequence: crash
+          symptom: >
+            When the hot-spot flux stripe is narrower than one element, no boundary face
+            gets the Neumann tag and `ds(tag)` raises a LookupError in Firedrake (FEniCS
+            integrates an empty facet set to zero). Probably not reached in the current
+            configs: the hot-spot experiment (forward/physical_laws) runs at N=16.
+          evidence: >
+            code comments in `_build_firedrake_mesh` and `_build_reduced_functionals`;
+            present since the initial commit (c47498a). No test or log found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Borderline baseline: it is part of translating the schema's per-node BC masks
+          into mesh tags, and only matters for degenerate coarse meshes. Recorded because
+          FEniCS needed nothing for the same situation. firedrake-structural has no such
+          guard.

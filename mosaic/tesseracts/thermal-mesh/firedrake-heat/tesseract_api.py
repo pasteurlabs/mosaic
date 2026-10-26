@@ -155,6 +155,7 @@ def _build_firedrake_mesh(
         if os.path.exists(msh_path):
             os.unlink(msh_path)
 
+    # mosaic-intervention: skip-absent-neumann-tags
     # Record which Neumann tags were actually embedded in the mesh so that
     # callers can guard ds(tag) calls.  When the hot-spot stripe is narrower
     # than one mesh element (coarse debug runs), no face satisfies the
@@ -164,6 +165,7 @@ def _build_firedrake_mesh(
     for t in boundary_tags:
         if t >= neumann_offset:
             active_neumann_tags.add(t)
+    # mosaic-intervention-end: skip-absent-neumann-tags
 
     return mesh, neumann_offset, active_neumann_tags
 
@@ -227,10 +229,15 @@ _SOLVER_PARAMETERS = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
+# mosaic-intervention: setup-tape-replay
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
+# mosaic-intervention-end: setup-tape-replay
+# mosaic-intervention: tsfc-kernel-warmup
 _ADJOINT_KERNELS_COMPILED = False
+# mosaic-intervention-end: tsfc-kernel-warmup
 
 
+# mosaic-intervention: setup-tape-replay
 def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
     """Hash everything the recorded tape depends on, i.e. all inputs but rho/source."""
     h = hashlib.sha256()
@@ -238,6 +245,9 @@ def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
         h.update(np.ascontiguousarray(arr).tobytes())
     h.update(np.array(params, dtype=np.float64).tobytes())
     return h.hexdigest()
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _build_reduced_functionals(
@@ -311,8 +321,10 @@ def _build_reduced_functionals(
     L = inner(Constant(0.0), v) * dx
     for k in range(n_neumann_groups):
         tag = neumann_offset + (k + 1)
+        # mosaic-intervention: skip-absent-neumann-tags
         if tag not in active_neumann_tags:
             continue
+        # mosaic-intervention-end: skip-absent-neumann-tags
         q_n = Constant(float(neumann_values_vals[k, 0]))
         L = L + q_n * v * ds(tag)
 
@@ -329,15 +341,19 @@ def _build_reduced_functionals(
 
     # ---- Solve ---------------------------------------------------------
     T_sol = Function(V)
+    # mosaic-intervention: reusable-variational-solver
     problem = LinearVariationalProblem(a, L, T_sol, bcs=bcs)
     LinearVariationalSolver(problem, solver_parameters=_SOLVER_PARAMETERS).solve()
+    # mosaic-intervention-end: reusable-variational-solver
 
     # ---- Thermal compliance --------------------------------------------
     J_form = inner(Constant(0.0), T_sol) * dx
     for k in range(n_neumann_groups):
         tag = neumann_offset + (k + 1)
+        # mosaic-intervention: skip-absent-neumann-tags
         if tag not in active_neumann_tags:
             continue
+        # mosaic-intervention-end: skip-absent-neumann-tags
         q_n = Constant(float(neumann_values_vals[k, 0]))
         J_form = J_form + q_n * T_sol * ds(tag)
     J = assemble(J_form)
@@ -346,7 +362,9 @@ def _build_reduced_functionals(
     controls = [Control(rho_fn), Control(source_fn)]
     return {
         "Chat": ReducedFunctional(J, controls, tape=tape),
+        # mosaic-intervention: nodal-misfit-seed
         "That": ReducedFunctional(T_sol, controls, tape=tape),
+        # mosaic-intervention-end: nodal-misfit-seed
         "dg0": DG0,
         "V": V,
         "fd_to_input_cells": fd_to_input_cells,
@@ -377,7 +395,9 @@ def _replay_heat(
             entry:   Cache entry built by `_build_reduced_functionals`, now
                      evaluated at (rho, source).
     """
+    # mosaic-intervention: tsfc-kernel-warmup
     global _ADJOINT_KERNELS_COMPILED
+    # mosaic-intervention-end: tsfc-kernel-warmup
     args = (
         pts,
         cells,
@@ -387,17 +407,21 @@ def _replay_heat(
         neumann_values_vals,
     )
     params = (k_max, p_exp)
+    # mosaic-intervention: setup-tape-replay
     key = _setup_cache_key(*args, params=params)
     if key not in _SETUP_CACHE:
         _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = _build_reduced_functionals(*args, *params)
+        # mosaic-intervention: tsfc-kernel-warmup
         if not _ADJOINT_KERNELS_COMPILED:
             Chat = _SETUP_CACHE[key]["Chat"]
             for _ in range(2):
                 Chat([c.control for c in Chat.controls])
                 Chat.derivative()
             _ADJOINT_KERNELS_COMPILED = True
+        # mosaic-intervention-end: tsfc-kernel-warmup
     entry = _SETUP_CACHE[key]
+    # mosaic-intervention-end: setup-tape-replay
     fd_to_input_cells = entry["fd_to_input_cells"]
 
     rho_fn = Function(entry["dg0"])
@@ -406,10 +430,12 @@ def _replay_heat(
     has_source = fd_to_input_cells < len(source_values)
     source_fn.dat.data[has_source] = source_values[fd_to_input_cells[has_source]]
 
+    # mosaic-intervention: read-replayed-block-output
     # Replaying the tape recomputes every block, so the temperature is read
     # back from the solve's output without a second replay.
     J = entry["Chat"]([rho_fn, source_fn])
     T_fd = entry["That"].functional.block_variable.saved_output.dat.data_ro
+    # mosaic-intervention-end: read-replayed-block-output
     input_to_fd = np.zeros(len(pts), dtype=np.int64)
     input_to_fd[entry["fd_to_input_nodes"]] = np.arange(len(T_fd))
     return float(J), T_fd[input_to_fd], entry
@@ -555,6 +581,7 @@ def vector_jacobian_product(
         grad_rho += dC_drho * cot_compliance
         grad_source += dC_dsource * cot_compliance
 
+    # mosaic-intervention: nodal-misfit-seed
     cot_id_error = float(cotangent_vector.get("identification_error", 0.0))
     if cot_id_error != 0.0:
         # I = Σ_nodes (T - T_target)², so the temperature adjoint is seeded
@@ -570,6 +597,7 @@ def vector_jacobian_product(
         dI_drho, dI_dsource = _gradient_pair(entry["That"], entry, n_cells, dI_dT)
         grad_rho += dI_drho * cot_id_error
         grad_source += dI_dsource * cot_id_error
+    # mosaic-intervention-end: nodal-misfit-seed
 
     result: dict[str, Any] = {}
     if want_rho:

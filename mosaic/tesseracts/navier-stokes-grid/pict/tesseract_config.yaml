@@ -39,9 +39,11 @@ build_config:
         && echo "${TORCH_LIB}" > /etc/ld.so.conf.d/torch.conf && ldconfig
     - "RUN wget -qO /tmp/pict.tar.gz https://github.com/tum-pbs/PICT/archive/72a6e86ef3b5.tar.gz && tar -xzf /tmp/pict.tar.gz -C /opt && mv /opt/PICT-* /opt/pict && rm /tmp/pict.tar.gz"
     - "RUN pip install setuptools wheel"
+    # mosaic-intervention: nvcc-single-thread-build
     # Limit nvcc parallelism to 1 thread — PICT's setup.py uses
     # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
     - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
+    # mosaic-intervention-end: nvcc-single-thread-build
     - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
     # PISOtorch_simulation.py / PISOtorch_diff.py / lib/ live at the PICT repo
     # root and aren't pip-installable. Drop a .pth file into the tesseract
@@ -72,3 +74,277 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/tum-pbs/PICT"
+    interventions:
+      - id: warm-start-pressure
+        level: L3
+        scope: [cylinder]
+        what: >
+          Subclasses PISOtorch_simulation.Simulation and overrides linear_solve
+          so that each pressure CG solve starts from the same corrector's
+          pressure one step earlier and stops at 1e-8. In differentiable mode
+          the solve is a hand-written torch.autograd.Function on the private
+          PISOtorch_diff._linear_solve_wrapper, with a warm-started adjoint.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it the channel forward is 2.5x (10 cells/D) to 4.8x
+            (20 cells/D) slower. With it one forward takes 26 s and 51 s on an
+            A100, and Cd moves by less than 0.05% (the code comment gives 2e-5
+            relative against a cold solve at 1e-8).
+          evidence: >
+            PR #239 description (summary and notes); comment above
+            pressure_tol in _run_channel. Why PICT's own options do not cover
+            it, checked in PICT 72a6e86: pressure_reuse_result only reuses the
+            result between non-orthogonal iterations of one corrector and is
+            off in differentiable mode, and Simulation.linear_solve_GPU
+            ignores x in differentiable mode ("x is ignored when using
+            PISOtorch_diff").
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          L3 because it calls private PISOtorch_diff functions
+          (_linear_solve_wrapper, _get_solver_tolerance_torch) and relies on
+          PICT's internal call pattern (pressure solves are the only CG calls
+          without x, exactly corrector_steps of them per step). It also
+          contains an L2 element, the hand-written adjoint. The forward-only
+          branch, the one the benchmark actually runs, passes a starting point
+          through the public linear_solve(x=...) and would be L1 or L2 if it
+          did not depend on overriding linear_solve. Not a method
+          change: the converged solution does not depend on the starting
+          point, although the stopping tolerance differs from PICT's. Speed
+          only. No benchmark experiment that actually runs exercises the VJP
+          half: PICT is excluded from drag_opt (PICT_DRAG_OPT_TOO_SLOW), and
+          the gradient suite uses the periodic box, where warm start is off.
+          No evidence found that a cold-start forward/cylinder would exceed a
+          time budget.
+      - id: pressure-tol-flux-gate
+        level: L1
+        scope: [cylinder]
+        what: >
+          Sets PICT's pressure_tol to max(1e-6, 2 x boundary flux imbalance).
+          With the warm start active, this value only feeds the check at the
+          start of Simulation.run(), which refuses to run when the boundary
+          flux imbalance exceeds pressure_tol.
+        why:
+          consequence: crash
+          symptom: >
+            With a fixed pressure_tol below the imbalance, run() logs "Domain
+            boundary is not divergence free" and returns before the first
+            step, and the tesseract raises "PICT simulation stopped after 0 of
+            N steps". The code comment puts the float32 imbalance after
+            balance_boundary_fluxes at ~4e-8 of the flux, 1.4e-6 at 40 cells/D,
+            which a fixed 1e-6 would fail.
+          evidence: >
+            Comment above pressure_tol in _run_channel; the gate is in
+            Simulation.run() in PISOtorch_simulation.py at PICT 72a6e86.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The gate is visible in PICT's source and log, but the requirement is
+          undocumented, so L1. By my reading it is not needed in the current
+          configuration: leaving pressure_tol unset gives PICT's float32
+          default of 1e-5, above the stated imbalance, and the warm start
+          replaces the tolerance in the pressure solves anyway. It matters
+          only if warm-start-pressure is removed, when pressure_tol becomes
+          the solve tolerance again. The 40 cells/D case is not a benchmark
+          setup (forward/cylinder runs 10 and 20).
+      - id: orthogonal-scheme-on-o-grid
+        level: L0
+        method_change: true
+        scope: [cylinder]
+        what: >
+          Runs PICT with non_orthogonal=False on the body-fitted channel mesh,
+          which drops PICT's skew correction although the O-grid cells near
+          the box corners are skewed.
+        why:
+          consequence: crash
+          symptom: >
+            With PICT's default non_orthogonal=True the pressure matrix becomes
+            non-symmetric while staying singular, and CG and BiCGStab both
+            break down in the first step.
+          evidence: >
+            Comment at the _simulate call in _run_channel; PR #239 notes
+            ("non_orthogonal=True breaks its linear solvers in the first
+            step").
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented constructor flag, so L0 by mechanism, but on a skewed
+          mesh it removes terms from the discretisation, hence method_change.
+          PICT's own curved-grid sample (vortex_street_torus_sample.py) uses
+          non_orthogonal=True. Rule 4 would ask for a separate entry and rule 2
+          for an upstream issue plus exclusion; neither exists. #239 reports
+          PICT's Cd 3% high and flat under refinement, with a control-volume
+          Cd 7-11% off the surface Cd; whether this flag causes that has not
+          been tested. PICT labels only its orthogonal branches "orthogonal
+          version with gradient/backprop support", so non-orthogonal mode may
+          also lack reverse-mode support (my inference). The periodic path
+          also sets non_orthogonal=False, but on a Cartesian grid that matches
+          PICT's samples and changes nothing, so it is not recorded.
+      - id: channel-in-cell-units
+        level: L1
+        scope: [cylinder]
+        what: >
+          Builds the channel blocks in units of the canonical cell size dx
+          (vertices, viscosity and dt divided by dx), so that PICT's absolute
+          linear-solver residual is measured on unit cells.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Not stated anywhere. In physical units the same absolute tolerance
+            would correspond to a different relative accuracy; direction and
+            size have not been measured.
+          evidence: >
+            Header comment of the channel section in tesseract_api.py. The
+            premise holds: PICT's NORM2_NORMALIZED criterion is |r|_2/sqrt(n)
+            with no normalisation by the right-hand side
+            (extensions/cg_solver_kernel.cu at 72a6e86).
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Rescaling to cell units is ordinary nondimensionalisation and could
+          be called baseline. Recorded as L1 because it is motivated by a
+          solver internal found by reading source. The periodic path scales
+          the same way, but there CreateBlockWithSize only makes unit cells,
+          so that is how the setup must be expressed and is not recorded. The
+          consequence category is a guess.
+      - id: convective-outflow
+        level: L0
+        scope: [cylinder]
+        what: >
+          Replaces the prescribed p = 0 outflow with PICT's advective outflow.
+          Outlet faces start from the inlet profile, boundary fluxes are
+          balanced, the outlet velocity is advected with the mean inflow speed
+          every step, and the returned pressure is shifted to zero mean on the
+          outlet face.
+        why:
+          consequence: cannot-express
+          symptom: >
+            PICT has no pressure outlet, so without a substitute the channel
+            outlet can only be a wall or a fixed velocity.
+          evidence: >
+            Comment in _run_channel ("PICT has no pressure outlet"). The same
+            helpers (makeVelocityVarying, balance_boundary_fluxes,
+            update_advective_boundaries in a PRE callback) appear in PICT's
+            vortex_street_sample.py and vortex_street_torus_sample.py at
+            72a6e86.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          L0 because the pattern comes from PICT's samples, but it solves a
+          different problem from the one the setup prescribes (convective
+          instead of fixed-pressure outflow). The ladder records effort, not
+          fidelity to the setup. The pressure shift is output marshalling,
+          grouped here because it exists only because of the substitution. I
+          did not independently verify that PICT lacks a pressure outlet.
+      - id: body-force-integration
+        level: L2
+        scope: [cylinder]
+        what: >
+          Computes the force on the cylinder from the cells next to the wall:
+          wall pressure and wall shear from second-order one-sided fits to the
+          first two cells, integrated over the arc faces and recorded in a
+          POST callback every step.
+        why:
+          consequence: cannot-express
+          symptom: >
+            PICT provides no force or drag output, so body_force, which
+            forward/cylinder and drag_opt score, could not be returned.
+          evidence: >
+            No force or drag routine in PISOtorch_simulation.py at PICT 72a6e86
+            (searched). Written in PR #239, which unified body_force across
+            solvers.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Clean L2: an objective the library lacks, written on public block
+          fields. OpenFOAM gets the same output from its documented forces
+          function object, so the two solvers sit at different levels for the
+          same output. #239 reports PICT's control-volume Cd 7-11% off its
+          surface Cd (about 1% for the others), so this code may contribute to
+          PICT's +3% Cd error. Not investigated.
+      - id: inflow-in-autograd-graph
+        level: L1
+        scope: [cylinder]
+        what: >
+          Re-applies the inflow profile to the inlet faces in a PRE callback
+          every step instead of only once before the run.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            Per the code comment, a profile set only once is not in the
+            autograd graph that PISOtorch_diff records. vector_jacobian_product
+            would then return zeros for inflow_profile without an error
+            (allow_unused=True, None becomes zeros). Not reproduced.
+          evidence: >
+            Comment in _pre_step in _run_channel.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Between L0 and L1. PICT's README explains that PISOtorch_diff
+          replaces tensors every step, and learning_sample.py sets its network
+          forcing from a PRE callback, but no PICT document says that boundary
+          values set before the run lose their gradient. The silent-zeros
+          symptom is my reading of vector_jacobian_product. Only drag_opt
+          exercises this path, and PICT is excluded from it.
+      - id: linsolve-failure-detection
+        level: L2
+        scope: [all]
+        what: >
+          Listens on PICT's "PISOsim" logger during Simulation.run() and raises
+          if a linear solve failed or the run stopped early with a finite
+          field.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            Simulation.run() catches LinsolveError, logs it and stops, and the
+            tesseract used to return the partially integrated field as the
+            result. Triggered on purpose with a pressure tolerance of 1e-9 in
+            float32 (2D TGV, N=128, 128 steps), the run stopped at step 11 and
+            returned a field with 12% error and no warning.
+          evidence: >
+            PR #226, merged through #234 (4837125). The swallowed exception is
+            the "except PISOtorch_diff.LinsolveError" in Simulation.run() at
+            PICT 72a6e86.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Changes nothing PICT computes; it makes failures visible. Arguably a
+          correctness fix to the tesseract, not an intervention. If it counts,
+          L2 (user code around a public call) with an L1 element: it depends
+          on the undocumented logger name. Rule 2 asks for an upstream issue
+          for upstream bugs; none was filed.
+      - id: nvcc-single-thread-build
+        level: L3
+        scope: [all]
+        what: >
+          At image build time, sed replaces os.cpu_count() with 1 in PICT's
+          extensions/setup.py, so nvcc compiles the CUDA extension with one
+          thread.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            PICT's setup.py passes --threads=os.cpu_count() to nvcc, which ran
+            out of memory on CI runners and failed the image build. No effect
+            at runtime.
+          evidence: >
+            Comment in this file; commit eb90dfe (ci: ensure all Tesseracts
+            build on CI (#6)), whose squashed log includes "use less
+            parallelism in pict build". PR #6 has no description.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          L3 by mechanism (patching solver source at build time), but it only
+          changes compiler parallelism, not the compiled solver, and cannot
+          affect any result. The ladder has no place for build-infrastructure
+          fixes, and counting this as L3 would put the whole PICT entry at L3
+          for a reason unrelated to the benchmark.

@@ -71,14 +71,20 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # forward and adjoint solves stay on the device. On CPU-only hosts torch-fem
 # picks the solver automatically (SciPy).
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# mosaic-intervention: gpu-cg-jacobi
 _SOLVE_KWARGS: dict[str, Any] = (
     {"method": "cg", "preconditioner": "jacobi"} if _DEVICE.type == "cuda" else {}
 )
+# mosaic-intervention-end: gpu-cg-jacobi
 _DTYPE = torch.float64
 
 torch.set_default_dtype(_DTYPE)
+# mosaic-intervention: global-default-device
 torch.set_default_device(_DEVICE)
+# mosaic-intervention-end: global-default-device
+# mosaic-intervention: deterministic-kernels
 torch.use_deterministic_algorithms(True, warn_only=True)
+# mosaic-intervention-end: deterministic-kernels
 
 
 # ---------------------------------------------------------------------------

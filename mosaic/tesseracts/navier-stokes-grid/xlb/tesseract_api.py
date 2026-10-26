@@ -5,6 +5,7 @@ import functools
 import math
 import os
 
+# mosaic-intervention: xla-gpu-autotune-off
 # Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
 # --xla_gpu_autotune_level=0 prevents DEVICE_TYPE_INVALID failures on V100 (CC 7.0)
 # with JAX 0.10.x when cuBLAS GEMM autotuner fails to identify the GPU device type.
@@ -13,6 +14,7 @@ _xla_flags = os.environ.get("XLA_FLAGS", "")
 if "--xla_gpu_autotune_level" not in _xla_flags:
     os.environ["XLA_FLAGS"] = (_xla_flags + " --xla_gpu_autotune_level=0").strip()
 del _xla_flags
+# mosaic-intervention-end: xla-gpu-autotune-off
 
 from typing import Any  # noqa: E402
 
@@ -24,6 +26,7 @@ import xlb  # noqa: E402
 import xlb.velocity_set  # noqa: E402
 from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
 
+# mosaic-intervention: float64-everywhere
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
@@ -38,6 +41,7 @@ jax.config.update("jax_enable_x64", True)
 # there (see issue #125).  Set XLB_VJP_FP32=1 to run everything in float32
 # instead; use it only where the fd_check stays acceptable.
 _USE_F64_DIFF = os.environ.get("XLB_VJP_FP32", "0") == "0"
+# mosaic-intervention-end: float64-everywhere
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
 )
@@ -86,6 +90,7 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+# mosaic-intervention: smooth-kbc-stabiliser
 class _SmoothKBC(KBC):
     """KBC with a stabiliser that is smooth where the flow is resolved.
 
@@ -142,6 +147,9 @@ class _SmoothKBC(KBC):
         return f - beta * (2.0 * delta_s + gamma[None, ...] * delta_h)
 
 
+# mosaic-intervention-end: smooth-kbc-stabiliser
+
+
 def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     """Build the XLB operator bundle for a given (ndim, precision, collision kind).
 
@@ -159,7 +167,9 @@ def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
     idempotent for BGK (which does not read the global q) and fixes the KBC
     crash for 3-D runs.
     """
+    # mosaic-intervention: xlb-init-per-velocity-set
     xlb.init(velocity_set=vset, default_backend=cb, default_precision_policy=pp)
+    # mosaic-intervention-end: xlb-init-per-velocity-set
     if kind == "kbc_smooth":
         collide = _SmoothKBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     else:
@@ -265,6 +275,7 @@ _D2Q9_C = np.array(_vsets[(2, False)].c).T.astype(int)
 _D2Q9_OPP = np.array([np.flatnonzero((_D2Q9_C == -c).all(axis=1))[0] for c in _D2Q9_C])
 
 
+# mosaic-intervention: sqrt-checkpointing
 def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     """Run ``steps`` LBM steps with sqrt-checkpointing for memory-bounded AD.
 
@@ -309,16 +320,24 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     return f_cur, ys
 
 
+# mosaic-intervention-end: sqrt-checkpointing
+
+
+# mosaic-intervention: ma-targeted-substepping
 # Lattice Mach number that runs sub-step down to. Periodic runs keep it up to
 # N = _MA_TARGET_N and then scale it ∝ 1/N (diffusive scaling), so LBM's
 # O(Ma²) compressibility error falls with the O(dx²) discretisation error
 # instead of putting a floor under grid refinement.
 _MA_TARGET = 0.1
 _MA_TARGET_N = 64
+# mosaic-intervention-end: ma-targeted-substepping
+# mosaic-intervention: kbc-collision-low-viscosity
 # Above this relaxation rate BGK goes unstable as tau→0.5, and KBC takes over.
 _OMEGA_KBC = 1.8
+# mosaic-intervention-end: kbc-collision-low-viscosity
 
 
+# mosaic-intervention: ma-targeted-substepping
 def _sub_steps(inputs: dict) -> int:
     """LBM sub-steps per dt that bring a run to its target Mach number.
 
@@ -338,6 +357,10 @@ def _sub_steps(inputs: dict) -> int:
     return max(1, math.ceil(ma / ma_target))
 
 
+# mosaic-intervention-end: ma-targeted-substepping
+
+
+# mosaic-intervention: kbc-collision-low-viscosity
 def _select_collision(omega: float, obstacle: dict | None) -> str:
     """Collision kind for a run with relaxation rate ``omega``.
 
@@ -354,6 +377,10 @@ def _select_collision(omega: float, obstacle: dict | None) -> str:
     return "bgk"
 
 
+# mosaic-intervention-end: kbc-collision-low-viscosity
+
+
+# mosaic-intervention: consistent-initial-populations
 def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
     """Populations consistent with a divergence-free periodic velocity field.
 
@@ -404,6 +431,10 @@ def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
     return ops["eq"](rho, u) + f_neq
 
 
+# mosaic-intervention-end: consistent-initial-populations
+
+
+# mosaic-intervention: channel-boundary-conditions
 def _channel_links(
     shape: tuple[int, int], dx: float, obstacle: dict
 ) -> tuple[np.ndarray, ...]:
@@ -486,10 +517,12 @@ def _channel_run(
     f_rest = W[:, None, None] * jnp.ones_like(u0[:1])
     bounce = wall | body
     inlet_term = 6.0 * w[:, :, None] * C[0][:, None, None] * u_in[None, None, :]
+    # mosaic-intervention: channel-characteristic-outlet
     # Fully developed outflow carrying the inlet's flux.
     shape = np.arange(u0.shape[2]) + 0.5
     shape = shape * (u0.shape[2] - shape)
     u_developed = jnp.sum(u_in) * shape / shape.sum()
+    # mosaic-intervention-end: channel-characteristic-outlet
 
     def sub_step(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
         rho, u = ops["macro"](f)
@@ -500,6 +533,7 @@ def _channel_run(
         f_new = ops["stream"](f_post)
         f_new = jnp.where(bounce, reflected, f_new)
         f_new = jnp.where(inlet, reflected + inlet_term, f_new)
+        # mosaic-intervention: channel-characteristic-outlet
         u_out = 1.5 * u[:, -1, :] - 0.5 * u[:, -2, :]
         rho_out = 1.0 + math.sqrt(3.0) * (u[0, -1, :] - u_developed)
         cu = C.T @ u_out
@@ -509,6 +543,7 @@ def _channel_run(
         f_new = f_new.at[:, -1, :].set(
             jnp.where(outlet[:, -1, :], f_out, f_new[:, -1, :])
         )
+        # mosaic-intervention-end: channel-characteristic-outlet
         return jnp.where(solid, f_rest, f_new), force
 
     def outer_step(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
@@ -517,6 +552,9 @@ def _channel_run(
 
     f0 = jnp.where(solid, f_rest, ops["eq"](jnp.ones_like(u0[:1]), u0))
     return _checkpointed_scan(outer_step, f0, steps)
+
+
+# mosaic-intervention-end: channel-boundary-conditions
 
 
 def xlb_fwd(
@@ -569,9 +607,11 @@ def xlb_fwd(
     """
     ndim = v0.shape[-1]  # 2 or 3
 
+    # mosaic-intervention: ma-targeted-substepping
     # Apply sub-stepping: use effective dt and total step count
     dt_eff = dt / _sub_k
     steps_eff = steps * _sub_k
+    # mosaic-intervention-end: ma-targeted-substepping
     scale_eff = dt_eff / dx  # u_lb = u_phys * scale_eff
     nu_lb = viscosity * dt_eff / dx**2
     omega = 1.0 / (3.0 * nu_lb + 0.5)
@@ -603,8 +643,11 @@ def xlb_fwd(
 
     out = {}
     if obstacle is None:
+        # mosaic-intervention: consistent-initial-populations
         f0 = _periodic_populations(u0, omega, ops)
+        # mosaic-intervention-end: consistent-initial-populations
 
+        # mosaic-intervention: manual-lbm-loop
         def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, None]:
             f_s = xlb_stream(f)
             rho_s, u_s = xlb_macro(f_s)
@@ -612,6 +655,7 @@ def xlb_fwd(
             return xlb_bgk(f_s, feq, rho_s, u_s, omega), None
 
         f_final, _ = _checkpointed_scan(body, f0, steps_eff)
+        # mosaic-intervention-end: manual-lbm-loop
         _rho_f, u_out = xlb_macro(f_final)
     else:
         u_in = inflow_profile.astype(fdtype) * scale_eff
@@ -663,6 +707,7 @@ def _concrete_inputs(inputs: InputSchema) -> dict:
 def apply(inputs: InputSchema) -> OutputSchema:
     """Run the XLB forward solver on the given inputs."""
     d = _concrete_inputs(inputs)
+    # mosaic-intervention: float64-everywhere
     # Run the forward pass in the same precision as the VJP so apply() and
     # the VJP compute the same function. Without this the FD check calls
     # apply() in one precision while the VJP runs in another, and float32
@@ -671,7 +716,10 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # casts float64 output back to float32 before returning so the schema
     # contract holds either way.
     d["_use_f64"] = _USE_F64_DIFF
+    # mosaic-intervention-end: float64-everywhere
+    # mosaic-intervention: ma-targeted-substepping
     d["_sub_k"] = _sub_steps(d)
+    # mosaic-intervention-end: ma-targeted-substepping
     return apply_jit(d)
 
 

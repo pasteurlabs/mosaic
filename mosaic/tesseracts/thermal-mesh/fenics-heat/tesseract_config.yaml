@@ -25,3 +25,137 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://fenicsproject.org/"
+    interventions:
+      - id: mumps-forward-solver
+        level: L0
+        scope: [slab]
+        what: >
+          Forward solve uses MUMPS (`solver_parameters={"linear_solver": "mumps"}`) instead
+          of DOLFIN's default LU backend (UMFPACK).
+        why:
+          consequence: out-of-memory
+          symptom: >
+            With the default UMFPACK the forward solve runs out of memory at the largest
+            cost-sweep resolution (nx=1024; the sweep is [16..1024]), which showed up as an
+            error on the results page. No peak-memory figure was recorded.
+          evidence: >
+            pasteurlabs/mosaic#180 (comment by jorgensd: "the error on the webpage with 1024
+            resolution is due to UMFPACK running out of memory"); merged in PR #182
+            (b7f38a4); comment above the `solve(...)` call in `_build_reduced_functionals`.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Proposed and merged by J. S. Dokken, a FEniCS developer (PR #182); the provenance
+          enum has no "maintainer-authored" value. PR #182 reports combined speedups (heat
+          nx=128 apply 0.970 -> 0.433 s) but these also include the tape-replay and
+          redundant-solve changes, so the effect of MUMPS alone at moderate sizes is not
+          isolated.
+      - id: mumps-adjoint-monkeypatch
+        level: L3
+        scope: [slab]
+        what: >
+          Replaces `fenics_adjoint.types.compat.linalg_solve` at import time with a function
+          that always calls `solve(..., "mumps")`, so the adjoint linear solve also uses MUMPS.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            dolfin-adjoint 2019.1.0 does not pass the forward `solver_parameters` to the
+            adjoint solve, so the adjoint falls back to UMFPACK and the gradient computation
+            fails at nx=1024 even with MUMPS in the forward solve.
+          evidence: >
+            pasteurlabs/mosaic#180 (comment by jorgensd: "the gradient computations fails on
+            that resolution (due to default using umfpack)", with the patch); PR #182
+            (b7f38a4); comment at the top of tesseract_api.py.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Clear L3: assigns an attribute on an imported library module. PR #182 states newer
+          dolfin-adjoint checkouts forward `linear_solver` to the adjoint automatically
+          (via `SolveVarFormBlock._init_solver_parameters`), but legacy dolfin-adjoint has no
+          release after 2019.1.0, so that fix is effectively unreleased (L4 territory) and
+          the patch is the only way to get it on a released version. Rule 2 asks for an
+          upstream issue link; none was found. Jorgensd describes it as a limitation of
+          legacy dolfin-adjoint rather than a bug ("you don't have granular control of the
+          adjoint solver"). The patch ignores kwargs and forces MUMPS for every adjoint
+          `linalg_solve` in the process.
+      - id: setup-tape-replay
+        level: L0
+        scope: [slab]
+        what: >
+          Records the pyadjoint tape (mesh, spaces, forms, one annotated solve) once per
+          (mesh, BC, material, target) and evaluates each later call by replaying the cached
+          `ReducedFunctional` at the new (rho, source); rho and source share one tape.
+        why:
+          consequence: too-slow
+          symptom: >
+            PR #182 measured nx=128: apply 0.970 -> 0.433 s and apply+VJP 2.383 -> 1.430 s
+            (~2.2x / ~1.7x). These numbers also contain the UMFPACK -> MUMPS switch and the
+            removal of up to three from-scratch forward solves per VJP, so the share due to
+            tape replay alone is not isolated.
+          evidence: >
+            PR #182 (b7f38a4) description, sections 1-2; comment block above `_SETUP_CACHE`.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Arguably not an intervention: `ReducedFunctional` replay is the documented way to
+          use pyadjoint in an optimisation loop, and in PR #182 the Mosaic maintainer kept it
+          "to set a better example for how FEniCS is supposed to be used". The hash-keyed
+          cache only exists because tesseract calls are stateless. Part of the measured gain
+          comes from fixing Mosaic's own glue (three forward solves per VJP), which is a bug
+          fix rather than solver tuning.
+      - id: read-replayed-block-output
+        level: L1
+        scope: [slab]
+        what: >
+          After replaying the compliance functional, reads the identification error from the
+          nodal block's `block_variable.saved_output` rather than calling `Ihat(...)`, relying
+          on `ReducedFunctional.__call__` replaying every block on the tape.
+        why:
+          consequence: too-slow
+          symptom: >
+            Without it, each `apply` would replay the tape a second time, i.e. one extra
+            forward linear solve per call (by construction; not measured).
+          evidence: >
+            none found beyond the code comment in `_solve_forward`, which cites pyadjoint
+            internals (`GenericSolveBlock._create_initial_guess`).
+          confidence: inferred
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          Uses public, non-underscore attributes, but depends on undocumented replay
+          behaviour found by reading pyadjoint's source, hence L1. A static lint for L3
+          would not flag it.
+      - id: nodal-misfit-block
+        level: L2
+        scope: [slab]
+        what: >
+          A custom pyadjoint `Block` puts the nodal identification error
+          sum_v mask_v (T_v - T_target,v)^2 on the tape, with hand-written adjoint and
+          tangent-linear components, so pyadjoint differentiates it together with the solve.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            The objective is a nodal sum (schema: sum((T_nodes - target)^2)), which cannot be
+            written as a UFL integral on hexahedra in legacy FEniCS. The earlier workaround
+            (L2 integral rescaled by n_nodes/domain_vol) gave gradients inconsistent with the
+            reported value: source gradient flagged at 1753x the peer median on
+            gradient/source_fd_check (PR #167); rho gradient ~9% off finite differences and
+            erratic L-BFGS, with conductivity_recovery_bfgs final/initial misfit 0.02779
+            versus 0.00020 with the exact nodal adjoint (PRs #182, #184).
+          evidence: >
+            PR #167 (edc1eac), PR #184 description (FEniCS numbers), PR #182 review comments
+            by singhharsh1708; comment block above `NodalSquaredErrorBlock`.
+          confidence: stated
+        upstream: null
+        provenance: maintainer-reviewed
+        classification_notes: >
+          `cannot-express` would also fit: the root cause is that the prescribed objective
+          cannot be expressed in UFL on hex meshes in legacy FEniCS (code comment: "This
+          works in DOLFINx"); `incorrect-gradient` is what the approximation actually
+          produced. The nodal-seed idea came from an external contributor (H. Singh, #167);
+          the Block form landed in #182 (J. S. Dokken, co-authored by H. Singh and
+          D. Haefner). The numbers are from PR descriptions, not reproducible from the repo
+          without running gradient/source_fd_check and optimization/conductivity_recovery_bfgs.

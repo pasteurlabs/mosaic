@@ -8,12 +8,16 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
 env:
+  # mosaic-intervention: jax-gpu-memory-env
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
   XLA_PYTHON_CLIENT_MEM_FRACTION: "0.5"
+  # mosaic-intervention-end: jax-gpu-memory-env
+  # mosaic-intervention: xla-gpu-flags
   # Disable GEMM autotuning to prevent CUDA OOM in 3D recovery experiments on
   # 16 GiB V100 GPUs. Disable cuBLAS-LT to prevent "Failed to initialize BLAS
   # support" crash when GPU is busy/unavailable (same fix as xlb container).
   XLA_FLAGS: "--xla_gpu_autotune_level=0 --xla_gpu_enable_cublaslt=false"
+  # mosaic-intervention-end: xla-gpu-flags
 
 metadata:
   mosaic:
@@ -28,3 +32,235 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://tum-pbs.github.io/PhiFlow/"
+    interventions:
+      - id: int64-sparse-indices
+        level: L3
+        scope: [periodic, periodic-3d]
+        what: >
+          Monkeypatches phiml's private NumPyBackend.ravel_multi_index (imported
+          from phiml.backend._numpy_backend) to widen flat indices to int64 when
+          the index space exceeds int32.
+        why:
+          consequence: crash
+          symptom: >
+            Building the sparse pressure matrix fails with "ValueError: index
+            -2147451136 is out of bounds for array with size 4294967296" once
+            cells^2 exceeds 2^31, i.e. 2D N>=216 and 3D N>=36. In the benchmark
+            that is ns-grid N=256 and ns-3d-grid N>=48: 12 cost cells failed.
+            With the patch they complete and all other results are bitwise
+            identical. The DFG channel grids stay below the threshold.
+          evidence: >
+            Issue #155 (container traceback from the v0.2.0 run); commit
+            e703109 "fix(solver): widen PhiFlow sparse-matrix flat indices to
+            int64", via PR #232 / 4837125 (#234); docstring of
+            _ravel_multi_index_int64.
+          confidence: verified
+        upstream: https://github.com/tum-pbs/PhiML/pull/16
+        provenance: mosaic-team
+        classification_notes: >
+          Clean L3 under rule 2: it works around an upstream bug and links an
+          upstream fix. The link is an open PR by a Mosaic contributor
+          (andrinr), not an issue. The same fix applied from that PR's branch
+          would be L4. The patch is global at import time, so it affects all
+          setups, but only the ones listed in scope need it.
+      - id: periodic-explicit-cg
+        level: L0
+        scope: [periodic, periodic-3d]
+        what: >
+          Passes an explicit math.Solve("CG", ...) to fluid.make_incompressible
+          instead of its default Solve() ("auto").
+        why:
+          consequence: non-finite
+          symptom: >
+            Per the code comment, the default solver produces NaN in 3D at 20
+            or more steps; 2D is unaffected. No numbers recorded.
+          evidence: >
+            Comment in tesseract_api.py above _cg_solve, unchanged since the
+            initial commit c47498a. No test, PR or issue found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+      - id: periodic-cg-tolerance
+        level: L0
+        scope: [periodic, periodic-3d]
+        what: >
+          Sets the periodic pressure CG's relative and absolute tolerance to
+          1e-7 instead of phiflow's default 1e-5.
+        why:
+          consequence: inaccurate-forward
+          symptom: >
+            At 1e-5 the ns-3d-grid IC recovery stalls at IC error 0.009 instead
+            of 0.0032 for a fully converged solve. 1e-7 matches the converged
+            result at 1.35x (2D) / 1.5x (3D) the cost of 1e-5. 1e-10 runs CG to
+            max_iterations at 2-3x the cost without improving any result.
+          evidence: >
+            PR #234 ("PhiFlow tolerance" section), comment above _CG_TOL. The
+            history is in initial commit c47498a (1e-10, comment "ARCH-31",
+            to prevent adjoint residual bias in fd_check), then PR #232 (1e-5,
+            temporal_cost 2.1x faster), then PR #234 (1e-7).
+          confidence: verified
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          A documented option with an in-range value, so L0. But the value was
+          tuned three times by measurement, which the "tuned by trial and
+          error" wording of L1 would cover. The real failure is an optimizer
+          stall caused by noise in the loss, and none of the consequence
+          categories names that. inaccurate-forward and incorrect-gradient
+          both fit partly.
+      - id: differential-advection
+        level: L0
+        scope: [periodic, cylinder, periodic-3d]
+        what: >
+          Advects with explicit Euler on advect.differential (central
+          differences, advective form) instead of the semi-Lagrangian or
+          MacCormack advection used in phiflow's demos.
+        why:
+          consequence: incorrect-gradient
+          symptom: >
+            A since-removed comment says semi-Lagrangian advection caused "VJP
+            gradient magnitude bias" and NaN from its interpolation. No numbers.
+            The trade-off kept in the results: central differencing is
+            unstable at cell Re of about 300 for any dt (ns-3d-grid
+            horizon_sweep_limits NaN at 160 steps, reported as a frontier per
+            PR #232).
+          evidence: >
+            Comment "ARCH-93 (2026-04-26)" in the initial commit c47498a
+            (internal tracker, not in this repo); current comment in
+            periodic_fwd.step.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Public, documented function, so L0. If semi-Lagrangian is taken as
+          phiflow's standard usage, switching away from it to avoid its AD
+          behaviour is close to engineering away a method artefact (rule 3).
+          For comparison, jax-cfd was moved to RK4 for stability, while PhiFlow
+          stays on explicit Euler even though phiflow ships incompressible_rk4.
+      - id: inlined-obstacle-projection
+        level: L2
+        scope: [cylinder]
+        what: >
+          Reimplements the obstacle branch of fluid.make_incompressible inline:
+          face masks from the shared staircase solid_cells, solid faces zeroed
+          after advection and after diffusion, a masked_laplace CG solve over
+          the fluid cells, and a masked green-gauss pressure gradient.
+          Boundary extrapolations that phiflow derives with private helpers
+          (_accessible_extrapolation, _pressure_extrapolation) are written out
+          as constants.
+        why:
+          consequence: cannot-express
+          symptom: >
+            Nobody wrote down why. Presumably make_incompressible(obstacles=...)
+            rasterises a Geometry itself, so it cannot take the shared
+            staircase mask the harness's control-volume force also uses. It
+            also does not expose the momentum removed at solid faces, which
+            body_force needs, or allow the residual-form warm start. PR #239
+            replaced an Obstacle(geom.Sphere)-based version with this one.
+          evidence: >
+            none found. PR #239 / fec99ee only says "PhiFlow and Warp-NS run
+            staircase projections"; the step-by-step match with
+            make_incompressible is from reading phiflow 3.2.0 source (the
+            tesseract pins 3.4.0).
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        location: [mosaic/mosaic_shared/problems/navier_stokes_grid/channel.py]
+        classification_notes: >
+          Hard to place. It uses only public names (masked_laplace,
+          field.stagger, solve_linear), so L2. In substance it copies and
+          modifies an internal routine, which is close to the vendoring
+          described under L3. The staircase geometry (shared solid_cells) is
+          arguably part of the setup's definition rather than an intervention.
+          This setup appears to have no "why" category: the motivation is
+          consistency with the harness and access to intermediates, not that
+          phiflow fails.
+      - id: channel-pressure-warm-start
+        level: L2
+        scope: [cylinder]
+        what: >
+          Solves each step's pressure as a correction to the previous step's
+          pressure (residual form with x0=0) instead of from zero.
+        why:
+          consequence: too-slow
+          symptom: >
+            The comment says this "keeps the CG iterations low in the
+            near-steady flow", with no measured factor. It also says that the
+            direct route of passing the previous pressure as the solve's x0
+            "leaks a tracer into the VJP inside lax.scan", i.e. fails under
+            reverse mode.
+          evidence: >
+            Comment in channel_fwd.step (added in fec99ee / PR #239). No
+            measurement found for PhiFlow. PR #239 gives a 2.5-4.8x figure for
+            PICT's warm start only.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          The residual form is an L2 workaround for what looks like an upstream
+          bug (x0 tracer leak under lax.scan + VJP). Rule 2 would require an
+          UPSTREAM_BUG link, and none exists. Speed-only (too-slow)
+          interventions might deserve a separate presentation (open question
+          in the design doc).
+      - id: body-force-output
+        level: L2
+        scope: [cylinder]
+        what: >
+          Computes the per-step force on the cylinder as the momentum the
+          solid faces remove in a step (advection and diffusion) plus the
+          pressure on fluid/solid faces.
+        why:
+          consequence: cannot-express
+          symptom: >
+            phiflow has no routine for the force on an obstacle; without this
+            there is no body_force output, so forward/cylinder and drag_opt
+            cannot be scored.
+          evidence: >
+            Inferred: no force/drag function in phiflow 3.2.0's phi/ package
+            (checked locally; pinned version is 3.4.0). PR #239 defines
+            body_force as a required output for obstacle runs.
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          This is an objective/observable, which the design doc lists under L2.
+          It could equally be counted as part of the setup's definition,
+          since every obstacle solver must produce it.
+      - id: xla-gpu-flags
+        level: L1
+        scope: [all]
+        what: >
+          Sets XLA_FLAGS to disable GEMM autotuning and cuBLASLt.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            Per the config comment: CUDA OOM in 3D recovery experiments on
+            16 GiB V100s with autotuning on, and a "Failed to initialize BLAS
+            support" crash when the GPU is busy with cuBLASLt on. No numbers.
+          evidence: >
+            Comment in this file (blame: f0b3e7d, #53, which moved it from the
+            build steps; flags and comment present since the initial commit
+            c47498a). No log or issue found.
+          confidence: stated
+        upstream: null
+        provenance: mosaic-team
+        classification_notes: >
+          Two distinct whys (OOM and crash) in one setting. This configures
+          JAX/XLA rather than phiflow. XLA flags are only semi-documented
+          (L0/L1).
+      - id: jax-gpu-memory-env
+        level: L0
+        scope: [all]
+        what: >
+          Disables JAX's GPU memory preallocation and caps its pool at 50% of
+          device memory.
+        why:
+          consequence: out-of-memory
+          symptom: >
+            None recorded. JAX preallocates 75% of GPU memory by default, which
+            would presumably distort the VRAM-peak measurement and could starve
+            other processes on a shared GPU.
+          evidence: none found (present since the initial commit c47498a)
+          confidence: inferred
+        upstream: null
+        provenance: mosaic-team

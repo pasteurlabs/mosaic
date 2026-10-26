@@ -23,6 +23,7 @@ import numpy as np
 from dolfin import *  # noqa: F403
 from dolfin_adjoint import *  # noqa: F403
 
+# mosaic-intervention: mumps-adjoint-monkeypatch
 # Legacy dolfin-adjoint (e.g. dolfin-adjoint==2019.1.0 from conda-forge, as
 # pinned in tesseract_environment.yaml) does not propagate the forward
 # solve's `solver_parameters` to the adjoint linear solve, which then
@@ -38,6 +39,7 @@ try:
     _fa_compat.linalg_solve = _adjoint_linalg_solve_mumps
 except ImportError:
     pass
+# mosaic-intervention-end: mumps-adjoint-monkeypatch
 
 from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -206,6 +208,7 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
 # everywhere), so reusing state across the two endpoints would make this
 # solver's measured VJP cost incomparable with the rest of the benchmark.
 
+# mosaic-intervention: setup-tape-replay
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 
 
@@ -237,6 +240,9 @@ def _setup_cache_key(
         h.update(np.ascontiguousarray(arr).tobytes())
     h.update(np.array([E_max, nu, xmin, penal], dtype=np.float64).tobytes())
     return h.hexdigest()
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _build_reduced_functional(
@@ -330,12 +336,14 @@ def _build_reduced_functional(
         bcs.append(bc)
 
     # ---- Solve -------------------------------------------------------------
+    # mosaic-intervention: mumps-forward-solver
     # mumps: UMFPACK (the FEniCS default) runs out of memory at moderate mesh
     # sizes; the adjoint solve picks this up too (see the mumps patch above).
     # This `solver_parameters` choice is captured on the Block and reused by
     # every later `Jhat(rho)` replay automatically.
     u_sol = Function(V)
     solve(a == L, u_sol, bcs, solver_parameters={"linear_solver": "mumps"})
+    # mosaic-intervention-end: mumps-forward-solver
 
     # ---- Compliance: C = F^T U = assemble(action(L, u_sol)) -------------
     # action(L, u_sol) substitutes u_sol into the linear form L, giving the
@@ -351,6 +359,7 @@ def _build_reduced_functional(
     }
 
 
+# mosaic-intervention: setup-tape-replay
 def _get_reduced_functional(
     pts: np.ndarray,
     cells: np.ndarray,
@@ -398,6 +407,9 @@ def _get_reduced_functional(
     _SETUP_CACHE.clear()
     _SETUP_CACHE[key] = entry
     return entry
+
+
+# mosaic-intervention-end: setup-tape-replay
 
 
 def _gradient_from_state(state: dict[str, Any]) -> np.ndarray:

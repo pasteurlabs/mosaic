@@ -127,10 +127,12 @@ class Elasticity(Problem):
         return val
 
 
+# mosaic-intervention: setup-cache
 # Module-level cache for the compiled elasticity solver.
 # Keyed by (n_nodes, n_cells, n_dirichlet_nodes, n_neumann_nodes) to detect
 # mesh/BC changes while avoiding re-compilation on every forward/VJP call.
 _setup_cache: dict = {}
+# mosaic-intervention-end: setup-cache
 
 
 def setup(
@@ -151,6 +153,7 @@ def setup(
         Tuple of (problem, fwd_pred) where problem is the configured Elasticity
         problem instance and fwd_pred is the differentiable forward solver.
     """
+    # mosaic-intervention: setup-cache
     # Cache key: mesh shape + BC structure + BC values.
     # Must include Neumann values so that F_total sweeps compile a fresh graph
     # for each force magnitude rather than reusing the first cached value.
@@ -182,6 +185,7 @@ def setup(
     )
     if cache_key in _setup_cache:
         return _setup_cache[cache_key]
+    # mosaic-intervention-end: setup-cache
 
     ele_type = "HEX8"
     meshio_mesh = meshio.Mesh(points=pts, cells={"hexahedron": cells})
@@ -258,13 +262,17 @@ def setup(
 
     # Apply the automatic differentiation wrapper
     # This is a critical step that makes the problem solver differentiable
+    # mosaic-intervention: umfpack-solver-option
     fwd_pred = ad_wrapper(
         problem,
         solver_options={"umfpack_solver": {}},
         adjoint_solver_options={"umfpack_solver": {}},
     )
+    # mosaic-intervention-end: umfpack-solver-option
+    # mosaic-intervention: setup-cache
     result = (problem, fwd_pred)
     _setup_cache[cache_key] = result
+    # mosaic-intervention-end: setup-cache
     return result
 
 

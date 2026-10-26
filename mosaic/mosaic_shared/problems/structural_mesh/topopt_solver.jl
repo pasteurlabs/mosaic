@@ -1,5 +1,6 @@
 using TopOpt
 
+# mosaic-intervention: inp-parser-hex-patch
 # ---------------------------------------------------------------------------
 # Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
 #
@@ -35,6 +36,7 @@ Core.eval(
         end
     end,
 )
+# mosaic-intervention-end: inp-parser-hex-patch
 
 # ---------------------------------------------------------------------------
 # INP file generation from raw mesh arrays
@@ -139,6 +141,7 @@ end
 # Solver cache (keyed by a hash of the structural problem parameters)
 # ---------------------------------------------------------------------------
 
+# mosaic-intervention: setup-cache
 const _CACHE = Dict{UInt64, Tuple}()
 
 """Hash the inputs that define the FEA model (not rho) to cache the setup."""
@@ -147,6 +150,7 @@ function _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, 
     h = hash(cload_values, h) ⊻ hash(E) ⊻ hash(nu) ⊻ hash(xmin)
     return h
 end
+# mosaic-intervention-end: setup-cache
 
 function get_solver_mesh(
     pts::Matrix{Float64},
@@ -158,8 +162,10 @@ function get_solver_mesh(
     nu::Float64,
     xmin::Float64,
 )
+    # mosaic-intervention: setup-cache
     key = _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
     if !haskey(_CACHE, key)
+    # mosaic-intervention-end: setup-cache
         # Write temporary INP file and load it
         tmpfile = tempname() * ".inp"
         local problem, solver, comp
@@ -171,9 +177,11 @@ function get_solver_mesh(
         finally
             isfile(tmpfile) && rm(tmpfile)
         end
+        # mosaic-intervention: setup-cache
         _CACHE[key] = (problem, solver, comp)
     end
     return _CACHE[key]
+    # mosaic-intervention-end: setup-cache
 end
 
 # ---------------------------------------------------------------------------
@@ -217,7 +225,9 @@ function topopt_forward(
     rho  = Float64.(vec(rho_in))
     x    = PseudoDensities(rho)
     c    = comp(x)
+    # mosaic-intervention: compliance-grad-field
     grad = copy(comp.grad)
+    # mosaic-intervention-end: compliance-grad-field
     u    = copy(vec(solver.u))
     return Float64(c), Float64.(grad), Float64.(u)
 end
@@ -246,6 +256,8 @@ function topopt_vjp(
 
     rho = Float64.(vec(rho_in))
     x   = PseudoDensities(rho)
+    # mosaic-intervention: compliance-grad-field
     comp(x)  # populate comp.grad
     return Float64.(comp.grad .* cotangent)
+    # mosaic-intervention-end: compliance-grad-field
 end
