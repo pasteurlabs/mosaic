@@ -281,7 +281,7 @@ tesseract-core==1.15.0
     #   tesseract-jax
 tesseract-jax==0.4.0 ; python_full_version < '3.12'
     # via mosaic-bench
-tesseract-jax==0.5.0 ; python_full_version >= '3.12'
+tesseract-jax==0.5.1 ; python_full_version >= '3.12'
     # via mosaic-bench
 typer==0.27.3
     # via
