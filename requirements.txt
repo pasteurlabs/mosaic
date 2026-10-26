@@ -259,10 +259,12 @@ scipy==1.17.1 ; python_full_version < '3.12'
     # via
     #   jax
     #   jaxlib
+    #   mosaic-bench
 scipy==1.18.1 ; python_full_version >= '3.12'
     # via
     #   jax
     #   jaxlib
+    #   mosaic-bench
 shellingham==1.5.4
     # via typer
 six==1.17.0
