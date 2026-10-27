@@ -314,7 +314,7 @@ static void run(const std::string& input_path) {
 
 
     // ---- Solve CG -----------------------------------------------------------
-    SolverControl solver_control(50000, 1e-12 * system_rhs.l2_norm());
+    SolverControl solver_control(50000, 1e-8 * system_rhs.l2_norm());
     SolverCG<Vector<double>> cg(solver_control);
     PreconditionSSOR<SparseMatrix<double>> precond;
     precond.initialize(system_matrix, 1.2);
