@@ -146,7 +146,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     by ``Problem.add_experiment``):
 
       * ``"adam"`` — vanilla Adam (default).
-      * ``"bfgs"`` — L-BFGS with zoom line-search, on a sigmoid
+      * ``"bfgs"`` — SciPy's L-BFGS-B, on a sigmoid
         reparametrisation of ``rho`` instead of clipping.
 
     Each run dict must contain:
@@ -214,8 +214,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
     # optim_cfg with those defaults so callers don't need to know which
     # optimiser is in use.
     if optimizer == "bfgs":
-        # L-BFGS runs on an unconstrained latent ``z`` instead of clipping
-        # ``rho`` after each step, which the line search does not see. The map
+        # L-BFGS runs on an unconstrained latent ``z`` instead of on ``rho``
+        # directly. The map
         # makes ``rho**p``, and therefore the SIMP conductivity, affine in
         # ``sigmoid(z)``; that keeps low-density cells, where ``k(rho)`` is
         # nearly flat, sensitive to ``z``. On this problem it reaches a given
@@ -232,7 +232,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
             return jax.scipy.special.logit(jnp.clip(s, 1e-6, 1.0 - 1e-6))
 
         max_iters = int(optim_cfg.get("max_iters", 500))
-        z_opt, losses, diag = _run_lbfgs(
+        z_opt, _, diag = _run_lbfgs(
             lambda z: loss_components(to_rho(z)),
             to_latent(rho_init),
             max_iters=max_iters,
@@ -248,7 +248,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         lr = float(optim_cfg.get("lr", 1e-2))
         max_iters = int(optim_cfg.get("max_iters", 500))
         patience = int(optim_cfg.get("patience", 50))
-        rho_opt, losses, diag = _run_optim(
+        rho_opt, _, diag = _run_optim(
             loss_components,
             rho_init,
             lr=lr,
@@ -262,12 +262,9 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         )
 
     # ``errors`` is the per-iter identification-error trace (compliance aux).
-    # Both branches converge when the loop terminates before max_iters
-    # (Adam: patience-based early stop fired; L-BFGS: internal stopping
-    # criterion fired).
     errors = aux_history.get("compliance", [])
-    converged = len(losses) < max_iters
-    grad_norms = (diag or {}).get("grad_norms")
+    converged = diag["converged"]
+    grad_norms = diag.get("grad_norms")
 
     metrics = {
         "errors": errors,

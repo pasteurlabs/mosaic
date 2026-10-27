@@ -5,6 +5,8 @@ description: >
   integration; run on CPU in this benchmark (the library itself also supports CUDA via
   KernelAbstractions.jl). Differentiates through the time loop via Zygote.jl reverse-mode AD.
 build_config:
+  package_data:
+    - ["./solver.jl", "/tesseract/solver.jl"]
   custom_build_steps:
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates gcc g++ && rm -rf /var/lib/apt/lists/*"
     - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
@@ -52,6 +54,3 @@ metadata:
     uses_gpu: false
     internal_dtype: float32
     doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"
-    # The solver itself lives in mosaic_shared; changing it re-benchmarks INS.jl.
-    shared_sources:
-      - mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl
