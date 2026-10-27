@@ -193,6 +193,22 @@ def test_fit_stops_and_records_a_non_finite_loss():
     assert "update 2" in record["failure"]
 
 
+def test_fd_check_keeps_the_step_with_the_smallest_error():
+    # The cubic term puts a truncation error of ε²·a/b on the central
+    # difference: 0.01 at ε = 1e-2, 1e-4 at ε = 1e-3.
+    a, b = 100.0, 1.0
+
+    def loss(p):
+        return b * p["w"][0] + a * p["w"][0] ** 3
+
+    r = sil.directional_fd(loss, {"w": jnp.zeros(1)}, [1e-3, 1e-2])
+    assert r["epsilon"] == 1e-3
+    assert r["relative_error"] == pytest.approx(1e-4, rel=1e-2)
+    assert sil.directional_fd(loss, {"w": jnp.zeros(1)}, [1e-2])[
+        "relative_error"
+    ] == pytest.approx(1e-2, rel=1e-2)
+
+
 def test_checkpoint_updates_include_the_identity_and_the_end():
     assert sil.checkpoint_updates(10, 4) == [0, 4, 8, 10]
 

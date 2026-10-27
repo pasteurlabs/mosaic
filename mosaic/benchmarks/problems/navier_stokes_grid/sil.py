@@ -274,12 +274,15 @@ def fit(
 
 
 def directional_fd(
-    loss: Callable[[Any], jax.Array], params: Any, epsilon: float
+    loss: Callable[[Any], jax.Array], params: Any, epsilons: Sequence[float]
 ) -> dict[str, float]:
     """Central difference of ``loss`` along its own normalised gradient.
 
     Along the unit gradient direction d the directional derivative is the
     gradient norm, so the check compares ‖∇L‖ with (L(p + εd) − L(p − εd))/2ε.
+    The truncation error grows with the unroll, as the loss curves more
+    sharply, and noise grows as ε shrinks, so the check keeps the ε with the
+    smallest error, as the gradient suite does.
     """
     grads = jax.grad(loss)(params)
     norm = global_norm(grads)
@@ -288,18 +291,25 @@ def directional_fd(
             "autodiff": norm,
             "finite_difference": float("nan"),
             "relative_error": float("inf"),
-            "epsilon": epsilon,
+            "epsilon": float("nan"),
         }
     direction = jax.tree.map(lambda g: g / norm, grads)
-    plus = jax.tree.map(lambda p, d: p + epsilon * d, params, direction)
-    minus = jax.tree.map(lambda p, d: p - epsilon * d, params, direction)
-    fd = float((loss(plus) - loss(minus)) / (2 * epsilon))
-    return {
-        "autodiff": norm,
-        "finite_difference": fd,
-        "relative_error": abs(norm - fd) / max(abs(norm), abs(fd), 1e-12),
-        "epsilon": epsilon,
-    }
+
+    def shifted(step: float) -> Any:
+        return jax.tree.map(lambda p, d: p + step * d, params, direction)
+
+    best: dict[str, float] = {}
+    for epsilon in epsilons:
+        fd = float((loss(shifted(epsilon)) - loss(shifted(-epsilon))) / (2 * epsilon))
+        error = abs(norm - fd) / max(abs(norm), abs(fd), 1e-12)
+        if not best or error < best["relative_error"]:
+            best = {
+                "autodiff": norm,
+                "finite_difference": fd,
+                "relative_error": error,
+                "epsilon": epsilon,
+            }
+    return best
 
 
 def evaluate(
@@ -371,7 +381,7 @@ DEFAULT_TRAINING: dict[str, Any] = {
     "audit_tolerance": 0.25,
     # Closure of chained calls against one call (median, 95th percentile).
     "closure_tolerance": [0.005, 0.01],
-    "fd_epsilon": 0.01,
+    "fd_epsilons": [1e-3, 3e-3, 1e-2],
     "fd_tolerance": 0.05,
     "hidden_channels": 8,
     "kernel_size": 5,
@@ -696,8 +706,8 @@ def run(t: Any, ctx: Any, *, step_factory: Callable = solver_step) -> dict:
     readout = 0.01 * jax.random.normal(jax.random.PRNGKey(17), p0[-1]["w"].shape)
     p1 = (*p0[:-1], {"w": readout, "b": p0[-1]["b"]})
     fd = {
-        "zero_readout": directional_fd(loss, p0, cfg["fd_epsilon"]),
-        "nonzero_readout": directional_fd(loss, p1, cfg["fd_epsilon"]),
+        "zero_readout": directional_fd(loss, p0, cfg["fd_epsilons"]),
+        "nonzero_readout": directional_fd(loss, p1, cfg["fd_epsilons"]),
     }
     metrics["fd"] = fd
     metrics["fd_passed"] = all(
