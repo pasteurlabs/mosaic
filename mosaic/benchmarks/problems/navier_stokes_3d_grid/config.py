@@ -74,13 +74,14 @@ _TESSERACT_SLUG = "navier-stokes-grid"
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 
-# JAX-CFD is a 2D-only solver (spectral pressure solve doesn't generalise to
-# the 3D periodic-box benchmark configuration); drop it from the 3D suite.
-_SOLVERS.pop("jax_cfd", None)
-
 apply_styles(_SOLVERS)
 
 # ── Per-(solver, problem) overrides ──────────────────────────────────────────
+
+_SOLVERS["jax_cfd"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+    "inner_steps": 1,
+}
 
 _SOLVERS["exponax"].input_overrides = {
     "drag": jnp.array([0.0], dtype=jnp.float32),
