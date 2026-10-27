@@ -93,7 +93,7 @@ _SOLVERS["exponax"].input_overrides = {
 
 # ── Shared run-lists ─────────────────────────────────────────────────────────
 
-_COST_BASE_PHYS = {"nu": 0.01, "dt": 0.01, "lbm_N_base": 16}
+_COST_BASE_PHYS = {"nu": 0.01, "dt": 0.01}
 _COST_N_VALUES = [16, 32, 48, 64]
 _COST_STEPS_VALUES = [10, 50, 100]
 _COST_REF_N = 48
@@ -227,7 +227,6 @@ problem.add_experiment(
         "nu": [0.001, 0.01, 0.05],
         "dt": 0.01,
         "steps": 50,
-        "lbm_N_base": 16,
     },
     plot=plot_agreement,
 )
@@ -248,7 +247,6 @@ problem.add_experiment(
                 "nu": 0.05,
                 "dt": 0.01,
                 "steps": 20,
-                "lbm_N_base": 16,
             },
         },
         {
@@ -259,7 +257,6 @@ problem.add_experiment(
                 "dt": 0.01,
                 "steps": [5, 10, 20, 50],
                 "N": 16,
-                "lbm_N_base": 16,
             },
         },
         {
@@ -270,7 +267,6 @@ problem.add_experiment(
                 "dt": 0.01,
                 "steps": 20,
                 "N": 16,
-                "lbm_N_base": 16,
             },
         },
     ],
