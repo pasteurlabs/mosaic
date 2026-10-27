@@ -16,7 +16,3 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = [".."]
 include = ["mosaic_shared", "mosaic_shared.*"]
-
-[tool.setuptools.package-data]
-"mosaic_shared.problems.navier_stokes_grid" = ["*.jl"]
-"mosaic_shared.problems.structural_mesh" = ["*.jl"]
