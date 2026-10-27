@@ -4,12 +4,15 @@
 import hashlib
 import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import meshio
 import numpy as np
+import scipy.sparse
+from jax.experimental.sparse import BCOO
 from jax_fem.generate_mesh import Mesh
 
 # Import JAX-FEM specific modules
@@ -127,6 +130,43 @@ class Elasticity(Problem):
         traction = -jax.vmap(jax.vmap(neumann_fn))(u_face, subset_quad_points)
         val = jnp.sum(traction * u_face * nanson_scale[:, :, None])
         return val
+
+
+# JAX-FEM's default `jax_solver` (Jacobi-preconditioned BiCGSTAB) runs
+# `jax.scipy.sparse.linalg.bicgstab` eagerly, so every linear solve is traced
+# and compiled anew: 2 XLA compilations per forward call and 4 per VJP. This is
+# the same solve, compiled once per matrix size and number of nonzeros, and
+# passed to `ad_wrapper` through JAX-FEM's `custom_solver` option.
+@partial(jax.jit, static_argnames=("shape",))
+def _bicgstab(
+    data: jnp.ndarray,
+    indices: jnp.ndarray,
+    b: jnp.ndarray,
+    x0: jnp.ndarray,
+    inv_diag: jnp.ndarray,
+    shape: tuple[int, int],
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    A = BCOO((data, indices), shape=shape)
+    x, _ = jax.scipy.sparse.linalg.bicgstab(
+        A, b, x0=x0, M=lambda r: r * inv_diag, tol=1e-10, atol=1e-10, maxiter=10000
+    )
+    return x, jnp.linalg.norm(A @ x - b)
+
+
+def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> Any:
+    """`jax_fem.solver.jax_solve` with the BiCGSTAB iteration compiled once."""
+    indptr, indices, data = A.getValuesCSR()
+    A_csr = scipy.sparse.csr_array((data, indices, indptr), shape=A.getSize())
+    A_bcoo = BCOO.from_scipy_sparse(A_csr).sort_indices()
+    x0 = np.zeros_like(b) if x0 is None else x0
+    x, err = _bicgstab(
+        A_bcoo.data, A_bcoo.indices, b, x0, 1.0 / A_csr.diagonal(), A_bcoo.shape
+    )
+    assert err < 0.1, f"JAX linear solver failed to converge with err = {err}"
+    return x
+
+
+_SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
 
 
 # Module-level cache for the compiled elasticity solver, keyed on everything
@@ -257,8 +297,8 @@ def setup(
     # This is a critical step that makes the problem solver differentiable
     fwd_pred = ad_wrapper(
         problem,
-        solver_options={"umfpack_solver": {}},
-        adjoint_solver_options={"umfpack_solver": {}},
+        solver_options=_SOLVER_OPTIONS,
+        adjoint_solver_options=_SOLVER_OPTIONS,
     )
     result = (problem, fwd_pred)
     _setup_cache[cache_key] = result
