@@ -37,8 +37,8 @@ def _experiment_keys_for_suite(cfg: Any, suite: str) -> list[str]:
     prefix = f"{suite}/"
     return [
         key[len(prefix) :]
-        for key, exp in cfg.experiments.items()
-        if key.startswith(prefix) and key[len(prefix) :] and not exp.on_demand
+        for key in cfg.experiments
+        if key.startswith(prefix) and key[len(prefix) :]
     ]
 
 

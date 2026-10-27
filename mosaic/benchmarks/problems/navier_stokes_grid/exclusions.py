@@ -152,4 +152,3 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})
     problem.exclude("optimization/kolmogorov_sil", _KOLMOGOROV_DIVERGES)
-    problem.exclude("optimization/kolmogorov_sil_campaign", _KOLMOGOROV_DIVERGES)

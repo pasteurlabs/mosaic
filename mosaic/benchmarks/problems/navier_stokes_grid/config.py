@@ -544,24 +544,21 @@ _SIL_PHYSICS = {
 }
 _SIL_DESCRIPTION = (
     "A small CNN corrects each solver's coarse Kolmogorov flow (64², ν = 2·10⁻³)"
-    " every 0.1 time units, trained against that solver's own 256² reference"
-    " in four arms: uncorrected, supervised one-interval pairs, a K-interval"
-    " rollout with the gradient stopped at the solver, and the same rollout"
-    " differentiated through the solver (solver in the loop). Relative error of"
-    " each arm's rollout against the reference on held-out states, and the"
-    " paired gap closed and value of the solver gradient. The errors are"
-    " measured against each solver's own reference, so they count as accuracy"
-    " only where the solver passes forward/kolmogorov; elsewhere they say how"
-    " well training reproduces that solver's own finer discretization."
+    " every 0.1 time units and is trained against that solver's own 256²"
+    " reference: on one-interval pairs (supervised), through a 4-interval"
+    " rollout with the gradient stopped at the solver, and through the same"
+    " rollout differentiated through the solver (solver in the loop). Wall time"
+    " per training update of each. A solver passes when its reference agrees"
+    " with a finer run, chained calls reproduce one long call, the gradient of"
+    " the training loss through 16 intervals matches finite differences, and"
+    " training completes with finite losses. 32 updates are too few to say how"
+    " much the corrector helps, so its errors are not scored."
 )
 problem.add_experiment(
     "optimization/kolmogorov_sil",
     sil.solver_in_loop,
     plot_description=_SIL_DESCRIPTION,
     physics=_SIL_PHYSICS,
-    # The CI-sized comparison: one unroll, one network seed and learning rate,
-    # one test state. It shows that a solver can be trained through, at what
-    # cost; the campaign below measures how much the gradient helps.
     optim={
         "unrolls": [4],
         "updates": 32,
@@ -575,28 +572,6 @@ problem.add_experiment(
     plot=plot_kolmogorov_sil,
     # Feasibility only: no arm has to win. See sil_status.
     status_check=[sil_status.feasible()],
-)
-problem.add_experiment(
-    "optimization/kolmogorov_sil_campaign",
-    sil.solver_in_loop,
-    plot_description=_SIL_DESCRIPTION,
-    physics=_SIL_PHYSICS,
-    # The full comparison, on demand: hours per solver. The learning-rate grid
-    # sits where the pilot's validation chose the top of {1e-4, 3e-4, 1e-3}
-    # for every arm.
-    optim={
-        "unrolls": [1, 4, 16],
-        "updates": 256,
-        "model_seeds": [0, 1, 2],
-        "learning_rates": [3e-4, 1e-3, 3e-3],
-        "validation_interval": 32,
-        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5, 6, 7]},
-        "train_frames": 32,
-        "eval_frames": 40,
-    },
-    plot=plot_kolmogorov_sil,
-    status_check=[sil_status.feasible()],
-    on_demand=True,
 )
 
 # Bonus plot (not paired with an experiment).

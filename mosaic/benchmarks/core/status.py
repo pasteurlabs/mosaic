@@ -1294,7 +1294,7 @@ def collect_status(cfg: Problem, suites: list[str] | None = None) -> ProblemStat
         suite, _, exp_label = full_key.partition("/")
         if not exp_label or suite == "ics" or suite not in suites:
             continue
-        if (suite, exp_label) in seen or cfg.experiments[full_key].on_demand:
+        if (suite, exp_label) in seen:
             continue
         allowed = _suite_filter(cfg, suite)
         if allowed and exp_label.split("/")[0] not in allowed:

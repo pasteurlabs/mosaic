@@ -143,9 +143,6 @@ class Experiment:
     fn: ExperimentFn
     params: dict = field(default_factory=dict)
     coords: dict[str, Any] = field(default_factory=dict)
-    # Run only when named explicitly (``mosaic run -e``), never as part of a
-    # suite: see :meth:`Problem.add_experiment`.
-    on_demand: bool = False
 
 
 @dataclass
@@ -295,7 +292,6 @@ class Problem:
         reduce: Callable | None = None,
         status_check: list | None = None,
         coords: dict[str, Any] | None = None,
-        on_demand: bool = False,
         **config: Any,
     ) -> None:
         """Register an experiment at ``key``.
@@ -317,11 +313,6 @@ class Problem:
         Variant fan-out auto-tags each sub with ``{"variant": <name>}``.
         Persisted into ``result.json`` so aggregator plots can find each
         cell's coordinates without parsing the experiment name.
-
-        ``on_demand`` leaves the experiment out of every default selection:
-        a suite run, the CI matrix and the status table until it has a result.
-        It runs only when named with ``mosaic run -e``. For configurations
-        that are versioned with the benchmark but take hours.
 
         Per-(solver, experiment) exclusions are attached via
         ``problem.exclude(key, {solver_name: Exclusion, ...})``.
@@ -381,9 +372,6 @@ class Problem:
                         status_check=status_check,
                         coords=sub_coords,
                     )
-
-        for sub_key in sub_keys:
-            self.experiments[sub_key].on_demand = on_demand
 
         if plot is not None:
             if isinstance(plot, dict):

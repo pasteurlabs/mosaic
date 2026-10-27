@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""The solver-in-the-loop plots render from a run's result."""
+"""The solver-in-the-loop cost plot renders from a run's result."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from mosaic.benchmarks.problems.navier_stokes_grid import sil
 from .test_sil import _truth, grid_dependent_step
 
 
-def test_plots_render(tmp_path, monkeypatch):
+def test_plot_renders(tmp_path, monkeypatch):
     from mosaic.benchmarks.problems import get_config
     from mosaic.benchmarks.problems.navier_stokes_grid.plots import (
         plot_kolmogorov_sil,
@@ -50,7 +50,6 @@ def test_plots_render(tmp_path, monkeypatch):
     (out / "result.json").write_text(json.dumps(result, default=float))
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
 
-    charts = plot_kolmogorov_sil(get_config("ns-grid"), exp_key="kolmogorov_sil")
-    assert len(charts) == 3
-    for stem in ("kolmogorov_sil", "kolmogorov_sil_paired", "kolmogorov_sil_cost"):
-        assert (out / f"{stem}.png").exists()
+    charts = plot_kolmogorov_sil(get_config("ns-grid"))
+    assert len(charts) == 1
+    assert (out / "kolmogorov_sil_cost.png").exists()
