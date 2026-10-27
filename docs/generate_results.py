@@ -205,7 +205,6 @@ EXPERIMENT_LABELS = {
     "kolmogorov_laminar": "Kolmogorov Flow (Laminar)",
     "kolmogorov": "Kolmogorov Flow",
     "kolmogorov_sil": "Training Through the Solver",
-    "kolmogorov_sil_campaign": "Training Through the Solver (Campaign)",
     "conductivity_recovery_bfgs": "Conductivity Recovery (L-BFGS)",
     "recovery_constant_ic_bfgs_proj": "Initial-Condition Recovery (L-BFGS)",
     "recovery": "Recovery",
