@@ -275,6 +275,7 @@ def test_run_gates_trains_and_evaluates(monkeypatch):
         "train_frames": 4,
         "eval_frames": 4,
         "audit_frames": 2,
+        "fd_unroll": 3,
     }
     ctx = SimpleNamespace(
         name="fake",

@@ -381,6 +381,9 @@ DEFAULT_TRAINING: dict[str, Any] = {
     "audit_tolerance": 0.25,
     # Closure of chained calls against one call (median, 95th percentile).
     "closure_tolerance": [0.005, 0.01],
+    # The FD check differentiates the solver-in-the-loop loss through this many
+    # intervals, independently of the unrolls trained on.
+    "fd_unroll": 16,
     "fd_epsilons": [1e-3, 3e-3, 1e-2],
     "fd_tolerance": 0.05,
     "hidden_channels": 8,
@@ -689,10 +692,15 @@ def run(t: Any, ctx: Any, *, step_factory: Callable = solver_step) -> dict:
     uncorrected = evaluate(coarse, None, refs["test"], INTERVAL)
 
     # Gradient checks of the full solver-in-the-loop loss, at the identity
-    # model and at a random nonzero readout, on the longest unroll.
-    K = max(cfg["unrolls"])
+    # model and at a random nonzero readout.
+    K = cfg["fd_unroll"]
     _, natives = teacher_forcing(coarse, refs["train"][:1])
     start = min(4, refs["train"].shape[1] - 1 - K)
+    if start < 0:
+        raise ValueError(
+            f"fd_unroll = {K} needs more than {K} training frames, "
+            f"got {refs['train'].shape[1]}"
+        )
     targets = jnp.asarray(refs["train"][0, start : start + K + 1])
 
     def loss(params: Any) -> jax.Array:

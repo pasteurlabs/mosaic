@@ -29,6 +29,7 @@ def test_plots_render(tmp_path, monkeypatch):
         "validation_interval": 1,
         "seeds": {"train": [0], "validation": [1], "test": [2, 3]},
         "train_frames": 3,
+        "fd_unroll": 2,
         "eval_frames": 3,
         "audit_frames": 2,
     }
