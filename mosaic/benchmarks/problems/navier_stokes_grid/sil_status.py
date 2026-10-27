@@ -5,7 +5,8 @@
 
 The check gates feasibility only: whether a solver can be trained through and
 its comparison is sound. There is deliberately no criterion on which arm
-wins; a run passes when the supervised arm beats solver-in-the-loop training.
+wins; a run passes even when the supervised arm beats solver-in-the-loop
+training.
 """
 
 from __future__ import annotations
