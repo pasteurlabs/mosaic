@@ -804,7 +804,9 @@ def _memory_poller(t: Any) -> Any:
     from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
     from mosaic.benchmarks.core.runner import current_worker_context
 
-    return MemoryPoller(current_worker_context().gpu_id, container_id_from_tesseract(t))
+    # Without --gpus the runner pins no GPU; measure GPU 0, as the harness does.
+    gpu_id = current_worker_context().gpu_id
+    return MemoryPoller(0 if gpu_id is None else gpu_id, container_id_from_tesseract(t))
 
 
 @kernel(sweep_mode="none", selector_fn=active_differentiable_solvers)
