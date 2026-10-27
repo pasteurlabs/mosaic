@@ -117,6 +117,13 @@ _OBSTACLE_GATE = {
     "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
+# The solver-in-the-loop experiments run the forward/kolmogorov configurations.
+_KOLMOGOROV_DIVERGES = {
+    "phiflow": EXPLICIT_CENTRAL_UNSTABLE,
+    "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
+    "exponax": EXPONAX_UNDEALIASED_ETDRK2,
+}
+
 
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
@@ -129,12 +136,7 @@ def register(problem: Problem) -> None:
     problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
     problem.exclude(
         "forward/kolmogorov",
-        {
-            "openfoam": OPENFOAM_NO_SOURCE_TERM,
-            "phiflow": EXPLICIT_CENTRAL_UNSTABLE,
-            "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
-            "exponax": EXPONAX_UNDEALIASED_ETDRK2,
-        },
+        {"openfoam": OPENFOAM_NO_SOURCE_TERM, **_KOLMOGOROV_DIVERGES},
     )
 
     # Cost
@@ -149,3 +151,5 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})
+    problem.exclude("optimization/kolmogorov_sil", _KOLMOGOROV_DIVERGES)
+    problem.exclude("optimization/kolmogorov_sil_campaign", _KOLMOGOROV_DIVERGES)

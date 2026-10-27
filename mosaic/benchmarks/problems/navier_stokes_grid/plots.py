@@ -164,6 +164,13 @@ def _sil_entries(ctx: Ctx) -> list[tuple[str, dict]]:
     ]
 
 
+def _by_solver(rows: list[dict]) -> tuple[pd.DataFrame, list[str]]:
+    """Rows with display labels for solvers, and those labels in registry order."""
+    df = pd.DataFrame(rows)
+    enc = solver_encodings(df["solver"].unique())
+    return enc.relabel(df), enc.labels
+
+
 def _sil_errors(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Median rollout error against the solver's reference, per arm and unroll."""
     rows = []
@@ -195,7 +202,7 @@ def _sil_errors(ctx: Ctx) -> alt.TopLevelMixin | None:
                     )
     if not rows:
         return None
-    df = pd.DataFrame(rows)
+    df, solvers = _by_solver(rows)
     base = alt.Chart(df).encode(x=alt.X("time:Q", title="time"), color=_arm_color())
     band = base.mark_area(opacity=0.15).encode(
         y=alt.Y("low:Q", scale=log_scale(), title="relative error"), y2="high:Q"
@@ -207,7 +214,7 @@ def _sil_errors(ctx: Ctx) -> alt.TopLevelMixin | None:
         alt.layer(band, line)
         .properties(width=200, height=150)
         .facet(
-            column=alt.Column("solver:N", title=None),
+            column=alt.Column("solver:N", title=None, sort=solvers),
             row=alt.Row("unroll:N", title=None),
         )
     )
@@ -230,7 +237,7 @@ def _sil_paired(ctx: Ctx) -> alt.TopLevelMixin | None:
             ]
     if not rows:
         return None
-    df = pd.DataFrame(rows)
+    df, solvers = _by_solver(rows)
     return (
         alt.Chart(df)
         .mark_tick(thickness=2, size=14)
@@ -243,7 +250,7 @@ def _sil_paired(ctx: Ctx) -> alt.TopLevelMixin | None:
         .properties(width=180, height=70)
         .facet(
             column=alt.Column("measure:N", title=None),
-            row=alt.Row("solver:N", title=None),
+            row=alt.Row("solver:N", title=None, sort=solvers),
         )
         .resolve_scale(x="independent")
     )
@@ -267,7 +274,7 @@ def _sil_cost(ctx: Ctx) -> alt.TopLevelMixin | None:
             )
     if not rows:
         return None
-    df = pd.DataFrame(rows)
+    df, solvers = _by_solver(rows)
     return (
         alt.Chart(df)
         .mark_line(point=True)
@@ -278,7 +285,7 @@ def _sil_cost(ctx: Ctx) -> alt.TopLevelMixin | None:
             tooltip=["solver:N", "arm:N", "K:Q", "seconds:Q"],
         )
         .properties(width=180, height=150)
-        .facet(column=alt.Column("solver:N", title=None))
+        .facet(column=alt.Column("solver:N", title=None, sort=solvers))
     )
 
 
