@@ -38,11 +38,11 @@ def _detect(*paths: str) -> list[tuple[str, str]]:
             [("navier-stokes-grid", "xlb")],
         ),
         (
-            ["mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl"],
+            ["mosaic/tesseracts/navier-stokes-grid/ins-jl/solver.jl"],
             [("navier-stokes-grid", "ins-jl")],
         ),
         (
-            ["mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl"],
+            ["mosaic/tesseracts/structural-mesh/topopt-jl/solver.jl"],
             [("structural-mesh", "topopt-jl")],
         ),
         # A shared module every solver imports is not a listed shared source.

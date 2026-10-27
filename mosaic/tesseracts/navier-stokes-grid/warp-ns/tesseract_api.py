@@ -34,31 +34,6 @@ from pydantic import model_validator
 wp.init()
 
 # ============================================================
-# @wp.func helpers — inlined by the Warp JIT compiler into every
-# kernel that calls them, so there is zero Python overhead.
-# ============================================================
-
-
-@wp.func
-def sanitize_float(v: float, clip: float) -> float:
-    """Replace NaN/Inf with 0 and clamp to [-clip, clip].
-
-    Extracted as a @wp.func so it can be reused in multiple kernels without
-    code duplication and benefits from Warp compiler inlining.
-    """
-    # NaN check: v != v is true only for NaN (wp.isnan unavailable in this context)
-    if v != v:  # noqa: PLR0124
-        v = wp.float32(0.0)
-    if v > wp.float32(1.0e30):
-        v = wp.float32(0.0)
-    if v < wp.float32(-1.0e30):
-        v = wp.float32(0.0)
-    v = min(v, clip)
-    v = max(v, -clip)
-    return v
-
-
-# ============================================================
 # 2-D Chorin projection kernels (primitive variables)
 # ============================================================
 
@@ -337,22 +312,6 @@ def pressure_correct_3d_from_complex_kernel(
     ux_new[i, j, k] = ux_star[i, j, k] - dt_ * dpdx
     uy_new[i, j, k] = uy_star[i, j, k] - dt_ * dpdy
     uz_new[i, j, k] = uz_star[i, j, k] - dt_ * dpdz
-
-
-@wp.kernel
-def _clip_and_sanitize_3d_kernel(
-    arr: wp.array3d(dtype=wp.float32),
-    clip: float,
-):
-    """Element-wise clip of a 3-D float32 array into [-clip, clip].
-
-    Also replaces NaN/Inf with 0.0 (hard safety).  Used inside the tape backward
-    to bound velocity-adjoint magnitude per timestep and prevent float32
-    overflow in the projection adjoint at turbulent high-Re regimes.
-    Delegates to sanitize_float @wp.func which is inlined by the Warp compiler.
-    """
-    i, j, k = wp.tid()
-    arr[i, j, k] = sanitize_float(arr[i, j, k], clip)
 
 
 def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
@@ -1548,7 +1507,6 @@ def ns3d_solve_tape(
     steps: int,
     domain_extent: float,
     device: str = "cpu",
-    adjoint_grad_clip: float | None = None,
     track_scalar_grads: bool = False,
 ) -> tuple[
     wp.Tape,
@@ -1630,50 +1588,6 @@ def ns3d_solve_tape(
         cur_ux, cur_uy, cur_uz = ux_wp, uy_wp, uz_wp
 
         for _step_i in range(steps):
-            # ── Per-step adjoint gradient clipping (stability guard) ───────────
-            # Registered before this step's kernels run; because record_func is
-            # LIFO, this fires LAST in the step's backward — after
-            # tentative_vel's auto-adjoint has written into cur_u{x,y,z}.grad.
-            # Clipping the per-timestep adjoint prevents float32 overflow in the
-            # projection adjoint at turbulent high-Re regimes without altering the
-            # gradient direction when ||adj||_inf is already within bounds.
-            # Only active when adjoint_grad_clip is set (>0).
-            if adjoint_grad_clip is not None and adjoint_grad_clip > 0:
-                _vx_cur, _vy_cur, _vz_cur = cur_ux, cur_uy, cur_uz
-                _clip = float(adjoint_grad_clip)
-                _d_clip = device
-                _n_clip = n
-
-                def _clip_cur_adj(
-                    _vx=_vx_cur,
-                    _vy=_vy_cur,
-                    _vz=_vz_cur,
-                    _c=_clip,
-                    _d=_d_clip,
-                    _n=_n_clip,
-                ):
-                    """Clip cur_u{x,y,z}.grad element-wise into [-c, c] via a Warp kernel.
-
-                    Prevents float32 overflow in the projection adjoint at high-Re and
-                    replaces NaN/Inf with 0 as a hard safety fallback.  GPU-native
-                    (no numpy round-trip) so per-step cost is negligible.
-                    """
-                    for parent in (_vx, _vy, _vz):
-                        if parent.grad is None:
-                            continue
-                        _wlaunch(
-                            _clip_and_sanitize_3d_kernel,
-                            dim=(_n, _n, _n),
-                            inputs=[parent.grad, _c],
-                            block_dim=_bd_3d,
-                            device=_d,
-                        )
-
-                tape.record_func(
-                    backward=_clip_cur_adj,
-                    arrays=[cur_ux, cur_uy, cur_uz],
-                )
-
             # Step 1: tentative velocity u* = u + dt·(-u·∇u + ν∇²u)
             ux_star = wp.zeros(
                 (n, n, n), dtype=wp.float32, requires_grad=True, device=device
