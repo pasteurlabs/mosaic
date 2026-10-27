@@ -52,7 +52,6 @@ from pathlib import Path
 from typing import Any
 
 import filelock
-import mosaic_shared
 import numpy as np
 from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -74,14 +73,7 @@ with _julia_init_lock:
     _jl_mod = juliacall.newmodule("topopt_jl")
     _jl_mod.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
     _jl_mod.seval("using TopOpt, Printf")
-    _jl_mod.include(
-        str(
-            Path(mosaic_shared.__file__).parent
-            / "problems"
-            / "structural_mesh"
-            / "topopt_solver.jl"
-        )
-    )
+    _jl_mod.include(str(Path(__file__).parent / "solver.jl"))
     _jl = _jl_mod
 
 

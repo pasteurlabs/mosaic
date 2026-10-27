@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
 
 from mosaic.benchmarks.core.harness import classify_failure
@@ -54,8 +55,7 @@ def _loss_with_bad_gradient_shell(bad: float):
 @pytest.mark.parametrize("bad", [jnp.inf, -jnp.inf, 3e38])
 def test_lbfgs_rejects_trial_steps_with_unusable_gradient(bad):
     """A trial step with a finite value but an infinite or overflowing gradient is
-    rejected like a non-finite value. Before, it entered L-BFGS's history and every
-    later step was NaN.
+    rejected like a non-finite value, so no iterate is NaN.
     """
     x0 = jnp.full((4,), 5.0)  # |x0 - 1| = 8, just outside the shell
     x, losses, _ = _run_lbfgs(_loss_with_bad_gradient_shell(bad), x0, max_iters=20)
@@ -63,15 +63,86 @@ def test_lbfgs_rejects_trial_steps_with_unusable_gradient(bad):
     assert losses[-1] <= losses[0]
 
 
-def test_lbfgs_unchanged_where_finite(monkeypatch):
-    """Where values and gradients are finite, the iterates are bitwise unchanged."""
-    from mosaic.benchmarks.problems.shared import optimization
+def _bowl(x):
+    return jnp.sum((x - jnp.arange(4.0)) ** 2) + 0.1 * jnp.sum(x**4)
 
-    def loss(x):
-        return jnp.sum((x - jnp.arange(4.0)) ** 4) + jnp.sum(jnp.sin(x))
 
-    x, losses, _ = _run_lbfgs(loss, jnp.zeros(4), max_iters=15)
-    monkeypatch.setattr(optimization, "_outside_domain_if_nonfinite", lambda f: f)
-    x_ref, losses_ref, _ = _run_lbfgs(loss, jnp.zeros(4), max_iters=15)
-    assert losses == losses_ref
-    assert jnp.array_equal(x, x_ref)
+def _counting_grad_proj(nan_calls: set[int] = frozenset()):
+    """A ``grad_proj_fn`` that records each evaluated ``x``'s gradient and returns
+    a NaN gradient on the given 0-based calls.
+    """
+    seen: list = []
+
+    def host(g):
+        seen.append(np.asarray(g).copy())
+        return g * np.nan if len(seen) - 1 in nan_calls else g
+
+    def proj(g):
+        return jax.pure_callback(host, jax.ShapeDtypeStruct(g.shape, g.dtype), g)
+
+    return proj, seen
+
+
+@pytest.mark.parametrize("nan_calls", [{2}, {2, 3}, {4}])
+def test_lbfgs_recovers_from_nonfinite_trial_points(nan_calls):
+    """After non-finite trial points the run still reaches the same minimum."""
+    proj, _ = _counting_grad_proj(nan_calls)
+    x, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50, grad_proj_fn=proj)
+    _, losses_ref, _ = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
+    assert jnp.all(jnp.isfinite(x))
+    assert losses[-1] == pytest.approx(losses_ref[-1], rel=1e-5)
+    assert diag["converged"]
+
+
+@pytest.mark.parametrize("nan_call", [20, 40])
+def test_lbfgs_recovers_from_nonfinite_trial_point_at_small_loss(nan_call):
+    """A non-finite trial point doesn't end a run whose loss is far below 1."""
+
+    def small(x):
+        return 1e-5 * 0.5 * jnp.sum(jnp.logspace(-4, 0, x.size) * (x - 1.0) ** 2)
+
+    proj, _ = _counting_grad_proj({nan_call})
+    _, losses, _ = _run_lbfgs(small, jnp.zeros(4096), max_iters=150, grad_proj_fn=proj)
+    _, losses_ref, _ = _run_lbfgs(small, jnp.zeros(4096), max_iters=150)
+    assert losses[-1] < 2 * losses_ref[-1]
+
+
+def test_lbfgs_evaluates_each_point_once():
+    proj, seen = _counting_grad_proj()
+    _, losses, _ = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50, grad_proj_fn=proj)
+    assert len(losses) > 2
+    assert len({g.tobytes() for g in seen}) == len(seen)
+
+
+def test_lbfgs_records_init_and_final_iterate():
+    x, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
+    assert losses[0] == pytest.approx(float(_bowl(jnp.zeros(4))))
+    assert losses[-1] == pytest.approx(float(_bowl(x)))
+    assert len(diag["grad_norms"]) == len(losses)
+
+
+def test_lbfgs_respects_bounds():
+    """The unconstrained minimum lies outside the box, so some entries end on a bound."""
+    x, _, _ = _run_lbfgs(_bowl, jnp.full(4, 0.5), max_iters=50, bounds=(0.25, 1.0))
+    assert jnp.all((x >= 0.25) & (x <= 1.0))
+    assert jnp.any(x == 1.0)
+
+
+def test_lbfgs_stops_on_gradient_two_norm():
+    """On a large ``x`` the run continues until the gradient's 2-norm is below 1e-7,
+    not just its largest entry.
+    """
+
+    def spread(x):
+        return 0.5 * jnp.sum(jnp.logspace(-2, 0, x.size) * (x - 1.0) ** 2)
+
+    _, _, diag = _run_lbfgs(spread, jnp.zeros(10_000), max_iters=500)
+    assert diag["converged"]
+    assert diag["grad_norms"][-1] < 1e-7
+
+
+def test_lbfgs_reports_convergence():
+    _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
+    assert diag["converged"] and len(losses) < 50
+    _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=2)
+    assert not diag["converged"] and len(losses) == 3
