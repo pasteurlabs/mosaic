@@ -1,4 +1,6 @@
 jax[cuda12]==0.10.0
 equinox==0.13.8
 xlb==0.3.1
+# xlb 0.3.1 imports warp.utils.ScopedTimer, which warp-lang 1.13 removed.
+warp-lang==1.12.1
 ../../../mosaic_shared
