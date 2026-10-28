@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 import juliacall
-import mosaic_shared
 import numpy as np
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
@@ -46,14 +45,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state
 jl = juliacall.newmodule("ins_ns")
 jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
 jl.seval("using IncompressibleNavierStokes, Zygote")
-jl.include(
-    str(
-        Path(mosaic_shared.__file__).parent
-        / "problems"
-        / "navier_stokes_grid"
-        / "ns_solver.jl"
-    )
-)
+jl.include(str(Path(__file__).parent / "solver.jl"))
 
 
 # ---------------------------------------------------------------------------

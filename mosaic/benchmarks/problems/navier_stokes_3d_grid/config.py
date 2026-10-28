@@ -74,13 +74,14 @@ _TESSERACT_SLUG = "navier-stokes-grid"
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 
-# JAX-CFD is a 2D-only solver (spectral pressure solve doesn't generalise to
-# the 3D periodic-box benchmark configuration); drop it from the 3D suite.
-_SOLVERS.pop("jax_cfd", None)
-
 apply_styles(_SOLVERS)
 
 # ── Per-(solver, problem) overrides ──────────────────────────────────────────
+
+_SOLVERS["jax_cfd"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+    "inner_steps": 1,
+}
 
 _SOLVERS["exponax"].input_overrides = {
     "drag": jnp.array([0.0], dtype=jnp.float32),
@@ -337,10 +338,9 @@ problem.add_experiment(
     plot=plot_fd_check,
     status_check=[
         min_cosine(0.99),
-        # Best-ε median rel_error across FD directions. Catches the
-        # warp_ns and phiflow 3D systematic backward-magnitude bias
-        # (median rel_err ≈ 1.7e-2 / 1.6e-2) while leaving xlb/ins_jl/
-        # pict/exponax (5e-6 to 1e-4) unflagged.
+        # Best-ε median rel_error across FD directions. A systematic
+        # error in the backward pass shows up as a plateau above this
+        # at every ε.
         max_rel_err(1e-3),
         # Peer-median outlier; ≥3 valid peers required.
         rel_err_peer_outlier(50.0),

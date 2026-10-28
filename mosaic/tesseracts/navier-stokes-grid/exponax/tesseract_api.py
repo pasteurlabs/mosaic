@@ -164,7 +164,6 @@ def exponax_fwd(
         "diffusivity": viscosity,
         "drag": drag,
         "order": order,
-        "dealiasing_fraction": 1.0,  # disable 2/3-rule truncation to match other solvers
     }
 
     if ndim == 2:
