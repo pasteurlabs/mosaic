@@ -337,10 +337,9 @@ problem.add_experiment(
     plot=plot_fd_check,
     status_check=[
         min_cosine(0.99),
-        # Best-ε median rel_error across FD directions. Catches the
-        # warp_ns and phiflow 3D systematic backward-magnitude bias
-        # (median rel_err ≈ 1.7e-2 / 1.6e-2) while leaving xlb/ins_jl/
-        # pict/exponax (5e-6 to 1e-4) unflagged.
+        # Best-ε median rel_error across FD directions. A systematic
+        # error in the backward pass shows up as a plateau above this
+        # at every ε.
         max_rel_err(1e-3),
         # Peer-median outlier; ≥3 valid peers required.
         rel_err_peer_outlier(50.0),
