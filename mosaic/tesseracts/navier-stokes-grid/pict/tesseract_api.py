@@ -963,13 +963,24 @@ def vector_jacobian_product(
     leaves = {"v0": v0_t, "viscosity": nu_t, "inflow_profile": profile_t}
     keys = [k for k, wanted in want.items() if wanted]
     grads: list[torch.Tensor | None] = [None] * len(keys)
-    if keys and outputs:
+    # DEVIATION FROM PICT. PICT's linear solves stop once the RMS of their
+    # residual falls below an absolute tolerance (by default 1e-5 in float32),
+    # and the adjoint solves of its backward pass use the same one. For small
+    # cotangents they stop after few or no iterations, so PICT's VJP is not
+    # linear in the cotangent: with cotangents of about 1e-4 per entry, the
+    # gradient through a chain of calls is wrong by tens of percent. Here the
+    # cotangents are scaled to a largest entry of 1 and the gradients scaled
+    # back. That is exact for a linear VJP and makes the adjoint tolerance
+    # relative to the cotangent.
+    scale = max((float(c.abs().max()) for c in cotangents), default=0.0)
+    if keys and outputs and scale > 0:
         grads = torch.autograd.grad(
             outputs=outputs,
             inputs=[leaves[k] for k in keys],
-            grad_outputs=cotangents,
+            grad_outputs=[c / scale for c in cotangents],
             allow_unused=True,
         )
+        grads = [None if g is None else g * scale for g in grads]
     out: dict[str, Any] = {}
     for key, g in zip(keys, grads, strict=True):
         if g is None:
