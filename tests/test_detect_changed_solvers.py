@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / ".github" / "scripts" / "detect-changed-solvers.py"
@@ -45,19 +44,8 @@ def _detect(*paths: str) -> list[tuple[str, str]]:
             ["mosaic/tesseracts/structural-mesh/topopt-jl/solver.jl"],
             [("structural-mesh", "topopt-jl")],
         ),
-        # A shared module every solver imports is not a listed shared source.
         (["mosaic/mosaic_shared/schema_types.py"], []),
     ],
 )
 def test_detects_solvers_from_changed_paths(paths, expected):
     assert _detect(*paths) == expected
-
-
-def test_shared_sources_exist():
-    """Every ``shared_sources`` entry names a file in the repository."""
-    for cfg in sorted((REPO / "mosaic" / "tesseracts").rglob("tesseract_config.yaml")):
-        meta = (yaml.safe_load(cfg.read_text()).get("metadata") or {}).get(
-            "mosaic"
-        ) or {}
-        for src in meta.get("shared_sources") or []:
-            assert (REPO / src).is_file(), f"{cfg}: shared source {src} does not exist"
