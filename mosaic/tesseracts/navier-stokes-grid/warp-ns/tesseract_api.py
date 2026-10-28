@@ -851,19 +851,20 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
 def _inv_lambda_3d(
     n: int, domain_extent: float, device: str, permute: tuple | None = None
 ) -> wp.array:
-    """Precompute 1/λ for the 3-D discrete-FD-eigenvalue spectral Poisson solve.
+    """Precompute 1/λ for the 3-D spectral Poisson solve.
 
-    Uses the discrete finite-difference Laplacian eigenvalues:
-        λ_disc(kx, ky, kz) = -(4/h²)(sin²(πkx/N) + sin²(πky/N) + sin²(πkz/N))
-    where h = L/N and kx,ky,kz are integer wavenumbers. This matches the
-    stencil used by tentative_vel_3d_kernel and pressure_correct_3d_kernel
-    (both use inv_h2 = 1/h² and inv_2h = 1/(2h) central differences), making
-    the spectral solve the exact inverse of the discrete FD Laplacian.
+    Uses the eigenvalues of the compact 7-point Laplacian:
+        λ(kx, ky, kz) = -(4/h²)(sin²(πkx/N) + sin²(πky/N) + sin²(πkz/N))
+    where h = L/N and kx,ky,kz are integer wavenumbers. This is the stencil
+    tentative_vel_3d_kernel uses for viscous diffusion. The projection itself
+    takes central differences (inv_2h) for both the divergence and the
+    pressure gradient, which compose to the wide-stencil Laplacian with
+    eigenvalues -(1/h²)Σ sin²(2πk/N). The solve is therefore not its exact
+    inverse, and the projected velocity is only approximately divergence-free
+    under the central-difference divergence.
 
-    Using continuous eigenvalues -(2π/L)²k² instead introduces a ~(πk/N)²/3
-    relative error per wavenumber (≈1.3% at k=1, N=16), which compounds across
-    the VJP chain and causes a flat-plateau gradient magnitude bias in the
-    fd_check.
+    The tape differentiates whichever operator is used, so this choice does
+    not bias the gradient against finite differences of ``apply``.
 
     ``permute`` optionally applies an axis permutation to the returned array:
     the eigenvalue formula is symmetric in kx/ky/kz, so a permuted copy of
@@ -2254,19 +2255,17 @@ def _channel_pressure_solver(
     use_graph = wp.get_device(device).is_cuda and wp.is_conditional_graph_supported()
     unconverged = wp.zeros(1, dtype=wp.int32, device=device)
     rhs_buffer = wp.zeros(n, dtype=wp.float32, device=device)
-    # The solver records its dot-product launches on the default device.
-    with wp.ScopedDevice(device):
-        cg = warp.optim.linear.cg(
-            operator(matvec),
-            rhs_buffer,
-            wp.zeros(n, dtype=wp.float32, device=device),
-            tol=_CHANNEL_CG_TOL,
-            atol=0.0,
-            maxiter=_CHANNEL_CG_MAXITER,
-            M=operator(precondition),
-            check_every=0 if use_graph else 10,
-            run=False,
-        )
+    cg = warp.optim.linear.cg(
+        operator(matvec),
+        rhs_buffer,
+        wp.zeros(n, dtype=wp.float32, device=device),
+        tol=_CHANNEL_CG_TOL,
+        atol=0.0,
+        maxiter=_CHANNEL_CG_MAXITER,
+        M=operator(precondition),
+        check_every=0 if use_graph else 10,
+        run=False,
+    )
 
     def run(x: wp.array) -> None:
         _, residual, atol = cg(b=rhs_buffer, x=x)

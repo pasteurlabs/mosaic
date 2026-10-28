@@ -456,9 +456,6 @@ _RADIAL_GRADING = 0.5
 # Cell growth along the wake block, outlet cell size over the cell size next
 # to the cylinder.
 _WAKE_GRADING = 10.0
-# Largest Courant number of an internal step, estimated from the peak inflow
-# speed and the smallest cell. Outer steps longer than that are sub-stepped.
-_MAX_COURANT = 1.0
 # Fewest cells per MPI process. Smaller meshes run serially.
 _CELLS_PER_PROCESS = 10_000
 
@@ -479,7 +476,7 @@ def _write_channel_block_mesh_dict(
     dx: float,
     center: tuple[float, float],
     radius: float,
-) -> float:
+) -> None:
     """Write the blockMeshDict of a 2-D channel with an O-grid around the cylinder.
 
     The lines x = cx ± 2r and y = cy ± 2r cut the channel into 3 × 3 blocks.
@@ -488,8 +485,6 @@ def _write_channel_block_mesh_dict(
     holds four O-grid blocks between its sides and the cylinder, with
     4 × 4r/dx cells around the cylinder and 2r/dx cells radially, shrinking
     towards the wall. One cell thick in z.
-
-    Returns the smallest cell size, on the cylinder wall.
     """
     lx, ly = extent
     cx, cy = center
@@ -616,12 +611,6 @@ defaultPatch
 """
     )
     (system_dir / "blockMeshDict").write_text(content)
-
-    # The smallest cell lies on the wall at mid-side, where the O-grid blocks
-    # are thinnest. Radially it is the last of n_rad geometrically graded cells.
-    q = _RADIAL_GRADING ** (1 / (n_rad - 1))
-    first = (half_side - radius) * (1 - q) / (1 - q**n_rad)
-    return min(first * q ** (n_rad - 1), 2 * math.pi * radius / (4 * n_side))
 
 
 def _write_channel_control_dict(
@@ -906,13 +895,9 @@ def _run_channel(inputs: InputSchema) -> dict:
         (workdir / "constant").mkdir()
         (workdir / "system").mkdir()
 
-        h_min = _write_channel_block_mesh_dict(
-            workdir / "system", extent, dx, center, radius
-        )
-        courant = float(np.abs(profile).max()) * dt / h_min
-        substeps = max(1, math.ceil(courant / _MAX_COURANT))
-        n_steps = inputs.steps * substeps
-        _write_channel_control_dict(workdir / "system", dt / substeps, n_steps, center)
+        _write_channel_block_mesh_dict(workdir / "system", extent, dx, center, radius)
+        n_steps = inputs.steps
+        _write_channel_control_dict(workdir / "system", dt, n_steps, center)
         _write_channel_numerics(workdir / "system", workdir / "constant", nu)
         _run_of("blockMesh", workdir)
 
@@ -942,7 +927,7 @@ def _run_channel(inputs: InputSchema) -> dict:
     return {
         "result": velocity,
         "pressure": pressure,
-        "body_force": forces[substeps - 1 :: substeps].astype(np.float32),
+        "body_force": forces.astype(np.float32),
     }
 
 
