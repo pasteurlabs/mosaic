@@ -216,6 +216,31 @@ results record which items have been done:
    long rollouts.
 4. Runtime adaptations used through the harness contract (policy 2).
 
+The checklist follows what an experienced user of each library would do:
+
+- **Tolerances.** An iterative solve should contribute an error that is
+  negligible next to the discretization error of the setup, and no less: a
+  tighter tolerance only costs time, a looser one corrupts the forward
+  solution and the gradient. In practice this is the loosest tolerance at
+  which every check of the setup, including the gradient checks, is
+  unchanged. Tolerances tighter than that are loosened, looser ones
+  tightened.
+- **Framework defaults.** A setting that switches off an optimization the
+  framework enables by default (for example XLA's GEMM autotuning) needs a
+  reason that reproduces on the current benchmark hardware. Without one, the
+  default is restored. Extra compilation from such defaults happens in the
+  untimed warm-up call and shows in the first-call cost.
+- **Hardware.** Within a device class, every solver gets the same machine and
+  may use it as an experienced user would: threads, MPI ranks and devices are
+  tuning choices like any other, picked by measurement at the setup's sizes,
+  and the results record what was used. Moving a solver to its library's own
+  GPU backend is tuning of the same entry, which then joins the GPU group. If
+  differentiation does not work on that backend, the entry stays on the CPU
+  and records why.
+- **Like with like.** Cost is compared within a device class, on the results
+  pages and in the cost checks alike. A CPU solver that is slower than the GPU
+  solvers is a property of the hardware, not an anomaly.
+
 ## Harness contract for runtime adaptations
 
 The cost column reports what a call costs once a solver is set up, as in an

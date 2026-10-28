@@ -1,6 +1,6 @@
 # Policy 2: a harness contract for runtime adaptations
 
-**Status:** decided 2026-10-27. Contract in `interventions.md` ("Harness contract for runtime adaptations"). Work item 1 is #285; item 2 implemented but not opened (see below); 3 and 4 open.
+**Status:** decided 2026-10-27. Contract in `interventions.md` ("Harness contract for runtime adaptations"). Work item 1 is #285, item 2 is #292; 3 and 4 open.
 
 ## The problem
 
@@ -46,7 +46,7 @@ The question the cost column answers is what a call costs inside a loop that a p
 ## Work items
 
 1. Harness: record the warm-up call's wall time and report it as first-call cost (`core/harness.py`, `problems/shared/cost.py`, results page). **#285.**
-2. Bound the JAX-FEM, TopOpt.jl and INS.jl caches to one entry. Implemented on the unpushed branch `refactor/one-entry-setup-caches` (four `clear()`/`empty!` calls); every output stays bit-identical over the forward, gradient and cost suites. No recorded metric can show the effect (see "One setup at a time"), and none of these containers is near its memory limit, so I did not open a PR. Open it when a sweep runs out of container memory, or together with a container-memory metric.
+2. Bound the JAX-FEM, TopOpt.jl and INS.jl caches to one entry. **#292** (four `clear()`/`empty!` calls). An earlier sandbox implementation kept every output bit-identical over the forward, gradient and cost suites. No recorded metric can show the effect (see "One setup at a time"), and none of these containers is near its memory limit. It was opened anyway because contract item 6 requires it, so the code says what the contract says.
 3. Setup caches for torch-fem (both) and PICT; a persistent worker for deal.II (both).
 4. Per-solver disclosure on the results pages, with the record format (rollout step 4).
 

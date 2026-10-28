@@ -1,6 +1,6 @@
 # Policy 4: tuning checklist status
 
-**Status:** draft for Dion. No code changed.
+**Status:** questions settled 2026-10-28 (below); the rules are in the tuning checklist of `interventions.md`. The per-solver table reflects `main` at 6517f75.
 
 Sources: `main` at 6517f75, the spike records on `spike/intervention-annotations`, PR bodies, and cost numbers from the A100 full run at b6eb311 (`~/localfiles/runs/full-a100-b6eb311`). "n/a" means the item has nothing to tune, for example a direct or spectral solve has no tolerance. "Unmeasured" means a setting exists but no linked measurement backs its value.
 
@@ -56,11 +56,11 @@ Ranked by how little of items 2 and 3 has been done, weighted by cost in the b6e
 
 Also untuned, but with less to gain: TopOpt.jl (already second fastest in structural) and torch-fem's 1e-10 CG tolerance.
 
-## Open questions
+## Decisions (2026-10-28)
 
-- **Device placement.** Cost compares solvers within a device class. Does porting INS.jl to its documented GPU backend count as tuning item 3, or as a new entry?
-- **XLB's harness time step.** The ns-3d-grid rescaling departs from the prescribed dt, and unlike the 2D variant (which no ns-grid experiment uses) it has no `min(1, ·)` clamp, so XLB runs a larger dt than its peers at N = 8. Record it under policy 3, clamp it, or drop it in favor of the internal sub-steps?
-- **What is an accuracy need?** I suggest the loosest tolerance at which every check for that setup is unchanged, which is how PhiFlow's 1e-7 was chosen. Is loosening an over-tight tolerance (deal.II 1e-12, torch-fem 1e-10) in scope?
-- **XLA autotuning.** jax-cfd, PhiFlow and XLB disable it because of a V100 failure. Benchmarks now run on T4 and A100. Re-enable it everywhere, or per solver?
-- **OpenFOAM's cost exclusion.** If GAMG and MPI cut the periodic cost, the explained anomaly no longer applies. Is serial PCG a "conventional setting" to keep, or configuration to tune?
-- **phiml is unpinned** in the PhiFlow image (only `phiflow==3.4.0`), so the solver behind the tuned tolerance can change on rebuild.
+- **Device placement.** Moving INS.jl to its library's documented GPU backend is tuning of the same entry (one entry per solver, as for XLB). It then joins the GPU group. If Zygote cannot differentiate through that backend, INS.jl stays on the CPU and records why.
+- **XLB's harness time step.** Dropped in favor of the tesseract's own sub-steps (#284).
+- **Accuracy need.** The loosest tolerance at which every check of the setup, gradient checks included, is unchanged. Loosening an over-tight tolerance is in scope, as is tightening a loose one: deal.II heat (#266), PICT (#287), torch-fem next.
+- **XLA autotuning.** Restore the framework default in jax-cfd, PhiFlow and XLB. The recorded reason (a V100 failure) no longer applies to the benchmark hardware; if a failure reproduces on a T4 or an A100, the flag returns for that solver with the reason recorded.
+- **OpenFOAM's periodic cost.** Linear solver and decomposition are tuning, picked by measurement at the benchmark sizes (#269 found the channel faster in serial). Separately, cost checks now compare solvers within their device class, as the results pages do, so a serial CPU solver is no longer flagged for being slower than GPU solvers, and its explained anomaly goes away.
+- **phiml pin.** Done (#279).
