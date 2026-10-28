@@ -65,15 +65,6 @@ EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     "Kolmogorov flow's speeds put that bound far below the benchmark "
     "timestep, so both configurations diverge",
 )
-EXPONAX_UNDEALIASED_ETDRK2 = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "Exponax runs its pseudo-spectral ETDRK2 scheme in float32 without "
-    "dealiasing. On the coarse grid the aliased nonlinear term drives an "
-    "instability in this turbulent flow, and on the reference grid the "
-    "benchmark timestep exceeds ETDRK2's stability limit for advection, so "
-    "both configurations diverge. The ground truth runs the same solver at a "
-    "much smaller timestep and a finer grid",
-)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -133,7 +124,6 @@ def register(problem: Problem) -> None:
             "openfoam": OPENFOAM_NO_SOURCE_TERM,
             "phiflow": EXPLICIT_CENTRAL_UNSTABLE,
             "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
-            "exponax": EXPONAX_UNDEALIASED_ETDRK2,
         },
     )
 
