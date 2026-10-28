@@ -7,10 +7,7 @@
 
 Reads changed file paths from stdin (one per line) and prints a JSON
 matrix of ``[{"domain": "...", "solver": "..."}]`` entries for solvers
-whose directories contain changed files, or that list a changed file under
-``metadata.mosaic.shared_sources`` in their ``tesseract_config.yaml``. The
-latter is for solver code kept outside the solver's directory, such as
-INS.jl's Julia solver in ``mosaic_shared``.
+whose directories contain changed files.
 
 Prints ``[]`` if nothing changed.
 
@@ -36,7 +33,7 @@ def main() -> None:
         return
 
     # Match changed files to solver directories (any dir with
-    # tesseract_config.yaml) and to the shared sources each solver lists.
+    # tesseract_config.yaml).
     changed: list[dict[str, str]] = []
     for cfg_path in sorted(TESSERACTS_DIR.rglob("tesseract_config.yaml")):
         solver_rel = str(cfg_path.parent.relative_to(TESSERACTS_DIR))
@@ -45,8 +42,7 @@ def main() -> None:
                 "mosaic"
             ) or {}
         prefix = f"mosaic/tesseracts/{solver_rel}/"
-        shared = set(mosaic_meta.get("shared_sources") or [])
-        if not any(f.startswith(prefix) or f in shared for f in diff_files):
+        if not any(f.startswith(prefix) for f in diff_files):
             continue
         parts = solver_rel.split("/", 1)
         entry: dict[str, str]
