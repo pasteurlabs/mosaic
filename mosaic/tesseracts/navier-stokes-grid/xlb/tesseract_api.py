@@ -72,10 +72,9 @@ class OutputSchema(
 
 
 from xlb.compute_backend import ComputeBackend  # noqa: E402
-from xlb.operator import Operator  # noqa: E402
 
 # XLB operator imports
-from xlb.operator.collision import BGK, KBC  # noqa: E402
+from xlb.operator.collision import BGK  # noqa: E402
 from xlb.operator.equilibrium import QuadraticEquilibrium  # noqa: E402
 from xlb.operator.macroscopic import Macroscopic  # noqa: E402
 from xlb.operator.stream import Stream  # noqa: E402
@@ -86,84 +85,14 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-class _SmoothKBC(KBC):
-    """KBC with a stabiliser that is smooth where the flow is resolved.
+def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any):
+    """Build the XLB operator bundle for a given (ndim, precision).
 
-    KBC splits f - feq into a shear part Δs, relaxed at rate ω, and the rest
-    Δh, relaxed at rate βγ with β = ω/2 and
-
-        γ = 1/β - (2 - 1/β) ⟨Δs|Δh⟩ / ⟨Δh|Δh⟩     (⟨x|y⟩ = Σ x y / feq).
-
-    In resolved flow Δh is tiny next to Δs. The ratio is then close to 0/0
-    and its derivative is unbounded, so reverse-mode gradients blow up
-    (issue #194). Adding δ = ε⟨Δs|Δs⟩ to both terms,
-
-        (⟨Δs|Δh⟩ - δ) / (⟨Δh|Δh⟩ + δ),
-
-    keeps the ratio smooth and sends γ to its BGK value 2 where Δh is
-    negligible next to Δs, while γ is unchanged where Δh matters, which is
-    where KBC stabilises under-resolved flow.
-
-    At rest f - feq is rounding residue, and the ratio of its scalar products
-    is an arbitrary number that differs between devices. A floor η well above
-    that residue and far below any physical state is added the same way,
-
-        (⟨Δs|Δh⟩ - δ - η) / (⟨Δh|Δh⟩ + δ + η),
-
-    so a flow at rest relaxes like BGK on every device. This matters for
-    gradients taken at a zero initial guess.
-    """
-
-    eps_shear = 1e-3
-
-    @Operator.register_backend(ComputeBackend.JAX)
-    def jax_implementation(
-        self,
-        f: jnp.ndarray,
-        feq: jnp.ndarray,
-        rho: jnp.ndarray,
-        u: jnp.ndarray,
-        omega: Any,
-    ) -> jnp.ndarray:
-        """Collide like ``KBC.jax_implementation`` with the smoothed γ."""
-        fneq = f - feq
-        if self.velocity_set.d == 2:
-            delta_s = self.decompose_shear_d2q9_jax(fneq) * rho / 4.0
-        else:
-            delta_s = self.decompose_shear_d3q27_jax(fneq) * rho
-        beta = 0.5 * omega
-        inv_beta = 1.0 / beta
-        delta_h = fneq - delta_s
-        sp1, sp2 = self.compute_entropic_scalar_products(delta_s, delta_h, feq)
-        delta = self.eps_shear * jnp.sum(delta_s * delta_s / feq, axis=0)
-        eta = (32.0 * jnp.finfo(fneq.dtype).eps) ** 2
-        ratio = (sp1 - delta - eta) / (sp2 + delta + eta)
-        gamma = inv_beta - (2.0 - inv_beta) * ratio
-        return f - beta * (2.0 * delta_s + gamma[None, ...] * delta_h)
-
-
-def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
-    """Build the XLB operator bundle for a given (ndim, precision, collision kind).
-
-    `kind` selects the collision operator: "bgk" (default, fast) or
-    "kbc_smooth" (_SmoothKBC, only available for D2Q9 and D3Q27).  KBC has the
-    same call signature as BGK so it is a drop-in replacement downstream.
-
-    Re-initialise XLB global state with the correct velocity set before
-    constructing operators.  XLB stores internal bookkeeping (e.g. the number
-    of discrete velocities q) in a global singleton that is read by KBC during
-    construction.  If xlb.init() was last called with D2Q9 (q=9) and we now
-    construct a D3Q27 KBC bundle, the mismatched global q=9 vs D3Q27's q=27
-    causes ``dot_general requires contracting dimensions to have the same shape,
-    got (9,) and (27,)`` at jit-compile time.  Re-calling xlb.init() here is
-    idempotent for BGK (which does not read the global q) and fixes the KBC
-    crash for 3-D runs.
+    XLB keeps the velocity set and precision policy in global state, so
+    re-initialise it with this bundle's before constructing its operators.
     """
     xlb.init(velocity_set=vset, default_backend=cb, default_precision_policy=pp)
-    if kind == "kbc_smooth":
-        collide = _SmoothKBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
-    else:
-        collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
+    collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     return {
         "C": jnp.array(vset.c, dtype=fdtype),
         "W": jnp.array(vset.w, dtype=fdtype),
@@ -198,65 +127,15 @@ xlb.init(
     default_backend=ComputeBackend.JAX,
     default_precision_policy=PrecisionPolicy.FP32FP32,
 )
-_OPS: dict[tuple[int, bool, str], dict] = {
-    # Plain BGK bundle (the channel, and periodic runs up to _OMEGA_KBC)
-    (2, False, "bgk"): _make_ops(
-        _vsets[(2, False)],
-        PrecisionPolicy.FP32FP32,
+_OPS: dict[tuple[int, bool], dict] = {
+    (ndim, f64): _make_ops(
+        _vsets[(ndim, f64)],
+        PrecisionPolicy.FP64FP64 if f64 else PrecisionPolicy.FP32FP32,
         ComputeBackend.JAX,
-        jnp.float32,
-        "bgk",
-    ),
-    (2, True, "bgk"): _make_ops(
-        _vsets[(2, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "bgk",
-    ),
-    (3, False, "bgk"): _make_ops(
-        _vsets[(3, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "bgk",
-    ),
-    (3, True, "bgk"): _make_ops(
-        _vsets[(3, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "bgk",
-    ),
-    # Entropic-stabilised KBC with a smooth stabiliser (see _SmoothKBC)
-    (2, False, "kbc_smooth"): _make_ops(
-        _vsets[(2, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "kbc_smooth",
-    ),
-    (2, True, "kbc_smooth"): _make_ops(
-        _vsets[(2, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "kbc_smooth",
-    ),
-    (3, False, "kbc_smooth"): _make_ops(
-        _vsets[(3, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "kbc_smooth",
-    ),
-    (3, True, "kbc_smooth"): _make_ops(
-        _vsets[(3, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "kbc_smooth",
-    ),
+        jnp.float64 if f64 else jnp.float32,
+    )
+    for ndim in (2, 3)
+    for f64 in (False, True)
 }
 
 # Concrete D2Q9 lattice velocities (q, 2) and the index of each one's opposite,
@@ -315,8 +194,6 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
 # instead of putting a floor under grid refinement.
 _MA_TARGET = 0.1
 _MA_TARGET_N = 64
-# Above this relaxation rate BGK goes unstable as tau→0.5, and KBC takes over.
-_OMEGA_KBC = 1.8
 
 
 def _sub_steps(inputs: dict) -> int:
@@ -355,22 +232,6 @@ def _forced_speed(inputs: dict) -> float:
         float(np.sqrt((np.asarray(forcing, np.float64) ** 2).sum(axis=-1)).max())
         / damping
     )
-
-
-def _select_collision(omega: float, obstacle: dict | None) -> str:
-    """Collision kind for a run with relaxation rate ``omega``.
-
-    Periodic runs switch to KBC with a smooth stabiliser (see _SmoothKBC)
-    above _OMEGA_KBC, where under-resolved low-viscosity flow drives BGK
-    unstable. The channel always uses BGK. Its laminar flow stays stable with
-    BGK up to the omega ≈ 1.93 that drag_opt's sharpest inlet profiles reach,
-    while KBC's stabiliser switches erratically in the near-equilibrium
-    regions upstream of the cylinder and makes the drag a non-smooth function
-    of the inlet profile.
-    """
-    if obstacle is None and omega > _OMEGA_KBC:
-        return "kbc_smooth"
-    return "bgk"
 
 
 def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
@@ -550,7 +411,6 @@ def xlb_fwd(
     linear_drag: Any = None,
     _use_f64: bool = False,
     _sub_k: int = 1,
-    _collision_kind_override: str | None = None,
     **_: Any,
 ) -> dict:
     """Run a 2D or 3D LBM simulation from an initial velocity field.
@@ -582,8 +442,6 @@ def xlb_fwd(
                        This prevents float32 cancellation errors in the VJP/JVP paths,
                        especially near omega≈2 where small perturbations amplify rapidly.
         _sub_k:        LBM sub-steps per dt (see ``_sub_steps``).
-        _collision_kind_override: Pre-computed collision kind ("bgk" or
-                       "kbc_smooth"). If None, selected by ``_select_collision``.
 
     Returns:
         ``result`` (same shape as v0), and in the channel also ``pressure``
@@ -599,16 +457,7 @@ def xlb_fwd(
     nu_lb = viscosity * dt_eff / dx**2
     omega = 1.0 / (3.0 * nu_lb + 0.5)
 
-    # When called inside jax.jit (VJP/JVP path), viscosity and dt are traced
-    # arrays so omega is a traced value — `omega > _OMEGA_KBC` cannot be
-    # evaluated as a Python bool.  The caller pre-computes
-    # _collision_kind_override from concrete primal values (same pattern as
-    # _sub_k) and passes it here.
-    if _collision_kind_override is not None:
-        _collision_kind = _collision_kind_override
-    else:
-        _collision_kind = _select_collision(omega, obstacle)
-    ops = _OPS[(ndim, _use_f64, _collision_kind)]
+    ops = _OPS[(ndim, _use_f64)]
     fdtype = ops["fdtype"]
     xlb_eq, xlb_stream, xlb_macro, xlb_bgk = (
         ops["eq"],
@@ -627,10 +476,10 @@ def xlb_fwd(
     out = {}
     if obstacle is None and (forcing is not None or linear_drag is not None):
         # Body force by the exact difference method (Kupershtokh 2004), which
-        # adds feq(ρ, u + Δu) - feq(ρ, u) after any collision operator, BGK or
-        # KBC alike. With the force a - αu per unit mass, the kick per LBM step
-        # is Δu = a - αu* at the physical velocity u* = u + Δu/2, solved for u*
-        # since the drag depends on it. Lattice units: a dt²/dx and α dt.
+        # adds feq(ρ, u + Δu) - feq(ρ, u) after the collision. With the force
+        # a - αu per unit mass, the kick per LBM step is Δu = a - αu* at the
+        # physical velocity u* = u + Δu/2, solved for u* since the drag depends
+        # on it. Lattice units: a dt²/dx and α dt.
         accel = 0.0
         if forcing is not None:
             accel = jnp.moveaxis(forcing[:, :, 0, :], -1, 0).astype(fdtype)
@@ -741,7 +590,7 @@ def vector_jacobian_product(
     if not vjp_inputs:
         return {}
     return jax_vjp(
-        _diff_apply(*_diff_statics(d), d["dx"]),
+        _diff_apply(_sub_steps(d), d["dx"]),
         inputs,
         vjp_inputs,
         vjp_outputs,
@@ -765,21 +614,9 @@ def abstract_eval(abstract_inputs: Any) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _diff_statics(inputs: dict) -> tuple[int, str]:
-    """Return (_sub_k, collision kind) from the concrete primal inputs.
-
-    Both select the traced graph, so they are fixed per call and never
-    evaluated on a JAX tracer inside the differentiated forward pass.
-    """
-    sub_k = _sub_steps(inputs)
-    nu_lb = inputs["viscosity"] * inputs["dt"] / sub_k / inputs["dx"] ** 2
-    omega = 1.0 / (3.0 * nu_lb + 0.5)
-    return sub_k, _select_collision(omega, inputs.get("obstacle"))
-
-
 @functools.cache
-def _diff_apply(sub_k: int, collision_kind: str, dx: float) -> Any:
-    """Forward pass differentiated by jax_vjp, for one (_sub_k, kind, dx).
+def _diff_apply(sub_k: int, dx: float) -> Any:
+    """Forward pass differentiated by jax_vjp, for one (_sub_k, dx).
 
     Runs in float64 by default, or float32 when XLB_VJP_FP32=1 (see
     _USE_F64_DIFF). viscosity and dt arrive as traced (1,) arrays.
@@ -800,7 +637,6 @@ def _diff_apply(sub_k: int, collision_kind: str, dx: float) -> Any:
         return xlb_fwd(
             _use_f64=_USE_F64_DIFF,
             _sub_k=sub_k,
-            _collision_kind_override=collision_kind,
             **fwd_kwargs,
         )
 
