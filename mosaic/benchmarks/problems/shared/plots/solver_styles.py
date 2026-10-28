@@ -30,6 +30,7 @@ SOLVER_STYLES: dict[str, dict[str, Any]] = {
     "warp_ns": {"color": "#EE7733", "linestyle": (0, (1, 1)), "marker": "X"},
     "xlb": {"color": "#66CCEE", "linestyle": (0, (3, 1, 1, 1)), "marker": "P"},
     "exponax": {"color": "#33AA99", "linestyle": "-", "marker": "o"},
+    "dafoam": {"color": "#882255", "linestyle": (0, (2, 2)), "marker": "d"},
     # ── Structural mechanics ─────────────────────────────────────────────
     "jax_fem": {"color": "#4477AA", "linestyle": "-.", "marker": "o"},
     "topopt_jl": {"color": "#228833", "linestyle": ":", "marker": "s"},

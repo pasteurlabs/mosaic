@@ -26,6 +26,7 @@ SOLVER_STYLES: dict[str, tuple] = {
     "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),
     "exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),
     "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),
+    "dafoam": ("DAFoam", "#882255", (0, (2, 2)), "d"),
     # ── FEM / Structural ────────────────────────────────────────────────────
     "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),
     "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),
@@ -51,6 +52,7 @@ NS_ORDER: list[str] = [
     "warp_ns",
     "exponax",
     "openfoam",
+    "dafoam",
 ]
 
 
