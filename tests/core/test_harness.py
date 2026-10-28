@@ -351,6 +351,52 @@ def test_run_timed_trials_records_first_elapsed_only_on_first_trial():
     assert result.first_elapsed >= 0.04
 
 
+def test_run_timed_trials_records_warmup_elapsed_outside_trials():
+    """The warmup's elapsed time is kept separately and is not a trial."""
+    durations = iter([0.05, 0.0, 0.0, 0.0])  # warmup, trial-0, trial-1, trial-2
+
+    def fn():
+        time.sleep(next(durations))
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.succeeded
+    assert result.warmup_elapsed >= 0.04
+    assert len(result.times) == 3
+    assert max(result.times) < 0.04
+    rec = result.as_record()
+    assert rec["first_call_s"] == result.warmup_elapsed
+    assert rec["mean"] < 0.04
+
+
+def test_run_timed_trials_warmup_failure_has_no_first_call():
+    """A warmup that raises leaves no first-call time to report."""
+
+    def fn():
+        raise RuntimeError("boom during warmup")
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.warmup_elapsed is None
+    assert "first_call_s" not in result.as_record()
+
+
+def test_run_timed_trials_trial_failure_keeps_first_call():
+    """A failure after the warmup still reports the warmup's time."""
+    calls = iter([None, RuntimeError("boom in trial")])
+
+    def fn():
+        exc = next(calls)
+        if exc is not None:
+            raise exc
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    rec = result.as_record()
+    assert rec["status"] == "failed"
+    assert rec["first_call_s"] == result.warmup_elapsed
+
+
 def test_run_timed_trials_timeout_classification():
     """A TimeoutError raised mid-trial is classified as 'timeout'."""
 
