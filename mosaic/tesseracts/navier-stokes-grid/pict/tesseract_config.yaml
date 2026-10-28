@@ -57,11 +57,12 @@ build_config:
 env:
   CUDA_HOME: "/usr/local/cuda"
   PATH: "/usr/local/cuda/bin:${PATH}"
-  # One binary per major architecture: a binary for sm_X.Y also runs on any
-  # sm_X.Z with Z >= Y, so 7.0 covers 7.5 and 8.0 covers 8.6 and 8.9. PTX for
-  # 9.0 is JIT-compiled on newer GPUs. Each listed arch compiles every kernel
-  # of PISOtorch once more.
-  TORCH_CUDA_ARCH_LIST: "7.0;8.0;9.0+PTX"
+  # Native binaries for the benchmark GPUs: 7.5 (T4, CI) and 8.0 (A100).
+  # A binary for sm_X.Y also runs on any sm_X.Z with Z >= Y, so 8.0 covers 8.6
+  # and 8.9; PTX for 9.0 is JIT-compiled on newer GPUs. GPUs older than sm_75
+  # are not supported. Each listed arch compiles every kernel of PISOtorch
+  # once more.
+  TORCH_CUDA_ARCH_LIST: "7.5;8.0;9.0+PTX"
 
 metadata:
   mosaic:
