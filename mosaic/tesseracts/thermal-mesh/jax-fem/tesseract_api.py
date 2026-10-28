@@ -282,8 +282,9 @@ def setup(
     return problem, fwd_pred
 
 
-# `_SETUP_CACHE` holds one (problem, fwd_pred) pair per (mesh, BC)
-# combination, i.e. everything `setup` depends on. Building a JAX-FEM
+# `_SETUP_CACHE` holds the (problem, fwd_pred) pair of the current (mesh, BC)
+# combination, i.e. everything `setup` depends on, and nothing else, so memory
+# does not grow with every mesh a sweep visits. Building a JAX-FEM
 # `Problem` precomputes shape functions and boundary indices and compiles its
 # kernels, which dominates the cost of a call on the small meshes used here;
 # an optimisation run calls `apply` / `vector_jacobian_product` hundreds of
@@ -322,6 +323,7 @@ def _cached_setup(
 ) -> tuple[HeatConduction, Callable]:
     key = _setup_cache_key(pts, cells, boundary_conditions)
     if key not in _SETUP_CACHE:
+        _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = setup(
             pts=pts, cells=cells, boundary_conditions=boundary_conditions
         )
