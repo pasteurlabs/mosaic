@@ -298,9 +298,9 @@ BURN_IN_TIME = 100.0
 CONVERGENCE_TIME = 12.0
 # Frames of the truth and its convergence check.
 TRUTH_FRAME = 0.5
-# Exponax's float32 ETDRK2 needs a CFL number well below 0.25; at 0.1 its
-# undealiased configuration is stable at these resolutions. The speed bound is
-# the forced flow's largest, about 7.
+# Exponax's float32 ETDRK2 needs a CFL number well below 0.25; at 0.1 it is
+# stable at these resolutions. The speed bound is the forced flow's largest,
+# about 7.
 _TRUTH_CFL = 0.1
 _SPEED_BOUND = 7.0
 
