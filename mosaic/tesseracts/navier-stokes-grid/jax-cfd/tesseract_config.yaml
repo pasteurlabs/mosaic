@@ -32,6 +32,8 @@ metadata:
     interventions:
       - id: central-advection-rk4
         level: L0
+        necessity: choice
+        tuned: true
         method_change: false
         scope: [periodic]
         what: >
@@ -61,14 +63,11 @@ metadata:
         provenance: mosaic-team
         classification_notes: >
           Both options are public functions in jax_cfd.base with docstrings, so
-          L0 by the letter. But the jax-cfd README/demos use the default scheme,
-          and this combination was found by a trial-and-error comparison of
-          schemes, which the L1 description also covers. The choice also
-          replaces the scheme a typical user would run, which could be read as
-          a method change (rule 4) or as engineering away an artefact of the
-          default method (rule 3). The O(dt) Lax-Wendroff time correction is
-          arguably exactly such an artefact. Compare PICT, whose default PISO
-          corrector count was deliberately left alone (PICT_PISO_SPLITTING_FLOOR).
+          L0 under policy 1: a scheme the library offers, picked the way a CFD
+          user would pick it for smooth periodic flow, with the default's
+          numbers above as the measurement. The default's O(dt) Lax-Wendroff
+          time correction is what the choice avoids; the errors of the scheme
+          that runs stay in the results.
       - id: collocated-staggered-interpolation
         level: L2
         scope: [periodic]

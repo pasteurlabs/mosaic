@@ -1,6 +1,13 @@
 # Draft: JuliaTopOpt/TopOpt.jl
 
-**Status:** draft, not filed. File only after Dion approves.
+**Status:** not needed. Re-tested 2026-10-27: TopOpt.jl 0.14.0, the latest release, loads the hexahedral INP, and on a two-element case its compliance matches our patched 0.11.0 exactly. The fix came with the Ferrite 1.x migration (TopOpt.jl#233); the parser code itself is unchanged. The text below is kept for the record.
+
+Bumping to 0.14.0 would remove `inp-parser-hex-patch`. It needs:
+
+- Julia 1.12: 0.14.0 fails to precompile on 1.11 although it declares `julia = "1.10"` (`TemperatureFun` has a field named like its type parameter `T`). A separate issue for that is drafted at `~/localfiles/runs/cleanup/upstream/topopt/issue-julia-compat.md` on the sandbox, not approved.
+- Renames in `solver.jl`: `Direct` → `DirectSolver`, `PowerPenalty` → `PowerPenaltyFun`, `Compliance` → `ComplianceFun`; Zygote resolves to 0.7.10.
+
+With those changes, `diag/topopt/solver014.jl` gives identical compliance and gradient on a 6 × 3 × 3 cantilever. A full tesseract build and the Nonconvex/PythonCall pins are untested.
 
 **Title:** `InpStiffness` fails on hexahedral (C3D8) meshes: `extract_boundary_matrix` cannot handle quad faces
 
@@ -58,4 +65,3 @@ Replacing the table with `Dict{Any,Bool}` and sorting with `Tuple(sort(collect(f
 ## Notes for Dion (not part of the issue)
 
 - Reproduced 2026-10-26 in the `topopt-jl` image with Mosaic's `Core.eval` patch removed; script at `diag/topopt/` (`repro.jl`, `solver_unpatched.jl`). Attach the full INP file it writes.
-- TopOpt.jl 0.14.0 is released (Ferrite 1.x). Mosaic pins 0.11.0. Checking whether 0.14.0 fixes this or still needs the patch would decide the workaround's future under rule 2.

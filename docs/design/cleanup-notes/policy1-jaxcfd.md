@@ -1,5 +1,7 @@
 # Policy 1: jax-cfd central advection with RK4
 
+**Status:** decided, no code change.
+
 ## The case
 
 The jax-cfd tesseract passes `convect=advection.convect_linear` and `time_stepper=time_stepping.classic_rk4` to `semi_implicit_navier_stokes` (intervention `central-advection-rk4`, PR #225). It runs only the periodic ns-grid setups (TGV, multimode); `JAX_CFD_NO_OBSTACLE` excludes the cylinder. Per PR #225, the default gave TGV errors 5 to 6 times the peer median, order 1.25 and fd_check error 5.5e-4. The change gives 1.0 times the median, order 2.00 and 9.3e-6, with a forward pass 2 to 3 times slower.
@@ -13,21 +15,6 @@ The jax-cfd tesseract passes `convect=advection.convect_linear` and `time_steppe
 - **Tests.** `jax_cfd/base/validation_test.py` (L34-71) checks every Taylor-Green case against the analytic solution with `convect_linear`, never with Van Leer. Its RK4 case has a tolerance of 8e-7, compared with 6e-6 for forward Euler, at CFL 0.1.
 - **Upstream contact.** Issue google/jax-cfd#259 (Mosaic, July 2026) asked the maintainers which advection scheme they would pick. It has no replies, and the README now says the project is no longer maintained.
 
-## What policy 1 implies
+## Decision (2026-10-27)
 
-Read strictly, the documentation and tutorials would not tell a user to change the scheme. They present the default and claim it is second-order. The only material that points to central advection for TGV is the library's validation test suite, and that suite does not single out RK4. The O(dt) Lax-Wendroff time correction is a property of the default method, so rule 3 would keep it in the results as an explained anomaly, as was done for PICT's `PICT_PISO_SPLITTING_FLOOR`.
-
-## Options
-
-1. **Revert to the default and add an explained anomaly.** This matches the demos, the paper and the treatment of PICT. TGV agreement returns to 🟠 (k = 5 to 6), the order to 1.25 and fd_check to 5.5e-4. VJP peak memory at N = 128 and 1000 steps rises from 1.6 GB to 6.2 GB. The forward pass gets faster.
-2. **Keep the change as L0 and treat the validation tests as documentation.** Results stay as they are. This widens policy 1 to cover test suites, so PICT and other solvers would need the same check for consistency.
-3. **Run both as separate entries** (rule 4). This shows the default and the better-performing variant side by side, at the cost of a second CI entry.
-
-## Recommendation
-
-**Option 1, possibly together with option 3 if the variant should stay visible.** I am fairly confident about what the docs and demos say. I am less sure whether "documentation" should include test suites, and that question decides the case.
-
-## Open questions
-
-- Do library test suites count as documentation under policy 1?
-- The demos run at `cfl_safety_factor = 0.5` and the tests at 0.1. I have not checked how the default's error at those CFLs compares with Mosaic's setup.
+Keep central advection with RK4. Policy 1 now allows a scheme the library offers when an experienced user would choose it for the problem and a measurement shows the gain, recorded at the level of its mechanism. Both functions are public jax-cfd API, so the record is L0, necessity `choice`, tuned, with #225's before/after numbers as evidence (record updated in `jax-cfd/tesseract_config.yaml`). No code change.

@@ -1,6 +1,6 @@
 # Draft: tum-pbs/PhiML (or tum-pbs/PhiFlow)
 
-**Status:** draft, not filed. File only after Dion approves.
+**Status:** approved by Dion 2026-10-27, ready to file. Not filed: the session's GitHub token is limited to pasteurlabs (HTTP 403 elsewhere). #279 pins `phiml==1.16.1`.
 
 **Title:** `UnexpectedTracerError` in the gradient of `solve_linear` when `Solve.x0` comes from a `jax.lax.scan` carry
 
@@ -41,13 +41,12 @@ the scope of the transformation.
 
 It looks like the custom gradient of `solve_linear` keeps a reference to `x0` from the traced scan body. Since `x0` only affects the iteration count, not the solution, it may be possible to `stop_gradient` it or exclude it from what the backward pass captures.
 
-Versions: phiflow 3.4.0, phiml 1.16.1, jax 0.10.0, CPU (`JAX_PLATFORMS=cpu`).
+Versions: phiflow 3.4.0, phiml 1.16.1, jax 0.10.0, CPU (`JAX_PLATFORMS=cpu`). It also fails with the current `develop` branches of PhiML (01e44a5) and PhiFlow (724fac3).
 
 Our workaround: solve for the correction `p - p_prev` from a zero initial guess.
 
 ## Notes for Dion (not part of the issue)
 
 - Reproduced 2026-10-26 in the phiflow image (script: `upstream-phiml-repro.py` next to this file, run as `python repro.py x0|none`).
-- Mosaic does not pin `phiml`; the image currently resolves 1.16.1. Worth pinning regardless.
 - Related but different: tum-pbs/PhiML#16 (int64, still open) is the other PhiFlow workaround.
 - Repo choice: the traceback is in phiml, so PhiML is probably right; PhiFlow is where users meet it.

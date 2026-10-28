@@ -1,32 +1,49 @@
 # Draft: tum-pbs/PICT
 
-**Status:** draft, not filed. File only after Dion approves.
+**Status:** approved by Dion 2026-10-27, ready to file. Not filed: the session's GitHub token is limited to pasteurlabs (HTTP 403 elsewhere).
 
-**Title:** CG pressure solve returns a NaN residual in the first step with `non_orthogonal=True` on a body-fitted O-grid
+**Title:** Pressure matrix becomes indefinite with `non_orthogonal=True` on a multi-block O-grid; CG and float32 BiCGStab fail in the first step
+
+**Attach:** `pressure_system_true.npz`, `pressure_system_false.npz` (saved by `diag/pict/capture.py`, not in the repo) and `diag/pict/standalone.py`.
 
 ## Body
 
-On a 2-D channel with an O-grid around a cylinder (Schäfer–Turek DFG 2D-1, 10 cells per diameter, 9 blocks), running `PISOtorch_simulation.Simulation` with the default `non_orthogonal=True` fails in the first step:
+On a 2-D channel with an O-grid around a cylinder (Schäfer–Turek DFG 2D-1, 10 cells per diameter), `PISOtorch_simulation.Simulation` with `non_orthogonal=True` fails in the first pressure solve:
 
 ```
-Linear solve (T:False, BiCG:False, tol:1.000e-06) reported non-finite residual for RHS [0] of 1.
-Solver infos:
+Linear solve (T:False, BiCG:False, tol:1.000e-06) reported non-finite residual for RHS [0] of 1. Solver infos:
   RHS 0: LinearSolverResultInfo(finalResidual=nan, usedIterations=2157, converged=0, isFiniteResidual=0)
 ```
 
-With `non_orthogonal=False` and otherwise identical settings, the same case runs (10 steps, finite forces). Our reading is that the skew correction makes the pressure matrix non-symmetric while it stays singular, since pressure has Neumann conditions on every boundary, so CG is not applicable. BiCGStab also broke down for us in an earlier attempt, though we didn't record that output.
+With `non_orthogonal=False` the same case runs. The mesh has 12 blocks: four O-grid blocks between the cylinder and a square box of side 2D, and eight Cartesian blocks around the box. At each box corner, five blocks share a vertex: the Cartesian corner block, two Cartesian side blocks and two O-grid blocks.
 
-Setup: `substeps=1`, `corrector_steps=2`, `differentiable=False`, `pressure_tol` default, PICT's stock `linear_solve`, CUDA, float32. The skewed cells are at the corners of the square around the cylinder, about one diameter from the wall.
+I saved the first pressure system (CSR values, indices, row pointers, RHS; float32, 9420 rows) in both modes. `standalone.py` loads one, prints its properties and solves it with `PISOtorch_diff._linear_solve_wrapper` and with SciPy:
+
+|                            | `non_orthogonal=False` | `non_orthogonal=True`                |
+| -------------------------- | ---------------------- | ------------------------------------ |
+| max \|A − Aᵀ\| / max \|A\| | 2e-8                   | 4.2e-2                               |
+| max \|row sum\|            | 3e-7                   | 0.12                                 |
+| eigenvalues nearest 0      | all ≤ 0, one ≈ −2e-9   | five < 0, one +2.1e-4                |
+| GPU CG, float32 / float64  | converges              | no convergence after 5000 iterations |
+| GPU BiCGStab, float32      | converges              | NaN at iteration 2210                |
+| GPU BiCGStab, float64      | converges              | converges                            |
+| SciPy `spsolve`            | residual 4e-14         | residual 1e-13                       |
+
+The largest row-sum defects (0.116 and −0.039) sit in the cells around the four vertices that five blocks share. Smaller ones (up to 0.008) line the curved wall.
+
+For comparison, the first pressure systems of the new `cylinder_channel_sample.py` (master e019ebe, `res=16`, `Re=20`) are also non-symmetric (about 10%) and have non-zero row sums, but all of their eigenvalues near 0 are negative. That sample's CG also stops at 1000 iterations without converging (residual 9.5e-5) and continues through `pressure_return_best_result=True`.
+
+In the simulation, `scipy_solve_pressure=True` runs our case, while every GPU variant we tried still fails in step 1. The variants were `pressure_use_BiCG`, `solver_double_fallback`, `pressure_return_best_result` and an initial `make_divergence_free()`. `pressure_use_BiCG` with `solver_double_fallback` reports `usedIterations=0` and a NaN residual, although float64 BiCGStab converges on the saved matrix in `standalone.py`. We haven't found out why.
 
 Questions:
 
-1. Is `non_orthogonal=True` expected to work with an all-Neumann pressure system, or is a reference pressure or a different solver needed?
-2. Is reverse-mode differentiation supported with `non_orthogonal=True`? The orthogonal branches are labelled "orthogonal version with gradient/backprop support".
+1. Are vertices shared by five blocks supported with `non_orthogonal=True`?
+2. Is it expected that the non-orthogonal pressure matrix can become indefinite, and is there a recommended solver configuration for that case?
 
-Mesh and driver: Mosaic's PICT tesseract (`mosaic/tesseracts/navier-stokes-grid/pict/tesseract_api.py`, `_run_channel`), at PICT commit 72a6e86. We have not tried PICT `master` (e019ebe at the time of writing).
+Setup: PICT 72a6e86. The solver core is unchanged on master e019ebe, and the sample above ran with the master sources. CUDA, float32, `substeps=1`, `corrector_steps=2`, `differentiable=False`, `pressure_tol` default.
 
 ## Notes for Dion (not part of the issue)
 
-- Reproduced 2026-10-26 on the A100 with the tesseract's own channel, `_simulate` patched to set `non_orthogonal` and disable Mosaic's warm-start override, so only PICT's stock solver runs (`diag/pict/repro.py`, inputs from `cylinder.channel_inputs(..., 10, t_end=0.1)`).
-- A standalone script without Mosaic's mesh builder would make a better report. That takes extracting the block construction from `_run_channel`; not done.
-- Check `master` first: it is six days newer than the pin.
+- Master (e019ebe) changes only samples and library utilities; the solver core matches our pin, so the failure persists there.
+- The matrices are on the sandbox at `~/localfiles/runs/cleanup/upstream/pict/`. `diag/pict/capture.py` regenerates them in the PICT image.
+- Not resolved: why `pressure_use_BiCG` with `solver_double_fallback` gives a NaN residual at iteration 0 in the simulation. The rank-deficiency flag the simulation passes is a guess, not checked.

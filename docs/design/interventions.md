@@ -57,16 +57,19 @@ Fairness here means the same rules for every solver, not equal effort.
 
 ## Policies
 
-1. **Choice of scheme.** A solver runs with its default scheme unless the
-   library's own documentation or tutorials would tell a user to change it for
-   this kind of problem. If they would, the change is allowed and recorded as
-   an L0 intervention with evidence. If not, the default stays, and an error
-   it causes is an explained anomaly.
+1. **Choice of scheme.** A solver may run any scheme its library offers. The
+   default needs no record. Another scheme is allowed when an experienced user
+   of this kind of simulator would pick it for this kind of problem and a
+   measurement shows what it gains over the default. It is recorded as an
+   intervention at the level of its mechanism (L0 for public, documented
+   options, L1 for options found only in the source), with necessity `choice`
+   and that measurement as evidence. Whichever scheme runs, its errors are
+   artefacts of the method and stay in the results as explained anomalies.
 2. **Runtime adaptations.** Adaptations that exist only because Tesseract
    calls are stateless or because of the timing protocol (setup caches,
    compile warm-ups, per-request process launches) follow one harness-wide
-   contract that applies to every solver alike. They are not per-solver
-   interventions.
+   contract that applies to every solver alike (below). They are not
+   per-solver interventions.
 3. **Setup deviations.** A solver that cannot express the prescribed setup
    exactly may run with a documented substitute (a different outflow condition,
    a different load discretization) if it still passes the setup's checks. The
@@ -212,6 +215,51 @@ results record which items have been done:
    precision, compilation or JIT options, device placement, checkpointing for
    long rollouts.
 4. Runtime adaptations used through the harness contract (policy 2).
+
+## Harness contract for runtime adaptations
+
+The cost column reports what a call costs once a solver is set up, as in an
+optimization or training loop: the setup stays fixed and the differentiable
+inputs change on every call. A user calling the library directly would build
+the setup once, so a tesseract may do the same. What it pays once is reported
+separately.
+
+1. **What may persist across calls:** anything computed only from the inputs
+   the schema does not mark as differentiable (mesh, boundary conditions,
+   material constants, target fields, step counts) and from the shapes of the
+   differentiable ones. Examples are assembled operators that do not depend on
+   a differentiable value, symbolic factorizations, sparsity patterns,
+   compiled kernels and recorded tapes. The cache key covers each of those
+   inputs by content, not by shape.
+2. **What may not:** anything that depends on the value of a differentiable
+   input, even when an experiment holds that input fixed. This covers forward
+   solutions, numeric factorizations of operators built from it, and initial
+   guesses carried over from an earlier call. Every VJP call recomputes its
+   forward pass.
+3. **Required where the library allows it.** Every solver whose library can
+   keep its setup in memory between solves gets a setup cache. Until Mosaic's
+   wrapper has one, the solver's cost entry says so (tuning checklist item 4).
+   That is a gap in the wrapper, not a property of the solver.
+4. **One warm-up:** for each (solver, sweep point) the harness makes one
+   untimed call with the same inputs as the timed calls, then `n_trials` timed
+   calls. Setup and compilation may happen in the untimed call, including
+   deliberate replays such as Firedrake's TSFC warm-up. Nothing may depend on
+   a second warm-up.
+5. **First call reported:** the harness records the untimed call's wall time
+   and reports it next to the steady-state cost as the first-call cost. It
+   includes setup and compilation and is not scored.
+6. **One setup at a time:** a cache holds the current setup only, so a
+   container's memory does not grow with every sweep point and the largest
+   size has the headroom a single setup needs. Neither recorded memory metric
+   sees a tesseract's cache (`ram_peak_mib` is the harness process's RSS,
+   `vram_peak_mib` a whole-GPU delta per point), so this is about headroom,
+   not about the reported numbers.
+7. **Process model:** a tesseract may launch a process per request, and then
+   that process's start-up and setup are part of every call's cost. A
+   persistent worker inside the container that keeps the setup is a setup
+   cache under item 1.
+8. **Disclosure:** each solver's results state which of these it uses. None
+   of them is an intervention.
 
 ## Rules
 

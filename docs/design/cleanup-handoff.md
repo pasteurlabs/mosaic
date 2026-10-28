@@ -1,250 +1,83 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-26, after a second session on the A100 sandbox. Backlog
-items 1 to 3 are done or decided by measurement, item 4 is drafted, item 5 has
-decision notes. The state of each item is recorded in place. Notes, issue
-drafts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/).
+**Status:** 2026-10-28, end of the fourth session on the A100 sandbox. Backlog items 1 to 6 are done, opened as pull requests or decided; what remains is listed under "Open". Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/).
 
 ## Read first
 
-1. [interventions.md](interventions.md): the agreed design for recording
-   interventions, including the four policies and the rollout.
-2. [intervention-spike.md](intervention-spike.md): findings from annotating all
-   19 tesseracts. The backlog below comes from it.
+1. [interventions.md](interventions.md): the agreed design for recording interventions, the four policies, the harness contract for runtime adaptations, and the rollout.
+2. [intervention-spike.md](intervention-spike.md): findings from annotating all 19 tesseracts. The backlog came from it.
 
-## Where things stand
+## Pull requests
 
-Open pull requests from this pass (all `benchmark:solver`):
+Merged: #259 to #265 (dead code, Julia solvers into their tesseracts, JAX-FEM cache key, firedrake-heat float64, OpenFOAM sub-stepping, Warp-NS comments, XLB warp pin), #266 (deal.II heat CG tolerance), #271 (deal.II structural threading), #278 (drop `shared_sources`) and #279 (pin `phiml`).
 
-| PR   | Item                                                                  | Verified                                                                  |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| #260 | 1: INS.jl and TopOpt.jl solver code into their tesseracts             | both images build, forward suites ok, `test_ins_jl_consistency.py` passes |
-| #261 | 2: JAX-FEM structural setup cache key                                 | reproduced the stale-geometry bug; fixed                                  |
-| #262 | 2: firedrake-heat misfit in float64                                   | source_fd_check 2.98e-4 → 5.18e-5; BFGS final loss 5737 → 194             |
-| #263 | 3: OpenFOAM Courant sub-stepping removed                              | bit-identical                                                             |
-| #264 | 3: Warp-NS no-op device scope, eigenvalue and fd_check comments       | fields bit-identical                                                      |
-| #265 | 4: XLB `warp-lang==1.12.1` pin instead of the build-time source patch | 27/27 experiments bit-identical                                           |
-| #266 | 3: deal.II heat CG tolerance 1e-12 → 1e-8                             | forward identical, −15% at nx = 1024                                      |
-| #269 | 3: OpenFOAM tutorial pressure tolerance, serial run (stacked on #263) | Cd within 6e-9, 82 → 53 s                                                 |
-| #270 | 3: TopOpt.jl gradient via Zygote (stacked on #260)                    | bit-identical gradients, same VJP time                                    |
-| #271 | 3: deal.II structural default threading                               | forward identical, cost unchanged                                         |
+Open, all based on `main`:
 
-**CI baseline drift.** PR #259 (dead-code removal) and #264 both show
-ns-grid `gradient/fd_check` for Warp-NS at 3.42e-5 → 4.04e-5, and #260 shows
-INS.jl's at +19%, although none of these PRs can affect that cell. Locally
-main and #259 are indistinguishable (2.97–3.00e-5 over three runs each). The
-ns-grid fd_check baseline probably predates #250, which changed that check;
-not confirmed. #262's report also shows ±40% cost shifts on Firedrake
-structural cells it does not touch. Read single-cell CI metric changes with
-this in mind.
+| PR   | Change                                                                 | Label  | Verified on the A100 (before → after)                                                                                           |
+| ---- | ---------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| #269 | OpenFOAM tutorial pressure tolerance, serial channel                   | solver | Cd within 6e-9, 82 → 53 s                                                                                                       |
+| #270 | TopOpt.jl gradient from its Zygote rule                                | solver | bit-identical gradients, same VJP time                                                                                          |
+| #280 | Exponax default 2/3-rule dealiasing, ns-3d-grid references rebuilt     | solver | forward errors grow (still lowest), adjoint no longer blows up past 160 steps, recovery 1.6e-2 → 1.0e-4                         |
+| #281 | TopOpt.jl gets the consistent nodal loads of the traction              | domain | agreement error 5.5e-3 → 0, compliance 3.99731e-3 → 3.97532e-3, gradients bit-identical                                         |
+| #282 | XLB: BGK collision everywhere, smoothed KBC removed                    | solver | every status `ok`; analytic_check 3.1e-2 → 1.9e-4; 3-D horizon 1280 → 160 steps (method limit)                                  |
+| #283 | jax-cfd on the ns-3d-grid experiments                                  | domain | all suites run; excluded from forward agreement (staggered round trip)                                                          |
+| #284 | no harness-side time-step rescaling for XLB in ns-3d-grid              | domain | statuses unchanged; N = 8 error 0.064 → 0.079; cost untimed                                                                     |
+| #285 | record the cost warm-up call as `first_call_s`                         | none   | FEniCS structural: 18.4 s first call vs 0.031 s mean at N = 4; 3 new tests                                                      |
+| #286 | draft: JAX-FEM BiCGSTAB compiled once per mesh                         | solver | removes the per-call recompilation; timings on a shared GPU, needs a quiet-GPU rerun                                            |
+| #287 | PICT periodic linear-solve tolerance 1e-5 → 1e-6                       | solver | fd_check 8.8e-4 → 5.7e-5, forward unchanged; ns-3d-grid and cost not run locally                                                |
+| #288 | PhiFlow: RK4 central differences (periodic), semi-Lagrangian (channel) | solver | periodic cost ×2.4–4.4 (quiet GPU); cylinder Cd error 0.054 → 0.011; stable at low ν in 2-D; `cleanup-notes/policy1-phiflow.md` |
 
-Waiting for Dion:
+#267, #268 and #272 to #275 belong to the Kolmogorov work, not to this pass. #268 also covers backlog item 6 for Exponax in 2D; I have not verified it.
 
-- removing the `shared_sources` mechanism (no tesseract uses it after #260);
-- JAX-FEM's linear solver (`cleanup-notes/jaxfem-linear-solver.md`);
-- the policy 1–4 decision notes and the upstream issue drafts in
-  `cleanup-notes/`;
-- item 6.
+Not opened: `refactor/one-entry-setup-caches` (policy 2 work item 2, see `cleanup-notes/policy2-runtime-adaptations.md`).
 
-## Decisions and constraints
+**Reading CI results.** Single-cell CI metric changes on cells a PR cannot touch are baseline drift: #259, #262 and #264 showed 18–40% shifts that local A/B runs disproved. Local timings from this session are unreliable: the GPU was shared with another session's jobs and, at times, up to four of mine, which slowed some experiments 17–28× against the reference run. The exception is #288's cost table, timed with one job on the GPU.
 
-- **Benchmark solvers as they are.** Artefacts of the numerical method stay in
-  the results and get an explained anomaly. Do not change a tesseract's glue
-  just to shrink an error that comes from how the solver works. Fixing genuine
-  bugs and misconfiguration is in scope.
-- **Tuning is normal use.** Tuning tolerances, preconditioners and similar
-  settings is fine, and every solver should receive some.
-- **Deferred or dropped, do not reintroduce:** a static lint for L3 patterns
-  (later), a maintainer-review step or badge (dropped).
-- **Prefer adapting docs and CI to the code** over adding aliases or
-  compatibility shims.
-- **Repository conventions:**
-  - The repository is public: no AI attribution in commits or pull requests.
-  - Pull request titles follow conventional commits, e.g.
-    `fix(solver): …`, `refactor(solver): …`.
-  - Use `.github/PULL_REQUEST_TEMPLATE.md`. Descriptions are written for a
-    reviewer who knows the codebase, under about 300 words, without hard-wrapped
-    lines.
-  - Every pull request touching `mosaic/` needs a benchmark label:
-    `benchmark:none`, `benchmark:solver`, `benchmark:domain` or
-    `benchmark:all`.
-  - Branch from `main`. One pull request per solver for changes that affect
-    results.
-- **Ask Dion first** before filing upstream issues, before any change decided by
-  policy 1 (choice of scheme), and on the open decision in item 6.
+## Decisions taken 2026-10-27
+
+1. `shared_sources`: drop it (#278).
+2. Item 6: include jax-cfd in 3-D (#283); Exponax in 2-D via #268.
+3. JAX-FEM linear solver: find the default's fixed overhead first. It was recompilation; #286.
+4. Exponax dealiasing: measured, back to the default (#280).
+5. jax-cfd's central advection with RK4: keep it and mark its tier. This amends policy 1: an optimization a practitioner would find natural is allowed when its tier is recorded.
+6. PhiFlow: decided from first principles and measurement (#288, `policy1-phiflow.md`).
+7. XLB: one entry, no duplicates (#282).
+8. Policy 2: the contract in `interventions.md`; #285 is work item 1.
+9. Policy 3: preference order in `policy3-setup-deviations.md`; #281, #284.
+10. TopOpt.jl: re-tested; 0.14.0 fixes the parser bug, nothing to file.
+11. PhiML: file the issue (not yet filed, see below) and pin (#279).
+12. PICT: test `master`, then file. Master still fails (not yet filed).
+
+## Open
+
+- **Upstream issues Dion has to file himself:** the session's token is limited to pasteurlabs and gets HTTP 403 elsewhere. Ready: `cleanup-notes/upstream-phiml.md`, `cleanup-notes/upstream-pict.md` (attach the matrices from the sandbox). Not approved yet: `upstream-phiflow-rk4.md` (`incompressible_rk4` is third-order), the TopOpt.jl Julia 1.11 precompile issue (noted in `upstream-topopt-jl.md`), and `upstream-xlb.md` (optional, a release request).
+- **TopOpt.jl 0.14.0 bump** would remove `inp-parser-hex-patch`; it needs Julia 1.12 and three renames (`upstream-topopt-jl.md`).
+- **Quiet-GPU timing** for #284 and #286; the `benchmark:*` CI runs may answer it.
+- **Kolmogorov flow and #288:** the Kolmogorov plan adds the forcing to PhiFlow's periodic step. After #288 it belongs in `momentum`, so every RK4 stage sees it.
+- **Policy 2 work items 3 and 4:** setup caches for torch-fem and PICT, a persistent worker for deal.II, per-solver disclosure on the results pages.
+- **Policy 4:** the tuning list in `cleanup-notes/policy4-tuning.md` is a draft.
+- **PICT's advective outflow** is recorded as a deviation without a measured effect (`policy3-setup-deviations.md`).
+- **After the cleanup:** the rollout in `interventions.md` (pilot the record format, annotate all solvers, show the records on the results pages, #203).
+
+## Constraints
+
+- **Benchmark solvers as they are.** Artefacts of the numerical method stay in the results and get an explained anomaly. Fixing genuine bugs and misconfiguration is in scope, and so is tuning.
+- **Repository conventions:** public repository, no AI attribution in commits or pull requests; conventional-commit titles with the scopes `harness`, `solver`, `domain` or `deps` (CI rejects others); the pull request template; descriptions under about 300 words; a benchmark label on every pull request touching `mosaic/`. Use `benchmark:solver` or `benchmark:domain`, never `benchmark:all`.
+- **Ask Dion first** before filing upstream issues and before any change decided by policy 1.
 
 ## Where things are
 
-- **Branch `spike/intervention-annotations`** (this branch): the design docs and
-  the spike annotations. **Not for merge.** The annotations work as an index:
-  find any intervention's code with
-  `grep -rn "mosaic-intervention: <id>" mosaic`, and its recorded reason,
-  evidence and history in the `interventions:` list of the tesseract's
-  `tesseract_config.yaml`.
-- **Report script:** `python docs/design/intervention_report.py` prints a
-  summary of all annotations.
-- **Pull request #259** (`cleanup/solver-dead-code`): removes the unused Warp-NS
-  adjoint gradient clipping and `mosaic_shared/.../grid_fluid.py`. Labelled
-  `benchmark:solver`, so CI checks that Warp-NS results are unchanged.
-
-Cleanup pull requests are based on `main`, not on this branch.
-
-## Backlog
-
-Intervention ids refer to the spike annotations.
-
-### 1. Move Julia solver code into its tesseracts
-
-**Done: #260.** Removing `shared_sources` is waiting for Dion.
-
-No result change.
-
-INS.jl's solver lives in `mosaic/mosaic_shared/problems/navier_stokes_grid/ns_solver.jl`,
-and TopOpt.jl's in `mosaic/mosaic_shared/problems/structural_mesh/topopt_solver.jl`.
-Each is used by one tesseract only. Move them into the tesseract directories and
-ship them with `build_config.package_data`, as the WaterLily tesseract in #211
-does.
-
-References to update:
-
-- `ins-jl/tesseract_api.py` and `topopt-jl/tesseract_api.py` (include path);
-- the `shared_sources` entries in both `tesseract_config.yaml` files;
-- `tests/test_ins_jl_consistency.py` (mounts the file into an existing image);
-- `tests/test_detect_changed_solvers.py` (uses both paths as examples).
-
-After the move no `shared_sources` entries remain. Ask Dion whether to remove
-the mechanism from the changed-solver detection script and its tests.
-
-Verify by building both images with `tesseract build` and running
-`mosaic run -p ns-grid --suites forward -s INS.jl --debug` and the structural
-equivalent for TopOpt.jl.
-
-### 2. Bug fixes
-
-**Done: #261 (JAX-FEM, latent, no result change expected), #262 (firedrake-heat,
-results change).**
-
-These may change results; use `benchmark:solver`.
-
-- **JAX-FEM structural setup cache:** keyed on `pts.shape` instead of the
-  coordinates (`structural-mesh/jax-fem/tesseract_api.py`, around line 178). No
-  current experiment varies geometry at a fixed mesh size, so this is latent.
-- **firedrake-heat:** computes the identification error in float32 (around lines
-  475–505) but builds the gradient seed in float64 (`nodal-misfit-seed`). FEniCS
-  uses float64 for both.
-
-### 3. Check, then fix or remove
-
-**Done.** Outcomes and numbers in `cleanup-notes/item3-measurements.md`:
-TopOpt.jl #270; Warp-NS #264; OpenFOAM #263 and #269; deal.II #266 and #271;
-XLB channel, FEniCS `mumps-adjoint-monkeypatch` and deal.II
-`umfpack-direct-solve` measured as needed (keep, record the evidence); JAX-FEM
-`umfpack-solver-option` is a size-dependent trade-off waiting for Dion.
-
-GPU needed for the Warp-NS and XLB items.
-
-- **TopOpt.jl `compliance-grad-field`:** reads an undocumented struct field.
-  TopOpt.jl's own Zygote rule computes the same thing, so switch to the
-  documented path and confirm the gradients are identical.
-- **Warp-NS `channel-cg-scoped-device`:** probably a no-op, because the chosen
-  device always equals Warp's default. Confirm on a GPU and remove.
-- **OpenFOAM `courant-substepping`:** by the spike's arithmetic, Co ≈ 0.87 at
-  both cylinder resolutions, so it never sub-steps. Confirm. If it would ever
-  trigger, it changes the prescribed time step, which makes it a setup
-  deviation.
-- **Warp-NS `poisson-fd-eigenvalues-3d`:** the comment claims an exact inverse,
-  but central-difference divergence and gradient compose to the wide-stencil
-  Laplacian. A May 2026 comment in `navier_stokes_3d_grid/config.py` still
-  reports a 1.7e-2 gradient bias. Check numerically and fix the comment.
-- **XLB channel staying on BGK:** the docstring says KBC makes the drag
-  non-smooth, but #194 measured KBC drag gradients matching finite differences
-  (3e-5 to 1.3e-3) on an older channel setup. Measure on the current channel.
-- **Measure or remove:** interventions with no recorded reason.
-  - `mumps-adjoint-monkeypatch` in fenics-structural. Out-of-memory evidence
-    exists only for the heat slab at nx = 1024 (#180).
-  - OpenFOAM's channel settings from #239: `channel-momentum-tolerance`,
-    `channel-pressure-gamg`, `channel-non-orthogonal-corrector`,
-    `graded-channel-mesh`, `mpi-decomposition`.
-  - deal.II `umfpack-direct-solve` and `cg-ssor-tight-tolerance`; JAX-FEM
-    `umfpack-solver-option`.
-- **deal.II threading:** the structural binary runs serially without MPI
-  (`serial-without-mpi`, #245), while the heat binary never caps threads. Make
-  them consistent.
-
-### 4. Upstream issues
-
-**Drafted, not filed:** `cleanup-notes/upstream-{topopt-jl,phiml,pict,xlb}.md`.
-TopOpt.jl, PhiML and PICT are reproduced. TopOpt.jl 0.14.0 and PICT `master`
-are newer than our pins and untested. XLB's fix is on its `main` but
-unreleased; #265 pins Warp instead, so that issue is only a release request.
-
-Draft them, but file only after Dion approves.
-
-- **TopOpt.jl:** INP parser bug worked around by `inp-parser-hex-patch`; still
-  present on TopOpt.jl master.
-- **PhiFlow / PhiML:** initial-guess tracer leak under `lax.scan` with a VJP,
-  worked around by `channel-pressure-warm-start`.
-- **PICT:** linear solvers break down in the first step with
-  `non_orthogonal=True` on the O-grid (`orthogonal-scheme-on-o-grid`, see #239).
-- **XLB packaging** (`xlb-ibm-stepper-import-patch`): first try pinning
-  `warp-lang<1.13` (Warp 1.13 removed the `warp.utils.ScopedTimer` fallback),
-  which may remove the build-time patch entirely.
-
-### 5. Apply the policies
-
-**Notes written, no code changed:** `cleanup-notes/policy1-{xlb,jaxcfd,phiflow,exponax}.md`,
-`policy2-runtime-adaptations.md`, `policy3-setup-deviations.md`,
-`policy4-tuning.md`.
-
-- **Policy 1, choice of scheme.** No GPU needed for the research. For each case,
-  find what the library's own documentation and tutorials recommend for this
-  kind of problem, and write a short decision note for Dion. Do not change code
-  before he decides.
-  - XLB: the automatic switch from BGK to KBC above ω = 1.8
-    (`kbc-collision-low-viscosity`) and the smooth KBC stabiliser
-    (`smooth-kbc-stabiliser`, a method change, #194).
-  - jax-cfd: central advection with RK4 instead of the default
-    (`central-advection-rk4`, #225).
-  - PhiFlow: differential advection (`differential-advection`) and explicit
-    Euler, although PhiFlow ships `incompressible_rk4`.
-  - Exponax: dealiasing turned off (`no-dealiasing`). This also affects every
-    other solver, because an Exponax run at N = 64 is the reference for the
-    ns-3d-grid forward checks (`mosaic/benchmarks/core/reference.py`).
-- **Policy 2, runtime adaptations.** Draft the harness contract for setup
-  caches, compile warm-ups and per-request process launches. Current cases:
-  setup caches in JAX-FEM (both), TopOpt.jl, FEniCS and Firedrake
-  (`setup-tape-replay`, `setup-cache`); Firedrake's `tsfc-kernel-warmup`;
-  deal.II launched as a subprocess per request. torch-fem has no setup cache.
-- **Policy 3, setup deviations.** To be recorded: PICT's advective outflow
-  instead of p = 0 (`convective-outflow`); TopOpt.jl's load, split evenly over
-  face nodes in harness code (`mosaic/benchmarks/problems/structural_mesh/physics.py`,
-  around lines 45–72); XLB's harness-side time-step scaling (`lbm_N_base` in
-  `navier_stokes_3d_grid/config.py`), which only XLB gets.
-- **Policy 4, tuning.** Go through the tuning checklist in `interventions.md`
-  for each solver and list the solvers that have had little tuning.
-
-### 6. Open decision for Dion
-
-jax-cfd's and Exponax's tesseracts both implement 2D and 3D. Yet jax-cfd is
-removed from the 3D suite (`navier_stokes_3d_grid/config.py`, around line 77)
-and Exponax from the 2D suite (`navier_stokes_grid/config.py`, around line 91),
-with comments calling them "2D-only" and "3D-only". They are removed from the
-solver registry, so they do not even show as "not run". Including them would
-change results.
-
-### 7. After the cleanup
-
-Follow the rollout in `interventions.md`: pilot the revised record format on
-OpenFOAM, FEniCS, XLB and Warp-NS, then annotate all solvers starting from the
-spike's records, then show the record in the results pages (#203).
+- **Branch `spike/intervention-annotations`** (this branch): design docs, notes and the spike annotations. **Not for merge.** Find an intervention's code with `grep -rn "mosaic-intervention: <id>" mosaic`; `python docs/design/intervention_report.py` summarizes them.
+- **A/B runs** on the sandbox: `~/localfiles/runs/cleanup2/ab.sh` runs one solver into a copy of the b6eb311 full-run results so peers are present; outputs in `/nvme/scratch/ab/<arm>`. It relies on an uncommitted `MOSAIC_DIAG_TAGS` patch to `core/config.py` (`~/localfiles/runs/cleanup2/diag-tags.patch`; applied in the `mosaic-gpu2` worktree) that selects image tags per solver; never commit it.
 
 ## Useful commands
 
 ```bash
 uv sync
 mosaic run -p <problem> --suites <suite> -s <solver> --debug
+mosaic run -p <problem> -s <solver> -e <suite>/<experiment>
 mosaic status -p <problem> -f
 mosaic status --format json          # before/after snapshots for tuning PRs
-tesseract build mosaic/tesseracts/<domain>/<solver>
+tesseract build -t <tag> mosaic/tesseracts/<domain>/<solver>
 python docs/design/intervention_report.py
 ```
