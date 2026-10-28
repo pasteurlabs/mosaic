@@ -54,3 +54,6 @@ Generating the reference from an `N=128` run instead changes it by `1.2e-5`
 (relative L2) on every grid, far below the errors the experiment measures.
 
 Regenerate with `mosaic reference -p ns-3d-grid -e forward/baseline`.
+
+Both references use Exponax's default 2/3-rule dealiasing. Turning dealiasing
+off changes them by 6e-7 (relative L2) at every grid and viscosity.
