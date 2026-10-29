@@ -132,3 +132,25 @@ def test_cost_subtitle_names_each_solvers_device():
         "hardware_by_solver", {"JAX-FEM": gpu_node, "FEniCS": cpu_node}
     )
     assert _hardware_str([split], cfg) == "GPU Tesla T4 · CPU INTEL XEON PLATINUM 8573C"
+
+
+def test_narrow_log_axis_between_preferred_ticks_renders():
+    import altair as alt
+    import pandas as pd
+    import vl_convert as vlc
+
+    from mosaic.benchmarks.problems.shared.plots.charts.sweeps import _log_axis_for
+
+    values = [1.2e-5, 1.7e-5]
+    axis = _log_axis_for(values, "FD error").to_dict()
+    assert "labelExpr" not in axis
+    assert len(axis["values"]) == 1
+    assert values[0] <= axis["values"][0] <= values[1]
+    chart = (
+        alt.Chart(pd.DataFrame({"x": [1, 2], "y": values}))
+        .mark_line()
+        .encode(
+            x="x:Q", y=alt.Y("y:Q", scale=alt.Scale(type="log"), axis=alt.Axis(**axis))
+        )
+    )
+    assert vlc.vegalite_to_png(chart.to_dict()).startswith(b"\x89PNG")

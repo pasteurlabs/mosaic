@@ -83,6 +83,12 @@ def _log_axis_for(values: Any, title: str | None, **kw: Any) -> alt.Axis:
             t = m * 10.0**e
             if lo / 1.15 <= t <= hi * 1.15:
                 ticks.append((t, m, e))
+    if not ticks:
+        # A narrow interval can lie between every preferred mantissa tick.
+        # Keep one physical-value label instead of emitting an empty expression.
+        tick = 10 ** ((math.log10(lo) + math.log10(hi)) / 2)
+        kw.setdefault("format", ".2e")
+        return alt.Axis(values=[tick], title=title, **kw)
     sup = {e: str(e).translate(_SUPERSCRIPT) for _, _, e in ticks}
     expr = " : ".join(
         f"datum.value == {t!r} ? '{'' if m == 1 else f'{m}×'}10{sup[e]}'"
