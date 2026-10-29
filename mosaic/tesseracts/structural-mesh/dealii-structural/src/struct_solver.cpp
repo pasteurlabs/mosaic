@@ -13,7 +13,6 @@
 // Writes:
 //   compliance.txt     — structural compliance C = F^T U (single float)
 
-#include <deal.II/base/multithread_info.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor.h>
@@ -482,9 +481,6 @@ void StructSolver::run()
 
 int main(int argc, char *argv[])
 {
-  // The solver is serial, and this binary runs once per request, so avoid expensive MPI setup here
-  MultithreadInfo::set_thread_limit(1);
-
   if (argc < 2) {
     std::cerr << "Usage: struct_solver input.json\n";
     return 1;

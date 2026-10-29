@@ -742,6 +742,9 @@ def _simulate(
         )
 
 
+_PERIODIC_SOLVE_TOL = 1e-6
+
+
 def _run_periodic(
     v0_tensor: torch.Tensor,
     viscosity_val: torch.Tensor,
@@ -757,12 +760,18 @@ def _run_periodic(
     domain.PrepareSolve()  # allocate internal structures first
     domain.getBlock(0).setVelocity(v0_tensor)
     domain.UpdateDomainData()
+    # PICT's float32 default tolerance for the advection and pressure solves is
+    # 1e-5. Its residual error in the forward and adjoint solves puts a floor of
+    # about 1e-3 under the VJP's agreement with finite differences on the
+    # periodic box; 1e-6 lowers it to about 7e-5.
     _simulate(
         domain,
         dt_val,
         steps,
         differentiable,
         non_orthogonal=False,
+        advection_tol=_PERIODIC_SOLVE_TOL,
+        pressure_tol=_PERIODIC_SOLVE_TOL,
     )
     return domain.getBlock(0).velocity, domain
 
