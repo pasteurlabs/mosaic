@@ -148,7 +148,20 @@ def fit(
     """Complete the whole budget while retaining the best validation checkpoint."""
     optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.adam(lr))
     state = optimizer.init(params)
-    value_and_grad = jax.value_and_grad(loss)
+
+    @jax.jit
+    def update(params: Any, state: Any, iteration: jax.Array) -> tuple:
+        value, gradient = jax.value_and_grad(loss)(params, iteration)
+        finite_training = jnp.isfinite(value) & jnp.all(
+            jnp.stack([jnp.all(jnp.isfinite(g)) for g in jax.tree.leaves(gradient)])
+        )
+        delta, next_state = optimizer.update(gradient, state, params)
+        next_params = optax.apply_updates(params, delta)
+        finite_params = jnp.all(
+            jnp.stack([jnp.all(jnp.isfinite(p)) for p in jax.tree.leaves(next_params)])
+        )
+        return next_params, next_state, (value, finite_training, finite_params)
+
     history, checkpoints = [], []
     training_seconds, validation_seconds = 0.0, 0.0
     selected_params, best_loss, selected_update = params, float("inf"), 0
@@ -169,17 +182,19 @@ def fit(
     evaluate(params, 0)
     for iteration in range(updates):
         started = time.perf_counter()
-        value, gradient = value_and_grad(params, iteration)
-        if not np.isfinite(float(value)) or not all(
-            np.isfinite(np.asarray(g)).all() for g in jax.tree.leaves(gradient)
-        ):
+        next_params, next_state, diagnostics = update(
+            params, state, jnp.asarray(iteration, dtype=jnp.int32)
+        )
+        # One small transfer synchronizes the whole update, including compilation
+        # on its first call. Invalid updates are never accepted or validated.
+        value, finite_training, finite_params = jax.device_get(diagnostics)
+        if not finite_training:
             raise FloatingPointError(f"nonfinite training at update {iteration}")
-        delta, state = optimizer.update(gradient, state, params)
-        params = optax.apply_updates(params, delta)
-        if not all(np.isfinite(np.asarray(p)).all() for p in jax.tree.leaves(params)):
+        if not finite_params:
             raise FloatingPointError(
                 f"nonfinite model parameters at update {iteration + 1}"
             )
+        params, state = next_params, next_state
         history.append(float(value))
         training_seconds += time.perf_counter() - started
         if iteration + 1 in scheduled:
@@ -407,12 +422,19 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     count = len(train) - horizon
     case_ids, starts = balanced_windows(updates, count, len(cases), window_seed)
     training_jax = jnp.asarray(training_references)
+    case_schedule = jnp.asarray(case_ids, dtype=jnp.int32)
+    start_schedule = jnp.asarray(starts, dtype=jnp.int32)
 
     def recurrent_loss(params: Any, iteration: int) -> jax.Array:
-        start = starts[iteration]
+        targets = jax.lax.dynamic_slice_in_dim(
+            training_jax[case_schedule[iteration]],
+            start_schedule[iteration],
+            horizon + 1,
+            axis=0,
+        )
         return window_loss(
             params,
-            training_jax[case_ids[iteration], start : start + horizon + 1],
+            targets,
             step,
             scales,
         )
