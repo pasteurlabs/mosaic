@@ -1,8 +1,9 @@
 name: phiflow_navier_stokes_grid
 version: "0.1.0"
 description: >
-  2nd-order central-difference advection (explicit Euler) with CG pressure projection.
-  The cylinder channel uses phiflow's wind-tunnel boundaries and a staircase cylinder.
+  Periodic boxes: 2nd-order central differences under phiflow's incompressible RK4
+  with CG pressure projection. The cylinder channel: semi-Lagrangian advection with
+  operator splitting, phiflow's wind-tunnel boundaries and a staircase cylinder.
   Gradients via JAX autodiff with adjoint CG solves.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
@@ -16,9 +17,9 @@ metadata:
     name: "PhiFlow"
     backend: jax
     family: projection
-    scheme: "central-difference advection + projection"
+    scheme: "RK4 central FD (periodic), semi-Lagrangian (channel) + projection"
     discretization: FD
-    numerics: "2nd-order central FD (advective form), explicit Euler, CG pressure projection"
+    numerics: "2nd-order central FD under incompressible RK4 (periodic); semi-Lagrangian advection, explicit diffusion (channel); CG pressure projection"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true
