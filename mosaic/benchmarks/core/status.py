@@ -306,12 +306,19 @@ def _median(values: list[float]) -> float:
     return vs[mid] if len(vs) % 2 else 0.5 * (vs[mid - 1] + vs[mid])
 
 
-def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
+def _refine_cost(
+    data: dict,
+    cells: dict[str, Cell],
+    checks: list,
+    device_class: dict[str, str] | None = None,
+) -> None:
     """Walk ``checks`` against per-solver :class:`CostSummary` instances.
 
-    Solver-medians and peer-median are computed once across OK solvers (need
-    ≥2 to form a meaningful peer comparison), then each check function is
-    given a CostSummary per solver. First anomaly wins.
+    Each solver's peers are the OK solvers of its device class (``device_class``
+    maps solver name to e.g. ``"gpu"`` or ``"cpu"``; without it, all solvers
+    form one class), as the results pages compare cost. A CPU solver being
+    slower than GPU solvers is the hardware, not an anomaly. A class needs ≥2
+    solvers to form a meaningful peer comparison. First anomaly wins.
     """
     from .status_checks import CostSummary
 
@@ -333,16 +340,21 @@ def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
         ]
         if times:
             solver_medians[solver] = _median(times)
-    if len(solver_medians) < 2:
-        return
-    peer_median = _median(list(solver_medians.values()))
-    if peer_median <= 0:
-        return
+    classes: dict[str, dict[str, float]] = {}
     for solver, med in solver_medians.items():
-        summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
-        verdict = _run_checks(checks, summary)
-        if verdict:
-            cells[solver] = Cell(*verdict)
+        cls = (device_class or {}).get(solver, "")
+        classes.setdefault(cls, {})[solver] = med
+    for medians in classes.values():
+        if len(medians) < 2:
+            continue
+        peer_median = _median(list(medians.values()))
+        if peer_median <= 0:
+            continue
+        for solver, med in medians.items():
+            summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
+            verdict = _run_checks(checks, summary)
+            if verdict:
+                cells[solver] = Cell(*verdict)
 
 
 def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
@@ -864,7 +876,12 @@ def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
 
 
 def _refine_for_suite(
-    suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: list
+    suite: str,
+    exp_label: str,
+    data: dict,
+    cells: dict[str, Cell],
+    checks: list,
+    device_class: dict[str, str] | None = None,
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
@@ -874,7 +891,7 @@ def _refine_for_suite(
     if suite == "forward" or _is_analytic_grad_check(suite, exp_label):
         _refine_forward(view, cells, checks)
     elif suite == "cost":
-        _refine_cost(view, cells, checks)
+        _refine_cost(view, cells, checks, device_class)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
@@ -1246,7 +1263,8 @@ def _build_row(
     # Capture numeric scalars *before* anomaly refinement downgrades any OK
     # cell — the scalar is worth diffing whether or not it trips a threshold.
     _collect_metrics_for_suite(suite, exp_label, data, row.cells)
-    _refine_for_suite(suite, exp_label, data, row.cells, checks)
+    device_class = {s.name: "gpu" if s.uses_gpu else "cpu" for s in cfg.solvers}
+    _refine_for_suite(suite, exp_label, data, row.cells, checks, device_class)
     _apply_staleness(
         cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
     )

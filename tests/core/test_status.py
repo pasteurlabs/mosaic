@@ -1154,3 +1154,58 @@ class TestExplainedAnomalies(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+_COST_TIMES = {"g1": 1.0, "g2": 1.0, "g3": 1.2, "c1": 90.0, "c2": 100.0}
+_COST_CLASSES = {"g1": "gpu", "g2": "gpu", "g3": "gpu", "c1": "cpu", "c2": "cpu"}
+
+
+class TestCostPeersByDeviceClass(unittest.TestCase):
+    """Cost checks compare each solver with the solvers of its device class."""
+
+    @staticmethod
+    def _data(times: dict[str, float]) -> dict:
+        return {
+            "schema_version": 1,
+            "sweep": {"key": "N", "values": ["16"]},
+            "results": [
+                {"solver": s, "sweep_value": "16", "metrics": {"mean": t}}
+                for s, t in times.items()
+            ],
+        }
+
+    def _refine(self, times: dict[str, float], device_class=None) -> dict[str, Cell]:
+        from mosaic.benchmarks.core.status import _refine_for_suite
+        from mosaic.benchmarks.core.status_checks import max_peer_k
+
+        cells = {s: Cell(OK) for s in times}
+        _refine_for_suite(
+            "cost",
+            "spatial_cost",
+            self._data(times),
+            cells,
+            [max_peer_k(20.0)],
+            device_class,
+        )
+        return cells
+
+    def test_cpu_solvers_not_flagged_against_gpu_peers(self) -> None:
+        cells = self._refine(_COST_TIMES, _COST_CLASSES)
+        self.assertTrue(all(c.status == OK for c in cells.values()))
+
+    def test_without_classes_all_solvers_are_peers(self) -> None:
+        cells = self._refine(_COST_TIMES)
+        self.assertEqual(cells["c1"].status, ANOMALY)
+        self.assertEqual(cells["c2"].status, ANOMALY)
+
+    def test_outlier_within_class_still_flagged(self) -> None:
+        times = {**_COST_TIMES, "g3": 50.0}
+        cells = self._refine(times, _COST_CLASSES)
+        self.assertEqual(cells["g3"].status, ANOMALY)
+        self.assertEqual(cells["c1"].status, OK)
+
+    def test_single_solver_class_has_no_peers(self) -> None:
+        times = {"g1": 1.0, "g2": 1.0, "c1": 500.0}
+        classes = {"g1": "gpu", "g2": "gpu", "c1": "cpu"}
+        cells = self._refine(times, classes)
+        self.assertEqual(cells["c1"].status, OK)
