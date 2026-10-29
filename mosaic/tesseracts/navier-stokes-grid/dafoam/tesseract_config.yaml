@@ -1,0 +1,31 @@
+name: dafoam_navier_stokes_grid
+version: "0.1.0"
+description: >
+  DAFoam's DAPimpleFoam (OpenFOAM v2506) on the body-fitted cylinder channel, converging
+  every implicit-Euler step with PIMPLE outer iterations. Gradients via DAFoam's
+  time-accurate discrete adjoint (reverse-mode AD of the residuals with CoDiPack), for the
+  time-averaged drag with respect to the inlet profile.
+build_config:
+  base_image: "dafoam/opt-packages:v5.1.1"
+  target_platform: "linux/amd64"
+  package_data:
+    - ["./dafoam_driver.py", "/tesseract/dafoam_driver.py"]
+  custom_build_steps:
+    - USER root
+    # DAFoam lives under a home directory that only its owner can enter. The
+    # tree below it is world-readable, so opening the directory is enough.
+    - RUN chmod o+rx /home/dafoamuser
+
+metadata:
+  mosaic:
+    name: "DAFoam"
+    backend: cpp
+    family: projection
+    scheme: "DAPimpleFoam (converged PIMPLE), discrete adjoint"
+    discretization: FV
+    numerics: "PIMPLE, Euler"
+    ad_strategy: adjoint
+    differentiable: true
+    uses_gpu: false
+    internal_dtype: float64
+    doc_url: "https://dafoam.github.io"

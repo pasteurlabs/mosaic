@@ -399,12 +399,13 @@ def test_gradient_nonfinite_vjp_fails_with_reason(
 
     from mosaic.benchmarks.core import runner
     from mosaic.benchmarks.core.status import FAILED, _classify_result
+    from mosaic.benchmarks.core.utils import active_solvers
     from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
     from mosaic.benchmarks.problems.shared import gradient
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
     cfg, tags = ns_grid_tags
-    bad = cfg.solver_names[0]
+    bad = active_solvers(cfg, "gradient")[0]
     tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
     real_vjp = gradient._vjp_grad
     bad_calls = []
@@ -469,6 +470,7 @@ def test_analytic_check_scores_every_sweep_point(ns_grid_tags, tmp_path, monkeyp
     amplitude error of -1.
     """
     from mosaic.benchmarks.core.status import OK, _classify_result
+    from mosaic.benchmarks.core.utils import active_solvers
 
     monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
     cfg, tags = ns_grid_tags
@@ -478,7 +480,7 @@ def test_analytic_check_scores_every_sweep_point(ns_grid_tags, tmp_path, monkeyp
     out_dir = tmp_path / "ns-grid" / "gradient" / "analytic_check"
     data = json.loads((out_dir / "result.json").read_text())
     nus = data["sweep"]["values"]
-    solver = cfg.solver_names[0]
+    solver = active_solvers(cfg, "gradient")[0]
     entries = [e for e in data["results"] if e["solver"] == solver]
     assert sorted(float(e["sweep_value"]) for e in entries) == sorted(map(float, nus))
     for e in entries:

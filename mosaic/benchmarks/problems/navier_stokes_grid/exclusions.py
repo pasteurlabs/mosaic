@@ -37,6 +37,15 @@ INS_JL_NO_OBSTACLE = Exclusion(
     "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
     "Brinkman forcing, which are not wired up here",
 )
+DAFOAM_CHANNEL_ONLY = Exclusion(
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract sets up only the cylinder channel, not periodic boxes",
+)
+DAFOAM_NO_INITIAL_STATE_INPUT = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "DAFoam's adjoint has no input for the initial state, so it cannot "
+    "differentiate with respect to v0",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -75,13 +84,21 @@ def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
     # Forward
     problem.exclude("forward/baseline", {"pict": PICT_PISO_SPLITTING_FLOOR})
+    problem.exclude("forward/baseline", {"dafoam": DAFOAM_CHANNEL_ONLY})
+    problem.exclude("forward/agreement", {"dafoam": DAFOAM_CHANNEL_ONLY})
+    problem.exclude("forward/tgv_nu_sweep", {"dafoam": DAFOAM_CHANNEL_ONLY})
+    problem.exclude("forward/physical_laws", {"dafoam": DAFOAM_CHANNEL_ONLY})
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
+    problem.exclude("cost/spatial_cost", {"dafoam": DAFOAM_CHANNEL_ONLY})
+    problem.exclude("cost/temporal_cost", {"dafoam": DAFOAM_CHANNEL_ONLY})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
+    problem.exclude("cost/vjp_cost", {"dafoam": DAFOAM_NO_INITIAL_STATE_INPUT})
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
+    problem.exclude("gradient", {"dafoam": DAFOAM_NO_INITIAL_STATE_INPUT})
 
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})

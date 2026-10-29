@@ -74,6 +74,9 @@ _TESSERACT_SLUG = "navier-stokes-grid"
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
 
+# DAFoam runs only the 2D cylinder channel, so it sits out the 3D suite.
+_SOLVERS.pop("dafoam", None)
+
 apply_styles(_SOLVERS)
 
 # ── Per-(solver, problem) overrides ──────────────────────────────────────────
