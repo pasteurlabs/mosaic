@@ -169,7 +169,7 @@ def write_error_gif(
                 )
         draw.text(
             (12, height - 28),
-            f"Box [0,{extent:g}]²; spatial mean errors at ≤32² when divisible; playback 10 fps",
+            f"Box [0,{extent:g}]^2; block-mean errors at up to 32x32 when divisible; 10 fps",
             fill=253,
             font=small,
         )
