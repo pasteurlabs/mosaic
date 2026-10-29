@@ -1,21 +1,17 @@
-# Buoyancy CI plot gallery
+# Current buoyancy review gallery
 
-Figures regenerated through the production merge and plotting pipeline on Slurm job 3615350, plot source `7377f84`. Numerical inputs are the eight CPU/GPU artifacts from [CI run 38577109543](https://github.com/pasteurlabs/mosaic/actions/runs/38577109543), source `4887715`, tested merge `66f632e`. No simulations or training were repeated for these plots.
+This directory contains the figures embedded in PR #211. PNGs and Vega-Lite sidecars share data; the GIF's PNG is its final-frame poster.
 
-The gallery includes all rendered forward, cost, gradient and optimization plots. Horizon Sweep now includes all five solvers. Solver In Loop has one 101-frame error GIF, one combined velocity/scalar error plot, and one combined validation-loss plot. The PNG beside the GIF is its poster, not an additional figure.
+## Numerical sources
 
-The combined initial-condition figure contains all three temperature fields. All 23 focused plot tests passed. The gallery has 11 PNGs, one GIF and 10 Vega-Lite sidecars. Independent OpenFOAM agreement references are still being validated and are not represented by the existing same-solver refinement plots. Temperature anomaly is the dimensionless scalar channel.
+- Diffusion, same-solver refinement, physical laws, cost, original corrector errors/validation and Jacobian arrays: [canonical CI 38577109543](https://github.com/pasteurlabs/mosaic/actions/runs/38577109543), source `4887715`, tested merge `66f632e`. Original training uses velocity-only width-8 Adam at LR .003. These are not results from the later optimizer sweep.
+- Independent OpenFOAM agreement and expanded finite differences/horizons: targeted native validations on October 29. All six solvers passed agreement against the refined OpenFOAM reference; all five differentiable solvers passed six-epsilon FD and horizon checks. OpenFOAM is excluded from derivatives. `targeted_admission_summary.json` records job IDs, bridges, sources and environments. This is not a completed new canonical container campaign.
 
-The receipt records source, numerical inputs and output hashes. Vega-Lite sidecars accompany interactive figures.
+## Current displays
 
-The GIF and its poster were subsequently recolored on Slurm job 3615508, source `1cb7256`: temperature-anomaly error uses a red ramp and velocity error a blue ramp, both black at zero. Five animation tests passed; data, fixed scales and all 101 frames are unchanged. `palette_validation_receipt.json` supersedes the earlier receipt for these outputs.
+- The GIF has one selected corrected JAX-CFD temperature/speed pair at the top, explicitly for orientation rather than common ground truth. All five solver rows below show only their uncorrected/corrected errors against their own fine reference. Red represents temperature and blue velocity. Error maxima differ by row, but paired arms share each row's scales fixed over all 101 frames; compare physical limits across rows. Source `116cd4a`, seven tests and actual saved-array rendering passed on Slurm 3616995; see `orientation_validation_receipt.json`.
+- The Jacobian figure marks expected rank 113/192, shades the structural nullspace tail, and separates full and non-null singular-value ratios using relative cutoff 1e-6. Ratios 1.15–1.23 describe the short resting-state packed-coordinate map outside its numerical kernel, not long-rollout conditioning. Source `dac275a`, 24 tests and render passed on Slurm 3616275; see `diagnostic_validation_receipt.json`.
+- The dense FD graph displays mean relative error across directions; admission uses best-epsilon median and cosine. Near-zero directional derivatives can inflate the mean, notably for JAX-CFD. Every epsilon is retained. The horizon chart includes all five differentiable solvers. Narrow log-axis rendering passed its dedicated regression.
+- Initial conditions are temperature anomalies, rendered through the configured scalar projection. Other review-gallery changes passed 23 tests at `7377f84`.
 
-Latest spectrum and animation render: Slurm job 3616275, plot source `dac275a`, 24 focused tests passed. Spectrum panels mark expected rank 113/192 and report numerical rank with relative cutoff 1e-6, non-null singular-value ratio and full ratio separately. These are short resting-state, packed-coordinate diagnostics, not long-rollout conditioning guarantees.
-
-The four-column GIF now shows each arm’s own forward field in gray, with red temperature-error and blue velocity-error contours. Scales are fixed in time but differ by solver row; corrected and uncorrected arms share each row’s scale. Compare colors within a row and use printed physical limits across rows. `diagnostic_validation_receipt.json` supersedes previous receipts for these five updated assets.
-
-Current GIF: closely packed separate grayscale fields and unblended red temperature / blue velocity error heatmaps, source `13eae82`, Slurm job 3616605. Seven tests passed; all 101 frames, five solvers, numerical data and row scales are preserved. Each arm shows its own field next to its own error. The paired heatmap receipt supersedes previous animation receipts. There are no overlays or contours in this version.
-
-Current animation supersedes repeated-field layouts: one selected corrected JAX-CFD temperature/speed pair at the top for orientation; four error maps per solver below. Red and blue maps remain separate and unblended. Row-paired error ranges and all 101 frames are unchanged. The orientation is not a common reference. Source `116cd4a`, seven tests and actual saved-five-solver rendering passed on Slurm 3616995.
-
-Updated agreement and dense FD/horizon figures use targeted native runs from October 29. All six solvers passed agreement against the independently refined OpenFOAM reference; all five differentiable solvers passed six-epsilon FD and horizon checks. OpenFOAM is excluded from derivatives. These are native integrations with explicitly recorded bridges and environments, not a completed new canonical container campaign. See targeted_admission_summary.json. The FD plot displays mean relative error across directions; admission uses best-epsilon median and direction cosine. Near-zero directional derivatives can inflate the mean, notably for JAX-CFD.
+`current_asset_hashes.json` identifies current bytes. Older receipts retained here document superseded displays; the specific receipts above supersede them for updated outputs. No simulations were repeated solely to restyle figures.
