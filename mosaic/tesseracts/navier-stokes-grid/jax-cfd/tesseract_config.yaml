@@ -8,7 +8,6 @@ build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
 env:
-  XLA_FLAGS: "--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
   XLA_PYTHON_CLIENT_MEM_FRACTION: "0.6"
 
@@ -19,7 +18,7 @@ metadata:
     family: projection
     scheme: "MAC FD + projection"
     discretization: FD
-    numerics: "Projection, semi-implicit"
+    numerics: "Projection, RK4"
     ad_strategy: autodiff
     differentiable: true
     uses_gpu: true

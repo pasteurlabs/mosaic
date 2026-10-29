@@ -23,6 +23,7 @@ from typing import Any
 import jax.numpy as jnp
 import numpy as np
 
+from mosaic.benchmarks.core.cell_filter import filter_solvers
 from mosaic.benchmarks.core.experiment import (
     KernelContext,
     _build_result_envelope,
@@ -37,12 +38,12 @@ from mosaic.benchmarks.core.reference import (
     is_precomputed_experiment,
     load_reference,
 )
-from mosaic.benchmarks.core.runner import (
-    get_last_apply_error,
-    safe_apply,
-    safe_apply_with_extras,
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
+from mosaic.benchmarks.core.utils import (
+    active_solvers,
+    convergence_order,
+    trimmed_mean,
 )
-from mosaic.benchmarks.core.utils import active_solvers, trimmed_mean
 
 _SUITE = "forward"
 
@@ -104,6 +105,11 @@ def _analytic_reference(
 
 # ── agreement ────────────────────────────────────────────────────────────────
 
+_NO_REFERENCE = (
+    "no reference: fewer than 2 solvers produced output and there is no "
+    "analytic, precomputed or reference-solver field"
+)
+
 
 def _agreement_aggregate(
     by_solver: Any,
@@ -149,11 +155,15 @@ def _agreement_aggregate(
             idx = int(idx_str)
             outputs_per_val[sweep_values[idx]][name] = np.asarray(arr)
 
+    exp_key = _kw.get("exp_key", "agreement")
+    suite = _kw.get("suite", "forward")
+    ref_key = f"{suite}/{exp_key}"
+
     # Augment with cached arrays for solvers not re-run this invocation.
     cached_for_val = load_cached_field_snapshots(
         out_dir / snapshot_filename,
         sweep_values,
-        skip_solvers=tags,
+        skip_solvers=set(filter_solvers(ref_key, list(tags))),
         shared_prefixes=("sweep_values", "solver_names", "ic", "consensus", "x_axis"),
     )
     for v, cache in cached_for_val.items():
@@ -167,24 +177,16 @@ def _agreement_aggregate(
         "ic": np.asarray(ic),
     }
     apply_errors: dict[str, dict] = {}
-    drags: dict[str, dict] = {}
     for name, smetrics in by_solver.items():
         for val, m in smetrics.items():
             if not m.get("valid", False):
                 apply_errors.setdefault(name, {})[val] = m.get("apply_error")
-            if "drag" in m:
-                drags.setdefault(name, {})[val] = m["drag"]
 
     reference_label = "consensus"
     solver_names = [s.name for s in cfg.solvers]
-    reference_solver = run.get("reference_solver")
 
     # Collect per-(solver, sweep_value) results
     flat_results: list[dict] = []
-
-    exp_key = _kw.get("exp_key", "agreement")
-    suite = _kw.get("suite", "forward")
-    ref_key = f"{suite}/{exp_key}"
 
     # Designated precomputed experiments ship a converged reference that is the
     # intended ground truth; it takes precedence over the runtime analytic
@@ -198,32 +200,34 @@ def _agreement_aggregate(
 
         precomputed = load_reference(cfg.name, ref_key, i)
         has_precomputed = precomputed is not None
-        has_analytic = (
-            analytic_fn is not None
-            and "obstacle" not in phys
-            and not (prefer_precomputed and has_precomputed)
+        has_analytic = analytic_fn is not None and not (
+            prefer_precomputed and has_precomputed
         )
-        has_ref_solver = reference_solver is not None and reference_solver in comparable
 
         if len(comparable) == 0 or (
-            len(comparable) < 2
-            and not has_analytic
-            and not has_ref_solver
-            and not has_precomputed
+            len(comparable) < 2 and not has_analytic and not has_precomputed
         ):
+            # Nothing to score against (e.g. a single-solver run with no
+            # cached peers). A solver that produced output is left unscored,
+            # not failed, and flagged so a merge keeps any score it already
+            # has; a solver that produced no output still fails.
             attempted = set(by_solver.keys())
             for n in solver_names:
                 if n not in attempted and n not in comparable:
                     continue
-                flat_results.append(
-                    {
-                        "solver": n,
-                        "sweep_value": str(val),
-                        "metrics": {
-                            "error": apply_errors.get(n, {}).get(val),
-                            "valid": False,
-                        },
+                if n in comparable:
+                    metrics = {
+                        "status": "skipped",
+                        "unscored": True,
+                        "reason": _NO_REFERENCE,
                     }
+                else:
+                    metrics = {
+                        "error": apply_errors.get(n, {}).get(val),
+                        "valid": False,
+                    }
+                flat_results.append(
+                    {"solver": n, "sweep_value": str(val), "metrics": metrics}
                 )
             continue
 
@@ -245,9 +249,6 @@ def _agreement_aggregate(
                 solver_name_for_inputs=cfg.solvers[0].name,
             )
             reference_label = "analytic"
-        elif has_ref_solver:
-            reference = np.asarray(comparable[reference_solver])
-            reference_label = f"solver:{reference_solver}"
         elif has_precomputed:
             reference = precomputed
             reference_label = "precomputed"
@@ -269,8 +270,6 @@ def _agreement_aggregate(
                     "error": error_fn(comparable[n], reference),
                     "valid": True,
                 }
-                if val in drags.get(n, {}):
-                    metrics["drag"] = drags[n][val]
             else:
                 metrics = {
                     "error": apply_errors.get(n, {}).get(val),
@@ -318,6 +317,19 @@ def _agreement_aggregate(
         ]
         spread[val] = float(jnp.std(jnp.array(errors))) if errors else 0.0
 
+    extras: dict = {"spread": spread, "reference_label": reference_label}
+    if sweep_key == "N":
+        # Report each solver's observed order of accuracy on a resolution sweep.
+        errs_by_solver: dict[str, dict] = {}
+        for e in flat_results:
+            m = e["metrics"]
+            if m.get("valid"):
+                errs = errs_by_solver.setdefault(e["solver"], {})
+                errs[e["sweep_value"]] = m["error"]
+        extras["convergence_order"] = {
+            n: convergence_order(errs) for n, errs in errs_by_solver.items()
+        }
+
     return _build_result_envelope(
         cfg=cfg,
         suite=_SUITE,
@@ -326,10 +338,7 @@ def _agreement_aggregate(
         sweep_key=sweep_key,
         sweep_values=sweep_values,
         results=flat_results,
-        extras={
-            "spread": spread,
-            "reference_label": reference_label,
-        },
+        extras=extras,
     )
 
 
@@ -347,18 +356,18 @@ def agreement(t: Any, ctx: KernelContext) -> dict:
     """Run one solver at one sweep value. Aggregate forms the reference and computes errors.
 
     The kernel returns the normalised output array as a snapshot plus a
-    metrics dict (``valid``, ``apply_error``, optional ``drag``). The
-    aggregate then either picks the cfg-level analytic reference or builds
-    a trimmed-mean consensus across solvers, computes per-solver
-    ``error`` vs that reference, and writes ``fields.npz`` (flat layout).
+    metrics dict (``valid``, ``apply_error``). The aggregate then either picks
+    the cfg-level analytic reference or builds a trimmed-mean consensus across
+    solvers, computes per-solver ``error`` vs that reference, and writes
+    ``fields.npz`` (flat layout).
 
     Returns (by_param[val][solver] schema)::
 
-        {"error": float, "valid": True[, "drag": ...]}
+        {"error": float, "valid": True}
         | {"error": str | None, "valid": False}
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
-    result, extras, _ = safe_apply_with_extras(t, inputs, ctx.output_key, ["drag"])
+    result = safe_apply(t, inputs, ctx.output_key)
 
     if result is None:
         return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}
@@ -366,10 +375,7 @@ def agreement(t: Any, ctx: KernelContext) -> dict:
     norm = ctx.cfg.solver(ctx.name).normalize_output
     out = norm(result) if norm is not None else result
 
-    metrics: dict = {"valid": True}
-    if "drag" in extras:
-        metrics["drag"] = extras["drag"]
-    return {"metrics": metrics, "snapshot": np.asarray(out)}
+    return {"metrics": {"valid": True}, "snapshot": np.asarray(out)}
 
 
 # ── physical laws ────────────────────────────────────────────────────────────
@@ -459,9 +465,10 @@ def _physical_laws_aggregate(
                     }
                 )
 
-        # Mark attempted solvers that didn't produce output. Only include
-        # solvers present in by_solver (actually attempted on this hardware)
-        # so the merge step doesn't overwrite valid entries from the other job.
+        # Mark attempted solvers that didn't produce output as failed, with
+        # the apply error as the reason. Only include solvers present in
+        # by_solver (actually attempted on this hardware) so the merge step
+        # doesn't overwrite valid entries from the other job.
         produced = {e["solver"] for e in flat_results if e["sweep_value"] == str(val)}
         for s in cfg.solvers:
             if s.name not in produced and s.name in by_solver:
@@ -469,7 +476,10 @@ def _physical_laws_aggregate(
                     {
                         "solver": s.name,
                         "sweep_value": str(val),
-                        "metrics": None,
+                        "metrics": {
+                            "error": by_solver[s.name].get(val, {}).get("apply_error"),
+                            "valid": False,
+                        },
                     }
                 )
 
@@ -507,7 +517,7 @@ def physical_laws(t: Any, ctx: KernelContext) -> dict:
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     out = safe_apply(t, inputs, ctx.output_key)
     if out is None:
-        return {"metrics": {"valid": False}}
+        return {"metrics": {"apply_error": get_last_apply_error(), "valid": False}}
     norm = ctx.cfg.solver(ctx.name).normalize_output
     if norm is not None:
         out = norm(out)

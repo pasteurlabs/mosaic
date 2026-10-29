@@ -14,6 +14,7 @@ from mosaic_shared.problems.navier_stokes_grid import (
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid.channel import check_periodic
 from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
@@ -47,12 +48,7 @@ class InputSchema(
 
     @model_validator(mode="after")
     def _check_periodic_bcs(self) -> "InputSchema":
-        if not self.boundary_conditions.is_fully_periodic:
-            raise ValueError(
-                "exponax uses a spectral (FFT) discretisation and only supports "
-                "periodic boundary conditions. Set all faces to 'periodic' "
-                "(the default)."
-            )
+        check_periodic(self, "exponax")
         return self
 
 
@@ -153,7 +149,6 @@ def exponax_fwd(
         "diffusivity": viscosity,
         "drag": drag,
         "order": order,
-        "dealiasing_fraction": 1.0,  # disable 2/3-rule truncation to match other solvers
     }
 
     if ndim == 2:

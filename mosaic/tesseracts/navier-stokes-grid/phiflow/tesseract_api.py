@@ -6,28 +6,56 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from mosaic_shared.problems.navier_stokes_grid import (
     InputSchema as _CanonicalInputSchema,
 )
 from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
-from mosaic_shared.problems.navier_stokes_grid import drag_jax
+from mosaic_shared.problems.navier_stokes_grid.channel import (
+    check_periodic_or_channel,
+    solid_cells,
+)
 from mosaic_shared.schema_types import make_differentiable
 from phi.jax.flow import (
     Box,
     CenteredGrid,
-    Obstacle,
+    Field,
     StaggeredGrid,
     advect,
     diffuse,
     extrapolation,
+    field,
     fluid,
-    geom,
     math,
 )
+from phiml.backend._numpy_backend import NumPyBackend
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
+
+_numpy_ravel_multi_index = NumPyBackend.ravel_multi_index
+
+
+def _ravel_multi_index_int64(
+    self: NumPyBackend,
+    multi_index: np.ndarray,
+    shape: tuple[int, ...],
+    mode: str | int = "undefined",
+) -> np.ndarray:
+    """Flatten indices in int64 when the flat index space exceeds int32.
+
+    phiml casts the flat index back to the dtype of ``multi_index``. Sparse
+    pressure matrices are (cells x cells), so with int32 indices the flat index
+    wraps at 2D N>=216 and 3D N>=36 and matrix compression fails with "index
+    -2147... is out of bounds". Upstream fix: tum-pbs/PhiML#16.
+    """
+    if np.prod(shape, dtype=np.int64) > np.iinfo(multi_index.dtype).max:
+        multi_index = multi_index.astype(np.int64)
+    return _numpy_ravel_multi_index(self, multi_index, shape, mode)
+
+
+NumPyBackend.ravel_multi_index = _ravel_multi_index_int64
 
 
 class InputSchema(
@@ -38,120 +66,52 @@ class InputSchema(
     """PhiFlow Navier-Stokes input schema with differentiable velocity and physics params."""
 
     @model_validator(mode="after")
-    def _check_bcs(self) -> "InputSchema":
-        supported = {"periodic", "no_slip", "neumann", "dirichlet"}
-        for face_key, face in self.boundary_conditions.model_dump().items():
-            t = face["type"]
-            if t not in supported:
-                raise ValueError(
-                    f"phiflow supports {sorted(supported)} BCs, got '{t}' at {face_key}."
-                )
+    def _check_supported_bcs(self) -> "InputSchema":
+        check_periodic_or_channel(self, "phiflow")
         return self
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
-    """PhiFlow Navier-Stokes output schema with differentiable result and drag."""
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "body_force"])
+):
+    """PhiFlow Navier-Stokes output schema with differentiable result and body force."""
 
 
-def _phiflow_extrapolation(bc_dict: dict, ndim: int):
-    """Map a serialized GridBC dict to a phiflow extrapolation object."""
-    if all(bc_dict[k]["type"] == "periodic" for k in bc_dict):
-        return extrapolation.PERIODIC
-
-    def _face_ext(face: dict):
-        t = face["type"]
-        if t == "periodic":
-            return extrapolation.PERIODIC
-        if t == "no_slip":
-            return extrapolation.ZERO
-        if t == "neumann":
-            return extrapolation.ZERO_GRADIENT
-        if t == "dirichlet":
-            if face.get("value") is not None:
-                val = math.tensor(face["value"], math.channel("vector"))
-                return extrapolation.ConstantExtrapolation(val)
-            return extrapolation.ZERO
-        raise ValueError(f"Unknown BC type: {t!r}")
-
-    kwargs = {
-        "x": (_face_ext(bc_dict["x_lo"]), _face_ext(bc_dict["x_hi"])),
-        "y": (_face_ext(bc_dict["y_lo"]), _face_ext(bc_dict["y_hi"])),
-    }
-    if ndim == 3:
-        kwargs["z"] = (_face_ext(bc_dict["z_lo"]), _face_ext(bc_dict["z_hi"]))
-    return extrapolation.combine_sides(**kwargs)
+# The periodic pressure solve stops at a relative and absolute residual of
+# 1e-7, the loosest tolerance whose results match a fully converged solve.
+# phiflow's default 1e-5 leaves enough noise in the loss that the ns-3d
+# recovery stalls at ~3x the IC error. Much tighter (1e-10) is below float32's
+# residual floor, so CG runs to max_iterations at 2-3x the cost without
+# improving any result.
+_CG_TOL = 1e-7
+# The channel's pressure solve stops at phiflow's default 1e-5, which gives the
+# same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
+_CHANNEL_CG_TOL = 1e-5
 
 
-def _make_phiflow_obstacle(obstacle: dict | None, domain_extent: float, ndim: int):
-    """Construct a PhiFlow Obstacle from the canonical obstacle dict, or None."""
-    if obstacle is None or not obstacle.get("shape"):
-        return None
-    L = domain_extent
-    cx = obstacle["center"][0] * L
-    cy = obstacle["center"][1] * L
-    r = obstacle["radius"] * L
-    if obstacle["shape"] in ("cylinder", "CYLINDER"):
-        if ndim == 2:
-            obs_geom = geom.Sphere(x=cx, y=cy, radius=r)
-        else:
-            cz = obstacle["center"][2] * L if len(obstacle["center"]) > 2 else L / 2.0
-            obs_geom = geom.Sphere(x=cx, y=cy, z=cz, radius=r)
-        return Obstacle(obs_geom)
-    raise ValueError(f"PhiFlow: unsupported obstacle shape {obstacle['shape']!r}")
-
-
-def _make_obstacle_mask_phiflow(
-    obstacle: dict | None, nx: int, ny: int
-) -> jnp.ndarray | None:
-    """Rasterize obstacle to a boolean JAX mask of shape (nx, ny).
-
-    Returns None when no obstacle is present.
-    """
-    if obstacle is None or not obstacle.get("shape"):
-        return None
-    cx = obstacle["center"][0] * nx
-    cy = obstacle["center"][1] * ny
-    r = obstacle["radius"] * nx  # isotropic grid
-    if obstacle["shape"] in ("cylinder", "CYLINDER"):
-        x = jnp.arange(nx, dtype=jnp.float32)
-        y = jnp.arange(ny, dtype=jnp.float32)
-        X, Y = jnp.meshgrid(x, y, indexing="ij")
-        return (X - cx) ** 2 + (Y - cy) ** 2 < r**2  # (nx, ny)
-    raise ValueError(f"PhiFlow: unsupported obstacle shape {obstacle['shape']!r}")
-
-
-# Drag is computed via the shared canonical surface integral
-# (mosaic_shared.problems.navier_stokes_grid.drag_jax).
-
-
-def phiflow_fwd(
+def periodic_fwd(
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
     steps: int,
     domain_extent: float,
-    boundary_conditions: dict,
-    obstacle: dict | None = None,
-    inflow_profile: jnp.ndarray | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None]:
-    """Run a 2D or 3D incompressible Navier-Stokes simulation using PhiFlow.
+) -> jnp.ndarray:
+    """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
-    Uses semi-Lagrangian advection, explicit diffusion, and pressure projection
-    for incompressibility on a periodic domain. Dimensionality is inferred from
-    v0.shape[-1] (2 → 2D, 3 → 3D).
+    2nd-order central-difference advection and diffusion integrated with
+    phiflow's ``fluid.incompressible_rk4``, which projects every stage with a
+    CG pressure solve. Dimensionality is inferred from v0.shape[-1]
+    (2 → 2D, 3 → 3D).
 
     Args:
         v0: Initial velocity field, shape (*spatial, ndim).
         viscosity: Kinematic viscosity.
         dt: Timestep size.
         steps: Number of simulation steps.
-        domain_extent: Side length of the periodic square/cubic domain (isotropic grid).
-        boundary_conditions: Dict mapping face keys to BC type/value dicts.
-        obstacle: Optional obstacle dict.
-        inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x_lo each step.
+        domain_extent: Side length of the periodic square/cubic domain.
 
     Returns:
-        (result, drag): result same shape as v0; drag shape (1,) or None.
+        Final velocity at the cell centers, same shape as v0.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
@@ -168,160 +128,53 @@ def phiflow_fwd(
         spatial_str = "x,y,z"
         grid_kwargs = {"x": nx, "y": ny, "z": nz}
         bounds = Box["x,y,z", 0:domain_extent, 0:domain_extent, 0:domain_extent]
-
-    dx = domain_extent / nx
-    raw_ext = _phiflow_extrapolation(boundary_conditions, ndim)
-    # For 2D inflow+obstacle runs use PERIODIC so the pressure is
-    # unconstrained at the domain boundary — the periodic wrap-around acts as
-    # a virtual channel that allows the manual per-step inflow override to
-    # drive realistic flow.  Drag uses a surface integral on the RANS mean
-    # (pressure + viscous), which is correct for PERIODIC since the constant-
-    # pressure offset cancels on a closed surface around the cylinder.
-    # _resize_arr sees clean (nx, ny) staggered shapes, making it a no-op.
-    if (
-        inflow_profile is not None
-        and obstacle is not None
-        and obstacle.get("shape")
-        and ndim == 2
-    ):
-        raw_ext = extrapolation.PERIODIC
-    ext = raw_ext
-    obstacle_obj = _make_phiflow_obstacle(obstacle, domain_extent, ndim)
-    obstacles = (obstacle_obj,) if obstacle_obj is not None else ()
-
-    # Obstacle mask for drag computation (2-D only)
-    if ndim == 2 and obstacle is not None and obstacle.get("shape"):
-        obs_mask = _make_obstacle_mask_phiflow(obstacle, nx, ny)
-    else:
-        obs_mask = None
-
-    # Target cell shape for the lax.scan carry.  All components are trimmed/padded
-    # to exactly this shape so jnp.stack works regardless of phiflow's BC-dependent
-    # staggered face counts:
-    #   periodic   → N faces (no change needed)
-    #   neumann    → N+1 faces on the staggered axis  (trim last face)
-    #   no_slip    → N-1 faces on the staggered axis  (pad one zero at far end)
-    if ndim == 2:
-        _cell_shape = (nx, ny)
-    else:
-        _cell_shape = (nx, ny, nz)
-
-    # Pre-compute the staggered shape that phiflow expects for each velocity
-    # component under the current extrapolation.  This is a Python-level shape
-    # query (no JAX tracing) so the result is a plain tuple of ints.
-    _probe_channel = math.stack(
-        [
-            math.tensor(jnp.zeros(_cell_shape), math.spatial(spatial_str))
-            for _ in range(ndim)
-        ],
-        dim=math.channel("vector"),
-    )
-    _probe_cg = CenteredGrid(_probe_channel, ext, bounds=bounds, **grid_kwargs)
-    _probe_sg = StaggeredGrid(_probe_cg, ext, bounds=bounds, **grid_kwargs)
-    _staggered_shapes = tuple(
-        _probe_sg.vector[i].values.native(spatial_str).shape for i in range(ndim)
-    )
-
-    def _resize_arr(arr: jnp.ndarray, target_shape: tuple) -> jnp.ndarray:
-        """Trim or zero-pad/repeat arr along each axis to match target_shape."""
-        for axis, target in enumerate(target_shape):
-            current = arr.shape[axis]
-            if current > target:
-                # Trim: drop the extra boundary face.
-                idx = [slice(None)] * ndim
-                idx[axis] = slice(None, target)
-                arr = arr[tuple(idx)]
-            elif current < target:
-                # Pad: repeat the last face value (lossless for neumann ghost face).
-                # Use a concrete integer index (shape is always concrete in JAX).
-                idx = [slice(None)] * ndim
-                idx[axis] = current - 1
-                last = arr[tuple(idx)]
-                last = jnp.expand_dims(last, axis=axis)
-                arr = jnp.concatenate([arr, last], axis=axis)
-        return arr
-
-    # Spatial axis name list for named-dual stacking (2D: ['x','y'], 3D: ['x','y','z'])
+    ext = extrapolation.PERIODIC
     _spatial_names = spatial_str.split(",")
 
     def faces_to_staggered(face_arr: jnp.ndarray) -> StaggeredGrid:
-        """Face-centred (ndim, *spatial) carry → StaggeredGrid.
-
-        Resizes each component from _cell_shape to the BC-dependent staggered
-        shape phiflow expects, wraps in a phiml tensor, then stacks with a
-        named dual 'vector' dim so StaggeredGrid accepts non-uniform shapes.
-        """
+        """Face-centred (ndim, *spatial) carry → StaggeredGrid."""
         component_tensors = {
-            _spatial_names[i]: math.tensor(
-                _resize_arr(face_arr[i], _staggered_shapes[i]),
-                math.spatial(spatial_str),
-            )
+            _spatial_names[i]: math.tensor(face_arr[i], math.spatial(spatial_str))
             for i in range(ndim)
         }
         staggered_tensor = math.stack(component_tensors, dim=math.dual("vector"))
         return StaggeredGrid(staggered_tensor, ext, bounds=bounds, **grid_kwargs)
 
     def staggered_to_faces(vel: StaggeredGrid) -> jnp.ndarray:
-        """StaggeredGrid → face-centred (ndim, *spatial) carry of shape _cell_shape.
-
-        Phiflow allocates BC-dependent face counts (N+1 for neumann, N-1 for
-        no_slip, N for periodic).  We resize every component to _cell_shape so
-        jnp.stack produces a fixed-shape carry for lax.scan.
-        """
+        """StaggeredGrid → face-centred (ndim, *spatial) carry."""
         return jnp.stack(
-            [
-                _resize_arr(vel.vector[i].values.native(spatial_str), _cell_shape)
-                for i in range(ndim)
-            ],
-            axis=0,
+            [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    if inflow_profile is not None and ndim == 2:
-        # Resample inflow_profile to ny if needed
-        prof_len = inflow_profile.shape[0]
-        if prof_len != ny:
-            src_y = jnp.linspace(0, 1, prof_len)
-            dst_y = jnp.linspace(0, 1, ny)
-            ux_inflow = jnp.interp(dst_y, src_y, inflow_profile)
-        else:
-            ux_inflow = inflow_profile  # (ny,)
+    # Use explicit CG pressure solver to prevent numerical divergence in 3D
+    # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
+    _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
-        def step(
-            face_arr: jnp.ndarray, _: None
-        ) -> tuple[jnp.ndarray, tuple[jnp.ndarray, jnp.ndarray]]:
-            vel = faces_to_staggered(face_arr)
-            vel = advect.semi_lagrangian(vel, vel, dt)
-            vel = diffuse.explicit(vel, viscosity, dt)
-            vel, p_field = fluid.make_incompressible(vel, obstacles)
-            p_arr = p_field.values.native(spatial_str)  # (nx, ny)
-            # Apply inflow: override x=0 face of u_x
-            faces = staggered_to_faces(vel)  # (ndim, nx, ny)
-            # faces[0] is u_x face values; set column 0 to ux_inflow
-            ux_f = faces[0].at[0, :].set(ux_inflow)
-            # faces[1] is u_y; set column 0 to 0
-            uy_f = faces[1].at[0, :].set(0.0)
-            new_faces = jnp.stack([ux_f, uy_f], axis=0)
-            # Accumulate both faces and pressure for RANS drag computation
-            return new_faces, (new_faces, p_arr)
+    def momentum(vel: StaggeredGrid) -> StaggeredGrid:
+        return advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
+            vel, viscosity, order=2
+        )
 
-    else:
-        # Use explicit CG pressure solver to prevent numerical divergence in 3D
-        # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
-        # Tightened rel_tol/abs_tol to 1e-10 on the 3D
-        # periodic path to prevent adjoint-side residual bias in fd_check.
-        _cg_solve = math.Solve("CG", 1e-10, 1e-10)
-
-        def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
-            vel = faces_to_staggered(face_arr)
-            # Use explicit Euler differential advection to
-            # fix VJP gradient magnitude bias and prevent NaN from semi-Lagrangian
-            # interpolation. advect.differential(-u·∇v) is JAX-autodiffable and
-            # stable for periodic forward/agreement runs (TGV, multimode, 3D).
-            # Restored here: 7f9213f accidentally reverted this to semi_lagrangian.
-            vel = vel + dt * advect.differential(vel, vel)
-            vel = diffuse.explicit(vel, viscosity, dt)
-            vel, _ = fluid.make_incompressible(vel, obstacles, solve=_cg_solve)
-            return staggered_to_faces(vel), None
+    # phiflow's documented pairing for accurate periodic flow: finite
+    # differences under incompressible_rk4 instead of operator splitting
+    # ("Higher-Order Simulations" in its fluid simulation guide). The pressure
+    # gradient matches the 2nd-order stencils. The scheme carries the pressure
+    # from step to step; each step makes four CG pressure projections.
+    def step(
+        carry: tuple[jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray], None]:
+        face_arr, p_arr = carry
+        vel = faces_to_staggered(face_arr)
+        p = CenteredGrid(
+            math.tensor(p_arr, math.spatial(spatial_str)),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        vel, p = fluid.incompressible_rk4(
+            momentum, vel, p, dt, pressure_order=2, pressure_solve=_cg_solve
+        )
+        return (staggered_to_faces(vel), p.values.native(spatial_str)), None
 
     # Convert IC from collocated to staggered face values once using PhiFlow's
     # native CenteredGrid→StaggeredGrid resampling.  The scan carry then stays
@@ -342,12 +195,8 @@ def phiflow_fwd(
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
     # through the loop — both forward and VJP are safe inside lax.scan.
-    face_final, scan_hist = jax.lax.scan(step, face_init, None, length=steps)
-    # For inflow+2D branch, scan_hist is (face_hist, p_hist); unpack here.
-    if inflow_profile is not None and ndim == 2:
-        _face_hist, _p_hist = scan_hist
-    else:
-        _face_hist, _p_hist = scan_hist, None
+    p_init = jnp.zeros(face_init.shape[1:], face_init.dtype)
+    (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
 
     # Convert final face values back to collocated once.
     vel_final = faces_to_staggered(face_final)
@@ -361,31 +210,197 @@ def phiflow_fwd(
     if ndim == 2:
         # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
         result = result[:, :, None, :]
+    return result
 
-    # --- drag from RANS-averaged pressure + velocity ----------------------
-    drag = None
-    if obs_mask is not None and ndim == 2 and inflow_profile is not None:
-        # _face_hist shape: (steps, 2, nx, ny); _p_hist shape: (steps, nx, ny).
-        # Average over the last 50% of steps to smooth Kármán shedding oscillations.
-        n_tail = max(1, steps // 2)
-        rans_faces = jnp.mean(_face_hist[-n_tail:], axis=0)  # (2, nx, ny)
-        ux_rans = 0.5 * (rans_faces[0] + jnp.roll(rans_faces[0], 1, axis=0))
-        # Surface-integral drag from RANS mean pressure + velocity.
-        # Time-averaging the per-step CG pressure (collected in-loop) gives the
-        # correct RANS pressure; constant offset cancels on the closed cylinder surface.
-        p_rans = jnp.mean(_p_hist[-n_tail:], axis=0)  # (nx, ny)
-        drag = drag_jax(ux_rans, p_rans, obs_mask, viscosity, dx)
 
-    return result, drag
+# Boundary types of the DFG channel with a zero inlet velocity. The masks and
+# the pressure operator depend only on the types, so they are built from these,
+# without the inlet profile.
+_CHANNEL_VELOCITY_TYPES = extrapolation.combine_sides(
+    x=(extrapolation.ZERO, extrapolation.ZERO_GRADIENT), y=extrapolation.ZERO
+)
+# Cells beyond the inlet and the walls are solid, beyond the outlet fluid.
+_CHANNEL_ACCESSIBLE = extrapolation.combine_sides(
+    x=(extrapolation.ZERO, extrapolation.ONE), y=extrapolation.ZERO
+)
+# Zero normal pressure gradient at the inlet and the walls, p = 0 at the outlet.
+_CHANNEL_PRESSURE = extrapolation.combine_sides(
+    x=(extrapolation.ZERO_GRADIENT, extrapolation.ZERO), y=extrapolation.ZERO_GRADIENT
+)
+
+
+def channel_fwd(
+    v0: jnp.ndarray,
+    viscosity: float,
+    dt: float,
+    steps: int,
+    domain_extent: list[float],
+    obstacle: dict,
+    inflow_profile: jnp.ndarray,
+) -> dict[str, jnp.ndarray]:
+    """Run the 2-D DFG channel: profile inlet, outflow, no-slip walls, cylinder.
+
+    Operator splitting with phiflow's default semi-Lagrangian self-advection,
+    explicit diffusion and a CG pressure projection (``incompressible_rk4``
+    takes no obstacles). Wind-tunnel boundaries, and the cylinder as a staircase of the
+    cells whose center lies strictly inside it. Every face touching a solid cell
+    is held at zero velocity, and the pressure is solved in the fluid cells only.
+
+    The force on the cylinder is the momentum the solid faces remove from the
+    fluid in a step (from advection and diffusion) plus the pressure on the
+    faces between fluid and solid cells.
+
+    Returns:
+        ``result`` (nx, ny, 1, 2) at the cell centers, ``pressure`` (nx, ny, 1),
+        kinematic with p = 0 at the outlet, and ``body_force`` (steps, 2).
+    """
+    nx, ny = v0.shape[:2]
+    dx = domain_extent[0] / nx
+    grid_kwargs = {"x": nx, "y": ny, "bounds": Box(x=nx * dx, y=ny * dx)}
+
+    solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
+
+    inlet = extrapolation.combine_by_direction(
+        normal=extrapolation.ConstantExtrapolation(
+            math.tensor(inflow_profile, math.spatial("y"))
+        ),
+        tangential=extrapolation.ZERO,
+    )
+    ext = extrapolation.combine_sides(
+        x=(inlet, extrapolation.ZERO_GRADIENT), y=extrapolation.ZERO
+    )
+    with math.NUMPY:
+        accessible = CenteredGrid(
+            math.tensor(~solid, math.spatial("x,y")), _CHANNEL_ACCESSIBLE, **grid_kwargs
+        )
+        # 1 on faces between two fluid cells, 0 on faces touching a solid cell.
+        open_faces = field.stagger(
+            accessible,
+            math.minimum,
+            _CHANNEL_VELOCITY_TYPES,
+            at="face",
+            dims=("x", "y"),
+        )
+    active = accessible.with_extrapolation(extrapolation.NONE)
+    # x faces sit at x = (i + 1) dx (the last is the outlet), y faces at
+    # y = (j + 1) dx. The inlet and wall faces are boundary values.
+    open_x = jnp.asarray(open_faces.vector["x"].values.numpy("x,y"))
+    open_y = jnp.asarray(open_faces.vector["y"].values.numpy("x,y"))
+    fluid_cells = jnp.asarray(~solid)
+
+    def to_grid(ux: jnp.ndarray, uy: jnp.ndarray) -> StaggeredGrid:
+        components = {
+            "x": math.tensor(ux, math.spatial("x,y")),
+            "y": math.tensor(uy, math.spatial("x,y")),
+        }
+        return StaggeredGrid(
+            math.stack(components, math.dual("vector")), ext, **grid_kwargs
+        )
+
+    def close(vel: StaggeredGrid) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """Zero the faces touching the cylinder and return the momentum removed."""
+        ux = vel.vector["x"].values.native("x,y")
+        uy = vel.vector["y"].values.native("x,y")
+        removed = jnp.stack([(ux * (1 - open_x)).sum(), (uy * (1 - open_y)).sum()])
+        return ux * open_x, uy * open_y, removed * dx**2
+
+    def pressure_force(p: jnp.ndarray) -> jnp.ndarray:
+        """Pressure on the faces between fluid and solid cells, from the fluid side."""
+        p = jnp.where(fluid_cells, p, 0.0)
+        shut_x = 1 - open_x[:-1]  # interior x faces
+        shut_y = 1 - open_y
+        fx = ((p[:-1] - p[1:]) * shut_x).sum()
+        fy = ((p[:, :-1] - p[:, 1:]) * shut_y).sum()
+        return jnp.stack([fx, fy]) * dx
+
+    def step(
+        carry: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        ux, uy, p_prev = carry
+        vel = to_grid(ux, uy)
+        vel = advect.semi_lagrangian(vel, vel, dt)
+        ux, uy, removed = close(vel)
+        vel = diffuse.explicit(to_grid(ux, uy), viscosity, dt)
+        ux, uy, removed_viscous = close(vel)
+        vel = to_grid(ux, uy)
+        div = field.divergence(vel) * active
+        # The projection subtracts grad(p dt), so phiflow's pressure is p dt.
+        # Solve for the change from the previous step's pressure, which keeps
+        # the CG iterations low in the near-steady flow. (Passing that pressure
+        # as the solve's x0 instead leaks a tracer into the VJP inside lax.scan.)
+        laplace_args = (_CHANNEL_VELOCITY_TYPES, open_faces, active)
+        laplace_kwargs = {
+            "wide_stencil": False,
+            "order": 2,
+            "implicit": None,
+            "upwind": None,
+            "correct_skew": False,
+        }
+        p_guess = Field(
+            div.geometry,
+            math.tensor(p_prev * dt, math.spatial("x,y")),
+            _CHANNEL_PRESSURE,
+        )
+        residual = div - fluid.masked_laplace(p_guess, *laplace_args, **laplace_kwargs)
+        zero = Field(div.geometry, 0, _CHANNEL_PRESSURE)
+        p_dt = p_guess + math.solve_linear(
+            fluid.masked_laplace,
+            residual,
+            math.Solve("CG", _CHANNEL_CG_TOL, _CHANNEL_CG_TOL, x0=zero),
+            *laplace_args,
+            **laplace_kwargs,
+        )
+        grad = field.spatial_gradient(
+            p_dt, ext, at="face", order=2, scheme="green-gauss"
+        )
+        vel = vel - grad * open_faces
+        p = p_dt.values.native("x,y") / dt
+        force = (removed + removed_viscous) / dt + pressure_force(p)
+        ux = vel.vector["x"].values.native("x,y")
+        uy = vel.vector["y"].values.native("x,y")
+        return (ux, uy, p), force
+
+    v_init = math.tensor(
+        v0[:, :, 0, :], math.spatial("x,y"), math.channel(vector="x,y")
+    )
+    vel_init = StaggeredGrid(
+        CenteredGrid(v_init, ext, **grid_kwargs), ext, **grid_kwargs
+    )
+    ux, uy, _ = close(vel_init)
+    p_init = jnp.zeros((nx, ny), v0.dtype)
+    (ux, uy, p), force = jax.lax.scan(step, (ux, uy, p_init), None, length=steps)
+
+    centered = CenteredGrid(to_grid(ux, uy), ext, **grid_kwargs)
+    velocity = jnp.stack([centered.vector[d].values.native("x,y") for d in "xy"], -1)
+    velocity = jnp.where(fluid_cells[:, :, None], velocity, 0.0)
+    return {
+        "result": velocity[:, :, None, :],
+        "pressure": jnp.where(fluid_cells, p, 0.0)[:, :, None],
+        "body_force": force,
+    }
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
-    """JIT-compiled forward pass returning result and drag arrays."""
-    result, drag = phiflow_fwd(**inputs)
-    out = {"result": result}
-    out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
-    return out
+    """JIT-compiled forward pass: the channel when an obstacle is set, else the periodic box."""
+    if inputs["obstacle"] is not None:
+        return channel_fwd(
+            inputs["v0"],
+            inputs["viscosity"],
+            inputs["dt"],
+            inputs["steps"],
+            inputs["domain_extent"],
+            inputs["obstacle"],
+            inputs["inflow_profile"],
+        )
+    result = periodic_fwd(
+        inputs["v0"],
+        inputs["viscosity"],
+        inputs["dt"],
+        inputs["steps"],
+        inputs["domain_extent"],
+    )
+    return {"result": result}
 
 
 _SCALAR_KEYS = ("viscosity", "dt")
@@ -419,35 +434,14 @@ def vector_jacobian_product(
     )
 
 
-def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
-    """Calculate output shape of apply from the shape of its inputs.
-
-    For phiflow the output ``result`` always has the same shape as ``v0``,
-    and ``drag`` is always shape ``(1,)``.
-    """
-    raw = abstract_inputs.model_dump()
-    v0 = raw["v0"]
-    if isinstance(v0, dict) and "shape" in v0 and "dtype" in v0:
-        v0_shape = tuple(v0["shape"])
-        v0_dtype = v0["dtype"]
-    else:
-        import numpy as np
-
-        arr = np.asarray(v0)
-        v0_shape = arr.shape
-        v0_dtype = str(arr.dtype)
-    out = {
-        "result": {"shape": v0_shape, "dtype": v0_dtype},
-        "drag": {"shape": (1,), "dtype": "float32"},
-    }
-    obstacle_raw = raw.get("obstacle") or {}
-    _has_obstacle = bool(
-        obstacle_raw.get("shape")
-        if isinstance(obstacle_raw, dict)
-        else getattr(obstacle_raw, "shape", None)
-    )
-    _has_inflow = raw.get("inflow_profile") is not None
-    _ndim = v0_shape[-1] if v0_shape else 0
+def abstract_eval(abstract_inputs: Any) -> dict:
+    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
+    v0_info = abstract_inputs.v0
+    shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
+    out = {"result": {"shape": shape, "dtype": "float32"}}
+    if abstract_inputs.obstacle is not None:
+        out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
+        out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
     return out
 
 

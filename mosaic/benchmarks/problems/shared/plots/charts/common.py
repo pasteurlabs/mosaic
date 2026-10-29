@@ -171,11 +171,16 @@ class SolverEnc:
         )
 
 
-def solver_encodings(solvers: Any) -> SolverEnc:
-    """Registry-ordered labels and colour/dash/shape scales for ``solvers``."""
+def solver_encodings(solvers: Any, suffix: dict[str, str] | None = None) -> SolverEnc:
+    """Registry-ordered labels and colour/dash/shape scales for ``solvers``.
+
+    ``suffix`` maps a raw solver name to text appended to its display label.
+    """
     keys = registry_order(solvers)
     styles = [solver_style(s) for s in keys]
-    labels = [s[0] for s in styles]
+    labels = [
+        s[0] + (suffix or {}).get(k, "") for k, s in zip(keys, styles, strict=True)
+    ]
     return SolverEnc(
         keys=keys,
         labels=labels,
@@ -314,6 +319,16 @@ def cell_outline(cell: alt.Parameter, color: str = "#ffffff") -> dict:
 def cell_px(n: int, total: int = 150) -> int:
     """Panel size in px for an n×n field (about ``total`` px wide)."""
     return max(4, round(total / max(n, 1))) * n
+
+
+def panel_px(nx: int, ny: int, total: int = 150) -> tuple[int, int]:
+    """Panel (width, height) in px for an nx×ny field.
+
+    Square cells, sized as :func:`cell_px` would size a square field with the
+    same number of cells.
+    """
+    px = max(4, round(total / max(math.sqrt(nx * ny), 1)))
+    return px * nx, px * ny
 
 
 # ── Themes and export ────────────────────────────────────────────────────────

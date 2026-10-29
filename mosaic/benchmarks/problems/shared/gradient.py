@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Gradient evaluation suite: FD verification, parameter sweep, Jacobian SVD.
+"""Gradient evaluation suite: FD and analytic checks, parameter sweep, Jacobian SVD.
 
 Only runs solvers where ``SolverSpec.differentiable`` is True.
 
@@ -22,6 +22,7 @@ per-solver Jacobian phase.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import jax
@@ -37,7 +38,7 @@ from mosaic.benchmarks.core.experiment import (
     random_direction,
 )
 from mosaic.benchmarks.core.io import save_field_snapshots_npz, try_load_npz
-from mosaic.benchmarks.core.runner import run_with_gpu_pool
+from mosaic.benchmarks.core.runner import nonfinite_counts, run_with_gpu_pool
 
 # ── Science primitives ───────────────────────────────────────────────────────
 
@@ -54,6 +55,13 @@ def _vjp_grad(t: Any, inputs: dict, output_key: str, ic_key: str) -> jax.Array:
         return jnp.sum(out**2)
 
     return jax.grad(f)(inputs[ic_key])
+
+
+def _nonfinite_grad_error(g: jax.Array) -> str | None:
+    """Failure reason for a gradient with NaN/Inf entries; ``None`` if finite."""
+    if bool(jnp.all(jnp.isfinite(g))):
+        return None
+    return f"VJP returned non-finite gradient ({nonfinite_counts(g)})"
 
 
 def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
@@ -142,6 +150,9 @@ def fd_check(t: Any, ctx: KernelContext) -> dict:
     base_ic, ic_scale, g, vjp_arr, fd_per_eps = _fd_vjp_arrays(
         t, ctx, eps_values, n_dirs
     )
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        raise ValueError(nonfinite)
     eps_sweep: dict = {}
     for eps, fd_arr in fd_per_eps.items():
         denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
@@ -161,6 +172,55 @@ def fd_check(t: Any, ctx: KernelContext) -> dict:
         # IC so plots see the same array the kernel perturbed around (matters
         # for structural_mesh where make_inputs substitutes rho_0).
         "shared": {"ic": np.asarray(base_ic)},
+    }
+
+
+@kernel(sweep_mode="default", catch_label="VJP failed")
+def analytic_check(t: Any, ctx: KernelContext) -> dict:
+    """One sweep point of the analytic gradient check, comparing the VJP to a closed form.
+
+    ``ctx.run["reference"]`` gives the exact gradient of ``sum(output**2)``
+    w.r.t. the IC as ``reference(ic, t=t_end, **physics)``, receiving the
+    physics keys it names. Since that is the continuum gradient, the error
+    also contains the solver's discretization error. If the reference is
+    exact only on a subspace, ``ctx.run["project"](g, domain_extent)``
+    projects the solver gradient onto it first.
+
+    ``error`` is the L2 error of the projected gradient and ``off_subspace``
+    the norm of the part projected away (not scored), both relative to the
+    reference norm. ``amplitude_err`` is the signed relative error of the
+    derivative along the IC itself.
+    """
+    reference = ctx.run["reference"]
+    project = ctx.run.get("project")
+    inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    base_ic = np.asarray(inputs[ctx.ic_key], dtype=np.float64)
+    t_end = float(np.asarray(inputs["dt"])[0]) * int(inputs["steps"])
+    params = inspect.signature(reference).parameters
+    extra = {k: ctx.phys[k] for k in params if k in ctx.phys and k not in ("ic", "t")}
+    ref = np.asarray(reference(base_ic, t=t_end, **extra), dtype=np.float64)
+
+    g = _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key)
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        return {
+            "metrics": {"status": "failed", "failure_type": "nan", "error": nonfinite}
+        }
+    g = np.asarray(g, dtype=np.float64)
+    g_cmp = np.asarray(project(g, ctx.domain_extent)) if project else g
+    ref_norm = np.linalg.norm(ref)
+    cmp_norm = np.linalg.norm(g_cmp)
+    return {
+        "metrics": {
+            "valid": True,
+            "error": float(np.linalg.norm(g_cmp - ref) / ref_norm),
+            "cosine": float(np.vdot(g_cmp, ref) / (cmp_norm * ref_norm + 1e-30)),
+            "amplitude_err": float(
+                np.vdot(g_cmp, base_ic) / np.vdot(ref, base_ic) - 1.0
+            ),
+            "off_subspace": float(np.linalg.norm(g - g_cmp) / ref_norm),
+            "grad_norm": float(np.linalg.norm(g)),
+        },
     }
 
 
@@ -186,12 +246,18 @@ def param_sweep(t: Any, ctx: KernelContext) -> dict:
             "rel_error_std": float(np.std(np.abs(fd_arr - vjp_arr) / denom)),
             "cosine_mean": _fd_cosine(fd_arr, vjp_arr),
         }
+    metrics: dict = {
+        "grad_norm": float(jnp.linalg.norm(g)),
+        "ic_scale": ic_scale,
+        "eps_sweep": eps_sweep,
+    }
+    # A non-finite gradient fails this sweep point only; the rest of the sweep
+    # still runs. The NaN metrics stay so plots can mark where it broke.
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        metrics.update(status="failed", failure_type="nan", error=nonfinite)
     return {
-        "metrics": {
-            "grad_norm": float(jnp.linalg.norm(g)),
-            "ic_scale": ic_scale,
-            "eps_sweep": eps_sweep,
-        },
+        "metrics": metrics,
         "snapshot": np.asarray(g),
     }
 

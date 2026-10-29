@@ -5,6 +5,8 @@ description: >
   backend. Gradient ∂C/∂ρ via analytical SIMP adjoint sensitivity computed alongside the
   forward solve.
 build_config:
+  package_data:
+    - ["./solver.jl", "/tesseract/solver.jl"]
   custom_build_steps:
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates libpython3.11 gcc g++ && rm -rf /var/lib/apt/lists/*"
     - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"

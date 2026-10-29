@@ -86,20 +86,19 @@ problem = Problem(
     name="thermal-mesh",
     category_label="Heat transfer",
     description=(
-        "**Routing heat through a material.** Where should the conductive material go "
-        "to carry heat away most effectively? And, separately, can we recover an "
-        "unknown heat source from temperature measurements? Both are inverse problems "
-        "solved by differentiating through a steady heat-conduction solve.\n\n"
-        "We minimize the thermal compliance of a quasi-2D heated slab under the SIMP "
-        "density-penalization scheme ($p=3$). The effective conductivity "
-        "$k_\\text{eff}(\\rho) = k_\\min + (k_\\max - k_\\min)\\,\\rho^3$ controls how "
-        "heat is routed, and the compliance $C = \\oint_\\Gamma q_n\\,T\\,d\\Gamma$ "
-        "measures the work done by the heat flux on the temperature field. A hot-spot "
-        "boundary condition (a central $1/3$ stripe) breaks $y$-symmetry and drives the "
-        "topology optimization toward non-trivial branching structures. The same domain "
-        "also hosts *source-identification* experiments, which recover an unknown "
-        "volumetric heat source $f(\\mathbf{x})$ from temperature observations by "
-        "minimizing $\\lVert T - T_\\text{target} \\rVert^2$."
+        "**Inferring conductivity from temperature.** Given the temperature "
+        "field of a heated slab, where is the material conductive? We answer this "
+        "inverse problem by differentiating through a steady heat-conduction solve.\n\n"
+        "The conductivity of a quasi-2D slab follows the SIMP law ($p=3$) "
+        "$k_\\text{eff}(\\rho) = k_\\min + (k_\\max - k_\\min)\\,\\rho^3$ in the "
+        "element density $\\rho$. The optimization experiment recovers a two-Gaussian "
+        "density field from the temperature it produces, starting from a uniform "
+        "field and minimizing $\\lVert T(\\rho) - T_\\text{target} \\rVert^2$ with "
+        "L-BFGS. The forward and gradient experiments compare solvers on the thermal "
+        "compliance $C = \\oint_\\Gamma q_n\\,T\\,d\\Gamma$, the work done by the heat "
+        "flux on the temperature field, and on its sensitivity to $\\rho$. Two further "
+        "gradient experiments check the derivative of a temperature misfit "
+        "with respect to a volumetric heat source $f(\\mathbf{x})$."
     ),
     bc_description=(
         "Quasi-2D heated slab on domain $[0,2]\\times[0,1]$ (a single HEX8 layer, $n_z=1$). "
@@ -109,7 +108,8 @@ problem = Problem(
         "Dirichlet: all nodes at $x=0$ held at $T=0$ (fixed temperature). "
         "Neumann (uniform): uniform heat flux $Q_\\text{total}$ over the right face ($x=2$). "
         "Neumann (hot-spot): flux concentrated on the central $1/3$ stripe in $y$ "
-        "($L_y/3 \\le y \\le 2L_y/3$) at the right face, driving non-trivial topology."
+        "($L_y/3 \\le y \\le 2L_y/3$) at the right face, used by the physical-laws "
+        "check."
     ),
     tesseract_dir=_TESSERACT_SLUG,
     output_key="thermal_compliance",
@@ -133,6 +133,12 @@ problem = Problem(
         # accurately reflects "hasn't converged".
         "optimization": [max_final_ratio(0.5)],
     },
+    # Conductivity recovery is ill-conditioned (~1e8 in rho). L-BFGS stalls on
+    # a plateau for a number of iterations that round-off decides, so two runs
+    # of identical code can end 27x apart in misfit.
+    indicative_metrics={
+        "optimization/conductivity_recovery_bfgs": ("final_ratio", "final_loss"),
+    },
 )
 
 
@@ -142,7 +148,7 @@ problem.add_ic(
     fn=_uniform,
     description=(
         "Uniform SIMP thermal conductivity density $\\rho_0$ over all hex mesh elements; "
-        "standard homogeneous starting point for heat-conduction topology optimisation."
+        "the starting point of the conductivity-recovery optimization."
     ),
     plot_params={"rho_0": 0.5, "nx": 16, "ny": 8, "nz": 1},
     plot=plot_ic,

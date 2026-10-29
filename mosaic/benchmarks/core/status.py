@@ -30,7 +30,7 @@ import contextlib
 import functools
 import importlib
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -199,7 +199,8 @@ class Cell:
     # underlying status.
     stale: bool = False
     # Resource frontier for swept experiments: the first sweep value at which
-    # the solver hit a *resource ceiling* (OOM / timeout). ``None`` when the
+    # the solver hit a *resource ceiling* (OOM / timeout, or any failure after
+    # a valid point in a ``sweep_mode="limits"`` experiment). ``None`` when the
     # solver ran to completion at every value. A ceiling is NOT a failure — a
     # solver that OOMs only at the largest sizes is still OK — but the frontier
     # is carried into the snapshot so ``diff_snapshots`` can tell when the
@@ -212,6 +213,10 @@ class Cell:
     # status ladder alone hides most of what optimisation PRs actually move.
     # Empty when the suite has no comparable scalar or the solver didn't run.
     metrics: dict[str, float] = field(default_factory=dict)
+    # Documented method-intrinsic cause for an ANOMALY cell (from an
+    # ``ANOMALY_EXPLAINED`` exclusion). Shown next to ``reason``; never
+    # changes the status or the score.
+    explanation: str = ""
 
 
 @dataclass
@@ -222,6 +227,11 @@ class ExperimentRow:
     experiment: str  # may be "<name>" or "<name>/<ic_name>" for IC-sub-dirs
     result_path: Path | None  # None when result.json is missing
     cells: dict[str, Cell] = field(default_factory=dict)
+    # Explanations registered for a solver whose cell passed every check:
+    # solver name -> explanation. Reported so stale explanations get removed.
+    unused_explanations: dict[str, str] = field(default_factory=dict)
+    # Metrics whose shifts this row reports as indicative (Problem.indicative_metrics).
+    indicative_metrics: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -296,12 +306,19 @@ def _median(values: list[float]) -> float:
     return vs[mid] if len(vs) % 2 else 0.5 * (vs[mid - 1] + vs[mid])
 
 
-def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
+def _refine_cost(
+    data: dict,
+    cells: dict[str, Cell],
+    checks: list,
+    device_class: dict[str, str] | None = None,
+) -> None:
     """Walk ``checks`` against per-solver :class:`CostSummary` instances.
 
-    Solver-medians and peer-median are computed once across OK solvers (need
-    ≥2 to form a meaningful peer comparison), then each check function is
-    given a CostSummary per solver. First anomaly wins.
+    Each solver's peers are the OK solvers of its device class (``device_class``
+    maps solver name to e.g. ``"gpu"`` or ``"cpu"``; without it, all solvers
+    form one class), as the results pages compare cost. A CPU solver being
+    slower than GPU solvers is the hardware, not an anomaly. A class needs ≥2
+    solvers to form a meaningful peer comparison. First anomaly wins.
     """
     from .status_checks import CostSummary
 
@@ -323,16 +340,21 @@ def _refine_cost(data: dict, cells: dict[str, Cell], checks: list) -> None:
         ]
         if times:
             solver_medians[solver] = _median(times)
-    if len(solver_medians) < 2:
-        return
-    peer_median = _median(list(solver_medians.values()))
-    if peer_median <= 0:
-        return
+    classes: dict[str, dict[str, float]] = {}
     for solver, med in solver_medians.items():
-        summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
-        verdict = _run_checks(checks, summary)
-        if verdict:
-            cells[solver] = Cell(*verdict)
+        cls = (device_class or {}).get(solver, "")
+        classes.setdefault(cls, {})[solver] = med
+    for medians in classes.values():
+        if len(medians) < 2:
+            continue
+        peer_median = _median(list(medians.values()))
+        if peer_median <= 0:
+            continue
+        for solver, med in medians.items():
+            summary = CostSummary(solver_median_time=med, peer_median_time=peer_median)
+            verdict = _run_checks(checks, summary)
+            if verdict:
+                cells[solver] = Cell(*verdict)
 
 
 def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
@@ -353,6 +375,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         return
 
     errs_per_solver: dict[str, dict[Any, float]] = {}
+    metrics_per_solver: dict[str, dict[Any, dict]] = {}
     for solver, cell in cells.items():
         if cell.status != OK:
             continue
@@ -363,14 +386,17 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
         swept = bool(entry) and all(isinstance(v, dict) for v in entry.values())
         points = entry.items() if swept else [("", entry)]
         errs: dict[Any, float] = {}
+        metrics: dict[Any, dict] = {}
         for pval, sub in points:
             if not isinstance(sub, dict) or sub.get("valid") is False:
                 continue
             err = sub.get("error")
             if isinstance(err, int | float) and math.isfinite(err):
                 errs[pval] = float(err)
+                metrics[pval] = sub
         if errs:
             errs_per_solver[solver] = errs
+            metrics_per_solver[solver] = metrics
 
     if not errs_per_solver:
         return
@@ -394,6 +420,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
             errs_by_pval=dict(errs),
             peer_medians_by_pval=dict(peer_medians),
             n_valid_points=sum(1 for pval in errs if pval in judgeable),
+            metrics_by_pval=metrics_per_solver[solver],
         )
         verdict = _run_checks(checks, summary)
         if verdict:
@@ -523,6 +550,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
     if not isinstance(top, dict):
         return
 
+    summaries: dict[str, OptimizationSummary] = {}
     for solver in list(cells):
         if cells[solver].status != OK:
             continue
@@ -532,12 +560,24 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
         # final_initial_ratio from the worst-case trajectory.
         series = _worst_case_trajectory(entry)
         ratio: float | None = None
+        final: float | None = None
         if series:
+            # Keep the final value signed, so that an objective driven below
+            # zero (a drag) does not read as a large remaining loss.
             initial = abs(series[0])
-            final = abs(series[-1])
-            if initial > 0 and math.isfinite(final):
+            final = series[-1]
+            if not math.isfinite(final):
+                final = None
+            elif initial > 0:
                 ratio = final / initial
-        summary = OptimizationSummary(final_initial_ratio=ratio, metrics=entry)
+        summaries[solver] = OptimizationSummary(
+            final_initial_ratio=ratio, final_value=final, metrics=entry
+        )
+
+    finals = [s.final_value for s in summaries.values() if s.final_value is not None]
+    peer_median = _median(finals) if len(finals) >= 3 else None
+    for solver, summary in summaries.items():
+        summary.peer_final_median = peer_median
         verdict = _run_checks(checks, summary)
         if verdict:
             cells[solver] = Cell(*verdict)
@@ -563,8 +603,15 @@ def _find_trajectory(entry: Any) -> list[float] | None:
     return None
 
 
-def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
-    """Classify from schema_version=1 flat results list."""
+def _classify_from_v1(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
+    """Classify from schema_version=1 flat results list.
+
+    ``limits`` marks a ``sweep_mode="limits"`` experiment, which runs until
+    the first failure to find how far each solver gets. Any failure after a
+    valid point is then the solver's frontier.
+    """
     cells: dict[str, Cell] = {}
     results = data.get("results", [])
     if not results:
@@ -592,7 +639,8 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
         #                    fields, so ``_has_any_finite`` alone would mis-read
         #                    it as OK — we must consult ``status`` explicitly.
         #   resource ceiling — ``status: "failed"`` with failure_type OOM /
-        #                    timeout. This is a platform-dependent scaling
+        #                    timeout, or any failure after a valid point in a
+        #                    limits sweep. This is a platform-dependent scaling
         #                    limit, expected at large sizes and not encodable as
         #                    an exclusion. It does NOT fail the cell; we only
         #                    record the frontier (first value that hit it) so
@@ -620,7 +668,9 @@ def _classify_from_v1(data: dict, solvers: list[str], checks: list) -> dict[str,
             if not isinstance(metrics, dict):
                 continue
             if metrics.get("status") == "failed":
-                if metrics.get("failure_type") in _RESOURCE_CEILING:
+                if metrics.get("failure_type") in _RESOURCE_CEILING or (
+                    limits and has_valid
+                ):
                     # Resource ceiling — not a failure. Record the first value
                     # at which it bit, in on-disk sweep order.
                     if frontier is None:
@@ -663,24 +713,26 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     """Build a short human-readable reason from a ``status: "failed"`` record.
 
     Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
-    (see :meth:`TimedResult.as_record`); prefer those over the generic
-    ``error``/``message``/``reason`` fields the other suites use.
+    (see :meth:`TimedResult.as_record`); other suites carry ``failure_type`` +
+    ``error``. Both render as ``"<failure_type>: [<exc_type>: ]<message>"``.
     """
     exc_type = metrics.get("exc_type")
     exc_msg = metrics.get("exc_msg") or metrics.get("error")
     failure_type = metrics.get("failure_type")
-    if exc_type and exc_msg:
+    if exc_msg:
         head = str(exc_msg).strip().splitlines()[0][:160]
-        prefix = f"{failure_type}: " if failure_type else ""
-        return f"{prefix}{exc_type}: {head}"
+        prefix = "".join(f"{p}: " for p in (failure_type, exc_type) if p)
+        return f"{prefix}{head}"
     if failure_type:
         return str(failure_type)
     return _reason_from_entry(metrics) or "failed"
 
 
-def _classify_result(data: dict, solvers: list[str], checks: list) -> dict[str, Cell]:
+def _classify_result(
+    data: dict, solvers: list[str], checks: list, *, limits: bool = False
+) -> dict[str, Cell]:
     """Classify each solver from a schema_version=1 result."""
-    cells = _classify_from_v1(data, solvers, checks)
+    cells = _classify_from_v1(data, solvers, checks, limits=limits)
 
     # Solvers whose Tesseract container failed to start (or whose work raised)
     # before any result was recorded are absent from the data layout above and
@@ -819,15 +871,27 @@ def _v1_to_legacy_view(data: dict) -> dict:
     return view
 
 
+def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
+    return suite == "gradient" and exp_label.split("/")[0] == "analytic_check"
+
+
 def _refine_for_suite(
-    suite: str, exp_label: str, data: dict, cells: dict[str, Cell], checks: list
+    suite: str,
+    exp_label: str,
+    data: dict,
+    cells: dict[str, Cell],
+    checks: list,
+    device_class: dict[str, str] | None = None,
 ) -> None:
     """Dispatch suite-specific anomaly refinements (no-op without thresholds)."""
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
-    if suite == "forward":
+    # The analytic gradient check records an error against a reference per
+    # sweep point, the same shape as a forward result, so it takes the same
+    # checks.
+    if suite == "forward" or _is_analytic_grad_check(suite, exp_label):
         _refine_forward(view, cells, checks)
     elif suite == "cost":
-        _refine_cost(view, cells, checks)
+        _refine_cost(view, cells, checks, device_class)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
@@ -859,7 +923,6 @@ METRIC_SPECS: dict[str, tuple[float, str, str]] = {
     "cosine": (0.02, "higher", "firm"),
     "final_ratio": (0.15, "lower", "firm"),
     "final_loss": (0.15, "lower", "firm"),
-    "field_error": (0.15, "lower", "firm"),
     "fwd_error": (0.15, "lower", "firm"),
     "cost_time_s": (0.35, "lower", "indicative"),
 }
@@ -924,8 +987,35 @@ def _collect_fd_metrics(data: dict, cells: dict[str, Cell]) -> None:
         _store_metric(cell, "cosine", best_cos)
 
 
+def _collect_analytic_grad_metrics(data: dict, cells: dict[str, Cell]) -> None:
+    """Store the median ``error`` as ``rel_err`` and the worst ``cosine`` per OK solver."""
+    by_solver = data.get("by_solver", {})
+    if not isinstance(by_solver, dict):
+        return
+    for solver, cell in cells.items():
+        if cell.status != OK:
+            continue
+        entry = by_solver.get(solver)
+        if not isinstance(entry, dict):
+            continue
+        errs: list[float] = []
+        cosines: list[float] = []
+        for sub in entry.values():
+            if not isinstance(sub, dict) or sub.get("valid") is not True:
+                continue
+            e, c = sub.get("error"), sub.get("cosine")
+            if isinstance(e, int | float) and math.isfinite(e):
+                errs.append(float(e))
+            if isinstance(c, int | float) and math.isfinite(c):
+                cosines.append(float(c))
+        if errs:
+            _store_metric(cell, "rel_err", _median(errs))
+        if cosines:
+            _store_metric(cell, "cosine", min(cosines))
+
+
 def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
-    """Store the worst-case ``final_ratio``, plus ``final_loss`` / ``field_error`` when present."""
+    """Store the worst-case ``final_ratio`` and the ``final_loss``."""
     top = data.get("by_solver") or data.get("by_sweep") or {}
     if not isinstance(top, dict):
         return
@@ -949,9 +1039,6 @@ def _collect_recovery_metrics(data: dict, cells: dict[str, Cell]) -> None:
             _store_metric(cell, "final_loss", fl)
         elif series and math.isfinite(abs(series[-1])):
             _store_metric(cell, "final_loss", abs(series[-1]))
-        # Distance of the recovered field to the ground truth, for experiments
-        # that know it (e.g. thermal conductivity recovery).
-        _store_metric(cell, "field_error", entry.get("final_field_error"))
 
 
 def _collect_forward_metrics(data: dict, cells: dict[str, Cell]) -> None:
@@ -998,6 +1085,8 @@ def _collect_metrics_for_suite(
     view = _v1_to_legacy_view(data) if data.get("schema_version") == 1 else data
     if suite == "cost":
         _collect_cost_metrics(view, cells)
+    elif _is_analytic_grad_check(suite, exp_label):
+        _collect_analytic_grad_metrics(view, cells)
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
@@ -1086,13 +1175,15 @@ def _apply_exclusions(
 
 
 def _apply_explained_anomalies(
-    cfg: Problem, suite: str, exp_label: str, cells: dict[str, Cell]
+    cfg: Problem, suite: str, exp_label: str, row: ExperimentRow
 ) -> None:
-    """Mark explained-anomaly solvers.
+    """Attach documented explanations to cells that tripped a quality check.
 
-    These override OK cells only — the solver runs and produces finite
-    results, but underperforms peers for documented method-intrinsic reasons.
-    FAILED and EXCLUDED cells are never downgraded by this pass.
+    The measured result alone decides a cell's status and score; an
+    explanation only adds text. An ANOMALY cell keeps its measured reason and
+    gains the explanation. An OK cell stays OK, and its explanation is
+    recorded in ``row.unused_explanations`` so stale entries surface in the
+    report. FAILED, EXCLUDED and NOT_RUN cells are left alone.
 
     Reads ``cfg.exclusions[name]`` filtered to entries with
     ``Exclusion.category == "anomaly_explained"``.
@@ -1105,15 +1196,15 @@ def _apply_explained_anomalies(
         _key, value = match
         if getattr(value, "category", None) != "anomaly_explained":
             continue
-        cell = cells.get(name)
-        if cell is None or cell.status in (FAILED, EXCLUDED):
+        cell = row.cells.get(name)
+        if cell is None:
             continue
-        if cell.status == OK:
-            cells[name] = _build_explained_anomaly_cell(value)
-        elif cell.status == ANOMALY and cell.category != "explained":
-            cells[name] = Cell(
-                ANOMALY, cell.reason, category="explained", stale=cell.stale
+        if cell.status == ANOMALY:
+            row.cells[name] = replace(
+                cell, category="explained", explanation=value.reason
             )
+        elif cell.status == OK:
+            row.unused_explanations[name] = value.reason
 
 
 def _suite_filter(cfg: Problem, suite: str) -> set[str]:
@@ -1150,10 +1241,11 @@ def _build_row(
 ) -> ExperimentRow:
     """Construct one ExperimentRow with classified, refined, and stamped cells."""
     row = ExperimentRow(suite=suite, experiment=exp_label, result_path=result_path)
+    row.indicative_metrics = tuple(cfg.indicative_metrics.get(row.label, ()))
     if result_path is None:
         row.cells = {s: Cell(NOT_RUN) for s in solvers}
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     try:
         data = load_json(result_path)
@@ -1163,19 +1255,21 @@ def _build_row(
         # a solver that's categorically excluded shouldn't be reported as
         # ``fail`` just because the JSON for solvers that DID run is broken.
         _apply_exclusions(cfg, suite, exp_label, row.cells)
-        _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+        _apply_explained_anomalies(cfg, suite, exp_label, row)
         return row
     checks = _lookup_check(cfg, suite, exp_label)
-    row.cells = _classify_result(data, solvers, checks)
+    limits = cfg.get_sweep_mode(suite, exp_label) == "limits"
+    row.cells = _classify_result(data, solvers, checks, limits=limits)
     # Capture numeric scalars *before* anomaly refinement downgrades any OK
     # cell — the scalar is worth diffing whether or not it trips a threshold.
     _collect_metrics_for_suite(suite, exp_label, data, row.cells)
-    _refine_for_suite(suite, exp_label, data, row.cells, checks)
+    device_class = {s.name: "gpu" if s.uses_gpu else "cpu" for s in cfg.solvers}
+    _refine_for_suite(suite, exp_label, data, row.cells, checks, device_class)
     _apply_staleness(
         cfg, data, row.cells, solvers, tesseract_hash_cache, harness_hash_cache
     )
     _apply_exclusions(cfg, suite, exp_label, row.cells)
-    _apply_explained_anomalies(cfg, suite, exp_label, row.cells)
+    _apply_explained_anomalies(cfg, suite, exp_label, row)
     return row
 
 
@@ -1248,22 +1342,6 @@ def _build_excluded_cell(value: Exclusion) -> Cell:
     return Cell(EXCLUDED, value.reason, category=value.category.value)
 
 
-def _build_explained_anomaly_cell(value: Exclusion) -> Cell:
-    """Construct an ANOMALY cell from an explained-anomaly :class:`Exclusion`.
-
-    The solver runs and produces finite output but underperforms peers for
-    documented method-intrinsic reasons (e.g. LBM compressibility floor,
-    staggered MAC grid interpolation error). These appear in the status table
-    as anomalies — not excluded — so they stay in the score denominator and
-    solver weaknesses remain visible.
-
-    ``category="explained"`` marks the cell as a pre-documented anomaly,
-    distinguishing it from threshold-triggered anomalies without re-inspecting
-    ``result.json``.
-    """
-    return Cell(ANOMALY, value.reason, category="explained")
-
-
 # ── JSON / markdown / diff rendering ─────────────────────────────────────────
 #
 # These helpers are consumed by the `mosaic status --format {md,json}` CLI
@@ -1297,9 +1375,12 @@ def status_to_dict(st: ProblemStatus) -> dict:
                         "stale": c.stale,
                         "resource_frontier": c.resource_frontier,
                         "metrics": c.metrics,
+                        "explanation": c.explanation,
                     }
                     for s, c in r.cells.items()
                 },
+                "unused_explanations": dict(r.unused_explanations),
+                "indicative_metrics": list(r.indicative_metrics),
             }
             for r in st.rows
         ],
@@ -1413,15 +1494,21 @@ def md_cell_glyph(cell: Cell) -> str:
         glyph = _MD_EXCL_GLYPHS.get(cell.category, _MD_GLYPHS[EXCLUDED])
     else:
         glyph = _MD_GLYPHS.get(cell.status, "?")
+    if cell.explanation:
+        glyph += _EXPLAINED_MARK
     if getattr(cell, "stale", False) and cell.status != EXCLUDED:
         return glyph + "\\*"
     return glyph
 
 
+# Suffix marking an anomaly that carries a documented explanation.
+_EXPLAINED_MARK = "ⁱ"
+
 _MD_LEGEND = (
     "**Legend** · "
     "✅ ok · "
     "🟠 anom · "
+    f"🟠{_EXPLAINED_MARK} anom with a documented cause (scored as anom) · "
     "❌ fail · "
     "· missing · "
     "🚫 excluded (permanent — out of score denominator) · "
@@ -1637,21 +1724,40 @@ def render_markdown(statuses: list[ProblemStatus]) -> str:
     lines.append("")
 
     # ── failures & anomalies ────────────────────────────────────────────────
-    fa: list[tuple[str, str, str, str, str]] = []
+    fa: list[tuple[str, str, str, Cell]] = []
+    unused: list[tuple[str, str, str, str]] = []
     for st in statuses:
         for row in st.rows:
             for solver, cell in row.cells.items():
                 if cell.status in (FAILED, ANOMALY):
-                    fa.append((st.problem, row.label, solver, cell.status, cell.reason))
+                    fa.append((st.problem, row.label, solver, cell))
+            for solver, explanation in row.unused_explanations.items():
+                unused.append((st.problem, row.label, solver, explanation))
     if fa:
         lines.append("### Failures & anomalies")
         lines.append("")
-        for problem, label, solver, status, reason in fa:
-            glyph = _MD_GLYPHS[status]
-            reason_str = _md_format_reason(reason, collapse=(status == FAILED))
+        for problem, label, solver, cell in fa:
+            glyph = md_cell_glyph(replace(cell, stale=False))
+            reason_str = _md_format_reason(
+                cell.reason, collapse=(cell.status == FAILED)
+            )
+            if cell.explanation:
+                reason_str += f" (documented cause: {cell.explanation})"
             lines.append(
                 f"- {glyph} `{problem}` · `{label}` · **{solver}**{reason_str}"
             )
+        lines.append("")
+    if unused:
+        lines.append("### Unused explanations")
+        lines.append("")
+        lines.append(
+            "These cells passed every check, so their documented explanation "
+            "no longer applies and should be removed from the problem's "
+            "exclusions."
+        )
+        lines.append("")
+        for problem, label, solver, explanation in unused:
+            lines.append(f"- `{problem}` · `{label}` · **{solver}** — {explanation}")
         lines.append("")
 
     # ── per-problem tables (collapsed) ─────────────────────────────────────
@@ -1741,6 +1847,7 @@ def _diff_metrics(
     solver: str,
     old_cell: dict,
     new_cell: dict,
+    indicative: frozenset[str] = frozenset(),
 ) -> None:
     """Record numeric-metric shifts into ``out["metric_shifts"]``.
 
@@ -1751,6 +1858,8 @@ def _diff_metrics(
     relative change exceeds that metric's ``METRIC_SPECS`` threshold. Wall-clock
     (``cost_time_s``) is flagged ``confidence="indicative"`` — noisy across
     shared CI runners — while deterministic correctness metrics are ``firm``.
+    Metrics named in *indicative* (the row's ``indicative_metrics``) are
+    flagged indicative too.
     """
     if old_cell.get("status") != OK or new_cell.get("status") != OK:
         return
@@ -1786,7 +1895,7 @@ def _diff_metrics(
                 "to": new_v,
                 "pct_change": pct,
                 "direction": "regression" if is_regression else "improvement",
-                "confidence": confidence,
+                "confidence": "indicative" if metric in indicative else confidence,
             }
         )
 
@@ -1872,7 +1981,15 @@ def diff_snapshots(old: dict, new: dict, measured: dict | None = None) -> dict:
                 # Resource frontier move (independent of the status transition).
                 _diff_frontier(out, problem, label, solver, old_cell, new_cell)
                 # Numeric-metric shift for cells that stay OK (no status change).
-                _diff_metrics(out, problem, label, solver, old_cell, new_cell)
+                _diff_metrics(
+                    out,
+                    problem,
+                    label,
+                    solver,
+                    old_cell,
+                    new_cell,
+                    frozenset(new_row.get("indicative_metrics", ())),
+                )
                 same_status = old_cell["status"] == new_cell["status"]
                 # A same-status change in category (e.g. excluded → excluded
                 # but category moved from not_implemented to categorical) is
@@ -1913,7 +2030,6 @@ _METRIC_LABELS: dict[str, str] = {
     "cosine": "gradient cosine",
     "final_ratio": "final/initial loss ratio",
     "final_loss": "final loss",
-    "field_error": "recovered-field error vs truth",
     "fwd_error": "forward error",
     "cost_time_s": "median time",
 }
@@ -1942,22 +2058,24 @@ def _fmt_metric_shift(r: dict) -> str:
 
 
 def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
-    """Render numeric-metric shifts, splitting firm from indicative (timing).
+    """Render numeric-metric shifts, splitting firm from indicative.
 
-    Firm (deterministic correctness) metrics go under a headline section;
-    indicative wall-clock shifts go under a clearly-labelled sub-section so a
-    contributor never mistakes a shared-runner timing wobble for a hard
-    regression (see F2 in the reporting audit).
+    Firm (deterministic correctness) metrics go under a headline section.
+    Indicative shifts, timing (shared-runner load, F2 in the reporting audit)
+    and path-dependent optimization results, get labelled sub-sections so
+    neither reads as a hard regression.
     """
     firm = [r for r in metric_shifts if r.get("confidence") != "indicative"]
     indicative = [r for r in metric_shifts if r.get("confidence") == "indicative"]
+    timing = [r for r in indicative if r["metric"] == "cost_time_s"]
+    path_dependent = [r for r in indicative if r["metric"] != "cost_time_s"]
     if firm:
         lines.append("### 📊 Metric changes")
         lines.append("")
         for r in firm:
             lines.append(_fmt_metric_shift(r))
         lines.append("")
-    if indicative:
+    if timing:
         lines.append("### ⏱ Timing (indicative — shared-runner contention)")
         lines.append("")
         lines.append(
@@ -1965,7 +2083,18 @@ def _render_metric_shifts(lines: list[str], metric_shifts: list[dict]) -> None:
             "indicative rather than controlled measurements._"
         )
         lines.append("")
-        for r in indicative:
+        for r in timing:
+            lines.append(_fmt_metric_shift(r))
+        lines.append("")
+    if path_dependent:
+        lines.append("### 〰 Path-dependent results (indicative)")
+        lines.append("")
+        lines.append(
+            "_These experiments' results depend on the optimizer's path, which "
+            "round-off can change between runs of identical code._"
+        )
+        lines.append("")
+        for r in path_dependent:
             lines.append(_fmt_metric_shift(r))
         lines.append("")
 
@@ -2062,10 +2191,11 @@ def render_diff_markdown(diff: dict, label: str = "base") -> str:
         _render_metric_shifts(lines, metric_shifts)
 
     if frontier_shifts:
-        lines.append("### Resource-frontier shifts (OOM / timeout)")
+        lines.append("### Resource-frontier shifts")
         lines.append("")
         lines.append(
-            "_The size at which a solver first hits a resource ceiling. "
+            "_The size at which a solver first hits a resource ceiling (OOM / "
+            "timeout, or any failure in a limits sweep). "
             "A smaller frontier means it now fails to scale as far as before._"
         )
         lines.append("")

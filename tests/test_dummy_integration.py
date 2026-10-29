@@ -103,8 +103,46 @@ def test_dummy_apply_loads_via_tesseract_api():
         assert "vector_jacobian_product" in t.available_endpoints
         v0 = np.zeros((4, 4, 1, 2), dtype=np.float32)
         out = t.apply({"v0": v0})
-        assert set(out) == {"result", "drag"}
+        assert out["result"] is not None
         assert np.asarray(out["result"]).shape == v0.shape
+
+
+def test_dummy_raises_on_unsupported_boundary_conditions():
+    """The BC contract: a solver raises on conditions it does not implement."""
+    import numpy as np
+    from tesseract_core import Tesseract
+
+    from .helpers import channel_inputs
+
+    inputs = channel_inputs(10)
+    with Tesseract.from_tesseract_api(str(DUMMY_NS_GRID)) as t:
+        out = t.apply(inputs)
+        assert np.asarray(out["body_force"]).shape == (inputs["steps"], 2)
+        bcs = {**inputs["boundary_conditions"], "x_hi": {"type": "no_slip"}}
+        with pytest.raises(Exception, match="supports fully periodic"):
+            t.apply({**inputs, "boundary_conditions": bcs})
+
+
+def test_cylinder_scores_the_dummy_against_the_literature(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """The dummy returns the reference force, so its Cd matches the reference."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    from mosaic.benchmarks.problems.navier_stokes_grid import cylinder
+
+    cfg.add_experiment(
+        "forward/dummy_cylinder",
+        cylinder.cylinder,
+        ic={"name": "dfg_inflow", "seed": 0},
+        physics={"resolution": [10]},
+    )
+    result = cfg.experiments["forward/dummy_cylinder"].fn(cfg, tags)
+    metrics = [r["metrics"] for r in result["results"] if r["metrics"].get("valid")]
+    assert metrics
+    for m in metrics:
+        assert m["cd"] == pytest.approx(cylinder.CD_REF, rel=1e-5)
+        assert m["error"] < 1e-5
 
 
 def test_forward_baseline_runs_with_dummy(ns_grid_tags, tmp_path, monkeypatch):
@@ -201,6 +239,328 @@ def test_thermal_mesh_forward_runs_with_dummy(thermal_mesh_tags, tmp_path, monke
     assert json_path.exists()
     on_disk = json.loads(json_path.read_text())
     assert "results" in on_disk
+
+
+@pytest.mark.parametrize("kernel_name", ["agreement", "physical_laws"])
+def test_forward_nonfinite_output_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A solver returning NaN fails its cell, and the reason reaches status."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    # A distinct tag for the same dummy lets the patched apply tell the
+    # poisoned solver apart from its peers.
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_apply = runner._apply_tesseract_with_deadline
+
+    def apply_nan_for_bad(t, inputs):
+        out = real_apply(t, inputs)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+        return out
+
+    monkeypatch.setattr(runner, "_apply_tesseract_with_deadline", apply_nan_for_bad)
+
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_nonfinite",
+        getattr(forward, kernel_name),
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+        diagnostics={"mean": lambda out, **_: float(jnp.mean(out))},
+    )
+    cfg.experiments["forward/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    bad_entries = [e for e in data["results"] if e["solver"] == bad]
+    assert len(bad_entries) == 2
+    for e in bad_entries:
+        assert e["metrics"]["valid"] is False
+        assert "'result' is not finite" in e["metrics"]["error"]
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "not finite" in cells[bad].reason
+    assert all(cells[s].status == OK for s in cfg.solver_names if s != bad)
+
+
+def test_agreement_single_solver_is_unscored(ns_grid_tags, tmp_path, monkeypatch):
+    """Alone, a solver has no consensus to be scored against: it is left
+    unscored (not run), not failed. With its peers' snapshots cached on disk
+    from an earlier run, it is scored against them.
+    """
+    from mosaic.benchmarks.core.status import NOT_RUN, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_single",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_single"].fn
+
+    alone = run(cfg, {solo: tags[solo]})
+    assert [e["metrics"] for e in alone["results"]] == [
+        {"status": "skipped", "unscored": True, "reason": forward._NO_REFERENCE}
+    ] * 2
+    assert _classify_result(alone, [solo], [])[solo].status == NOT_RUN
+
+    run(cfg, tags)
+    with_cache = run(cfg, {solo: tags[solo]})
+    solo_entries = [e for e in with_cache["results"] if e["solver"] == solo]
+    assert [e["metrics"]["valid"] for e in solo_entries] == [True, True]
+
+
+def test_agreement_only_rerun_uses_cached_peers(ns_grid_tags, tmp_path, monkeypatch):
+    """An ``--only`` rerun of one solver keeps every solver in ``tags``; the
+    ones it did not rerun still count through their cached snapshots.
+    """
+    from mosaic.benchmarks.core import cell_filter
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_only",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_only"].fn
+
+    run(cfg, tags)
+    cell_filter.set_active({("forward/dummy_only", solo): True})
+    try:
+        rerun = run(cfg, tags)
+    finally:
+        cell_filter.set_active(None)
+    solo_entries = [e for e in rerun["results"] if e["solver"] == solo]
+    assert [e["metrics"].get("valid") for e in solo_entries] == [True, True]
+
+
+def test_cost_only_rerun_keeps_other_solvers_timings(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """An ``--only`` rerun of one solver's cost cell leaves its peers' timings on disk."""
+    from mosaic.benchmarks.core import cell_filter
+    from mosaic.benchmarks.core.io import load_experiment_result
+    from mosaic.benchmarks.problems.shared import cost
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    solo = cfg.solver_names[0]
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "cost/dummy_only",
+        cost.spatial_cost,
+        physics={"N": [4], "nu": 0.01, "dt": 0.01, "steps": 1},
+        cost={"n_trials": 1},
+    )
+    run = cfg.experiments["cost/dummy_only"].fn
+
+    run(cfg, tags)
+    cell_filter.set_active({("cost/dummy_only", solo): True})
+    try:
+        run(cfg, tags)
+    finally:
+        cell_filter.set_active(None)
+    saved = load_experiment_result(tmp_path / cfg.name / "cost" / "dummy_only")
+    timed = {e["solver"] for e in saved["results"] if "mean" in e["metrics"]}
+    assert timed == set(cfg.solver_names)
+
+
+@pytest.mark.parametrize("kernel_name", ["fd_check", "param_sweep", "analytic_check"])
+def test_gradient_nonfinite_vjp_fails_with_reason(
+    kernel_name, ns_grid_tags, tmp_path, monkeypatch
+):
+    """A NaN VJP fails the cell with its reason; a sweep runs on past it."""
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, _classify_result
+    from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
+    from mosaic.benchmarks.problems.shared import gradient
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_vjp = gradient._vjp_grad
+    bad_calls = []
+
+    # Only the poisoned solver's first VJP is NaN, so a sweep's second point
+    # shows whether the sweep carried on.
+    def vjp_nan_once_for_bad(*args):
+        g = real_vjp(*args)
+        if runner.current_worker_context().image_tag == tags[bad]:
+            bad_calls.append(None)
+            if len(bad_calls) == 1:
+                g = jnp.full_like(g, jnp.nan)
+        return g
+
+    monkeypatch.setattr(gradient, "_vjp_grad", vjp_nan_once_for_bad)
+
+    # Register on copies so the throwaway experiment doesn't leak into the
+    # shared config other tests iterate over.
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    swept = kernel_name in ("param_sweep", "analytic_check")
+    cfg.add_experiment(
+        "gradient/dummy_nonfinite",
+        getattr(gradient, kernel_name),
+        ic={
+            "name": "tgv" if kernel_name == "analytic_check" else "multimode",
+            "seed": 0,
+        },
+        physics={
+            "N": 4,
+            "nu": [0.01, 0.05] if swept else 0.01,
+            "dt": 0.01,
+            "steps": 1,
+        },
+        fd={"eps_values": [1e-1], "n_dirs": 2},
+        reference=_tgv_analytic_grad,
+    )
+    cfg.experiments["gradient/dummy_nonfinite"].fn(cfg, tags)
+
+    json_path = tmp_path / "ns-grid" / "gradient" / "dummy_nonfinite" / "result.json"
+    data = json.loads(json_path.read_text())
+    if swept:
+        bad_entries = sorted(
+            (e for e in data["results"] if e["solver"] == bad),
+            key=lambda e: float(e["sweep_value"]),
+        )
+        assert [e["metrics"].get("status") for e in bad_entries] == ["failed", None]
+        assert bad_entries[0]["metrics"]["failure_type"] == "nan"
+        assert bad_entries[1]["metrics"]["grad_norm"] is not None
+
+    cells = _classify_result(data, cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+    assert "VJP returned non-finite gradient" in cells[bad].reason
+    # OpenFOAM has no VJP and is never selected, hence not_run.
+    assert all(cells[s].status != FAILED for s in cfg.solver_names if s != bad)
+
+
+def test_analytic_check_scores_every_sweep_point(ns_grid_tags, tmp_path, monkeypatch):
+    """The registered analytic check records one scored point per viscosity.
+
+    The dummies' VJP is zero, which gives a relative error of 1 and an
+    amplitude error of -1.
+    """
+    from mosaic.benchmarks.core.status import OK, _classify_result
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    exp = cfg.experiments["gradient/analytic_check"]
+    exp.fn(cfg, tags)
+
+    out_dir = tmp_path / "ns-grid" / "gradient" / "analytic_check"
+    data = json.loads((out_dir / "result.json").read_text())
+    nus = data["sweep"]["values"]
+    solver = cfg.solver_names[0]
+    entries = [e for e in data["results"] if e["solver"] == solver]
+    assert sorted(float(e["sweep_value"]) for e in entries) == sorted(map(float, nus))
+    for e in entries:
+        assert e["metrics"]["valid"] is True
+        assert e["metrics"]["error"] == pytest.approx(1.0)
+        assert e["metrics"]["amplitude_err"] == pytest.approx(-1.0)
+    assert _classify_result(data, [solver], [])[solver].status == OK
+
+    cfg.plot_fns["gradient/analytic_check"](cfg)
+    assert (out_dir / "analytic_check.vl.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("failure", "only_seed_1"),
+    [("target", False), ("optim", False), ("target", True), ("optim", True)],
+)
+def test_recovery_failure_fails_with_reason(
+    failure, only_seed_1, tmp_path, monkeypatch
+):
+    """A NaN target or a failed optimization fails the cell with that reason,
+    whether every seed fails or only one of them.
+    """
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.navier_stokes_3d_grid import optimization
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = get_config("ns-3d-grid")
+    bad, good = "PICT", "XLB"
+    tags = {
+        bad: f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}",
+        good: f"inprocess:{DUMMY_NS_GRID}",
+    }
+
+    calls = {"apply": 0, "optim": 0}
+
+    def is_bad(kind: str) -> bool:
+        if runner.current_worker_context().image_tag != tags[bad]:
+            return False
+        calls[kind] += 1
+        # Seeds run in order, so the second call is ic_seed=1.
+        return calls[kind] == 2 if only_seed_1 else True
+
+    if failure == "target":
+        real_apply = optimization.apply_tesseract
+
+        def apply_nan_for_bad(t, inputs):
+            out = real_apply(t, inputs)
+            if is_bad("apply"):
+                out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+            return out
+
+        monkeypatch.setattr(optimization, "apply_tesseract", apply_nan_for_bad)
+        expected = (
+            "target forward failed for 1 of 3 ic_seeds: ic_seed=1: target is not finite"
+            if only_seed_1
+            else "target forward failed for every ic_seed: ic_seed=0: target is not finite"
+        )
+    else:
+        real_lbfgs = optimization._run_lbfgs
+
+        def lbfgs_fails_for_bad(*args, **kwargs):
+            if is_bad("optim"):
+                raise FloatingPointError("optimization loss is not finite (nan)")
+            return real_lbfgs(*args, **kwargs)
+
+        monkeypatch.setattr(optimization, "_run_lbfgs", lbfgs_fails_for_bad)
+        expected = (
+            "optimization failed for 1 of 3 ic_seeds: ic_seed=1: FloatingPointError"
+            if only_seed_1
+            else "optimization failed for every ic_seed: ic_seed=0: FloatingPointError"
+        )
+
+    data = cfg.experiments["optimization/recovery_constant_ic_bfgs_proj"].fn(cfg, tags)
+
+    cells = _classify_result(data, [bad, good], [])
+    assert cells[bad].status == FAILED
+    assert expected in cells[bad].reason
+    assert cells[good].status == OK
 
 
 # ── Every-experiment parametrized smoke test ─────────────────────────────────
@@ -500,3 +860,53 @@ def test_agreement_reference_matches_the_ic(
     )
     result = cfg.experiments[f"forward/dummy_ref_{ic_name}"].fn(cfg, tags)
     assert result["extras"]["reference_label"] == expected_label
+
+
+def test_continue_keeps_solvers_finished_before_a_crash(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """Solvers checkpointed before a crash are not rerun on --continue, and
+    their metrics and snapshots still reach the result and the consensus.
+    """
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    first, victim = cfg.solver_names[:2]
+    tags = {
+        first: tags[first],
+        victim: f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}",
+    }
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_resume",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_resume"].fn
+    real_apply = forward.safe_apply
+    ran = []
+
+    def crash_on_victim(*args, **kwargs):
+        tag = runner.current_worker_context().image_tag
+        ran.append(tag)
+        if tag == tags[victim] and kill:
+            raise KeyboardInterrupt
+        return real_apply(*args, **kwargs)
+
+    monkeypatch.setattr(forward, "safe_apply", crash_on_victim)
+    kill = True
+    with pytest.raises(KeyboardInterrupt):
+        run(cfg, tags)
+
+    kill = False
+    ran.clear()
+    resumed = run(cfg, tags, resume=True)
+    assert tags[first] not in ran
+    assert {e["solver"]: e["metrics"].get("valid") for e in resumed["results"]} == {
+        first: True,
+        victim: True,
+    }

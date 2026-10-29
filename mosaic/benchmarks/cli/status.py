@@ -129,6 +129,12 @@ def status(
             print_warn(f"{problem}: {exc}")
             continue
         st = collect_status(cfg, suites=suite_list)
+        for row in st.rows:
+            for solver, explanation in row.unused_explanations.items():
+                print_warn(
+                    f"{problem}: {row.label} · {solver} passed every check; "
+                    f"remove its explanation ({explanation})"
+                )
 
         t = tally(st)
         score, score_n = t["score"], t["score_n"]

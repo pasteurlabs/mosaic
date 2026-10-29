@@ -21,7 +21,6 @@ from .common import (
     Ctx,
     SolverEnc,
     cell_outline,
-    cell_px,
     faded,
     field_cells,
     field_xy,
@@ -29,6 +28,7 @@ from .common import (
     linked_cell,
     log_axis,
     log_scale,
+    panel_px,
     solver_encodings,
     solver_legend,
     solver_lines,
@@ -69,7 +69,7 @@ def _rho_to_2d(
 # ── Drag optimisation (ns-grid) ──────────────────────────────────────────────
 
 # Solvers in the paper panels, in display order (aliases).
-_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "pict"]
+_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "warp_ns"]
 _INITIAL = "Initial"
 
 
@@ -103,7 +103,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
     Same reduction as ``_drag_opt_figure``: drag reduction (d₀ − dᵢ)/d₀ in %
     on ≤ ~50 subsampled iterations, initial + final inlet profiles u_x(y), and
     one ``profile_history`` heatmap (snapshot × y, viridis, own colour range)
-    per solver in XLB, PhiFlow, PICT order.
+    per solver in XLB, PhiFlow, Warp-NS order.
     """
     data = ctx.legacy()
     if data is None or not data.get("by_solver"):
@@ -189,7 +189,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
             alt.Tooltip("solver:N"),
             alt.Tooltip("iteration:Q"),
             alt.Tooltip("reduction:Q", title="drag reduction (%)", format=".2f"),
-            alt.Tooltip("drag:Q", format=".4g"),
+            alt.Tooltip("drag:Q", title="Cd", format=".4g"),
         ],
     ).properties(title="Drag reduction")
     profile = lines(
@@ -344,7 +344,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
         key = name if name == "Initial flow" else enc.label(name)
         lines = [key]
         if drag is not None:
-            lines.append(f"drag={drag:.4g}")
+            lines.append(f"Cd={drag:.4g}")
         if conv is False:
             lines.append("[NOT CONVERGED]")
         order.append(key)
@@ -357,8 +357,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
     # Multi-line row labels (name, final drag, convergence) looked up in the
     # header instead of repeated on every cell.
     label_expr = f"{json.dumps(header, ensure_ascii=False)}[datum.value]"
-    n = int(df["i"].max()) + 1
-    size = cell_px(n)
+    width, height = panel_px(int(df["i"].max()) + 1, int(df["j"].max()) + 1)
     cell = linked_cell()
 
     def column(comp: str) -> alt.FacetChart:
@@ -374,7 +373,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
                         scheme="redblue", reverse=True, domain=[-vm, vm], clamp=True
                     ),
                     legend=alt.Legend(
-                        title=comp, orient="bottom", gradientLength=size - 20
+                        title=comp, orient="bottom", gradientLength=width - 20
                     ),
                 ),
                 **cell_outline(cell, "#222222"),
@@ -386,7 +385,7 @@ def drag_opt_fields(ctx: Ctx) -> alt.TopLevelMixin | None:
                 ],
             )
             .add_params(cell)
-            .properties(width=size, height=size)
+            .properties(width=width, height=height)
             .facet(
                 row=alt.Row(
                     "row:N",
@@ -893,14 +892,16 @@ def _sorted_sweep_vals(by_sweep: dict) -> list:
 def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Optimizer loss vs iteration, one panel per sweep value, log y.
 
-    Mirrors ``_plot_convergence_curves``: flat curves (< 1 % drop, i.e. no
-    usable gradient) are marked "no grad" and drawn dotted, and each curve
-    ends with its final IC recovery error (✗ if it did not converge).
+    Flat curves (< 1 % drop, i.e. no usable gradient) are marked "no grad" and
+    drawn dotted, and each curve ends with its final IC recovery error (× if
+    it did not converge).
     """
+    from mosaic.benchmarks.core.io import legacy_by_solver
+
     data = ctx.legacy()
     if data is None:
         return None
-    by_sweep = data.get("by_sweep") or data.get("by_horizon") or {}
+    by_sweep = legacy_by_solver(data)
     sweep_key = data.get("sweep_key", "steps")
     vals = _sorted_sweep_vals(by_sweep)
     rows, ends = [], []
@@ -918,9 +919,9 @@ def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
             rows += [(name, panel, i, e, flat) for i, e in enumerate(errors) if e > 0]
             ic_err = r.get("final_ic_error")
             if ic_err is not None and errors[-1] > 0:
-                mark = "" if r.get("converged", False) else " ✗"
+                mark = "" if r.get("converged", False) else " ×"
                 ends.append(
-                    (name, panel, len(errors) - 1, errors[-1], f"IC={ic_err:.2f}{mark}")
+                    (name, panel, len(errors) - 1, errors[-1], f"IC={ic_err:.2g}{mark}")
                 )
     if not rows:
         return None
@@ -972,7 +973,7 @@ def convergence_curves(ctx: Ctx) -> alt.TopLevelMixin | None:
         .properties(
             title=alt.Title(
                 f"{ctx.problem} — convergence curves (all {sweep_key} values)",
-                subtitle="Label at curve end = final IC recovery error (✗: above threshold); "
+                subtitle="Label at curve end = final IC recovery error (×: above threshold); "
                 "dotted = no gradient / flat loss",
             )
         )

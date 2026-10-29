@@ -32,12 +32,12 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 ## Domains & solvers
 
-| ID     | Domain                     | Optimization task              | Solvers                                                |
-| :----- | :------------------------- | :----------------------------- | :----------------------------------------------------- |
-| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem         |
-| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl         |
-| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM |
-| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM |
+| ID     | Domain                     | Optimization task              | Solvers                                                   |
+| :----- | :------------------------- | :----------------------------- | :-------------------------------------------------------- |
+| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem            |
+| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem |
+| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM    |
+| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM    |
 
 ## 📊 Results
 
@@ -62,7 +62,7 @@ What we can offer are a few patterns that recur across domains and are unlikely 
 
 **Rollout length is a fundamental bottleneck.** Pushing the 3D Navier–Stokes gradient out to longer and longer horizons separates a solver's success into two separate properties. The first is _gradient conditioning_, set by the numerical discretization: as the flow turns chaotic, projection-based schemes tend to accumulate spurious non-physical modes that corrupt the gradient (return non-finite values within a couple hundred steps), whereas lattice-Boltzmann and finite-volume schemes keep the gradient bounded far longer. The second is _memory_, set by the differentiation strategy: tape-based reverse-mode AD stores every step and eventually runs out, while methods that avoid unrolling the full trace stay within budget. So at long horizons, prefer a well-conditioned discretization with an AD strategy that does not grow with the rollout, and always check the gradient magnitude rather than trusting that a run which completes has produced a usable gradient.
 
-**Whether a solver can even run the task is a major constraint.** For example, on the 2D drag-minimization problem, only three of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
+**Whether a solver can even run the task is a major constraint.** For example, on the 2D drag-minimization problem, only four of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
 
 Note that today's tasks are deliberately on the simpler end — laminar flow, linear elasticity, modest horizons — and configurations are mostly out-of-the-box rather than expert-tuned. Harder regimes may well surface cases where raw gradient quality becomes the binding constraint.
 
@@ -227,18 +227,18 @@ Mosaic is designed to grow with the community. Three ways in, roughly by scope:
 ```
 mosaic/
   benchmarks/             # evaluation harness (Python package: mosaic.benchmarks)
-    cli.py                # command-line interface
+    cli/                  # command-line interface, one module per subcommand
     core/                 # runner, config, hardware detection, solver auto-discovery
     problems/             # per-domain packages (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
-      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization) + plots
-    plots/                # plotting infrastructure
+      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization)
+        plots/            # plotting infrastructure
+  mosaic_shared/          # shared Tesseract interface schemas (also pip-installable)
   templates/              # task templates for scaffolding new domains
   tesseracts/             # solver backends (each is a Tesseract container)
-    mosaic_shared/        # shared Tesseract interface schemas (also pip-installable)
     navier-stokes-grid/   # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
-    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl
+    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem
     thermal-mesh/         # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
-  tests/                  # unit tests (run with pytest)
+tests/                    # unit tests (run with pytest)
 docs/                     # Quarto documentation site
 ```
 

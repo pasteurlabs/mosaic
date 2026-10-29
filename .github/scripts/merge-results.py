@@ -18,6 +18,8 @@ This script replaces that naive merge:
    ``structural-mesh/forward/baseline/result.json``).
 3. Deep-merge ``result.json`` files using the flat-list merge
    (schema_version=1: deduplicate by (solver, sweep_value), last wins).
+   Each job's hardware record is kept per solver
+   (``extras.hardware_by_solver``), since the jobs ran on different machines.
 4. Merge ``fields.npz`` files at the solver level (union per-solver arrays
    *and* the ``solver_names`` metadata array).
 5. Write merged results to the final output directory.
@@ -36,6 +38,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+
+from mosaic.benchmarks.core.experiment import merge_results as _merge_result_pair
 
 # ---------------------------------------------------------------------------
 # JSON helpers
@@ -67,29 +71,6 @@ def _save_json(data: dict, path: Path) -> None:
 # ---------------------------------------------------------------------------
 # result.json merge — schema_version=1 flat-list merge
 # ---------------------------------------------------------------------------
-
-
-def _merge_result_pair(existing: dict, new: dict) -> dict:
-    """Merge two schema_version=1 result files. *new* wins on conflict.
-
-    Deduplicates by (solver, sweep_value); later entries override earlier ones.
-    """
-    seen: dict[tuple, dict] = {}
-    for entry in existing.get("results", []) + new.get("results", []):
-        seen[(entry["solver"], entry.get("sweep_value"))] = entry
-    merged = {**existing, **new, "results": list(seen.values())}
-    # Merge provenance sub-dicts
-    for key in ("tesseract_hashes", "wall_time_s"):
-        a_val = existing.get("provenance", {}).get(key, {})
-        b_val = new.get("provenance", {}).get(key, {})
-        if a_val or b_val:
-            merged.setdefault("provenance", {})[key] = {**a_val, **b_val}
-    # Merge extras
-    a_extras = existing.get("extras", {})
-    b_extras = new.get("extras", {})
-    if a_extras or b_extras:
-        merged["extras"] = {**a_extras, **b_extras}
-    return merged
 
 
 def _merge_results(results: list[dict]) -> dict:

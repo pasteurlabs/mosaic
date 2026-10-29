@@ -34,6 +34,7 @@ _EXPERIMENT_ORDER = [
     "diagnostics",
     "stability",
     "fd_check",
+    "analytic_check",
     "param_sweep",
     "resolution_sweep",
     "horizon_sweep",
@@ -89,13 +90,14 @@ PROBLEM_TAGLINES = {
 # Shared "how the results were produced" callout, surfaced near the top of
 # every results page (hardware + reliability \u2014 issue 6). The benchmark runs on
 # GitHub Actions runners: GPU solvers on a Tesla T4 node, CPU-only solvers
-# (OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Wall times therefore
+# (``uses_gpu: false``) on a separate CPU node. Wall times therefore
 # reflect commodity cloud hardware, not a tuned workstation.
 RESULTS_PROVENANCE = (
     "These are **example results**, produced automatically on GitHub Actions "
     "runners and refreshed on every release. Each solver runs on its intended "
     "device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers "
-    "(OpenFOAM, deal.II, FEniCS, Firedrake) on a CPU node. Accuracy and "
+    "(OpenFOAM, INS.jl, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate "
+    "CPU node, whose processor model can differ between runs. Accuracy and "
     "gradient metrics are hardware-independent and reproducible. Wall-clock "
     "numbers reflect commodity cloud hardware and can vary by 10\u201315% between "
     "runs, so read them for relative scaling between solvers rather than as "
@@ -115,8 +117,8 @@ PROBLEM_DESCRIPTIONS = {
         "Initial condition recovery with 12k degrees of freedom."
     ),
     "structural-mesh": (
-        "deal.II, FEniCS, Firedrake, JAX-FEM, and TopOpt.jl on 2D cantilever "
-        "compliance minimization with SIMP penalization."
+        "deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, and torch-fem on 2D "
+        "cantilever compliance minimization with SIMP penalization."
     ),
     "thermal-mesh": (
         "deal.II, FEniCS, Firedrake, JAX-FEM, and torch-fem on 2D steady-state "
@@ -126,9 +128,10 @@ PROBLEM_DESCRIPTIONS = {
 
 PROBLEM_BC_DESCRIPTIONS = {
     "ns-grid": (
-        "Channel domain [0,8]\u00d7[0,2] with cylinder obstacle at (2,1), radius 0.25. "
-        "Inflow on left, advective outflow on right, no-slip walls top/bottom. "
-        "Periodic TGV experiments use [0,2\u03c0]\u00b2."
+        "Periodic experiments use [0,2\u03c0]\u00b2. The cylinder experiments use the "
+        "Sch\u00e4fer\u2013Turek DFG 2D-1 channel [0,2.2]\u00d7[0,0.41]: cylinder of "
+        "diameter 0.1 at (0.2,0.2), parabolic inflow, zero-gradient outflow at p=0, "
+        "no-slip walls, Re=20."
     ),
     "ns-3d-grid": (
         "Triply periodic box [0,2\u03c0]\u00b3. Incompressibility enforced via "
@@ -193,6 +196,7 @@ EXPERIMENT_LABELS = {
     "diagnostics": "Diagnostics",
     "stability": "Stability",
     "fd_check": "Finite-Difference Check",
+    "analytic_check": "Analytic Gradient Check",
     "param_sweep": "Parameter Sweep",
     "resolution_sweep": "Resolution Sweep",
     "horizon_sweep": "Horizon Sweep",
@@ -227,6 +231,7 @@ _PNG_ORDER = [
     # gradient / recovery
     "fd_check",
     "gradient_fields",
+    "analytic_check",
     "param_sweep",
     "resolution_sweep",
     "horizon_sweep",
@@ -411,13 +416,14 @@ def _rank_gradient(problem: str) -> tuple[list[str], list[tuple]] | None:
     ]
 
 
-def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float]]:
-    """For each solver, return ``(N, mean_s)`` at the largest N it completed.
+def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float, float]]:
+    """Return ``(N, mean_s, first_call_s)`` per solver at the largest N it completed.
 
     Picking the time at the max successful size avoids flattering a solver that
     OOMs early. ``results`` is a flat cost ``results`` list (sweep_value = N).
+    ``first_call_s`` is NaN for results recorded before the harness kept it.
     """
-    out: dict[str, tuple[float, float]] = {}
+    out: dict[str, tuple[float, float, float]] = {}
     for r in results:
         m = r.get("metrics") or {}
         if m.get("status") == "failed":
@@ -427,9 +433,11 @@ def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float]]:
         if not isinstance(mean_s, int | float) or not math.isfinite(mean_s):
             continue
         nf = float(n) if isinstance(n, int | float | str) and str(n) else float("nan")
+        first_s = m.get("first_call_s")
+        first_s = float(first_s) if isinstance(first_s, int | float) else float("nan")
         prev = out.get(r["solver"])
         if prev is None or nf > prev[0]:
-            out[r["solver"]] = (nf, float(mean_s))
+            out[r["solver"]] = (nf, float(mean_s), first_s)
     return out
 
 
@@ -439,25 +447,30 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
     Forward time comes from the ``spatial_cost`` sweep and VJP time from
     ``vjp_cost/by_N``; each is taken at the largest N that solver completed
     (shown in the "at N" column). Forward-only solvers have no VJP entry, which
-    shows as "—". Ranked by forward time (faster wins).
+    shows as "—". Ranked by forward time (faster wins). The forward pass's
+    first call at that N, which includes compilation and setup, is shown next
+    to it and does not affect the ranking.
     """
     fwd = _cost_at_max_n(_load_suite_results(problem, "cost", "spatial_cost"))
     vjp = _cost_at_max_n(_load_suite_results(problem, "cost", "vjp_cost/by_N"))
     if len(fwd) < 2:
         return None
 
-    def _time(v: tuple[float, float] | None) -> str:
+    def _time(v: tuple[float, float, float] | None) -> str:
         # Annotate each time with its own N: forward and VJP can top out at
         # different sizes (a solver may OOM on the heavier backward pass first).
         if not v:
             return "—"
-        n, t = v
+        n, t, _ = v
         n_str = f" @ N={int(n)}" if math.isfinite(n) else ""
         return f"{t:.3g} s{n_str}"
 
+    def _first(v: tuple[float, float, float]) -> str:
+        return f"{v[2]:.3g} s" if math.isfinite(v[2]) else "—"
+
     rows = sorted(fwd.items(), key=lambda t: t[1][1])
-    header = ["Solver", "Forward time", "VJP time"]
-    return header, [(s, _time(fv), _time(vjp.get(s))) for s, fv in rows]
+    header = ["Solver", "Forward time", "Forward first call", "VJP time"]
+    return header, [(s, _time(fv), _first(fv), _time(vjp.get(s))) for s, fv in rows]
 
 
 # final-objective metric name by domain optimization experiment, in priority
@@ -516,9 +529,10 @@ _SUITE_RANK_CAPTIONS = {
     "gradient": "Ranked by the best-ε finite-difference error of the gradient "
     "(lower is more trustworthy); direction cosine near 1 confirms the gradient "
     "points the right way.",
-    "cost": "Forward and VJP (backward) wall-clock time, each shown at the "
-    "largest problem size N the solver completed for that pass; ranked by "
-    "forward time (faster is better). Forward-only solvers have no VJP entry. "
+    "cost": "Forward and VJP wall-clock time, each shown at the largest "
+    "problem size N the solver completed for that pass; ranked by forward time "
+    "(faster is better). The VJP time is one gradient from scratch, a forward "
+    "plus an adjoint pass. Forward-only solvers have no VJP entry. "
     "See the reliability note above before comparing across devices.",
     "optimization": "Ranked by the final objective reached within the iteration "
     "budget (lower is better).",

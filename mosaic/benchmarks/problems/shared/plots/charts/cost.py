@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from mosaic.benchmarks.core.config import Problem
+from mosaic.benchmarks.core.hardware import hardware_by_solver
 
 from .common import (
     _SHAPE,
@@ -46,23 +47,30 @@ _FAILURE_LABEL = {
 }
 
 
-def _hardware_str(result: dict) -> str:
-    """Describe the runner hardware for the cost-plot subtitle.
+def _hardware_str(results: list[dict], cfg: Problem) -> str:
+    """Describe the hardware behind the cost plot for its subtitle.
 
-    The result records a single machine spec (GPU + CPU + RAM) shared across
-    all solvers, but solvers run on different devices: GPU-capable ones use the
-    GPU, CPU-only ones (OpenFOAM, deal.II, FEniCS, ...) use the CPU. Listing the
-    GPU alone would wrongly imply every solver used it, so the subtitle names
-    both devices and the per-curve (GPU)/(CPU) legend tags say which is which.
+    GPU-capable solvers are described by the GPU they ran on, CPU-only ones
+    (OpenFOAM, deal.II, FEniCS, ...) by their CPU, and the per-curve
+    (GPU)/(CPU) legend tags say which is which. In CI the two kinds run on
+    different machines, so each solver's own hardware record is used.
     """
-    hw = result.get("hardware", {})
+    hw_by_solver: dict[str, dict] = {}
+    for result in results:
+        hw_by_solver.update(hardware_by_solver(result))
+    gpus: list[str] = []
+    cpus: list[str] = []
+    for spec in cfg.solvers:
+        hw = hw_by_solver.get(spec.name, {})
+        if spec.uses_gpu and hw.get("gpus"):
+            gpus.append(hw["gpus"][0].split(",")[0].strip())
+        elif hw.get("cpu"):
+            cpus.append(_short_cpu(hw["cpu"]))
     parts = []
-    gpus = hw.get("gpus")
     if gpus:
-        parts.append(f"GPU {gpus[0].split(',')[0].strip()}")
-    cpu = hw.get("cpu", "")
-    if cpu:
-        parts.append(f"CPU {_short_cpu(cpu)}")
+        parts.append("GPU " + " / ".join(dict.fromkeys(gpus)))
+    if cpus:
+        parts.append("CPU " + " / ".join(dict.fromkeys(cpus)))
     return " · ".join(parts)
 
 
@@ -245,12 +253,11 @@ def _load(ctx: Ctx) -> tuple[tuple[dict, dict, dict], str] | None:
     vjp: dict = {}
     if vjp_n.get("by_N"):
         vjp["by_N"] = vjp_n["by_N"]
-        vjp.setdefault("hardware", vjp_n.get("hardware"))
     if vjp_s.get("by_steps"):
         vjp["by_steps"] = vjp_s["by_steps"]
-        vjp.setdefault("hardware", vjp_s.get("hardware"))
-    hw = next((_hardware_str(d) for d in (spatial, temporal, vjp) if d), "")
-    return (spatial, temporal, vjp), hw
+    subs = ("spatial_cost", "temporal_cost", "vjp_cost/by_N", "vjp_cost/by_steps")
+    results = [r for r in map(ctx.result, subs) if r is not None]
+    return (spatial, temporal, vjp), _hardware_str(results, ctx.config)
 
 
 def _series_rows(
@@ -470,7 +477,7 @@ def build_cost(ctx: Ctx) -> alt.TopLevelMixin | None:
         data=df,
         spacing=10,
     )
-    title = alt.Title(TITLE, subtitle=f"Runner: {hw}" if hw else [], anchor="middle")
+    title = alt.Title(TITLE, subtitle=f"Hardware: {hw}" if hw else [], anchor="middle")
     return grid.add_params(pick).properties(title=title)
 
 

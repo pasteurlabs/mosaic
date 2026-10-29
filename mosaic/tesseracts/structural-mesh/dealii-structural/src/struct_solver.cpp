@@ -481,8 +481,6 @@ void StructSolver::run()
 
 int main(int argc, char *argv[])
 {
-  Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
-
   if (argc < 2) {
     std::cerr << "Usage: struct_solver input.json\n";
     return 1;

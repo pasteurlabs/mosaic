@@ -55,7 +55,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.hardware import ResourceSampler
+from mosaic.benchmarks.core.hardware import ResourceSampler, merge_hardware
 from mosaic.benchmarks.core.harness import classify_failure
 from mosaic.benchmarks.core.io import (
     experiment_dir,
@@ -64,7 +64,12 @@ from mosaic.benchmarks.core.io import (
     save_harness_result,
 )
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
-from mosaic.benchmarks.core.partial import filter_resumable_solvers, write_partial
+from mosaic.benchmarks.core.partial import (
+    filter_resumable_solvers,
+    load_partial_solvers,
+    write_partial,
+    write_partial_snapshots,
+)
 from mosaic.benchmarks.core.runner import current_worker_context, per_solver_loop
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
@@ -211,10 +216,19 @@ def _build_result_envelope(
 
 
 def merge_results(a: dict, b: dict) -> dict:
-    """Merge two schema_version=1 result files. *b* wins on conflict."""
+    """Merge two schema_version=1 result files. *b* wins on conflict.
+
+    The exception is an ``unscored`` entry, which never replaces a valid one.
+    """
     seen: dict[tuple, dict] = {}
     for entry in a.get("results", []) + b.get("results", []):
-        seen[(entry["solver"], entry.get("sweep_value"))] = entry
+        key = (entry["solver"], entry.get("sweep_value"))
+        # An unscored entry (the solver ran, but that run had nothing to
+        # score it against) never replaces a valid score.
+        prev = (seen.get(key) or {}).get("metrics") or {}
+        if (entry.get("metrics") or {}).get("unscored") and prev.get("valid"):
+            continue
+        seen[key] = entry
     merged = {**a, **b, "results": list(seen.values())}
     # Merge provenance sub-dicts
     for key in ("tesseract_hashes", "wall_time_s"):
@@ -227,6 +241,7 @@ def merge_results(a: dict, b: dict) -> dict:
     b_extras = b.get("extras", {})
     if a_extras or b_extras:
         merged["extras"] = {**a_extras, **b_extras}
+        merge_hardware(merged["extras"], a, b)
     return merged
 
 
@@ -419,9 +434,15 @@ def run_experiment(
         selected = filter_solvers(f"{suite}/{exp_key}", selected)
         # On --continue, drop solvers already recorded as complete in a
         # prior partial checkpoint so they are not re-run.
+        resumable = selected
         selected = filter_resumable_solvers(selected, out_dir, overrides)
-        by_solver: dict = {}
-        snapshots: dict[str, dict[str, np.ndarray]] = {}
+        by_solver, snapshots = load_partial_solvers(
+            out_dir, [n for n in resumable if n not in selected]
+        )
+        if sweep_key is not None:
+            by_value = {str(v): v for v in sweep_values}
+            for n, entry in by_solver.items():
+                by_solver[n] = {by_value.get(k, k): m for k, m in entry.items()}
         shared_extras: dict[str, np.ndarray] = {}
         # Solvers whose Tesseract container failed to start (or whose work
         # raised). Forwarded into the result so the status classifier marks
@@ -519,13 +540,20 @@ def run_experiment(
             name: str,
             _out_dir: Any = out_dir,
             _by_solver: dict = by_solver,
+            _snapshots: dict = snapshots,
             _run: dict = run,
             _lock: threading.Lock = _partial_lock,
         ) -> None:
+            if _snapshots.get(name):
+                write_partial_snapshots(_out_dir, name, _snapshots[name])
             write_partial(
                 _out_dir,
                 {
-                    "by_solver": {n: {} for n in _by_solver if _by_solver[n]},
+                    "by_solver": {
+                        n: {str(k): v for k, v in m.items()}
+                        for n, m in _by_solver.items()
+                        if m
+                    },
                     "params": _run,
                 },
                 _lock,

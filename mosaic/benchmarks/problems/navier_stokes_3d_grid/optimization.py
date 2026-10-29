@@ -26,7 +26,7 @@ Layout:
   between the kernel body and (previously) the runner.
 
 The inner optimiser primitives ``_run_optim`` (Adam with patience-based
-early stopping) and ``_run_lbfgs`` (L-BFGS with zoom line-search) remain
+early stopping) and ``_run_lbfgs`` (SciPy's L-BFGS-B) remain
 in ``shared/`` since they are reused by topology-optimisation and other
 suites.
 """
@@ -49,6 +49,7 @@ from mosaic.benchmarks.core.io import (
     try_load_json,
 )
 from mosaic.benchmarks.core.utils import is_valid
+from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_free
 from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
 
 # ── Divergence-free helpers ───────────────────────────────────────────────────
@@ -62,7 +63,7 @@ def _is_velocity_field(u: np.ndarray) -> bool:
 def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     """Max |∇·u| computed spectrally (exact for periodic fields).
 
-    Uses the same FFT machinery as ``_project_divergence_free``:
+    Uses the same FFT machinery as :func:`project_divergence_free`:
     ``∇·u = IFFT(Σ_i  i k_i  û_i)``.  For a spectrally divergence-free field
     this returns near-machine-precision values (~1e-14), unlike central
     finite differences which give O(0.1) residuals at high wavenumbers.
@@ -84,43 +85,11 @@ def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
     return float(np.max(np.abs(div)))
 
 
-def _project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
-    """Helmholtz-project a periodic velocity field onto ∇·u = 0.
-
-    Spectral projection: û_df_i = û_i − k_i (k·û) / |k|²
-    Handles both 2D (N, N, 1, 2) and 3D (N, N, N, 3) shapes.
-    """
-    nd = u.shape[-1]
-    squeeze = u.ndim > nd + 1  # True for (N,N,1,2); False for (N,N,N,3)
-    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
-
-    N = v.shape[0]
-    # Physical wavenumbers for a periodic box of size domain_extent.
-    k1d = np.fft.fftfreq(N) * N * (2.0 * np.pi / domain_extent)
-    grids = np.meshgrid(*([k1d] * nd), indexing="ij")  # nd arrays, each (N,...,N)
-    k2 = sum(k**2 for k in grids)
-    k2_safe = np.where(k2 == 0.0, 1.0, k2)  # avoid ÷0 at k=0
-
-    spatial_axes = tuple(range(nd))
-    v_hat = np.fft.fftn(v, axes=spatial_axes)  # (..., nd), complex
-
-    k_dot_u = sum(grids[i] * v_hat[..., i] for i in range(nd))  # scalar field
-
-    v_hat_df = np.stack(
-        [v_hat[..., i] - grids[i] * k_dot_u / k2_safe for i in range(nd)],
-        axis=-1,
-    )
-
-    v_df = np.fft.ifftn(v_hat_df, axes=spatial_axes).real
-    v_df = v_df.reshape(u.shape) if squeeze else v_df
-    return v_df.astype(u.dtype)
-
-
 def _project_divergence_free_jax(u: jax.Array, domain_extent: float) -> jax.Array:
-    """JAX-traceable variant of :func:`_project_divergence_free`.
+    """JAX-traceable variant of :func:`project_divergence_free`.
 
-    Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS step so the
-    whole iteration is one trace.
+    Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS value and
+    gradient, so the whole evaluation is one trace.
     """
     nd = u.shape[-1]
     squeeze = u.ndim > nd + 1
@@ -159,7 +128,7 @@ def _project_ic_with_log(
         return raw
     raw_np = np.asarray(raw)
     div_before = _max_divergence(raw_np, domain_extent)
-    projected = _project_divergence_free(raw_np, domain_extent)
+    projected = project_divergence_free(raw_np, domain_extent)
     div_after = _max_divergence(projected, domain_extent)
     console.print(
         f"  [dim]{label}[/dim]  "
@@ -254,10 +223,12 @@ def _compute_targets_for_val(
 ) -> dict:
     """Forward-solve each seed's true IC to produce target outputs.
 
-    Skips seeds whose forward pass fails or produces invalid output.
-    Returns ``{seed: target_array}``.
+    Returns ``{seed: target_array}``. Raises with each failed seed's reason if
+    any seed's forward pass fails or produces invalid output, so a result never
+    silently averages over fewer seeds than configured.
     """
     targets: dict[int, jax.Array] = {}
+    failures: list[str] = []
     for s in ic_seeds:
         try:
             inp_true = make_inputs(
@@ -273,10 +244,25 @@ def _compute_targets_for_val(
             print_warn(
                 f"{name} {exp_key} target forward failed at {sweep_key}={val} ic_seed={s}: {exc}"
             )
+            failures.append(f"ic_seed={s}: {type(exc).__name__}: {exc}")
             continue
         if is_valid(tgt):
             targets[s] = tgt
+        else:
+            failures.append(f"ic_seed={s}: target is not finite")
+    if failures:
+        raise RuntimeError(
+            f"target forward failed for {_which_seeds(failures, targets)}: "
+            f"{'; '.join(failures)}"
+        )
     return targets
+
+
+def _which_seeds(failures: list, successes: Any) -> str:
+    """Describe the failed seeds as "every ic_seed" or "k of n ic_seeds"."""
+    if not successes:
+        return "every ic_seed"
+    return f"{len(failures)} of {len(failures) + len(successes)} ic_seeds"
 
 
 def _aggregate_trial_results(
@@ -378,8 +364,12 @@ def _run_one_seed_trial(
     output_key: str,
     domain_extent: float,
     exp_key: str,
+    failures: list[str],
 ) -> dict | None:
-    """Run a single per-seed optimisation trial; returns a result dict or None."""
+    """Run a single per-seed optimisation trial; returns a result dict or None.
+
+    On ``None`` the optimizer's error has been appended to ``failures``.
+    """
     from mosaic.benchmarks.core.console import console
 
     def loss_fn(ic: Any, _t: Any = t, _target: Any = target_k, _val: Any = val) -> Any:
@@ -437,6 +427,7 @@ def _run_one_seed_trial(
         print_warn(
             f"{name} {exp_key} optim failed at {sweep_key}={val}{seed_tag}: {exc}"
         )
+        failures.append(f"ic_seed={s}: {type(exc).__name__}: {exc}")
         return None
     final_ic_error = error_fn(ic_opt, ic_true_k)
     final_ic_div = (
@@ -476,7 +467,7 @@ def _precompute_sigma_target(
 ) -> Any:
     """For sigma sweep: forward the primary true IC to produce the shared target.
 
-    Returns the target array, or ``None`` if forward failed or output invalid.
+    Returns the target array; raises if the forward fails or is not finite.
     """
     try:
         inputs_true_fixed = make_inputs(
@@ -487,12 +478,11 @@ def _precompute_sigma_target(
         )
         target = apply_tesseract(t, inputs_true_fixed)[output_key]
     except Exception as exc:
-        from mosaic.benchmarks.core.console import print_warn
-
-        print_warn(f"{name} {exp_key} target forward failed: {exc}")
-        return None
+        raise RuntimeError(
+            f"{exp_key} target forward failed: {type(exc).__name__}: {exc}"
+        ) from exc
     if not is_valid(target):
-        return None
+        raise ValueError(f"{exp_key} target forward output is not finite")
     return target
 
 
@@ -753,9 +743,9 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     The ``run["optimizer"]`` key selects the inner optimiser:
 
       * ``"adam"``       — vanilla Adam (default).
-      * ``"bfgs"``       — L-BFGS with zoom line-search.
-      * ``"bfgs_proj"``  — L-BFGS with the gradient Helmholtz-projected
-        onto the ∇·g = 0 subspace each iteration (keeps the search
+      * ``"bfgs"``       — SciPy's L-BFGS-B.
+      * ``"bfgs_proj"``  — L-BFGS-B with the gradient Helmholtz-projected
+        onto the ∇·g = 0 subspace at every evaluation (keeps the search
         direction compatible with incompressibility for velocity-field
         problems).
     """
@@ -864,24 +854,23 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     )
 
     # ── Per-val target setup ────────────────────────────────────────────
+    # A target or optimisation failure persists a None entry for this solver,
+    # then raises: the framework records the reason and fails the cell.
     if is_sigma_sweep:
-        sigma_target = _precompute_sigma_target(
-            name=name,
-            t=t,
-            ic_true=ic_true,
-            phys=phys,
-            make_inputs=make_inputs,
-            output_key=output_key,
-            domain_extent=domain_extent,
-            exp_key=exp_key,
-        )
-        if sigma_target is None:
-            # Persist a None entry for this val and ask the framework to
-            # short-circuit the remaining sweep (sigma_target failure is a
-            # function of name + ic_true + phys, not val — it would fail
-            # identically for every subsequent val).
+        try:
+            sigma_target = _precompute_sigma_target(
+                name=name,
+                t=t,
+                ic_true=ic_true,
+                phys=phys,
+                make_inputs=make_inputs,
+                output_key=output_key,
+                domain_extent=domain_extent,
+                exp_key=exp_key,
+            )
+        except Exception:
             partial_writer.write(name, None)
-            return {"metrics": None, "stop_sweep": True}
+            raise
         ic_init_at_val = _build_sigma_perturbed_ic(
             ic_true,
             float(val),
@@ -895,22 +884,23 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     else:
         ic_init_at_val = ic_init_dict[primary_seed]
         seeds_for_val = ic_seeds
-        target_for_seed = _compute_targets_for_val(
-            name,
-            exp_key,
-            val,
-            sweep_key,
-            ic_seeds,
-            ic_true_dict,
-            phys,
-            t,
-            make_inputs=make_inputs,
-            output_key=output_key,
-            domain_extent=domain_extent,
-        )
-        if not target_for_seed:
+        try:
+            target_for_seed = _compute_targets_for_val(
+                name,
+                exp_key,
+                val,
+                sweep_key,
+                ic_seeds,
+                ic_true_dict,
+                phys,
+                t,
+                make_inputs=make_inputs,
+                output_key=output_key,
+                domain_extent=domain_extent,
+            )
+        except Exception:
             partial_writer.write(name, None)
-            return {"metrics": None}
+            raise
 
     console.print(
         f"  [{color}]{name}[/] {exp_key} {sweep_key}={val} starting "
@@ -919,6 +909,7 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
 
     # ── Per-seed trial loop ──────────────────────────────────────────────
     trial_results: list[dict] = []
+    trial_failures: list[str] = []
     primary_hist: list | None = None
     primary_ic_err_hist: list[float] = []
 
@@ -958,6 +949,7 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
             output_key=output_key,
             domain_extent=domain_extent,
             exp_key=exp_key,
+            failures=trial_failures,
         )
         if trial is None:
             continue
@@ -967,9 +959,12 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
             primary_ic_err_hist = trial["_ic_err_hist"]
         trial_results.append(trial)
 
-    if not trial_results:
+    if trial_failures:
         partial_writer.write(name, None)
-        return {"metrics": None}
+        raise RuntimeError(
+            f"optimization failed for {_which_seeds(trial_failures, trial_results)}: "
+            f"{'; '.join(trial_failures)}"
+        )
 
     entry = _aggregate_trial_results(
         trial_results,

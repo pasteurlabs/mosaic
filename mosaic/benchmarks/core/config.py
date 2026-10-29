@@ -28,7 +28,10 @@ class ExclusionCategory(str, Enum):
 
     ``CATEGORICAL`` is permanent (excluded from the campaign-score denominator);
     all others count as "work to do". ``ANOMALY_EXPLAINED`` is a display-only
-    annotation — the solver still runs.
+    annotation — the solver still runs. It documents a method-intrinsic cause
+    for a cell that trips a quality check and never changes the cell's status
+    or score; an explanation on a cell that passes is reported as unused.
+    Describe the mechanism without quoting measured numbers.
     """
 
     CATEGORICAL = "categorical"
@@ -164,6 +167,10 @@ class Problem:
     make_inputs: Callable | None = None  # (solver_name, ic, **physics) → dict
     exclusions: dict[str, dict[str, Exclusion]] = field(default_factory=dict)
     status_checks: dict[str, list] = field(default_factory=dict)
+    # "<suite>/<experiment>" -> metrics (keys of status.METRIC_SPECS) whose
+    # run-to-run shifts are reported as indicative rather than firm, for
+    # experiments where they depend on the optimizer's path.
+    indicative_metrics: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     # ── Experiment-time deps (threaded into Experiment.fn closures) ─────
     make_ic: dict = field(default_factory=dict)
@@ -254,6 +261,10 @@ class Problem:
             return params["plot_descriptions"].get(experiment, "")
         return params.get("plot_description", "")
 
+    def get_sweep_mode(self, suite: str, experiment: str) -> str:
+        """Return the kernel's ``sweep_mode`` for (suite, experiment)."""
+        return self._exp_params(suite, experiment).get("sweep_mode", "none")
+
     def get_experiment_description(self, suite: str, experiment: str) -> str:
         """Return the short experiment description."""
         params = self._exp_params(suite, experiment)
@@ -292,9 +303,10 @@ class Problem:
 
         ``plot`` accepts a single callable or a ``{view: callable, ...}`` dict
         (each view runs independently; an exception in one is logged and
-        skipped). ``status_check`` adds per-experiment status callables on
-        top of suite-level defaults. ``plot_description`` is stored on the
-        experiment's params for ``mosaic status`` to display.
+        skipped). ``status_check`` replaces the suite-level default checks
+        for this experiment, so it must list every check that should still
+        apply. ``plot_description`` is stored on the experiment's params for
+        ``mosaic status`` to display.
 
         ``coords`` (optional) is this experiment's position in a sweep's
         parameter space (e.g. ``{"N": 32, "regime": "diffusive"}``).
@@ -423,7 +435,6 @@ class Problem:
                 "optim",
                 "jacobian",
                 "reference",
-                "reference_solver",
                 "cost",
                 "ic_key",
                 "output_key",
@@ -691,8 +702,12 @@ class Problem:
 
         # Params is the **introspection manifest** — short and metadata-only.
         # The full config lives in the lambda's closure; we only surface what
-        # status/docs actually read (plot blurb + per-experiment thresholds).
-        params: dict = {"plot_description": plot_description}
+        # status/docs actually read (plot blurb, sweep mode, per-experiment
+        # thresholds).
+        params: dict = {
+            "plot_description": plot_description,
+            "sweep_mode": kcfg.get("sweep_mode", "none"),
+        }
         if status_check:
             params["status_check"] = list(status_check)
         self.experiments[key] = Experiment(

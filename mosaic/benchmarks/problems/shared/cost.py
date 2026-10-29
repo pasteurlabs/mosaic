@@ -6,7 +6,7 @@
 Three kernels:
   * :func:`spatial_cost`  — forward pass timing vs N (fixed step count)
   * :func:`temporal_cost` — forward pass timing vs step count (fixed N)
-  * :func:`vjp_cost`      — VJP (backward pass) timing, registered twice in
+  * :func:`vjp_cost`      — VJP request timing, registered twice in
                             each problem config (``by_N`` / ``by_steps``
                             variants) since the framework supports one
                             sweep axis at a time and the on-disk schema
@@ -19,9 +19,12 @@ Timing semantics (apply to every experiment in this module):
     for a millisecond presentation.
   * ``trials_s`` carries the raw per-trial elapsed times so distributional
     statistics can be recomputed without rerunning.
-  * Each (solver, sweep-point) pair does one unreported warmup call before
-    the trial loop — absorbs per-solver JIT compilation, first-touch CUDA
-    kernel caching, and scan-unroll tracing.
+  * Each (solver, sweep-point) pair does one warmup call before the trial
+    loop — absorbs per-solver JIT compilation, first-touch CUDA kernel
+    caching, and scan-unroll tracing. Its time is recorded as
+    ``first_call_s`` and is not part of ``mean``. Sweep points share a
+    container, so work a solver does once for all sizes lands in the first
+    point's ``first_call_s`` only.
   * Each entry also records ``vram_peak_mib`` and ``ram_peak_mib`` (peak GPU
     VRAM and container RAM during the trial batch).
   * A per-trial wall-clock limit of ``_SPATIAL_WALL_S`` seconds is enforced.
@@ -57,13 +60,17 @@ from mosaic.benchmarks.core.harness import run_timed_trials
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
 from mosaic.benchmarks.core.runner import current_worker_context
 from mosaic.benchmarks.core.utils import active_differentiable_solvers, active_solvers
-from mosaic.benchmarks.problems.shared.gradient import _vjp_grad
 
 _SPATIAL_WALL_S = 1000
 
 
 def _timed_kernel(
-    t: Any, ctx: KernelContext, *, timed_call: Any, capture_value: bool = False
+    t: Any,
+    ctx: KernelContext,
+    *,
+    timed_call: Any,
+    capture_value: bool = False,
+    setup: Any = None,
 ) -> dict:
     """Shared body for every cost kernel — run ``timed_call`` under :func:`run_timed_trials`.
 
@@ -81,6 +88,7 @@ def _timed_kernel(
         gpu_id=worker.gpu_id,
         image_tag=worker.image_tag,
         capture_value=capture_value,
+        setup=setup,
     )
 
     record = result.as_record()
@@ -135,20 +143,6 @@ def _cost_aggregate(
 ) -> dict:
     """Build unified result envelope for cost experiments."""
     flat_results = _flatten_by_solver(by_solver, sweep_key)
-    # Add empty entries for solvers not in by_solver
-    present = {e["solver"] for e in flat_results}
-    for s in cfg.solvers:
-        if s.name not in present:
-            if sweep_key:
-                for val in sweep_values:
-                    flat_results.append(
-                        {"solver": s.name, "sweep_value": str(val), "metrics": {}}
-                    )
-            else:
-                flat_results.append(
-                    {"solver": s.name, "sweep_value": None, "metrics": {}}
-                )
-
     extras: dict = {"hardware": get_hardware_info()}
     if os.environ.get("CI"):
         extras["_isolation_note"] = _CI_ISOLATION_NOTE
@@ -219,9 +213,9 @@ def _vjp_cost_aggregate(
 def spatial_cost(t: Any, ctx: KernelContext) -> dict:
     """Forward-pass wall-clock timing at one (solver, N) point.
 
-    Returns ``{"metrics": {mean, std, trials_s, vram_peak_mib, ram_peak_mib},
-    "stop_sweep": bool}``; on failure / wall-limit-hit, the metrics dict
-    carries the failure shape and ``stop_sweep=True``.
+    Returns ``{"metrics": {mean, std, trials_s, first_call_s, vram_peak_mib,
+    ram_peak_mib}, "stop_sweep": bool}``; on failure / wall-limit-hit, the
+    metrics dict carries the failure shape and ``stop_sweep=True``.
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     return _timed_kernel(t, ctx, timed_call=lambda: t.apply(inputs))
@@ -262,11 +256,26 @@ def vjp_cost(t: Any, ctx: KernelContext) -> dict:
     sweeping ``steps`` at fixed ``N``. Each variant produces its own
     ``result.json`` under ``cost/vjp_cost/<variant_name>/`` and shares
     the same kernel + aggregate; the aggregate keys output by sweep_key.
+
+    Times only the ``vector_jacobian_product`` request, which recomputes the
+    forward solution in every solver, so one gradient from scratch. The
+    cotangent of ``sum(output**2)`` comes from one untimed ``apply``.
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    cotangent: dict[str, np.ndarray] = {}
+
+    def set_cotangent() -> None:
+        out = t.apply(inputs)[ctx.output_key]
+        cotangent[ctx.output_key] = 2.0 * np.asarray(out)
+
+    def vjp() -> Any:
+        return t.vector_jacobian_product(
+            inputs,
+            vjp_inputs=[ctx.ic_key],
+            vjp_outputs=[ctx.output_key],
+            cotangent_vector=cotangent,
+        )[ctx.ic_key]
+
     return _timed_kernel(
-        t,
-        ctx,
-        timed_call=lambda: _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key),
-        capture_value=True,
+        t, ctx, timed_call=vjp, setup=set_cotangent, capture_value=True
     )

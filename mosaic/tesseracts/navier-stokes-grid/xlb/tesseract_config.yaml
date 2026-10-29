@@ -1,21 +1,13 @@
 name: xlb_navier_stokes_grid
 version: "0.1.0"
 description: >
-  JAX-accelerated lattice Boltzmann solver (D2Q9 / D3Q19) with BGK or KBC collision, running
+  JAX-accelerated lattice Boltzmann solver (D2Q9 / D3Q27) with BGK collision, running
   the streaming/collision loop on GPU. Gradients via source-transformation AD; recovers
   incompressible Navier–Stokes only to O(Ma²) via Chapman–Enskog expansion.
 build_config:
   base_image: "nvidia/cuda:12.6.3-runtime-ubuntu24.04"
   package_data: []
-  custom_build_steps:
-    # xlb 0.3.1's operator/stepper/__init__.py unconditionally imports IBMStepper,
-    # which does `from warp.utils import ScopedTimer`. ScopedTimer was moved out of
-    # warp.utils in warp-lang>=1.10, but xlb 0.3.1's metadata pins warp-lang>=1.10,
-    # so any install of xlb 0.3.1 explodes on `import xlb`. We don't use IBMStepper,
-    # so drop that line from the stepper package's __init__.
-    - 'RUN python3 -c "import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_paths()[''purelib'']) / ''xlb/operator/stepper/__init__.py''; p.write_text(''''.join(l for l in p.read_text().splitlines(keepends=True) if ''ibm_stepper'' not in l))"'
 env:
-  XLA_FLAGS: "--xla_gpu_enable_cublaslt=false --xla_gpu_autotune_level=0"
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
 
 metadata:
@@ -23,7 +15,7 @@ metadata:
     name: "XLB"
     backend: jax
     family: lbm
-    scheme: "LBM BGK/KBC D2Q9"
+    scheme: "LBM BGK D2Q9/D3Q27"
     discretization: LBM
     numerics: Streaming
     ad_strategy: autodiff

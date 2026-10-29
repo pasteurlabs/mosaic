@@ -181,16 +181,25 @@ The import path uses `mosaic_shared.problems.navier_stokes_grid`, not a relative
 Subclass the canonical schemas and declare which fields your solver can differentiate through. Mosaic provides `make_differentiable(base, [...])`, which returns a new Pydantic class with the listed fields wrapped in `Differentiable[...]` (preserving every other field as-is):
 
 ```python
+from mosaic_shared.problems.navier_stokes_grid.channel import check_periodic
 from mosaic_shared.schema_types import make_differentiable
+from pydantic import model_validator
 
 
 class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
     """Solver inputs; v0 and viscosity carry gradients, the rest do not."""
 
+    @model_validator(mode="after")
+    def _check_supported_bcs(self) -> "InputSchema":
+        check_periodic(self, "my-solver")
+        return self
+
 
 class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Solver outputs; `result` carries the cotangent during VJP."""
 ```
+
+The validator matters as much as the field list. The canonical schema also describes channel flows and obstacles, and a solver must raise on any boundary condition it doesn't implement rather than quietly solve a different problem. This example is a periodic spectral solver, so it accepts only a fully periodic box without an obstacle. A solver that also runs the 2-D cylinder channel calls `check_periodic_or_channel` from the same module instead.
 
 If your solver uses the canonical interface exactly and doesn't differentiate anything, just re-export:
 
@@ -492,7 +501,7 @@ problem.exclude(
 - `NOT_IMPLEMENTED` — could in principle run but not wired yet.
 - `UNSTABLE` — runs but blows up.
 - `UPSTREAM_BUG`, `WIP`, `UNSPECIFIED` — see the enum docstring for the rest.
-- `ANOMALY_EXPLAINED` — solver runs and produces anomalous-but-documented output (display-only, not a runtime skip).
+- `ANOMALY_EXPLAINED` — documented cause for a result that trips a quality check (display-only, not a runtime skip).
 
 ### Input overrides
 
@@ -508,20 +517,22 @@ These overrides are merged into every call to `cfg.make_inputs(...)` for your so
 
 ### Explained anomalies
 
-Use `ExclusionCategory.ANOMALY_EXPLAINED` via the same `problem.exclude(...)` API — the result still runs and appears in plots, but the status table flags it as a documented anomaly rather than an unexplained outlier:
+If your solver trips a quality check for a reason that is intrinsic to its method, document the cause with `ExclusionCategory.ANOMALY_EXPLAINED` via the same `problem.exclude(...)` API. The solver still runs and its result is still scored as an anomaly; the status report adds your explanation next to the measured reason and marks the cell 🟠ⁱ:
 
 ```python
 problem.exclude(
-    "forward/cylinder",
+    "forward/baseline",
     {
-        "my_spectral_solver": Exclusion(
+        "my_staggered_solver": Exclusion(
             ExclusionCategory.ANOMALY_EXPLAINED,
-            "spectral pressure solve requires periodic BCs; channel runs "
-            "deviate from the no-slip reference",
+            "interpolating the collocated IC onto staggered faces and back "
+            "adds a second-order round-trip error",
         ),
     },
 )
 ```
+
+An explanation never changes a cell's status or the score. If the cell passes its checks, it stays ✅ and the report lists the explanation under "Unused explanations" so it can be removed. Describe the mechanism rather than quoting measured numbers: the report already shows the live values, and quoted numbers go stale as solvers change. Bugs that should be fixed belong in a GitHub issue, not in an explanation.
 
 ::: {.callout-note}
 If your solver needs none of these overrides, you do not need to edit the problem config at all. The `discover_solvers()` function in `mosaic/benchmarks/core/config.py` auto-generates a `SolverSpec` from your `tesseract_config.yaml` for you.

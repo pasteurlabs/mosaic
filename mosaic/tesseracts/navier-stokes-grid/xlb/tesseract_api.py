@@ -2,47 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
+import math
 import os
+from typing import Any
 
-# Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
-# --xla_gpu_autotune_level=0 prevents DEVICE_TYPE_INVALID failures on V100 (CC 7.0)
-# with JAX 0.10.x when cuBLAS GEMM autotuner fails to identify the GPU device type.
-# Using os.environ assignment (not setdefault) to override any Dockerfile ENV.
-_xla_flags = os.environ.get("XLA_FLAGS", "")
-if "--xla_gpu_autotune_level" not in _xla_flags:
-    os.environ["XLA_FLAGS"] = (_xla_flags + " --xla_gpu_autotune_level=0").strip()
-del _xla_flags
-
-from typing import Any  # noqa: E402
-
-import equinox as eqx  # noqa: E402
-import jax  # noqa: E402
-import jax.numpy as jnp  # noqa: E402
-import xlb  # noqa: E402
-import xlb.velocity_set  # noqa: E402
-from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import numpy as np
+import xlb
+import xlb.velocity_set
+from tesseract_core.runtime.jax_recipes import jax_vjp
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
 # avoid float32 cancellation errors that corrupt gradients near omega≈2.
 jax.config.update("jax_enable_x64", True)
 
-# Precision of the differentiation path (apply() forward + VJP/JVP).
+# Precision of the whole solver: the apply() forward and the VJP/JVP paths.
+# They share it so that they compute the same function, which the fd_check
+# requires; timings therefore compare like with like.
 #
 # The default is float64: near omega≈2 the LBM develops float32 cancellation
-# errors that corrupt gradients, so the accuracy-motivated default runs the
-# whole differentiated computation in float64 (see issue #125).  That default
-# is also the dominant cost in the measured VJP/forward wall-clock ratio
-# (~270x 2D, ~1100x 3D at N=32), since the timed forward runs float32 while
-# the gradient path runs float64 on 19–27 distribution fields plus a doubled
-# stored trajectory.
-#
-# Set XLB_VJP_FP32=1 to run the differentiation path in float32 instead,
-# which cuts that overhead by roughly an order of magnitude.  Use only when
-# the benchmark's gradient/fd_check stays acceptable at the configuration of
-# interest — at low viscosity (omega≈2) float32 gradients may degrade.  The
-# apply() forward and the VJP path share this flag so they compute the same
-# function, which the fd_check requires.
+# errors that corrupt gradients, and float32 gradients fail gradient/fd_check
+# there (see issue #125).  Set XLB_VJP_FP32=1 to run everything in float32
+# instead; use it only where the fd_check stays acceptable.
 _USE_F64_DIFF = os.environ.get("XLB_VJP_FP32", "0") == "0"
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     InputSchema as _CanonicalInputSchema,
@@ -50,7 +34,12 @@ from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
 from mosaic_shared.problems.navier_stokes_grid import (  # noqa: E402
     OutputSchema as _CanonicalOutputSchema,
 )
+from mosaic_shared.problems.navier_stokes_grid.channel import (  # noqa: E402
+    check_periodic_or_channel,
+    solid_cells,
+)
 from mosaic_shared.schema_types import make_differentiable  # noqa: E402
+from pydantic import model_validator  # noqa: E402
 
 
 class InputSchema(
@@ -60,15 +49,22 @@ class InputSchema(
 ):
     """XLB solver input schema with differentiable fields."""
 
+    @model_validator(mode="after")
+    def _check_supported_bcs(self) -> "InputSchema":
+        check_periodic_or_channel(self, "xlb")
+        return self
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "drag"])):
+
+class OutputSchema(
+    make_differentiable(_CanonicalOutputSchema, ["result", "body_force"])
+):
     """XLB solver output schema with differentiable fields."""
 
 
 from xlb.compute_backend import ComputeBackend  # noqa: E402
 
 # XLB operator imports
-from xlb.operator.collision import BGK, KBC  # noqa: E402
+from xlb.operator.collision import BGK  # noqa: E402
 from xlb.operator.equilibrium import QuadraticEquilibrium  # noqa: E402
 from xlb.operator.macroscopic import Macroscopic  # noqa: E402
 from xlb.operator.stream import Stream  # noqa: E402
@@ -79,31 +75,14 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any, kind: str):
-    """Build the XLB operator bundle for a given (ndim, precision, collision kind).
+def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any):
+    """Build the XLB operator bundle for a given (ndim, precision).
 
-    `kind` selects the collision operator: "bgk" (default, fast) or "kbc"
-    (entropic-stabilised; only available for D2Q9 and D3Q27).  KBC is used in
-    the 2-D cylinder-wake (obstacle) path to keep the LBM dynamics stable at
-    the sub-grid shear layer next to the solid mask, where plain BGK develops
-    NaNs as the effective Re/omega climbs.  KBC has the same call signature as
-    BGK so it is a drop-in replacement downstream.
-
-    Re-initialise XLB global state with the correct velocity set before
-    constructing operators.  XLB stores internal bookkeeping (e.g. the number
-    of discrete velocities q) in a global singleton that is read by KBC during
-    construction.  If xlb.init() was last called with D2Q9 (q=9) and we now
-    construct a D3Q27 KBC bundle, the mismatched global q=9 vs D3Q27's q=27
-    causes ``dot_general requires contracting dimensions to have the same shape,
-    got (9,) and (27,)`` at jit-compile time.  Re-calling xlb.init() here is
-    idempotent for BGK (which does not read the global q) and fixes the KBC
-    crash for 3-D runs.
+    XLB keeps the velocity set and precision policy in global state, so
+    re-initialise it with this bundle's before constructing its operators.
     """
     xlb.init(velocity_set=vset, default_backend=cb, default_precision_policy=pp)
-    if kind == "kbc":
-        collide = KBC(velocity_set=vset, precision_policy=pp, compute_backend=cb)
-    else:
-        collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
+    collide = BGK(velocity_set=vset, precision_policy=pp, compute_backend=cb)
     return {
         "C": jnp.array(vset.c, dtype=fdtype),
         "W": jnp.array(vset.w, dtype=fdtype),
@@ -138,215 +117,21 @@ xlb.init(
     default_backend=ComputeBackend.JAX,
     default_precision_policy=PrecisionPolicy.FP32FP32,
 )
-_OPS: dict[tuple[int, bool, str], dict] = {
-    # Plain BGK bundle (used for periodic / inflow-only cases)
-    (2, False, "bgk"): _make_ops(
-        _vsets[(2, False)],
-        PrecisionPolicy.FP32FP32,
+_OPS: dict[tuple[int, bool], dict] = {
+    (ndim, f64): _make_ops(
+        _vsets[(ndim, f64)],
+        PrecisionPolicy.FP64FP64 if f64 else PrecisionPolicy.FP32FP32,
         ComputeBackend.JAX,
-        jnp.float32,
-        "bgk",
-    ),
-    (2, True, "bgk"): _make_ops(
-        _vsets[(2, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "bgk",
-    ),
-    (3, False, "bgk"): _make_ops(
-        _vsets[(3, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "bgk",
-    ),
-    (3, True, "bgk"): _make_ops(
-        _vsets[(3, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "bgk",
-    ),
-    # Entropic-stabilised KBC bundle (2-D and 3-D; 3-D requires D3Q27)
-    (2, False, "kbc"): _make_ops(
-        _vsets[(2, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "kbc",
-    ),
-    (2, True, "kbc"): _make_ops(
-        _vsets[(2, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "kbc",
-    ),
-    (3, False, "kbc"): _make_ops(
-        _vsets[(3, False)],
-        PrecisionPolicy.FP32FP32,
-        ComputeBackend.JAX,
-        jnp.float32,
-        "kbc",
-    ),
-    (3, True, "kbc"): _make_ops(
-        _vsets[(3, True)],
-        PrecisionPolicy.FP64FP64,
-        ComputeBackend.JAX,
-        jnp.float64,
-        "kbc",
-    ),
+        jnp.float64 if f64 else jnp.float32,
+    )
+    for ndim in (2, 3)
+    for f64 in (False, True)
 }
 
-# Concrete (non-JAX) components of the D2Q9 lattice velocities extracted at
-# module load time, before any JAX tracing.  Used in _compute_drag_lbm for
-# Python-level branching, which must not operate on traced JAX arrays.
-import numpy as _np  # noqa: E402
-
-_D2Q9_C: list[tuple[int, int]] = [
-    (int(cx), int(cy))
-    for cx, cy in zip(
-        _np.array(_vsets[(2, False)].c)[0],
-        _np.array(_vsets[(2, False)].c)[1],
-        strict=False,
-    )
-]
-_D2Q9_CX: list[float] = [float(c[0]) for c in _D2Q9_C]
-del _np
-
-
-# ---------------------------------------------------------------------------
-# Helper: quadratic equilibrium (used for BCs with arbitrary slice shapes)
-# This mirrors XLB QuadraticEquilibrium.jax_implementation but operates on
-# arbitrary spatial slice shapes (not just full-domain arrays), so it remains
-# a standalone helper for the boundary-condition code.
-# ---------------------------------------------------------------------------
-
-
-def _feq(
-    C: jnp.ndarray, W: jnp.ndarray, rho: jnp.ndarray, u: jnp.ndarray
-) -> jnp.ndarray:
-    """Quadratic equilibrium distribution (used for BCs only).
-
-    Args:
-        C:   Lattice velocities, shape (d, q).
-        W:   Lattice weights, shape (q,).
-        rho: Density, shape (1, *spatial).
-        u:   Velocity, shape (d, *spatial).
-
-    Returns:
-        feq, shape (q, *spatial).
-    """
-    ndim = u.shape[0]
-    w = W.reshape((-1,) + (1,) * ndim)  # (q, 1...) broadcast
-    cu = jnp.einsum("dq,d...->q...", C, u)  # (q, *spatial)
-    usqr = jnp.sum(u**2, axis=0, keepdims=True)  # (1, *spatial)
-    return rho * w * (1.0 + 3.0 * cu + 4.5 * cu**2 - 1.5 * usqr)
-
-
-def _make_obstacle_mask_xlb(
-    obstacle: dict | None, spatial: tuple
-) -> jnp.ndarray | None:
-    """Rasterize geometric obstacle to a boolean JAX mask, shape (1, *spatial)."""
-    if obstacle is None or not obstacle.get("shape"):
-        return None
-    ndim = len(spatial)
-    nx, ny = spatial[0], spatial[1]
-    cx = obstacle["center"][0] * nx
-    cy = obstacle["center"][1] * ny
-    r = obstacle["radius"] * nx  # isotropic grid
-    if obstacle["shape"] in ("cylinder", "CYLINDER"):
-        x = jnp.arange(nx, dtype=jnp.float32)
-        y = jnp.arange(ny, dtype=jnp.float32)
-        X, Y = jnp.meshgrid(x, y, indexing="ij")
-        disk = (X - cx) ** 2 + (Y - cy) ** 2 < r**2  # (nx, ny)
-        if ndim == 2:
-            return disk[None, :, :]  # (1, nx, ny) — broadcast over q
-        # 3D: infinite cylinder along z
-        nz = spatial[2]
-        return jnp.broadcast_to(disk[None, :, :, None], (1, nx, ny, nz))
-    raise ValueError(f"XLB: unsupported obstacle shape {obstacle['shape']!r}")
-
-
-def _compute_drag_lbm(
-    f: jnp.ndarray,
-    C: jnp.ndarray,
-    obs_mask_1: jnp.ndarray,
-    dx: float,
-    dt: float,
-) -> jnp.ndarray:
-    """Compute x-direction drag via Ladd's momentum exchange method (2-D D2Q9).
-
-    Per-link MEM: for each fluid cell x_f and each lattice direction i such
-    that (x_f + c_i) is a solid cell, the bounce-back exchanges lattice
-    momentum 2 * f_i(x_f) * c_i per lattice step.  Summing over all such
-    (x_f, i) pairs and extracting the x-component gives the total x-momentum
-    transferred from fluid to obstacle per lattice step.
-
-    Unit conversion (lattice → physical):
-        Each link transfers lattice momentum (ρ_lb · dx^D · dx/dt) per dt
-        seconds.  For 2-D per unit depth (D=2) this gives
-            F_phys = Σ_links 2 f_i c_ix · ρ_phys · dx^3 / dt^2.
-        XLB uses ρ_lb = 1 and we adopt the ns-grid convention of ρ_phys = 1
-        (force-per-density, matching jax-cfd and phiflow surface integrals),
-        so the conversion factor is simply dx^3 / dt^2.
-
-    The previous implementation (a) only checked the cardinal-x neighbour
-    for every cx≠0 direction (triple-counting cardinal surface cells and
-    missing diagonal-only surface cells) and (b) applied the wrong lattice
-    factor dx^2/dt^2 = 1/scale^2 instead of dx^3/dt^2, leaving the drag
-    magnitude off by roughly 1/dx relative to the reference finite-volume
-    drag integrals.  Both are fixed here.
-
-    Args:
-        f:          Populations after final step, shape (q, nx, ny).
-        C:          Lattice velocities, shape (2, q).  Unused (kept for
-                    signature compatibility); the concrete D2Q9 cx/cy are
-                    taken from the module-level `_D2Q9_C` list to avoid
-                    tracing issues inside jit.
-        obs_mask_1: Boolean solid mask, shape (1, nx, ny).
-        dx:         Physical grid spacing (domain_extent / nx).
-        dt:         Physical timestep.
-
-    Returns:
-        Shape (1,) float32 — drag in physical units (force per density, 2-D).
-    """
-    obs = obs_mask_1[0]  # (nx, ny) bool
-    fluid = ~obs
-
-    # Per-link neighbour check: link i from fluid cell x_f bounces off solid
-    # at (x_f + c_i), so we must shift the mask by -c_i to bring "solid at
-    # x_f + c_i" onto the fluid cell index x_f.  Using the concrete D2Q9
-    # integer offsets from `_D2Q9_C` (module-level Python tuples) keeps the
-    # loop unrolled and avoids indexing the traced JAX array C.
-    q = len(_D2Q9_C)
-
-    # Match accumulator dtype to f to avoid dtype mixing when _use_f64=True.
-    total = jnp.zeros((), dtype=f.dtype)
-    for qi in range(q):
-        cxi, cyi = _D2Q9_C[qi]
-        if cxi == 0:
-            continue  # only x-drag; links with cx=0 carry no x-momentum
-        fi = f[qi]  # (nx, ny)
-        # Solid at (x_f + c_i) → shift obs by -c_i so solid_nbr[x_f] is True
-        # when (x_f + c_i) is solid.
-        solid_nbr = jnp.roll(obs, shift=(-cxi, -cyi), axis=(0, 1))
-        link = fluid & solid_nbr
-        # Ladd's MEM: force ON the obstacle in +x from a single bounce-back
-        # link is +2 f_i c_ix per lattice step.  The existing jax-cfd /
-        # phiflow drag reports a NEGATIVE scalar for a cylinder in uniform
-        # +x flow (force on fluid in +x = -force on obstacle in +x).  To
-        # match that sign convention we accumulate with a leading minus so
-        # the scalar we return has the same sign as the reference solvers'
-        # surface-integral drag.
-        contrib = jnp.sum(jnp.where(link, 2.0 * fi * cxi, 0.0))
-        total = total - contrib
-
-    # Lattice → physical: multiply by ρ_phys · dx^{D+1} / dt^2.  With ρ_phys
-    # and ρ_lb both = 1 and D=2 (2-D per unit depth), this is dx^3 / dt^2.
-    drag = (total * (dx**3) / (dt**2)).astype(jnp.float32)
-    return jnp.reshape(drag, (1,))
+# Concrete D2Q9 lattice velocities (q, 2) and the index of each one's opposite,
+# for building the channel's boundary masks at trace time.
+_D2Q9_C = np.array(_vsets[(2, False)].c).T.astype(int)
+_D2Q9_OPP = np.array([np.flatnonzero((_D2Q9_C == -c).all(axis=1))[0] for c in _D2Q9_C])
 
 
 def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
@@ -364,12 +149,10 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     The pure forward pass is unaffected — ``jax.checkpoint`` only recomputes
     when a backward pass actually differentiates through it.
     """
-    import math as _math_ck
-
     if steps <= 1:
         return jax.lax.scan(body, f0, None, length=steps)
 
-    inner = max(1, round(_math_ck.sqrt(steps)))
+    inner = max(1, round(math.sqrt(steps)))
     outer, rem = divmod(steps, inner)
 
     ckpt_body = jax.checkpoint(body)
@@ -380,7 +163,7 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
 
     f_cur, ys_blocks = jax.lax.scan(block, f0, None, length=outer)
     # ys_blocks: (outer, inner, *per_step_out) -> flatten to (outer*inner, ...)
-    drag_hist = jax.tree_util.tree_map(
+    ys = jax.tree_util.tree_map(
         lambda a: a.reshape((outer * inner, *a.shape[2:])), ys_blocks
     )
 
@@ -388,11 +171,203 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     # multiple of ``inner``); run them checkpointed too and concatenate.
     if rem:
         f_cur, ys_rem = jax.lax.scan(ckpt_body, f_cur, None, length=rem)
-        drag_hist = jax.tree_util.tree_map(
-            lambda a, b: jnp.concatenate([a, b], axis=0), drag_hist, ys_rem
+        ys = jax.tree_util.tree_map(
+            lambda a, b: jnp.concatenate([a, b], axis=0), ys, ys_rem
         )
 
-    return f_cur, drag_hist
+    return f_cur, ys
+
+
+# Lattice Mach number that runs sub-step down to. Periodic runs keep it up to
+# N = _MA_TARGET_N and then scale it ∝ 1/N (diffusive scaling), so LBM's
+# O(Ma²) compressibility error falls with the O(dx²) discretisation error
+# instead of putting a floor under grid refinement.
+_MA_TARGET = 0.1
+_MA_TARGET_N = 64
+
+
+def _sub_steps(inputs: dict) -> int:
+    """LBM sub-steps per dt that bring a run to its target Mach number.
+
+    The lattice Mach number is Ma = u_max · (dt/dx) / cs with cs = 1/√3,
+    u_max = max|v0| on a periodic box and the peak inflow speed in the channel.
+    k sub-steps of dt/k divide it by k and preserve the physical end time.
+    Computed from the concrete primal inputs, since k fixes the traced graph.
+    """
+    if inputs.get("obstacle") is None:
+        v0 = np.asarray(inputs["v0"], dtype=np.float64)
+        u_max = float(np.sqrt((v0**2).sum(axis=-1)).max())
+        ma_target = _MA_TARGET * min(1.0, _MA_TARGET_N / v0.shape[0])
+    else:
+        u_max = float(np.max(np.abs(np.asarray(inputs["inflow_profile"]))))
+        ma_target = _MA_TARGET
+    ma = u_max * float(inputs["dt"]) / float(inputs["dx"]) * math.sqrt(3.0)
+    return max(1, math.ceil(ma / ma_target))
+
+
+def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
+    """Populations consistent with a divergence-free periodic velocity field.
+
+    Starting from feq(ρ=1, u) leaves out the pressure field and the viscous
+    stress, which then appear as acoustic and start-up transients. Instead
+    (Mei et al. 2006, J. Comput. Phys. 220):
+
+    - ρ = 1 + p/cs² from the periodic pressure Poisson equation
+      ∇²p = -∂_a∂_b(u_a u_b), solved spectrally;
+    - plus the first-order Chapman–Enskog part f¹ = -w ρ τ/cs² Q:S with
+      Q_ab = c_a c_b - cs² δ_ab and S the strain rate. The scan streams before
+      it collides, so the populations are post-collision ones: (1 - ω) f¹.
+
+    Args:
+        u:     Lattice velocity, shape (d, *spatial).
+        omega: BGK relaxation rate 1/τ.
+        ops:   Operator bundle from ``_make_ops``.
+
+    Returns:
+        Populations, shape (q, *spatial).
+    """
+    d = u.shape[0]
+    spatial = u.shape[1:]
+    axes = tuple(range(1, d + 1))
+    k = jnp.meshgrid(
+        *(2.0 * jnp.pi * jnp.fft.fftfreq(n).astype(u.dtype) for n in spatial),
+        indexing="ij",
+    )
+    k2 = sum(ka**2 for ka in k)
+    k2 = jnp.where(k2 == 0, 1.0, k2)
+
+    u_hat = jnp.fft.fftn(u, axes=axes)
+    grad = jnp.stack(
+        [jnp.real(jnp.fft.ifftn(1j * k[a] * u_hat, axes=axes)) for a in range(d)]
+    )  # grad[a, b] = ∂_a u_b
+    strain = 0.5 * (grad + jnp.swapaxes(grad, 0, 1))
+
+    uu_hat = jnp.fft.fftn(u[:, None] * u[None, :], axes=tuple(a + 1 for a in axes))
+    p_hat = -sum(k[a] * k[b] * uu_hat[a, b] for a in range(d) for b in range(d)) / k2
+    p_hat = p_hat.at[(0,) * d].set(0.0)
+    rho = 1.0 + 3.0 * jnp.real(jnp.fft.ifftn(p_hat))[None]
+
+    C, W = ops["C"], ops["W"]
+    q_ab = C.T[:, :, None] * C.T[:, None, :] - jnp.eye(d, dtype=C.dtype) / 3.0
+    q_s = jnp.einsum("qab,ab...->q...", q_ab, strain)
+    w = W.reshape((-1,) + (1,) * d)
+    f_neq = -3.0 * (1.0 / omega - 1.0) * w * rho * q_s
+    return ops["eq"](rho, u) + f_neq
+
+
+def _channel_links(
+    shape: tuple[int, int], dx: float, obstacle: dict
+) -> tuple[np.ndarray, ...]:
+    """Solid nodes and boundary links of the 2-D channel with a cylinder.
+
+    Nodes sit at the cell centers, so every boundary lies halfway between a
+    node and its missing upstream neighbor. For lattice direction i, each
+    returned (q, nx, ny) mask marks the fluid nodes x whose neighbor x - c_i
+    lies beyond a wall (y outside the channel), behind the inlet (x < 0), past
+    the outlet (x ≥ nx) or inside the cylinder. A cell is solid when its
+    center lies strictly inside the cylinder.
+
+    Returns:
+        (solid, wall, inlet, outlet, body): solid is (nx, ny), the rest
+        (q, nx, ny), all bool.
+    """
+    nx, ny = shape
+    solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
+    i, j = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
+    masks = np.zeros((4, len(_D2Q9_C), nx, ny), dtype=bool)
+    for q, (cx, cy) in enumerate(_D2Q9_C):
+        si, sj = i - cx, j - cy
+        beyond_wall = (sj < 0) | (sj >= ny)
+        in_x = (si >= 0) & (si < nx)
+        source_solid = solid[np.clip(si, 0, nx - 1), np.clip(sj, 0, ny - 1)]
+        masks[0, q] = beyond_wall
+        masks[1, q] = ~beyond_wall & (si < 0)
+        masks[2, q] = ~beyond_wall & (si >= nx)
+        masks[3, q] = ~beyond_wall & in_x & source_solid & ~solid
+    return (solid, *masks)
+
+
+def _channel_run(
+    u0: jnp.ndarray,
+    u_in: jnp.ndarray,
+    omega: Any,
+    steps: int,
+    sub_k: int,
+    dx: float,
+    obstacle: dict,
+    ops: dict,
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    """Run the DFG channel in lattice units.
+
+    Boundaries, all halfway between nodes:
+
+    - walls and cylinder: bounce-back, f_ī(x, t+1) = f*_i(x, t);
+    - inlet x = 0: velocity bounce-back, adding 2 w ρ c·u_in / cs² with
+      u_in = (inflow_profile(y), 0) and ρ = 1;
+    - outlet x = L: anti-bounce-back with the face velocity extrapolated
+      from the last two columns. LBM is weakly compressible, and a plain
+      p = 0 face would reflect the start-up pressure waves, which then ring
+      between inlet and outlet almost undamped at ν = 1e-3. The face density
+      1 + (u_x - ū_x)/cs follows the outgoing characteristic of the last
+      column's u_x relative to ū_x, the fully developed profile with the
+      inlet's flux, so outgoing waves leave and p = 0 on the face once the
+      flow is steady.
+
+    The force on the cylinder is the momentum exchanged on its bounce-back
+    links, 2 c_i f*_i per link and step, taken at the last sub-step of each
+    outer step.
+
+    Args:
+        u0:     Initial lattice velocity, shape (2, nx, ny).
+        u_in:   Lattice inflow speed at the node heights, shape (ny,).
+        omega:  Relaxation rate.
+        steps:  Outer steps.
+        sub_k:  LBM steps per outer step.
+        dx:     Grid spacing.
+        obstacle: Cylinder ``center`` and ``radius`` in physical units.
+        ops:    Operator bundle from ``_make_ops``.
+
+    Returns:
+        (f, force): final populations (q, nx, ny), and the lattice force on
+        the cylinder after each outer step, shape (steps, 2).
+    """
+    solid, wall, inlet, outlet, body = _channel_links(u0.shape[1:], dx, obstacle)
+    C, W = ops["C"], ops["W"]
+    w = W[:, None]
+    f_rest = W[:, None, None] * jnp.ones_like(u0[:1])
+    bounce = wall | body
+    inlet_term = 6.0 * w[:, :, None] * C[0][:, None, None] * u_in[None, None, :]
+    # Fully developed outflow carrying the inlet's flux.
+    shape = np.arange(u0.shape[2]) + 0.5
+    shape = shape * (u0.shape[2] - shape)
+    u_developed = jnp.sum(u_in) * shape / shape.sum()
+
+    def sub_step(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
+        rho, u = ops["macro"](f)
+        f_post = ops["bgk"](f, ops["eq"](rho, u), rho, u, omega)
+        reflected = f_post[_D2Q9_OPP]
+        force = -2.0 * C @ jnp.sum(jnp.where(body, reflected, 0.0), axis=(1, 2))
+
+        f_new = ops["stream"](f_post)
+        f_new = jnp.where(bounce, reflected, f_new)
+        f_new = jnp.where(inlet, reflected + inlet_term, f_new)
+        u_out = 1.5 * u[:, -1, :] - 0.5 * u[:, -2, :]
+        rho_out = 1.0 + math.sqrt(3.0) * (u[0, -1, :] - u_developed)
+        cu = C.T @ u_out
+        f_out = -reflected[:, -1, :] + 2.0 * w * rho_out * (
+            1.0 + 4.5 * cu**2 - 1.5 * jnp.sum(u_out**2, axis=0)
+        )
+        f_new = f_new.at[:, -1, :].set(
+            jnp.where(outlet[:, -1, :], f_out, f_new[:, -1, :])
+        )
+        return jnp.where(solid, f_rest, f_new), force
+
+    def outer_step(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
+        f, forces = jax.lax.scan(sub_step, f, None, length=sub_k)
+        return f, forces[-1]
+
+    f0 = jnp.where(solid, f_rest, ops["eq"](jnp.ones_like(u0[:1]), u0))
+    return _checkpointed_scan(outer_step, f0, steps)
 
 
 def xlb_fwd(
@@ -400,92 +375,47 @@ def xlb_fwd(
     viscosity: float,
     dt: float,
     steps: int,
-    domain_extent: float,
-    boundary_conditions: dict | None = None,
+    dx: float,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
     _use_f64: bool = False,
-    _sub_k: int | None = None,
-    _collision_kind_override: str | None = None,
-) -> tuple[jnp.ndarray, jnp.ndarray | None]:
-    """Run a 2D or 3D incompressible LBM simulation from an initial velocity field.
+    _sub_k: int = 1,
+    **_: Any,
+) -> dict:
+    """Run a 2D or 3D LBM simulation from an initial velocity field.
 
     Accepts physical units; internally converts to lattice units via:
-        dx = domain_extent / nx
         scale = dt / dx          (u_lb = u_phys * scale)
         nu_lb = viscosity * dt / dx**2
 
-    LBM Mach-number compressibility error is O(Ma²) where Ma = u_lb / cs,
-    cs = 1/√3.  When Ma is large (e.g. dt=0.05 at N=64 gives Ma≈0.88),
-    the error floor can be 10–100× above peer NS solvers.  To suppress this,
-    we automatically compute the number of internal sub-steps k = ceil(Ma/0.1)
-    needed to keep Ma ≤ 0.1, then run with dt_eff = dt/k and steps_eff = steps*k.
-    This preserves the total physical time T = dt*steps exactly while reducing
-    the lattice Ma by factor k, cutting the O(Ma²) floor by k².  The external
-    interface (dt, steps, outputs) is unchanged.
+    Each dt runs as ``_sub_k`` LBM steps of dt/_sub_k, which preserves the
+    physical end time T = dt*steps while dividing the lattice Mach number,
+    and so the O(Ma²) compressibility error, by _sub_k (see ``_sub_steps``).
+    Periodic runs start from populations consistent with v0 (see
+    ``_periodic_populations``). With an obstacle, the run is the 2-D channel
+    of ``_channel_run``, started from the equilibrium at ρ=1 and v0.
 
     Args:
         v0:            Initial velocity in physical units, shape (nx, ny, 1, 2) or (nx, ny, nz, 3).
         viscosity:     Physical kinematic viscosity.
         dt:            Physical timestep size.
-        steps:         Number of LBM timesteps.
-        domain_extent: Side length of the isotropic domain.
-        boundary_conditions: Optional dict of boundary condition specs (e.g. no-slip walls).
-        obstacle:      Optional dict describing an immersed obstacle (shape, center, radius).
-        inflow_profile: Optional 1-D u_x(y) profile shape (ny,). Applied at x=0 each step.
+        steps:         Number of timesteps.
+        dx:            Grid spacing.
+        obstacle:      Cylinder (``center``, ``radius``, physical units) in the
+                       channel, or None for a periodic box.
+        inflow_profile: Channel inlet u_x at the cell-center heights, shape (ny,).
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
                        especially near omega≈2 where small perturbations amplify rapidly.
-        _sub_k:        Pre-computed sub-step count. If None, computed automatically from Ma.
-        _collision_kind_override: Pre-computed collision kind ("bgk" or "kbc"). If None,
-                       selected automatically from omega and obstacle presence.
+        _sub_k:        LBM sub-steps per dt (see ``_sub_steps``).
 
     Returns:
-        (result, drag): result same shape as v0; drag shape (1,) or None.
+        ``result`` (same shape as v0), and in the channel also ``pressure``
+        (nx, ny, 1), kinematic with p = 0 at the outlet, and ``body_force``
+        (steps, 2), the force of the fluid on the cylinder per unit depth.
     """
-    import math as _math
-
     ndim = v0.shape[-1]  # 2 or 3
-
-    # Physical → lattice unit conversion (needed early for Ma-based sub-step selection)
-    dx = domain_extent / v0.shape[0]
-    scale = dt / dx  # u_lb = u_phys * scale  (at full dt)
-
-    # ── Automatic sub-stepping to suppress O(Ma²) compressibility error ──────
-    # LBM compressibility error is O(Ma²) where Ma = u_lb / cs = u_phys * scale / cs.
-    # cs = 1/√3 for the D2Q9 / D3Q27 lattice.  We target Ma ≤ 0.1 which brings
-    # the O(Ma²) error floor to ~0.01, within 5× of incompressible NS peers.
-    # Sub-stepping k internal LBM steps per external dt reduces the effective
-    # lattice timestep to dt_eff = dt/k, hence scale_eff = scale/k and Ma_eff =
-    # Ma/k.  Total physical time T = dt * steps is preserved exactly.
-    #
-    # We use u_max = 1.0 as a conservative upper bound (safe for all benchmark ICs:
-    # TGV max = 1.0, multimode normalised to 0.3, inflow profiles ≤ 0.5).
-    # This ensures _sub_k is determined solely by the static (non-traced) inputs
-    # dt and domain_extent, making it a compile-time constant for JAX JIT.
-    _cs = 1.0 / _math.sqrt(3.0)
-    _MA_TARGET = 0.1
-    _u_max_conservative = 1.0  # upper bound on physical velocity for all benchmark ICs
-    # Sub-stepping disabled (XLB_SUB_K_DISABLE=1) — the auto-substepping path
-    # introduced after the 2026-04-29 commit `98ed0dc` smooths the drag signal
-    # over k× more LBM steps, shrinking ∂drag/∂inflow_profile relative to the
-    # flow-rate penalty gradient and causing drag_opt to plateau at ~5%
-    # reduction (vs the 56% the pre-substep version achieved).  Set to 0 to
-    # re-enable the Ma-aware sub-stepping for forward agreement runs at large
-    # dt where Ma > 0.1.
-    _SUB_K_DISABLED = os.environ.get("XLB_SUB_K_DISABLE", "1") != "0"
-    if _sub_k is None:
-        if _SUB_K_DISABLED:
-            _sub_k = 1
-        else:
-            # Compute _sub_k from the concrete (non-traced) scale value.  This works
-            # when dt is a Python float (apply/apply_jit path) but would raise
-            # ConcretizationTypeError when dt is a JAX abstract value (VJP/JVP path).
-            # Callers that differentiate w.r.t. dt must pre-compute _sub_k from the
-            # concrete primal dt and pass it explicitly — see _diff_statics.
-            _Ma_full = _u_max_conservative * float(scale) / _cs
-            _sub_k = max(1, _math.ceil(_Ma_full / _MA_TARGET))
 
     # Apply sub-stepping: use effective dt and total step count
     dt_eff = dt / _sub_k
@@ -494,26 +424,8 @@ def xlb_fwd(
     nu_lb = viscosity * dt_eff / dx**2
     omega = 1.0 / (3.0 * nu_lb + 0.5)
 
-    # Use entropic-stabilised KBC collision whenever an obstacle is present OR
-    # when omega > 1.8 (low-viscosity BGK goes unstable as tau→0.5).
-    # KBC has the same call signature and same equilibrium targets as BGK so
-    # the rest of the loop is unchanged.  KBC is supported for D2Q9 (2-D) and
-    # D3Q27 (3-D); the guard below falls back to BGK if the bundle is missing.
-    #
-    # When called inside jax.jit (VJP/JVP path), viscosity and dt are traced
-    # arrays so omega is a traced value — `omega > 1.8` cannot be evaluated as
-    # a Python bool.  The caller pre-computes _collision_kind_override from
-    # concrete primal values (same pattern as _sub_k) and passes it here.
-    if _collision_kind_override is not None:
-        _collision_kind = _collision_kind_override
-    else:
-        _needs_kbc = (obstacle is not None) or (omega > 1.8)
-        _collision_kind = "kbc" if _needs_kbc else "bgk"
-    # Safety net: fall back to bgk if the kbc bundle is not registered.
-    if _collision_kind == "kbc" and (ndim, _use_f64, "kbc") not in _OPS:
-        _collision_kind = "bgk"
-    ops = _OPS[(ndim, _use_f64, _collision_kind)]
-    fdtype, C, _W = ops["fdtype"], ops["C"], ops["W"]
+    ops = _OPS[(ndim, _use_f64)]
+    fdtype = ops["fdtype"]
     xlb_eq, xlb_stream, xlb_macro, xlb_bgk = (
         ops["eq"],
         ops["stream"],
@@ -528,120 +440,29 @@ def xlb_fwd(
         # (nx, ny, nz, 3) → (3, nx, ny, nz)
         u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
 
-    spatial = u0.shape[1:]
-    rho0 = jnp.ones((1, *spatial), dtype=fdtype)
+    out = {}
+    if obstacle is None:
+        f0 = _periodic_populations(u0, omega, ops)
 
-    # Initialise populations from equilibrium at rho=1 using XLB operator
-    f0 = xlb_eq(rho0, u0)
-
-    # ── Standard periodic / inflow / obstacle mode ───────────────────────────
-    obs_mask = _make_obstacle_mask_xlb(obstacle, u0.shape[1:])
-    if obs_mask is not None and _use_f64:
-        obs_mask = obs_mask.astype(jnp.bool_)
-
-    # No-slip walls at y=0 and y=ny-1 (equilibrium BC with u=0).
-    wall_y_noslip = (
-        boundary_conditions is not None
-        and boundary_conditions.get("y_lo", {}).get("type") == "no_slip"
-        and boundary_conditions.get("y_hi", {}).get("type") == "no_slip"
-    )
-
-    if inflow_profile is not None and ndim == 2:
-        nx_s, ny_s = spatial
-        prof_len = inflow_profile.shape[0]
-        if prof_len != ny_s:
-            src_y = jnp.linspace(0, 1, prof_len)
-            dst_y = jnp.linspace(0, 1, ny_s)
-            ux_in_lb = (
-                jnp.interp(dst_y, src_y, inflow_profile.astype(fdtype)) * scale_eff
-            )
-        else:
-            ux_in_lb = inflow_profile.astype(fdtype) * scale_eff  # (ny,)
-
-        # Build equilibrium inflow distribution at x=0
-        # rho=1, u_x=ux_in_lb[j], u_y=0 for each j
-        rho_in = jnp.ones((1, 1, ny_s), dtype=fdtype)
-        ux_in_2d = ux_in_lb[None, None, :]  # (1, 1, ny) → broadcast
-        uy_in_2d = jnp.zeros_like(ux_in_2d)
-        u_in_lb = jnp.concatenate([ux_in_2d, uy_in_2d], axis=0)  # (2, 1, ny)
-        f_inflow = xlb_eq(rho_in, u_in_lb)  # (9, 1, ny)
-
-        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
-            # Stream using XLB Stream operator
+        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, None]:
             f_s = xlb_stream(f)
-            # Compute macroscopic quantities
             rho_s, u_s = xlb_macro(f_s)
-            # BGK collision using XLB operators
             feq = xlb_eq(rho_s, u_s)
-            f_next = xlb_bgk(f_s, feq, rho_s, u_s, omega)
-            # Apply obstacle BC if present
-            if obs_mask is not None:
-                rho_wall = jnp.ones_like(rho_s)
-                u_zero = jnp.zeros_like(u_s)
-                feq_wall = xlb_eq(rho_wall, u_zero)
-                f_next = jnp.where(obs_mask, feq_wall, f_next)
-            # Apply inflow BC at x=0: set populations at x=0 slice
-            f_next = f_next.at[:, 0, :].set(f_inflow[:, 0, :])
-            # Apply no-slip walls at y=0 and y=ny-1 (equilibrium at u=0)
-            if wall_y_noslip:
-                _ny = f_next.shape[2]
-                _rho_yw = jnp.ones((1, nx_s, 1), dtype=fdtype)
-                _u_yw = jnp.zeros((2, nx_s, 1), dtype=fdtype)
-                _f_yw = xlb_eq(_rho_yw, _u_yw)
-                f_next = f_next.at[:, :, 0].set(_f_yw[:, :, 0])
-                f_next = f_next.at[:, :, _ny - 1].set(_f_yw[:, :, 0])
-            drag_step = (
-                _compute_drag_lbm(f_next, C, obs_mask, dx, dt_eff)
-                if obs_mask is not None
-                else jnp.zeros((1,), dtype=fdtype)
-            )
-            return f_next, drag_step
+            return xlb_bgk(f_s, feq, rho_s, u_s, omega), None
+
+        f_final, _ = _checkpointed_scan(body, f0, steps_eff)
+        _rho_f, u_out = xlb_macro(f_final)
     else:
-        _nx_g, _ny_g = spatial[0], spatial[1]
-
-        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
-            # Stream using XLB Stream operator
-            f_s = xlb_stream(f)
-            # Compute macroscopic quantities
-            rho_s, u_s = xlb_macro(f_s)
-            # BGK collision using XLB operators
-            feq = xlb_eq(rho_s, u_s)
-            f_next = xlb_bgk(f_s, feq, rho_s, u_s, omega)
-            # Apply obstacle BC if present
-            if obs_mask is not None:
-                rho_wall = jnp.ones_like(rho_s)
-                u_zero = jnp.zeros_like(u_s)
-                feq_wall = xlb_eq(rho_wall, u_zero)
-                f_next = jnp.where(obs_mask, feq_wall, f_next)
-            # Apply no-slip walls at y=0 and y=ny-1 (equilibrium at u=0)
-            if wall_y_noslip:
-                _ny = f_next.shape[2]
-                _rho_yw = jnp.ones((1, _nx_g, 1), dtype=fdtype)
-                _u_yw = jnp.zeros((2, _nx_g, 1), dtype=fdtype)
-                _f_yw = xlb_eq(_rho_yw, _u_yw)
-                f_next = f_next.at[:, :, 0].set(_f_yw[:, :, 0])
-                f_next = f_next.at[:, :, _ny - 1].set(_f_yw[:, :, 0])
-            drag_step = (
-                _compute_drag_lbm(f_next, C, obs_mask, dx, dt_eff)
-                if obs_mask is not None
-                else jnp.zeros((1,), dtype=fdtype)
-            )
-            return f_next, drag_step
-
-    f_final, drag_history = _checkpointed_scan(body, f0, steps_eff)
-
-    # Extract macroscopic velocity using XLB Macroscopic operator
-    _rho_f, u_out = xlb_macro(f_final)  # rho: (1, *spatial), u: (d, *spatial)
-
-    # Drag computation via Ladd's momentum exchange method (2-D only).
-    # We use the tail-window mean over the last half of the simulation to
-    # capture the time-averaged drag (important for periodic flows like Re=100
-    # cylinder wake where the instantaneous drag at the final step can be far
-    # from the mean).  drag_history has shape (steps_eff, 1).
-    drag = None
-    if obs_mask is not None and ndim == 2:
-        n_tail = max(1, steps_eff // 2)
-        drag = jnp.mean(drag_history[-n_tail:], axis=0).astype(jnp.float32)
+        u_in = inflow_profile.astype(fdtype) * scale_eff
+        f_final, force = _channel_run(u0, u_in, omega, steps, _sub_k, dx, obstacle, ops)
+        rho_f, u_out = xlb_macro(f_final)
+        fluid = ~_channel_links(u0.shape[1:], dx, obstacle)[0]
+        u_out = jnp.where(fluid, u_out, 0.0)
+        # Lattice → physical: pressure p = cs² (ρ - 1) in (dx/dt)², force per
+        # unit depth in dx³/dt² (ρ = 1).
+        p = (rho_f[0] - 1.0) / 3.0 / scale_eff**2
+        out["pressure"] = jnp.where(fluid, p, 0.0)[:, :, None].astype(jnp.float32)
+        out["body_force"] = (force * dx**3 / dt_eff**2).astype(jnp.float32)
 
     if ndim == 2:
         # (2, nx, ny) → (nx, ny, 1, 2), lattice → physical units
@@ -654,10 +475,8 @@ def xlb_fwd(
     # always have a consistent dtype regardless of the computation path.
     if _use_f64:
         result = result.astype(jnp.float32)
-        if drag is not None:
-            drag = drag.astype(jnp.float32)
-
-    return result, drag
+    out["result"] = result
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -668,25 +487,21 @@ def xlb_fwd(
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass for the XLB solver."""
-    result, drag = xlb_fwd(**inputs)
-    out = {"result": result}
-    out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
-    return out
+    return xlb_fwd(**inputs)
 
 
-def _unpack_scalars(d: dict) -> dict:
-    """Extract Python floats from 1-element arrays for JIT-static scalar params."""
+def _concrete_inputs(inputs: InputSchema) -> dict:
+    """Inputs as a dict with Python-float viscosity and dt, and the grid spacing."""
+    d = inputs.model_dump()
     for key in ("viscosity", "dt"):
-        if key in d:
-            val = d[key]
-            if not isinstance(val, int | float):
-                d[key] = float(val[0])
+        d[key] = float(d[key][0])
+    d["dx"] = inputs.dx
     return d
 
 
 def apply(inputs: InputSchema) -> OutputSchema:
     """Run the XLB forward solver on the given inputs."""
-    d = _unpack_scalars(inputs.model_dump())
+    d = _concrete_inputs(inputs)
     # Run the forward pass in the same precision as the VJP so apply() and
     # the VJP compute the same function. Without this the FD check calls
     # apply() in one precision while the VJP runs in another, and float32
@@ -695,6 +510,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # casts float64 output back to float32 before returning so the schema
     # contract holds either way.
     d["_use_f64"] = _USE_F64_DIFF
+    d["_sub_k"] = _sub_steps(d)
     return apply_jit(d)
 
 
@@ -705,12 +521,12 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict:
     """Compute the vector-Jacobian product for the XLB solver."""
-    d = _unpack_scalars(inputs.model_dump())
+    d = _concrete_inputs(inputs)
     vjp_inputs = {k for k in vjp_inputs if d.get(k) is not None}
     if not vjp_inputs:
         return {}
     return jax_vjp(
-        _diff_apply(*_diff_statics(d)),
+        _diff_apply(_sub_steps(d), d["dx"]),
         inputs,
         vjp_inputs,
         vjp_outputs,
@@ -719,25 +535,13 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """Output shape equals input v0 shape; drag is always shape (1,)."""
+    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
     v0_info = abstract_inputs.v0
-    if isinstance(v0_info, dict):
-        shape = tuple(v0_info["shape"])
-        dtype = v0_info.get("dtype", "float32")
-    else:
-        shape = v0_info.shape
-        dtype = "float32"
-    out = {
-        "result": {"shape": shape, "dtype": dtype},
-        "drag": {"shape": (1,), "dtype": "float32"},
-    }
-    raw = abstract_inputs.model_dump()
-    obstacle_raw = raw.get("obstacle") or {}
-    _has_obstacle = bool(
-        obstacle_raw.get("shape")
-        if isinstance(obstacle_raw, dict)
-        else getattr(obstacle_raw, "shape", None)
-    )
+    shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
+    out = {"result": {"shape": shape, "dtype": "float32"}}
+    if abstract_inputs.obstacle is not None:
+        out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
+        out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
     return out
 
 
@@ -746,45 +550,9 @@ def abstract_eval(abstract_inputs: Any) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _diff_statics(inputs: dict) -> tuple[int, str]:
-    """Return (_sub_k, collision kind) from the concrete primal inputs.
-
-    Both select the traced graph, so they are fixed per call and never
-    evaluated on a JAX tracer inside the differentiated forward pass.
-    """
-    import math as _math_run
-
-    _dt_concrete = float(inputs.get("dt", 0.05))
-    _nx = inputs["v0"].shape[0]
-    _domain_extent_concrete = float(inputs.get("domain_extent", 1.0))
-    _dx_concrete = _domain_extent_concrete / _nx
-    if os.environ.get("XLB_SUB_K_DISABLE", "1") != "0":
-        # Sub-stepping disabled — see comment in xlb_fwd; pin _sub_k=1 so the
-        # gradient signal isn't smoothed by k× extra LBM steps.
-        _sub_k_concrete = 1
-    else:
-        _scale_concrete = _dt_concrete / _dx_concrete
-        _cs_run = 1.0 / _math_run.sqrt(3.0)
-        _Ma_full_run = 1.0 * _scale_concrete / _cs_run
-        _sub_k_concrete = max(1, _math_run.ceil(_Ma_full_run / 0.1))
-
-    _visc_concrete = float(inputs.get("viscosity", 0.001))
-    _dt_eff_concrete = _dt_concrete / _sub_k_concrete
-    _nu_lb_concrete = _visc_concrete * _dt_eff_concrete / _dx_concrete**2
-    _omega_concrete = 1.0 / (3.0 * _nu_lb_concrete + 0.5)
-    _needs_kbc_concrete = (inputs.get("obstacle") is not None) or (
-        _omega_concrete > 1.8
-    )
-    _ndim = inputs["v0"].shape[-1]
-    _ck = "kbc" if _needs_kbc_concrete else "bgk"
-    if _ck == "kbc" and (_ndim, _USE_F64_DIFF, "kbc") not in _OPS:
-        _ck = "bgk"
-    return _sub_k_concrete, _ck
-
-
 @functools.cache
-def _diff_apply(sub_k: int, collision_kind: str) -> Any:
-    """Forward pass differentiated by jax_vjp, for one (_sub_k, kind) pair.
+def _diff_apply(sub_k: int, dx: float) -> Any:
+    """Forward pass differentiated by jax_vjp, for one (_sub_k, dx).
 
     Runs in float64 by default, or float32 when XLB_VJP_FP32=1 (see
     _USE_F64_DIFF). viscosity and dt arrive as traced (1,) arrays.
@@ -798,14 +566,11 @@ def _diff_apply(sub_k: int, collision_kind: str) -> Any:
                 fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype)
         for k in ("viscosity", "dt"):
             fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype).reshape(())
-        result, drag = xlb_fwd(
+        fwd_kwargs["dx"] = dx
+        return xlb_fwd(
             _use_f64=_USE_F64_DIFF,
             _sub_k=sub_k,
-            _collision_kind_override=collision_kind,
             **fwd_kwargs,
         )
-        out = {"result": result}
-        out["drag"] = drag if drag is not None else jnp.zeros((1,), dtype=jnp.float32)
-        return out
 
     return fn

@@ -16,6 +16,7 @@ contains the non-I/O utilities that don't fit anywhere more specific:
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterator
 
 import jax
@@ -74,6 +75,45 @@ def l2_error_rel(pred: object, ref: object) -> float:
 def is_valid(arr: object) -> bool:
     """Return True iff *arr* is not None and contains only finite values."""
     return arr is not None and bool(jnp.all(jnp.isfinite(arr)))
+
+
+def fixed_cfl_dt_steps(
+    dt: float, steps: int, N: int, *, cfl_N_base: int | None
+) -> tuple[float, int]:
+    """Scale ``dt`` and ``steps``, given at ``N = cfl_N_base``, to grid ``N``.
+
+    ``dt`` shrinks as ``1/N`` and ``steps`` grows to match, so the CFL number
+    and the end time stay fixed and refining the grid also refines time.
+    ``None`` leaves both unchanged.
+    """
+    if cfl_N_base is None:
+        return dt, steps
+    scaled_steps = steps * N / cfl_N_base
+    if scaled_steps != int(scaled_steps):
+        raise ValueError(
+            f"steps={steps} at cfl_N_base={cfl_N_base} does not give a whole "
+            f"number of steps at N={N}, so the end time would differ across N"
+        )
+    return dt * cfl_N_base / N, int(scaled_steps)
+
+
+def convergence_order(errs_by_n: dict) -> float | None:
+    """Observed order of accuracy from the two finest grids.
+
+    Computed as ``log(e_coarse / e_fine) / log(N_fine / N_coarse)``. Using only
+    the finest pair keeps an error floor visible, where a fit over all grids
+    would average it away. Grids without a finite, positive error are skipped.
+    Returns ``None`` if fewer than two remain.
+    """
+    pts = sorted(
+        (float(n), float(e))
+        for n, e in errs_by_n.items()
+        if isinstance(e, int | float) and math.isfinite(e) and e > 0
+    )
+    if len(pts) < 2:
+        return None
+    (n_coarse, e_coarse), (n_fine, e_fine) = pts[-2], pts[-1]
+    return math.log(e_coarse / e_fine) / math.log(n_fine / n_coarse)
 
 
 # ── Run iteration ─────────────────────────────────────────────────────────────

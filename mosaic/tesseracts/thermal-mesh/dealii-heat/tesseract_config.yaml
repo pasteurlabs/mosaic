@@ -2,8 +2,8 @@ name: dealii_heat_thermal_mesh
 version: "0.1.0"
 description: >
   deal.II Q1 trilinear hexahedral FEM heat-conduction solver with SIMP conductivity (C++
-  subprocess, UMFPACK direct). Forward-only — reference implementation for cross-framework
-  validation.
+  subprocess, SSOR-preconditioned CG). Forward-only — reference implementation for
+  cross-framework validation.
 build_config:
   base_image: "dealii/dealii:v9.7.1-jammy"
   extra_packages:
@@ -23,7 +23,7 @@ metadata:
     family: fem
     scheme: "FEM Q1 heat conduction (SIMP, forward-only)"
     discretization: FE
-    numerics: "Direct (spsolve)"
+    numerics: "CG+SSOR"
     ad_strategy: null
     differentiable: false
     uses_gpu: false

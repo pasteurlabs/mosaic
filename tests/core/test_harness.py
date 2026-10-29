@@ -12,6 +12,8 @@ Covers:
 
 from __future__ import annotations
 
+import socket
+import threading
 import time
 
 import pytest
@@ -30,6 +32,36 @@ from mosaic.benchmarks.core.harness import (
     [
         # ContainerDied is matched by exception NAME, not message
         ("ContainerDied", "anything", "container_died"),
+        # Tesseract server died mid-request: the requests.ConnectionError
+        # messages seen when the process, the Docker port proxy, or nothing
+        # at all answers the client.
+        (
+            "ConnectionError",
+            (
+                "('Connection aborted.', ConnectionResetError(104, "
+                "'Connection reset by peer'))"
+            ),
+            "container_died",
+        ),
+        (
+            "ConnectionError",
+            (
+                "('Connection aborted.', RemoteDisconnected('Remote end closed "
+                "connection without response'))"
+            ),
+            "container_died",
+        ),
+        (
+            "ConnectionError",
+            (
+                "HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries "
+                "exceeded with url: /vector_jacobian_product (Caused by "
+                "NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=8000): "
+                "Failed to establish a new connection: [Errno 111] Connection "
+                'refused"))'
+            ),
+            "container_died",
+        ),
         # OOM: matched by substrings in the message
         ("RuntimeError", "RESOURCE_EXHAUSTED: out of memory on device", "OOM"),
         ("RuntimeError", "CUDA_ERROR_OUT_OF_MEMORY", "OOM"),
@@ -74,6 +106,31 @@ def test_classify_failure_oom_beats_timeout_when_both_keywords_present():
 def test_classify_failure_container_died_short_circuits():
     """ContainerDied is matched by name and ignores message content."""
     assert classify_failure("ContainerDied", "out of memory") == "container_died"
+
+
+def test_classify_failure_server_dying_mid_request():
+    """A Tesseract server that vanishes mid-request is labelled container_died.
+
+    Exercises the real client path (tesseract-core over requests) against a
+    socket that stops listening and drops the open connection, which is what
+    the client sees when the container is killed.
+    """
+    from tesseract_core import Tesseract
+
+    srv = socket.create_server(("127.0.0.1", 0))
+    port = srv.getsockname()[1]
+
+    def die() -> None:
+        conn, _ = srv.accept()
+        conn.recv(1)
+        srv.close()
+        conn.close()
+
+    threading.Thread(target=die, daemon=True).start()
+    with pytest.raises(Exception) as exc_info:
+        Tesseract.from_url(f"http://127.0.0.1:{port}").apply({"x": 1.0})
+    exc = exc_info.value
+    assert classify_failure(type(exc).__name__, str(exc)) == "container_died"
 
 
 # ── TimedResult.as_record ─────────────────────────────────────────────────────
@@ -202,6 +259,39 @@ def test_run_timed_trials_warmup_failure_leaves_times_empty():
     assert "Traceback" in result.failure["traceback"]
 
 
+def test_run_timed_trials_setup_runs_once_before_warmup():
+    """setup() runs once, before the warmup, and is not timed."""
+    calls = []
+
+    result = run_timed_trials(
+        lambda: calls.append("fn"),
+        n_trials=2,
+        wall_limit_s=10.0,
+        setup=lambda: calls.append("setup"),
+    )
+
+    assert result.succeeded
+    assert calls == ["setup", "fn", "fn", "fn"]
+    assert len(result.times) == 2
+
+
+def test_run_timed_trials_setup_failure_is_recorded():
+    """A setup failure is recorded like an fn failure, and fn never runs."""
+    calls = []
+
+    def setup():
+        raise RuntimeError("boom during setup")
+
+    result = run_timed_trials(
+        lambda: calls.append("fn"), n_trials=2, wall_limit_s=10.0, setup=setup
+    )
+
+    assert not result.succeeded
+    assert calls == []
+    assert result.times == []
+    assert "boom during setup" in result.failure["exc_msg"]
+
+
 def test_run_timed_trials_trial_failure_keeps_earlier_times():
     """If trial 2 raises, trial 1's time is still recorded."""
     state = {"i": 0}
@@ -259,6 +349,52 @@ def test_run_timed_trials_records_first_elapsed_only_on_first_trial():
     assert result.first_elapsed == result.times[0]
     # Trial 0 sleeps 50ms, trials 1-2 sleep 0 — first_elapsed should be the slowest
     assert result.first_elapsed >= 0.04
+
+
+def test_run_timed_trials_records_warmup_elapsed_outside_trials():
+    """The warmup's elapsed time is kept separately and is not a trial."""
+    durations = iter([0.05, 0.0, 0.0, 0.0])  # warmup, trial-0, trial-1, trial-2
+
+    def fn():
+        time.sleep(next(durations))
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.succeeded
+    assert result.warmup_elapsed >= 0.04
+    assert len(result.times) == 3
+    assert max(result.times) < 0.04
+    rec = result.as_record()
+    assert rec["first_call_s"] == result.warmup_elapsed
+    assert rec["mean"] < 0.04
+
+
+def test_run_timed_trials_warmup_failure_has_no_first_call():
+    """A warmup that raises leaves no first-call time to report."""
+
+    def fn():
+        raise RuntimeError("boom during warmup")
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.warmup_elapsed is None
+    assert "first_call_s" not in result.as_record()
+
+
+def test_run_timed_trials_trial_failure_keeps_first_call():
+    """A failure after the warmup still reports the warmup's time."""
+    calls = iter([None, RuntimeError("boom in trial")])
+
+    def fn():
+        exc = next(calls)
+        if exc is not None:
+            raise exc
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    rec = result.as_record()
+    assert rec["status"] == "failed"
+    assert rec["first_call_s"] == result.warmup_elapsed
 
 
 def test_run_timed_trials_timeout_classification():
