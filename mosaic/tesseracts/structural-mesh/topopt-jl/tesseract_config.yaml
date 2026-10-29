@@ -37,6 +37,10 @@ build_config:
     # every file this step just created.
     - 'RUN JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using TopOpt, Printf")'' && chmod -R 777 /app'
 env:
+  # Julia 1.12 adds an interactive thread by default. juliacall leaves Julia's
+  # signal handling off, and multithreaded Julia stops threads for GC through
+  # signals, so the server segfaulted on the larger meshes; one thread avoids it.
+  JULIA_NUM_THREADS: "1,0"
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
   JULIA_DEPOT_PATH: "/app/julia_depot"
