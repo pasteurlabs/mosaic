@@ -310,9 +310,9 @@
     "bytes": 1229
   },
   "README.md": {
-    "sha256": "d59a8e1cb35aaede775346a6fc2728a225fec83c2a2db38cfd5b86bdf14db0f5",
+    "sha256": "04788a83495d2f4e0cfa670c04fad41657392df66826d3c9c5031ecffb008deb",
     "source": "Publication summary of retained reports",
-    "bytes": 6045
+    "bytes": 7548
   },
   "recurrent-sensitivity/long_rollout_sensitivity.png": {
     "sha256": "d04d50139642f36787cc9a75e415f2e3f30dca226853d8f598ca92d96d0b0ab3",
@@ -408,5 +408,95 @@
     "sha256": "a557a49b1dac59f91ab72aae651e3496304d4b811239229efb54759008268fa5",
     "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/sacct.txt",
     "bytes": 603
+  },
+  "parameter-alignment/h100_fd.png": {
+    "sha256": "04e7ebf8a7a3232c30faece340cd6ac1003d4ddc04bfc616341878051b3d34a0",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/h100_fd.png",
+    "bytes": 176416
+  },
+  "parameter-alignment/summary.json": {
+    "sha256": "b0dcafe06cc2e8c8872dc1aa4f4e7214fad29d3038c3025bc81df803394c4f0d",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/summary.json",
+    "bytes": 103511
+  },
+  "parameter-alignment/h100_fd.vl.json": {
+    "sha256": "596fa1e3a598a862342ba2493e70fd365b976c2bde840d6ba34348b38e40d3ad",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/h100_fd.vl.json",
+    "bytes": 5610
+  },
+  "parameter-alignment/alignment.png": {
+    "sha256": "a4f01517b694088e365f875244ebd03616ac0233b20c2d5458db4b52adee6fc8",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/alignment.png",
+    "bytes": 343746
+  },
+  "parameter-alignment/README.txt": {
+    "sha256": "3b907a10a289b63b6f71e64bdc3fe6f1fa412798c544383afa15b3c7ebd6af93",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/README.txt",
+    "bytes": 721
+  },
+  "parameter-alignment/descent.vl.json": {
+    "sha256": "b112ccff624a29958879f95fb65294e09ad4327951e2bac162c49ae4cea521db",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/descent.vl.json",
+    "bytes": 44117
+  },
+  "parameter-alignment/sacct.txt": {
+    "sha256": "8ea1fda3d8c2d7b68d733c891c1f7d0f48761e35dc20e407e0d91d0bea377934",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/sacct.txt",
+    "bytes": 186
+  },
+  "parameter-alignment/checkpoint_provenance.json": {
+    "sha256": "a54cce8251f39809d6631c0e514bd18854ed8e3ab8e0087125a42f71211a94a8",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/checkpoint_provenance.json",
+    "bytes": 6540
+  },
+  "parameter-alignment/descent.png": {
+    "sha256": "0dfd2f6b90de5db77f5e9a1dcc308e6b9c00d0a2ab34974a7087550a9abc2610",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/descent.png",
+    "bytes": 445261
+  },
+  "parameter-alignment/alignment.vl.json": {
+    "sha256": "b70770099c592104785bc59cbfac7c5cc2ba3f6f6ab4ad7a24be97484b2a5aaf",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-polished/alignment.vl.json",
+    "bytes": 27075
+  },
+  "parameter-alignment/alignment.json": {
+    "sha256": "2caad54a1fb0745737a81a60e450a27b044582ba6e5730a5a77f7435949eda59",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/results/alignment.json",
+    "bytes": 126655
+  },
+  "parameter-alignment/provenance/protocol.json": {
+    "sha256": "96594041ed9434e8deff4b8f30310a5579c19a0468848ab482bbeff7d0a44059",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/protocol.json",
+    "bytes": 960
+  },
+  "parameter-alignment/provenance/source.sha256": {
+    "sha256": "548575d778cd263444c5cb04b0a785870bf8348cef249add87f3fe53646ec2e6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/source.sha256",
+    "bytes": 77
+  },
+  "parameter-alignment/provenance/scripts.sha256": {
+    "sha256": "179d450a0bf928273e19c8d2059e4e88e66b81c3f9ca958af869b4f4ac1ff9f6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/scripts.sha256",
+    "bytes": 304
+  },
+  "parameter-alignment/provenance/environment.txt": {
+    "sha256": "3cdbc6ee2d5b7bfd1a1c00638eb46d01e459a5c8ff109a53fc124aafa79dfb91",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/environment.txt",
+    "bytes": 2604
+  },
+  "parameter-alignment/provenance/plot-source.sha256": {
+    "sha256": "c2704fdc1572f5b41a7f18019d08fe53b798a1d8fb88a1271787972647b8a27e",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/plot-source.sha256",
+    "bytes": 153
+  },
+  "parameter-alignment/provenance/publication-sacct.txt": {
+    "sha256": "99dfb1cda9d0418753b0829359c47e267b13e2636e1066212f3acc8dc9eec44b",
+    "source": "/home/andrinr/solver-investigations/buoyancy-parameter-alignment-20261029/publication-sacct.txt",
+    "bytes": 838
+  },
+  "parameter-alignment/README.md": {
+    "sha256": "23029812cb59cb6896e1eb525a912669fea2787919d49b7d38eed62a69bcea40",
+    "source": "Publication interpretation of retained full parameter-alignment report",
+    "bytes": 2061
   }
 }

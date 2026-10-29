@@ -49,3 +49,27 @@ study measures neural parameter-gradient alignment.
   direction at two amplitudes differ from tangents by at most .67%; sampled
   endpoint CFL stays below .232. These checks do not independently validate
   every direction and do not waive any training admission gate.
+
+
+## Parameter-gradient alignment follow-up
+
+[Full parameter-gradient report](parameter-alignment/README.md) addresses a
+different quantity from the state-Jacobian studies above: raw neural parameter
+gradients of trajectory prefixes against the H100 objective at common initial
+states and checkpoints. This is not the actual shuffled-window gradient
+sampling distribution. The [alignment plot](parameter-alignment/alignment.png)
+and [finite descent probes](parameter-alignment/descent.png) show that short
+prefix directions can increase the long objective in some cases, but results
+are not monotonic across horizons/checkpoints. The original two initial-model
+H100 FD failures at epsilon.003 remain in the [epsilon profile](parameter-alignment/h100_fd.png);
+smaller-epsilon agreement does not override prior admission.
+
+All four new follow-ups are now complete: parameter alignment, long-rollout
+state sensitivities, physical-scale growth versus prediction error, and
+state/IC/subspace robustness. They remain JAX-CFD-only, separate from both the
+original local72D conditioning study and the canonical all-backend CI gallery.
+The restarted forecast chunks use fine-reference states at frames25/50, whereas
+the training comparisons evaluate full trajectories from time0; these are
+different objectives. H8 often improves the measured local/recurrent restricted
+ratio more than H16 despite H16's better full-rollout training result. Conditioning
+therefore does not explain the training ranking causally.

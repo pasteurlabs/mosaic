@@ -1,0 +1,196 @@
+{
+  "h8": {
+    "source_campaign": "buoyancy-long-horizons-20261029",
+    "recipe": {
+      "ic": {
+        "name": "interacting_plumes",
+        "seed": 0
+      },
+      "physics": {
+        "N": 64,
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": 8
+      },
+      "training": {
+        "updates": 256,
+        "unroll": 8,
+        "train_frames": 100,
+        "eval_frames": 100,
+        "reference_factor": 2,
+        "learning_rates": [
+          0.003
+        ],
+        "hidden_channels": 8,
+        "train_cases": [
+          {
+            "seed": 0
+          },
+          {
+            "seed": 2,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          },
+          {
+            "seed": 3,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          },
+          {
+            "seed": 4,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          }
+        ],
+        "validation_seed": 1,
+        "test_seed": 100,
+        "model_seed": 0,
+        "window_seed": 0,
+        "validation_interval": 16,
+        "reference_tolerance": 0.05,
+        "fd_epsilon": 0.003,
+        "fd_tolerance": 0.05,
+        "correct_temperature": false
+      }
+    },
+    "protocol": {
+      "training_horizon": 8,
+      "common_eligible_starts": [
+        0,
+        68
+      ],
+      "budget_seconds": 60,
+      "adam_warmup_seconds": 60,
+      "curriculum_stages": null,
+      "lbfgs_windows": [],
+      "adam_lr": 0.003,
+      "adam_clip": 1.0,
+      "lbfgs_true_gradient": true,
+      "lbfgs_maxls": 10,
+      "lbfgs_max_calls": 128,
+      "validation": "Full100-frame rollout at shared3.75s active-budget milestones; accepted states only; final accepted always retained",
+      "time": "Synchronized wall clock includes optimizer/host/line-search overhead and diagnostics; measured validation including logging subtracted; compilation/preparation separate"
+    },
+    "schedule": {
+      "seed": 0,
+      "eligible_starts": 69,
+      "stream_sha256": "32f31d18ad55a66fd28fa6383164de8fbb72ff283b788cf737118f9d33b811d8"
+    },
+    "selected_update": 1242,
+    "completed_updates": 1415,
+    "selected_training_seconds": 52.540839647175744,
+    "training_seconds": 60.39552145334892,
+    "data_hashes": {
+      "training": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+      "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+      "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+    },
+    "source_sha256": {
+      "/scratch/jobs/3618500/work/probe/mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+      "/scratch/jobs/3618500/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+      "/data/personal/andrinr/runner/results/mosaic/buoyancy-long-horizons-20261029/driver.py": "e4b00f039ec18d5396fc764c05672305578acfe1976d11273f4b37afa61a1d3c"
+    }
+  },
+  "h16": {
+    "source_campaign": "buoyancy-long-horizons-20261029",
+    "recipe": {
+      "ic": {
+        "name": "interacting_plumes",
+        "seed": 0
+      },
+      "physics": {
+        "N": 64,
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": 8
+      },
+      "training": {
+        "updates": 256,
+        "unroll": 16,
+        "train_frames": 100,
+        "eval_frames": 100,
+        "reference_factor": 2,
+        "learning_rates": [
+          0.003
+        ],
+        "hidden_channels": 8,
+        "train_cases": [
+          {
+            "seed": 0
+          },
+          {
+            "seed": 2,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          },
+          {
+            "seed": 3,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          },
+          {
+            "seed": 4,
+            "position_jitter": 0.04,
+            "width_jitter": 0.15,
+            "amplitude_jitter": 0.15
+          }
+        ],
+        "validation_seed": 1,
+        "test_seed": 100,
+        "model_seed": 0,
+        "window_seed": 0,
+        "validation_interval": 16,
+        "reference_tolerance": 0.05,
+        "fd_epsilon": 0.003,
+        "fd_tolerance": 0.05,
+        "correct_temperature": false
+      }
+    },
+    "protocol": {
+      "training_horizon": 16,
+      "common_eligible_starts": [
+        0,
+        68
+      ],
+      "budget_seconds": 60,
+      "adam_warmup_seconds": 60,
+      "curriculum_stages": null,
+      "lbfgs_windows": [],
+      "adam_lr": 0.003,
+      "adam_clip": 1.0,
+      "lbfgs_true_gradient": true,
+      "lbfgs_maxls": 10,
+      "lbfgs_max_calls": 128,
+      "validation": "Full100-frame rollout at shared3.75s active-budget milestones; accepted states only; final accepted always retained",
+      "time": "Synchronized wall clock includes optimizer/host/line-search overhead and diagnostics; measured validation including logging subtracted; compilation/preparation separate"
+    },
+    "schedule": {
+      "seed": 0,
+      "eligible_starts": 69,
+      "stream_sha256": "32f31d18ad55a66fd28fa6383164de8fbb72ff283b788cf737118f9d33b811d8"
+    },
+    "selected_update": 676,
+    "completed_updates": 830,
+    "selected_training_seconds": 48.81913467589766,
+    "training_seconds": 60.23574290389661,
+    "data_hashes": {
+      "training": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+      "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+      "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+    },
+    "source_sha256": {
+      "/scratch/jobs/3618500/work/probe/mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+      "/scratch/jobs/3618500/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+      "/data/personal/andrinr/runner/results/mosaic/buoyancy-long-horizons-20261029/driver.py": "e4b00f039ec18d5396fc764c05672305578acfe1976d11273f4b37afa61a1d3c"
+    }
+  }
+}

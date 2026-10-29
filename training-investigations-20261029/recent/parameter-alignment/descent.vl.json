@@ -1,0 +1,1655 @@
+{
+  "config": {
+    "view": {
+      "continuousWidth": 300,
+      "continuousHeight": 300
+    },
+    "axis": {
+      "labelFontSize": 13,
+      "titleFontSize": 14
+    },
+    "legend": {
+      "labelFontSize": 12,
+      "titleFontSize": 13
+    },
+    "title": {
+      "fontSize": 17
+    }
+  },
+  "data": {
+    "values": [
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 3.0954216508124266,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 2.787867456858317,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 11.136955309843778,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 8.363602970340423,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 58.60581124515117,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 27.87867649634519,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 3.070384117020146,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 2.7785909623573986,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 10.969181734271965,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 8.335773508586266,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 56.95058389673241,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 27.785911598393326,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": 0.04667834430120276,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.0009691389961294059,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": 0.42574447784873976,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -0.0029073973822197332,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": 4.723057784319858,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -0.009691184773124134,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -3.642809746582344,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -3.9104444436461834,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -9.320952454304454,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -11.73133402998378,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -12.199524016757058,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -39.1044472305669,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.2941065643548377,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.0166430795118324,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 5.539641100484799,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 3.049929475406718,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 37.765726876457634,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 10.166431645993212,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 1.1698348192237813,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.9130748078907943,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 5.044590566817968,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 2.7392246774530564,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 34.66812496579947,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 9.130748932066393,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.32739692912125934,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.37774439189567627,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -0.6799723763603154,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -1.1332332386773394,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": 1.2356383741396186,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -3.777444371833811,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.458095257226096,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.578168065014313,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -6.649809412124894,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -7.734504713490645,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -13.610938905901609,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -25.781682565617423,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -0.3507923743838965,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -0.4585315175752929,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -0.40489314639699747,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -1.3755983170244632,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 6.211005733640878,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": -4.585320178947133,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -0.5296825095278757,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -0.5786041604362259,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -1.2954884312732726,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -1.735830745580296,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": -0.8849182218590443,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": -5.786077201906539,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.30056627016863385,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.3848460626947344,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -0.3980787430808987,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -1.1545733730200791,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": 4.56075387541478,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -3.8486100398474887,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -0.9820355172098382,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -1.0011858999933538,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -2.82940387079313,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -3.003570958494643,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -8.076610085914492,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -10.011973792354905,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.2567348767251953,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.1104061311969708,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 4.649484150060024,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 3.3311991704981683,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 25.786487885003968,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 11.103974450216894,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.5667153741733522,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.5085866095485567,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 2.0524913235524327,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 1.5257245874953689,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 10.951492646730424,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 5.085679018813283,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -1.1700538609684146,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -1.2956547836027792,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -2.7541771687058705,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -3.8870001161654586,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -0.37684181368769665,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -12.956645505766893,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -1.8261029227661953,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.1198129618804615,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -3.7159331292099322,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -6.359495640431627,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": 8.113187884507719,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -21.198251801180884,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -0.9230496768978875,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -1.0878394138539034,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -1.7785884090283037,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -3.2634732716275723,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 5.661883175642975,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": -10.878299533243961,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -1.1665888236208437,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -1.313006589330434,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -2.6168927134606164,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -3.9389935498422557,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 1.598559222981713,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": -13.129899339507151,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -1.3725111708608178,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -1.3982582040057683,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -3.961948074624543,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -4.194761806823823,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -11.389805235868957,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -13.982571060543767,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.0583100401827137,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.1552635607348964,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -5.592130169979167,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -6.4657937838099295,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -11.828630151370817,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -21.552622999827204,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.4167237952441039,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 1.219384873790238,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 5.436133116089143,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 3.6581717561633,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 31.97143998738929,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 12.193937688632744,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 1.064992653266061,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.894469786054188,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 4.222996832075699,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 2.683424786385389,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 26.07214393997043,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 8.944789122932706,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.9328139048819428,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.9506196052510826,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -2.6937196087106066,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -2.8518657665180696,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -7.747031368072211,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -9.506214929821686,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.1086540207156603,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -2.251323535607402,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -5.46982929396735,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -6.754009517564982,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -8.285491857742084,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -22.513308802021633,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -0.8459123987257899,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": -0.9638524897400076,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -1.8298619961645586,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": -2.8915762486562717,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 2.1582366576941707,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": -9.63857939383289,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -0.8335146071074445,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": -0.9404685368889452,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -1.8591082397938417,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": -2.821414545883724,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 1.2909584200222333,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": -9.404701971102053,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.7299550129649672,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.7890397215486462,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -1.8351934469197024,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -2.3671406557689347,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -1.9783886073770196,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -7.8904890318874195,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -1.0331003687308744,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -1.186757755080454,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -2.1757990837111167,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -3.5602857341499923,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": 3.531242034518975,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -11.867589420673081,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 0.26893875350044116,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0001,
+        "change_percent": 0.14920040359755019,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 1.5258575912832095,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.0003,
+        "change_percent": 0.44759947618254736,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 13.470988137155837,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "step": 0.001,
+        "change_percent": 1.4920027342883544,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.22036004503354972,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0001,
+        "change_percent": 0.11417152816574021,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 1.2977275807080535,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.0003,
+        "change_percent": 0.3424841126614673,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 11.756137033525102,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "step": 0.001,
+        "change_percent": 1.1416203441622876,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": 0.056205338748698715,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0001,
+        "change_percent": -0.003390864142064153,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": 0.5275036175729267,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.0003,
+        "change_percent": -0.01016519556250082,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": 5.934599345997044,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "step": 0.001,
+        "change_percent": -0.03391291585739248,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -0.5586491750667599,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0001,
+        "change_percent": -0.6007352170662694,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -1.4241851136657568,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.0003,
+        "change_percent": -1.8022089522454106,
+        "kind": "H100 AD linear prediction"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -1.8192170896719122,
+        "kind": "Measured"
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "step": 0.001,
+        "change_percent": -6.00734514795301,
+        "kind": "H100 AD linear prediction"
+      }
+    ]
+  },
+  "facet": {
+    "column": {
+      "field": "case",
+      "title": null,
+      "type": "nominal"
+    },
+    "row": {
+      "field": "checkpoint",
+      "sort": [
+        "Initial",
+        "8-step best",
+        "8-step final",
+        "16-step best"
+      ],
+      "title": null,
+      "type": "nominal"
+    }
+  },
+  "spec": {
+    "mark": {
+      "type": "line",
+      "point": true
+    },
+    "encoding": {
+      "color": {
+        "field": "horizon",
+        "sort": [
+          "8",
+          "16",
+          "32",
+          "100"
+        ],
+        "title": "Descent gradient H",
+        "type": "nominal"
+      },
+      "strokeDash": {
+        "field": "kind",
+        "legend": {
+          "symbolStrokeWidth": 2,
+          "symbolType": "stroke"
+        },
+        "scale": {
+          "domain": [
+            "Measured",
+            "H100 AD linear prediction"
+          ],
+          "range": [
+            [],
+            [
+              6,
+              3
+            ]
+          ]
+        },
+        "title": "Response",
+        "type": "nominal"
+      },
+      "x": {
+        "axis": {
+          "format": ".0e",
+          "values": [
+            0.0001,
+            0.0003,
+            0.001
+          ]
+        },
+        "field": "step",
+        "scale": {
+          "type": "log"
+        },
+        "title": "Parameter step L2 norm",
+        "type": "quantitative"
+      },
+      "y": {
+        "field": "change_percent",
+        "scale": {
+          "constant": 0.01,
+          "type": "symlog"
+        },
+        "title": "H100 loss change (%)",
+        "type": "quantitative"
+      }
+    },
+    "height": 155,
+    "width": 310
+  },
+  "resolve": {
+    "scale": {
+      "y": "independent"
+    }
+  },
+  "title": {
+    "text": "Small normalized parameter steps: measured versus linear prediction",
+    "subtitle": "Negative improves the 100-step loss. Solid: measured; dashed: AD prediction. Symlog y, linear near \u00b10.01%."
+  },
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json"
+}

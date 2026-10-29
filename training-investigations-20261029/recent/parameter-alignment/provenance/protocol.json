@@ -1,0 +1,29 @@
+{
+  "source": "0246f6a",
+  "analysis": "Raw parameter gradients of controlled same-start0 prefix objectives H8/16/32 vsH100; mean intermediate losses; not actual shuffledtraininggradientdistribution",
+  "cases": [
+    "training0",
+    "heldout100"
+  ],
+  "checkpoints": [
+    "initial",
+    "h8_selected",
+    "h8_final",
+    "h16_selected"
+  ],
+  "step_l2_magnitudes": [
+    0.0001,
+    0.0003,
+    0.001
+  ],
+  "h100_fd_epsilons": [
+    0.003,
+    0.001,
+    0.0003
+  ],
+  "fd_scope": "Diagnostic only; alloriginal5%flags retained, no newtraininggate oroverride",
+  "scan_validation": "H8/H16 originalunrolled objective relative<1e-6, gradientrelativeL2<1e-5 at everycase/checkpoint",
+  "data": "Exactcanonical hashes asserted against saved H8/H16receipts; existingreferenceadmission reused, sourceAPIsha verified",
+  "failures": "Allcase/checkpointfailures preserved; no heldoutrecipetuning",
+  "execution": "One boundedRTX5090 allocation, no newtraining"
+}

@@ -1,0 +1,870 @@
+{
+  "config": {
+    "view": {
+      "continuousWidth": 300,
+      "continuousHeight": 300
+    },
+    "axis": {
+      "labelFontSize": 13,
+      "titleFontSize": 14
+    },
+    "legend": {
+      "labelFontSize": 12,
+      "titleFontSize": 13
+    },
+    "title": {
+      "fontSize": 17
+    }
+  },
+  "vconcat": [
+    {
+      "facet": {
+        "column": {
+          "field": "case",
+          "title": null,
+          "type": "nominal"
+        }
+      },
+      "spec": {
+        "mark": {
+          "type": "line",
+          "point": true
+        },
+        "encoding": {
+          "color": {
+            "field": "checkpoint",
+            "scale": {
+              "domain": [
+                "Initial",
+                "8-step best",
+                "8-step final",
+                "16-step best"
+              ],
+              "range": [
+                "#4477AA",
+                "#EE6677",
+                "#228833",
+                "#AA3377"
+              ]
+            },
+            "sort": [
+              "Initial",
+              "8-step best",
+              "8-step final",
+              "16-step best"
+            ],
+            "title": "Checkpoint",
+            "type": "nominal"
+          },
+          "x": {
+            "axis": {
+              "labelAngle": 0
+            },
+            "field": "horizon",
+            "sort": [
+              "8",
+              "16",
+              "32",
+              "100"
+            ],
+            "title": "Prefix horizon (categorical)",
+            "type": "ordinal"
+          },
+          "y": {
+            "field": "cosine_to_h100",
+            "scale": {
+              "domain": [
+                -1,
+                1
+              ]
+            },
+            "title": "Cosine with H100 parameter gradient",
+            "type": "quantitative"
+          }
+        },
+        "height": 230,
+        "width": 335
+      },
+      "title": {
+        "text": "Gradient alignment with the 100-step objective",
+        "subtitle": "Same initial state and network parameters; raw gradients, not Adam updates"
+      }
+    },
+    {
+      "facet": {
+        "column": {
+          "field": "case",
+          "title": null,
+          "type": "nominal"
+        }
+      },
+      "spec": {
+        "mark": {
+          "type": "line",
+          "point": true
+        },
+        "encoding": {
+          "color": {
+            "field": "checkpoint",
+            "scale": {
+              "domain": [
+                "Initial",
+                "8-step best",
+                "8-step final",
+                "16-step best"
+              ],
+              "range": [
+                "#4477AA",
+                "#EE6677",
+                "#228833",
+                "#AA3377"
+              ]
+            },
+            "sort": [
+              "Initial",
+              "8-step best",
+              "8-step final",
+              "16-step best"
+            ],
+            "title": "Checkpoint",
+            "type": "nominal"
+          },
+          "x": {
+            "axis": {
+              "labelAngle": 0
+            },
+            "field": "horizon",
+            "sort": [
+              "8",
+              "16",
+              "32",
+              "100"
+            ],
+            "title": "Prefix horizon (categorical)",
+            "type": "ordinal"
+          },
+          "y": {
+            "field": "norm_ratio_to_h100",
+            "scale": {
+              "type": "log"
+            },
+            "title": "Gradient norm / H100 norm",
+            "type": "quantitative"
+          }
+        },
+        "height": 230,
+        "width": 335
+      },
+      "title": "Norms use identical training RMS scales and mean intermediate loss"
+    }
+  ],
+  "data": {
+    "values": [
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "loss": 4.990818524674978e-06,
+        "norm": 0.0006901312801031035,
+        "seconds_including_first_compile": 0.027466319035738707,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.056337445974349976,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": -0.7129285388566334,
+        "norm_ratio_to_h100": 0.001240816363076361
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "loss": 1.7272799595957622e-05,
+        "norm": 0.0019204955597418093,
+        "seconds_including_first_compile": 0.05128641100600362,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.0996868908405304,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": -0.7105563098030477,
+        "norm_ratio_to_h100": 0.0034529405990511275
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "loss": 8.34385136840865e-05,
+        "norm": 0.010109707523704587,
+        "seconds_including_first_compile": 5.390767662087455,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.15248917043209076,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.00024783354158147594,
+        "norm_ratio_to_h100": 0.01817667287802803
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "loss": 0.001422322471626103,
+        "norm": 0.5561913113331761,
+        "seconds_including_first_compile": 5.959360478911549,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.2352667599916458,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 1.0000000000000002,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "loss": 5.02147577208234e-06,
+        "norm": 0.0006223550647923488,
+        "seconds_including_first_compile": 0.024215671932324767,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.05619371309876442,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": -0.39432769963550324,
+        "norm_ratio_to_h100": 0.0014362915334818738
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "loss": 1.6785415937192738e-05,
+        "norm": 0.0017874605242730426,
+        "seconds_including_first_compile": 0.04741027718409896,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.09905547648668289,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": -0.3541564398831722,
+        "norm_ratio_to_h100": 0.004125160318737081
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "loss": 8.203729521483183e-05,
+        "norm": 0.010699520696239705,
+        "seconds_including_first_compile": 0.09490643418394029,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.14708976447582245,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": 0.14651659733835184,
+        "norm_ratio_to_h100": 0.024692706555622942
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "loss": 0.0016806775238364935,
+        "norm": 0.4333069229222766,
+        "seconds_including_first_compile": 0.29075582697987556,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.2166898250579834,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": 0.9999999999999999,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "loss": 4.667774646804901e-06,
+        "norm": 0.0003790826212149468,
+        "seconds_including_first_compile": 0.02384030306711793,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.056855808943510056,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.4579844297437115,
+        "norm_ratio_to_h100": 0.006269652873746065
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "loss": 1.4899043890181929e-05,
+        "norm": 0.000907241207604262,
+        "seconds_including_first_compile": 0.047745404997840524,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.10054538398981094,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.5779178275518151,
+        "norm_ratio_to_h100": 0.015004875259664466
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "loss": 6.335717625916004e-05,
+        "norm": 0.0029623734138259157,
+        "seconds_including_first_compile": 0.09288494195789099,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.15345361828804016,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.3844018157808601,
+        "norm_ratio_to_h100": 0.04899473610153004
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "loss": 0.0006039093132130802,
+        "norm": 0.06046309562086619,
+        "seconds_including_first_compile": 0.28521999903023243,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.24043014645576477,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 1.0,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "loss": 4.767855898535345e-06,
+        "norm": 0.00038313286729118,
+        "seconds_including_first_compile": 0.02412794204428792,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.05662502720952034,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": -0.5238158282458207,
+        "norm_ratio_to_h100": 0.002801594751202619
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "loss": 1.4640074368799105e-05,
+        "norm": 0.0008688005722162774,
+        "seconds_including_first_compile": 0.04781383601948619,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.09981582313776016,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": -0.23991107236656456,
+        "norm_ratio_to_h100": 0.006352958283563546
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "loss": 6.261937960516661e-05,
+        "norm": 0.002922207218526876,
+        "seconds_including_first_compile": 0.0935600521042943,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.14795814454555511,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": 0.6112127561698784,
+        "norm_ratio_to_h100": 0.021368149548833464
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "loss": 0.00064512511016801,
+        "norm": 0.13675527737432958,
+        "seconds_including_first_compile": 0.2855838087853044,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.2255498766899109,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": 1.0,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "loss": 4.278956112102605e-06,
+        "norm": 0.0005746263639247143,
+        "seconds_including_first_compile": 0.023865633876994252,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.05665266886353493,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.5047313974404932,
+        "norm_ratio_to_h100": 0.0034577719563758666
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "loss": 1.4334374100144487e-05,
+        "norm": 0.001294894043276521,
+        "seconds_including_first_compile": 0.04762869793921709,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.10019412636756897,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.6092017585361793,
+        "norm_ratio_to_h100": 0.007791929835482336
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "loss": 6.801793642807752e-05,
+        "norm": 0.004254300729205881,
+        "seconds_including_first_compile": 0.09298351500183344,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.15305174887180328,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.6487644092722231,
+        "norm_ratio_to_h100": 0.025599942291135123
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "loss": 0.0007710618083365262,
+        "norm": 0.1661839968553008,
+        "seconds_including_first_compile": 0.2852331099566072,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.23959176242351532,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.9999999999999999,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "loss": 4.447979790711543e-06,
+        "norm": 0.0005657642653670123,
+        "seconds_including_first_compile": 0.02382496395148337,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.056495361030101776,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": -0.5416322540148758,
+        "norm_ratio_to_h100": 0.0028996948862822164
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "loss": 1.4264114724937826e-05,
+        "norm": 0.0012580821804498892,
+        "seconds_including_first_compile": 0.04748107795603573,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.0995078831911087,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": -0.39731090844860784,
+        "norm_ratio_to_h100": 0.006448011457222072
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "loss": 6.759484676877037e-05,
+        "norm": 0.004134031015566477,
+        "seconds_including_first_compile": 0.0929238258395344,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.14761720597743988,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": 0.4222482872349663,
+        "norm_ratio_to_h100": 0.02118802711548762
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "loss": 0.0008666497305966914,
+        "norm": 0.19511165400315453,
+        "seconds_including_first_compile": 0.28510498092509806,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.22358444333076477,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": 1.0,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "8",
+        "loss": 5.1263091336295474e-06,
+        "norm": 0.0009996096624341527,
+        "seconds_including_first_compile": 0.023858294123783708,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.05695537477731705,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.8121763127892486,
+        "norm_ratio_to_h100": 0.01931151474980313
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "16",
+        "loss": 1.5688396160840057e-05,
+        "norm": 0.0021794961019972496,
+        "seconds_including_first_compile": 0.047640027943998575,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.10034472495317459,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.7924691367626804,
+        "norm_ratio_to_h100": 0.04210580659891418
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "32",
+        "loss": 6.325987487798557e-05,
+        "norm": 0.004820035203294505,
+        "seconds_including_first_compile": 0.09277157601900399,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.1529429852962494,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.6648772856297219,
+        "norm_ratio_to_h100": 0.09311852858277445
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "horizon": "100",
+        "loss": 0.0004361657192930579,
+        "norm": 0.0517623643398736,
+        "seconds_including_first_compile": 0.28536745999008417,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.24105267226696014,
+          "temperature_min": 2.850241076436678e-42,
+          "temperature_max": 0.980598509311676,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.054614096879959106,
+            0.054614096879959106
+          ]
+        },
+        "cosine_to_h100": 0.9999999999999999,
+        "norm_ratio_to_h100": 1.0
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "8",
+        "loss": 5.218945261731278e-06,
+        "norm": 0.0009781061910773819,
+        "seconds_including_first_compile": 0.023858533008024096,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.056772105395793915,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": -0.2483630427022679,
+        "norm_ratio_to_h100": 0.033411456786023044
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "16",
+        "loss": 1.5380985132651404e-05,
+        "norm": 0.0021164445122146868,
+        "seconds_including_first_compile": 0.047194489976391196,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.09965969622135162,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.05356465280056
+          ]
+        },
+        "cosine_to_h100": -0.19003716664279235,
+        "norm_ratio_to_h100": 0.07229633653784143
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "32",
+        "loss": 6.281551031861454e-05,
+        "norm": 0.0046809276721903,
+        "seconds_including_first_compile": 0.09270755690522492,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.14755453169345856,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": 0.005645566577863214,
+        "norm_ratio_to_h100": 0.15989737521813976
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "horizon": "100",
+        "loss": 0.0004873134021181613,
+        "norm": 0.02927457480652419,
+        "seconds_including_first_compile": 0.28532401099801064,
+        "finite": true,
+        "forward_invariants": {
+          "finite": true,
+          "max_cfl": 0.2259751409292221,
+          "temperature_min": 0.0,
+          "temperature_max": 0.9838657975196838,
+          "max_normal_padding": 0.0,
+          "temperature_mean_first_last": [
+            0.0535646490752697,
+            0.0535646490752697
+          ]
+        },
+        "cosine_to_h100": 0.9999999999999999,
+        "norm_ratio_to_h100": 1.0
+      }
+    ]
+  },
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json"
+}

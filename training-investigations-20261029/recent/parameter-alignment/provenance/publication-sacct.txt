@@ -1,0 +1,10 @@
+JobID|JobName|Partition|State|Elapsed|MaxRSS|AllocTRES
+3620318|buoyancy-parameter-alignment|dev|COMPLETED|00:01:48||billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3620318.batch|batch||COMPLETED|00:01:48|8890960K|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3620318.extern|extern||COMPLETED|00:01:48||billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3620357|buoyancy-parameter-plots|dev|COMPLETED|00:00:05||billing=4,cpu=4,mem=16G,node=1
+3620357.batch|batch||COMPLETED|00:00:05|1108444K|cpu=4,mem=16G,node=1
+3620357.extern|extern||COMPLETED|00:00:05||billing=4,cpu=4,mem=16G,node=1
+3620393|buoyancy-parameter-plots|dev|COMPLETED|00:00:09||billing=4,cpu=4,mem=16G,node=1
+3620393.batch|batch||COMPLETED|00:00:09|2030564K|cpu=4,mem=16G,node=1
+3620393.extern|extern||COMPLETED|00:00:10||billing=4,cpu=4,mem=16G,node=1

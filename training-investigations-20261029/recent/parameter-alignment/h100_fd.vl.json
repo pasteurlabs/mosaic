@@ -1,0 +1,236 @@
+{
+  "config": {
+    "view": {
+      "continuousWidth": 300,
+      "continuousHeight": 300
+    },
+    "axis": {
+      "labelFontSize": 13,
+      "titleFontSize": 14
+    },
+    "legend": {
+      "labelFontSize": 12,
+      "titleFontSize": 13
+    },
+    "title": {
+      "fontSize": 17
+    }
+  },
+  "data": {
+    "values": [
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "epsilon": 0.003,
+        "error_percent": 5.164668976852817
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "epsilon": 0.001,
+        "error_percent": 0.6148316332908891
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Training IC 0",
+        "epsilon": 0.0003,
+        "error_percent": 0.0668805864908503
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "epsilon": 0.003,
+        "error_percent": 6.534551879862425
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "epsilon": 0.001,
+        "error_percent": 0.7240209702669886
+      },
+      {
+        "checkpoint": "Initial",
+        "case": "Heldout IC 100",
+        "epsilon": 0.0003,
+        "error_percent": 0.06729554686672495
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.003,
+        "error_percent": 0.010372960685317454
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.001,
+        "error_percent": 0.004132378297033746
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.0003,
+        "error_percent": 0.0019003542186873629
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.003,
+        "error_percent": 3.6213366620710374
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.001,
+        "error_percent": 0.35804300843905923
+      },
+      {
+        "checkpoint": "8-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.0003,
+        "error_percent": 0.02222269687070796
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "epsilon": 0.003,
+        "error_percent": 0.7618334808983395
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "epsilon": 0.001,
+        "error_percent": 0.09421394886602517
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Training IC 0",
+        "epsilon": 0.0003,
+        "error_percent": 0.016613773642112587
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "epsilon": 0.003,
+        "error_percent": 1.4971749321890948
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "epsilon": 0.001,
+        "error_percent": 0.18237327502095046
+      },
+      {
+        "checkpoint": "8-step final",
+        "case": "Heldout IC 100",
+        "epsilon": 0.0003,
+        "error_percent": 0.01269654449257129
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.003,
+        "error_percent": 1.3749636334998327
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.001,
+        "error_percent": 0.16321218032069826
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Training IC 0",
+        "epsilon": 0.0003,
+        "error_percent": 0.0038212603760304224
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.003,
+        "error_percent": 1.3877415206127566
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.001,
+        "error_percent": 0.17271305314320484
+      },
+      {
+        "checkpoint": "16-step best",
+        "case": "Heldout IC 100",
+        "epsilon": 0.0003,
+        "error_percent": 0.01656030085663416
+      }
+    ]
+  },
+  "facet": {
+    "column": {
+      "field": "case",
+      "title": null,
+      "type": "nominal"
+    }
+  },
+  "spec": {
+    "mark": {
+      "type": "line",
+      "point": true
+    },
+    "encoding": {
+      "color": {
+        "field": "checkpoint",
+        "scale": {
+          "domain": [
+            "Initial",
+            "8-step best",
+            "8-step final",
+            "16-step best"
+          ],
+          "range": [
+            "#4477AA",
+            "#EE6677",
+            "#228833",
+            "#AA3377"
+          ]
+        },
+        "sort": [
+          "Initial",
+          "8-step best",
+          "8-step final",
+          "16-step best"
+        ],
+        "title": "Checkpoint",
+        "type": "nominal"
+      },
+      "x": {
+        "axis": {
+          "format": ".0e",
+          "values": [
+            0.0003,
+            0.001,
+            0.003
+          ]
+        },
+        "field": "epsilon",
+        "scale": {
+          "type": "log"
+        },
+        "title": "Parameter FD step",
+        "type": "quantitative"
+      },
+      "y": {
+        "field": "error_percent",
+        "scale": {
+          "constant": 0.01,
+          "type": "symlog"
+        },
+        "title": "AD\u2013FD discrepancy (%), symlog",
+        "type": "quantitative"
+      }
+    },
+    "height": 230,
+    "width": 335
+  },
+  "title": "H100 gradient FD sensitivity: all fixed steps retained; diagnostic only",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json"
+}
