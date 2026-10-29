@@ -105,10 +105,13 @@ def _ic_to_2d(
 _NCOLS = 4
 
 
-def _panels(cfg: Any) -> list[tuple[str, np.ndarray, float, float]]:
+def _panels(
+    cfg: Any, *, to_2d: Any = None, field_symmetric: bool = True
+) -> list[tuple[str, np.ndarray, float, float]]:
     """``(name, arr2d, vmin, vmax)`` per IC, exactly as ``plot_ic`` builds them."""
     from mosaic.benchmarks.problems.shared.plots.style import vorticity_2d
 
+    to_2d = vorticity_2d if to_2d is None else to_2d
     specs = dict(cfg.make_ic)
     # Sibling mesh ratio for flat scalar ICs with incomplete dims.
     mesh_ratio = None
@@ -128,8 +131,8 @@ def _panels(cfg: Any) -> list[tuple[str, np.ndarray, float, float]]:
             continue
         projected = _ic_to_2d(
             np.asarray(arr),
-            to_2d=vorticity_2d,
-            field_symmetric=True,
+            to_2d=to_2d,
+            field_symmetric=field_symmetric,
             plot_params=params,
             mesh_ratio=mesh_ratio,
         )
@@ -139,7 +142,12 @@ def _panels(cfg: Any) -> list[tuple[str, np.ndarray, float, float]]:
 
 
 def _panel(
-    name: str, arr: np.ndarray, vmin: float, vmax: float, cell: alt.Parameter
+    name: str,
+    arr: np.ndarray,
+    vmin: float,
+    vmax: float,
+    cell: alt.Parameter,
+    field_cmap: str = "RdBu_r",
 ) -> alt.Chart:
     df = field_cells(arr, ic=name)
     df["value"] = [float(f"{v:.4g}") for v in df["value"]]  # lean embedded data
@@ -154,7 +162,11 @@ def _panel(
             y=alt.Y("j:O", axis=None, sort="descending", scale=CELLS),
             color=alt.Color(
                 "value:Q",
-                scale=alt.Scale(scheme="redblue", reverse=True, domain=[vmin, vmax]),
+                scale=alt.Scale(
+                    scheme="redblue" if field_cmap == "RdBu_r" else field_cmap,
+                    reverse=field_cmap == "RdBu_r",
+                    domain=[vmin, vmax],
+                ),
                 legend=alt.Legend(title=None, gradientLength=max(nj * px - 10, 40)),
             ),
             **cell_outline(cell, "#222222"),
@@ -170,7 +182,13 @@ def _panel(
     )
 
 
-def ics(ctx: Ctx) -> alt.TopLevelMixin | None:
+def ics(
+    ctx: Ctx,
+    *,
+    to_2d: Any = None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
+) -> alt.TopLevelMixin | None:
     """Every registered IC of the problem, one RdBu_r panel each.
 
     Each panel keeps its own symmetric colour range (the PNG has one colourbar
@@ -178,11 +196,11 @@ def ics(ctx: Ctx) -> alt.TopLevelMixin | None:
     """
     if ctx.experiment:
         return None
-    panels = _panels(ctx.config)
+    panels = _panels(ctx.config, to_2d=to_2d, field_symmetric=field_symmetric)
     if not panels:
         return None
     cell = linked_cell()
-    charts = [_panel(*p, cell) for p in panels]
+    charts = [_panel(*p, cell, field_cmap=field_cmap) for p in panels]
     ncols = min(len(charts), _NCOLS)
     rows = [
         alt.hconcat(*charts[r * ncols : (r + 1) * ncols], spacing=24).resolve_scale(

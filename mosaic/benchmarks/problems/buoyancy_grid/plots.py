@@ -42,7 +42,10 @@ def plot_solver_in_loop(
             ("uncorrected", "Uncorrected"),
             ("solver_in_loop", "Corrected"),
         ]:
-            for field, key in [("Velocity", "velocity_mse"), ("Scalar", "scalar_mse")]:
+            for field, key in [
+                ("Velocity", "velocity_mse"),
+                ("Temperature anomaly", "scalar_mse"),
+            ]:
                 rows.extend(
                     {
                         "solver": name,
@@ -155,11 +158,11 @@ def plot_forward_metrics(
         return []
     labels = {
         "velocity_rel_error": "Velocity relative L2 difference",
-        "scalar_rel_error": "Scalar relative L2 difference",
+        "scalar_rel_error": "Temperature anomaly relative L2 difference",
         "divergence_rms": "MAC divergence RMS",
-        "scalar_mass_rel_drift": "Absolute relative scalar mass drift",
-        "scalar_min": "Scalar minimum",
-        "scalar_max": "Scalar maximum",
+        "scalar_mass_rel_drift": "Absolute relative temperature integral drift",
+        "scalar_min": "Temperature anomaly minimum",
+        "scalar_max": "Temperature anomaly maximum",
         "kinetic_energy": "Kinetic energy per unit area",
         "wall_normal_padding_max": "Wall-normal storage padding magnitude",
     }

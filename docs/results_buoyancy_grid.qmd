@@ -2,7 +2,7 @@
 title: Buoyancy flow (2D)
 ---
 
-Two unequal warm plumes rise and interact in a closed square. Their scalar
+Two unequal warm plumes rise and interact in a closed square. Their temperature anomaly (the transported scalar)
 field creates upward buoyancy, and the resulting incompressible flow transports
 that scalar.
 All backends use no-slip velocity walls and zero normal scalar derivative.
@@ -100,10 +100,10 @@ these measurements do not require solver-in-the-loop training to win.
 This setup is inspired by [Um et al. (2020)](https://arxiv.org/abs/2007.00016).
 It is a bounded benchmark, not a reproduction of their full training campaign.
 The Solver In Loop section shows one GIF comparing corrected and uncorrected
-spatial errors for every differentiable solver, one combined velocity/scalar
+spatial errors for every differentiable solver, one combined velocity/temperature-anomaly
 rollout-error figure, and one validation-loss figure containing every solver.
 The GIF uses fixed error scales across solvers, methods, and time, with separate
-scales for velocity and scalar. The combined curves use the shared Altair pipeline
+scales for velocity and temperature anomaly. The combined curves use the shared Altair pipeline
 with PNG previews and interactive tooltips. Training-cost and separate per-solver
 checkpoint plots are omitted. Backend-specific normalization means these losses
 measure correction within each backend and should not rank solver accuracy.

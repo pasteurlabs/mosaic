@@ -130,7 +130,7 @@ def write_error_gif(
             font=small,
         )
         for group, title in enumerate(
-            ("Scalar absolute error", "Velocity vector-error magnitude")
+            ("Temperature anomaly absolute error", "Velocity vector-error magnitude")
         ):
             x = left + 2 * group * (panel + gap)
             draw.text((x, 50), title, fill=254, font=font)
