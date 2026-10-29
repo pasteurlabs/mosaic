@@ -1,0 +1,328 @@
+{
+  "source_commit": "695a70a",
+  "source_sha256": "8be1f0c714f5b1bdc87095f35e1f2c857dcebba5b8599df486a7675c16d6ea26",
+  "input_sha256": {
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/temporal_cost/result.json": "4a9b0868f1ab77eb18e2d84ba73fb40d42f4a8f6f2ee5b14ca198c230d15af2c",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/temporal_cost/result_partial.json": "4e62e795fc49493e85d6caeef2b47aab1277ed051bc4e6215e4a3d140694083e",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/temporal_cost/params.json": "3b17d07a37fa91eb3911462ddc5996d408a8400413d44c8e7a00c9b6f6036717",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/spatial_cost/result.json": "8994f06a8c77970611da82f7c87fdbf4285e897c271cb464895581e8da6f59e2",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/spatial_cost/result_partial.json": "d37a28c36c16ca4439247f511cd0614a404d18396753c5b730320c0055a2b60a",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/spatial_cost/params.json": "eb372b3b5ed3a283f86733c5bfd5b45a7920c7b2e529f7417572621a4284b125",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_N/gradient_fields.npz": "4205b9a81a225e1454b4315cfb9203da09bd20e5939a8f70a4011485d7be1a2a",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_N/params.json": "e6dc353d0cfeae74550611dd13d971471a32f534c20f4d829dc344f22c0c5093",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_N/result_partial.json": "7de1a8bf4a0a46fa347c814ac5dd02f9cd1a649ea66a744d44b5f2f557156ecb",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_N/result.json": "877c61eb77504ca61b3a22665e37d2f8b8c186563732f9e88b58db9f833c6fb7",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_steps/result.json": "5bd9164a059bc18f590d089a82373d2509aa7531b5b5b94a273ccbc351b639c7",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_steps/result_partial.json": "bcf910b5ed982c6f4be2f5468af1b5c2288a82b463b0e59b1a20fad9ed044af2",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_steps/gradient_fields.npz": "dae1cac55607ed5898a15fb2159c4ee7334443d5e5aedf0eec0fac5ba87e382e",
+    "results-cost-buoyancy-grid-cpu/buoyancy-grid/cost/vjp_cost/by_steps/params.json": "f05885d492ac60bb0c0c9007db0b8e12fca372070aaf079260cf5e88fc37043e",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/temporal_cost/params.json": "3b17d07a37fa91eb3911462ddc5996d408a8400413d44c8e7a00c9b6f6036717",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/temporal_cost/result.json": "5799807c1a2f7aebd5762ff126edfaa0350eac9cc8d2ea78de30761310954a90",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/temporal_cost/result_partial.json": "dc12c7138ef5b19405843de7207062f18c9bacff5a06aa0e0617c91c7dd4f55f",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/spatial_cost/params.json": "eb372b3b5ed3a283f86733c5bfd5b45a7920c7b2e529f7417572621a4284b125",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/spatial_cost/result_partial.json": "5c255080d19bfadf08e97a056bbd294b90d2f38c23e0078310de744344a77371",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/spatial_cost/result.json": "9669a51912a8ccb70c89a9353d6ed309ac86ec126c2c5fbdf48d826042685d86",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_N/params.json": "e6dc353d0cfeae74550611dd13d971471a32f534c20f4d829dc344f22c0c5093",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_N/gradient_fields.npz": "da626a8a6b83b6509031b516f7e56ca73f342faeff9d172b0f4d536de50ef0ba",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_N/result_partial.json": "28dfbe5e261506828d49e81b974e6da82443f09467b460ee62248a479c9ba830",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_N/result.json": "2027b36c8a73be13a29004e36d7162173190e9d268ecd40b01c4254fb9855934",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_steps/result.json": "b19e34acceae81069047fcb90c37edd7baba590c6dfdb976f676f87436dd589b",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_steps/result_partial.json": "4408998073b10a4a7436c6e90993ee753278be4b2ea87e206442516db808a2d5",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_steps/params.json": "f05885d492ac60bb0c0c9007db0b8e12fca372070aaf079260cf5e88fc37043e",
+    "results-cost-buoyancy-grid-gpu/buoyancy-grid/cost/vjp_cost/by_steps/gradient_fields.npz": "d5a8af22093dba5151dedfd7f6695575a56dd7ca4f83d7c9380de8d2dceee1a6",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/params.json": "1a55d7aef9645b4e17b96acd4c88f36f581d8c7094a1a0c327d89cda5d520a9f",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/fields.npz": "f45affa6149db856832f05eed320fb13d826a2cd90f044e878770f4570277a40",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/result_partial.json": "248ae520dd0818463d03fdb60983f13c8db0c4adb6f51f6abd7f537645dbbb9b",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/refinement/result.json": "9f9bf697c0fcfaba60b77b9ff0f9609b21ff9a8e8285c5cdb88ab505e8c8e74a",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/result_partial.json": "7cb02a76f1a1fb77bb5bb1e65938d057317b236c950413ade6b14bf9dd312fe0",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/result.json": "a9e7d3d2c8f0d09869678441af21e302f785a42de6e6faa6425e2fa14eba7c5c",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/params.json": "ad25a50d599ea495a069bb816690ed0ad60b2b7d9a0fe425fcbd0afc42465cdc",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/physical_laws/fields.npz": "1225fd2a1864b4ec419e046f7c0e1ba9c749ba016634750f108cf1bdd346094a",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/diffusion/fields.npz": "d3533aabe854384c0e25037bc396a75c520574625feec1d356bd62d58d5057d6",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/diffusion/params.json": "fde6a1180380c3e7fba8b4efadc87e6f0b5d9fa4d60506e1f269f39f30c405e2",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/diffusion/result.json": "85647b1c3cd16f80d7f8763e277f2c2be21abe360e738bd09a8436fdaf602dc1",
+    "results-forward-buoyancy-grid-cpu/buoyancy-grid/forward/diffusion/result_partial.json": "8b0d4adbb311e85de2e1e2005d8634fb816a38ced98a8c5211e95f82bf0852f0",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/diffusion/result_partial.json": "44472d6bd852a11a3a8372b8ab02246387feb9020cba24e317a7e4ab920c0f3d",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/diffusion/params.json": "fde6a1180380c3e7fba8b4efadc87e6f0b5d9fa4d60506e1f269f39f30c405e2",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/diffusion/result.json": "e51eb36f849babe3a9a84b851df6ad30b1a6db6c252ecc204e1538697174de47",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/diffusion/fields.npz": "15ea3368350b31f067af1bf74d03ae415c4187fc650a7e2ac2a1f00d295a5534",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/params.json": "ad25a50d599ea495a069bb816690ed0ad60b2b7d9a0fe425fcbd0afc42465cdc",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/result_partial.json": "806e8f94a262f4c72257b1efdaabee03d35274733234688e09de56e7e3883ece",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/result.json": "deca9cd4360bcd40acf1e0f5b1a1b208f7ad293a6a511fabcb963b1f6e46e631",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/physical_laws/fields.npz": "e367b1b80a6981a822dc6fdd4501f1f32b0f7512828ba58892483e187a34adf2",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/params.json": "1a55d7aef9645b4e17b96acd4c88f36f581d8c7094a1a0c327d89cda5d520a9f",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/result_partial.json": "f6d6ecbbd221fbe24381406d628f2dcb194fa0cb7de866947451512f8baab8d6",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/result.json": "a24baa2738f70c8a98962084efd639b3ab250e20b87dfb4308f65c63a97fa106",
+    "results-forward-buoyancy-grid-gpu/buoyancy-grid/forward/refinement/fields.npz": "e4ecc184445cdbd816978b333b5b2caf6792d08a7e493b2112eb8d10b72ebc79",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/horizon_sweep/params.json": "bde5551300326a583ca965c2607574496414a78f306760ffdb50ed508e383844",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/horizon_sweep/result_partial.json": "41b6168f18f67aa66531d2de9c17109b6840b1b39aae892fed454cfb63decfe6",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/horizon_sweep/result.json": "9a700d08380fe5b77f306a1f9a92c0920c52933968c4ff174716a1e845265b90",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/horizon_sweep/gradient_fields.npz": "5cbb38c9c1b6e647ac70050fb16058d0a74c7ebd5353955aa848e130ef181ecf",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/jacobian_svd/result_partial.json": "523ef3e15c66b40bffa6c24e5aee8e44e8f4f1da6fbe5ec9812290158e6b45f5",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/jacobian_svd/result.json": "a876c9bcdad7561c61baba8a78cf1a50a991136dda6b5b2c55311dc85180622a",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/jacobian_svd/jacobian_svd.npz": "a7a9730e3d9be332587e593efa895b7cc7231cc51bdb3e07fab2b012ed781a7c",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/jacobian_svd/params.json": "6c1e2f2d06b64b3b8907787b877cdafb9fab9984f3fdcd1c97fe57e4d00d5dd5",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/fd_check/result_partial.json": "380d96412792bc6aa59a7f49b9a0b2da450157d7a14c8a2609c4433acc29e44e",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/fd_check/result.json": "3a885f87656f0e8f3c50fda6a773d928b738bea499be69ed9b60521a8e46df22",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/fd_check/gradient_fields.npz": "1766808d4a173eb979e504c8f0e712768a10be9bb313dda9f000c153b0e1f6fe",
+    "results-gradient-buoyancy-grid-cpu/buoyancy-grid/gradient/fd_check/params.json": "c89fbf81a55912b9f96568821c86099947471e1653c8544d751ec38fd8d64ea5",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/fd_check/result_partial.json": "a7f2293540074ffb6428a8b11cff079ca8b7d87c243c651ca5c6c3da961f2852",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/fd_check/result.json": "113c068f1eb5e6d312304aad1018ed6ee40466b57a6946c7e5b8256dc17325ec",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/fd_check/gradient_fields.npz": "03c1867beef112001fda7299f36c316f886b048f2a1e53a4d35dc9bf325b3133",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/fd_check/params.json": "c89fbf81a55912b9f96568821c86099947471e1653c8544d751ec38fd8d64ea5",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/jacobian_svd/result_partial.json": "35641903e3036556b2226b08c020aa05481aa256a4d36164050b69db472a69f2",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/jacobian_svd/params.json": "6c1e2f2d06b64b3b8907787b877cdafb9fab9984f3fdcd1c97fe57e4d00d5dd5",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/jacobian_svd/jacobian_svd.npz": "3c3c24ac18a3be08c224281f3d53f5c240315f566abff3779ff1e32032413990",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/jacobian_svd/result.json": "9cb4136e18745acd4695aff1a81e9bed5fc13e1fdef08d5725e6e7fdcbf502c4",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/horizon_sweep/result.json": "4942205fba9a8f65327b7c958078fef86a33ef7315a50ed8b8cb84b5f12daab6",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/horizon_sweep/gradient_fields.npz": "77185cf8b96ce840043a31b9a9d519d51cdd248aab94a716609c2d5d834aa165",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/horizon_sweep/result_partial.json": "50a5223fe73f39e55fe03339c1859012b4b2db6a3da3ac79fabb7bb6a6b4d197",
+    "results-gradient-buoyancy-grid-gpu/buoyancy-grid/gradient/horizon_sweep/params.json": "bde5551300326a583ca965c2607574496414a78f306760ffdb50ed508e383844",
+    "results-ics/buoyancy-grid/ics/interacting_plumes/params.json": "2e6571f615ba8d06862274f5ed510817c6533197917db25093b88fb338f70f52",
+    "results-ics/buoyancy-grid/ics/diffusion/params.json": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047",
+    "results-ics/buoyancy-grid/ics/plume/params.json": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047",
+    "results-optimization-buoyancy-grid-cpu/buoyancy-grid/optimization/solver_in_loop/result_partial.json": "9e85fd86535707a9835af5d97433d58703709b8005e184c31e092808926e815a",
+    "results-optimization-buoyancy-grid-cpu/buoyancy-grid/optimization/solver_in_loop/corrector_fields.npz": "ddad1c9c3ce85a740c0a81058c4f7c5a063d9110393399591d30d652b2621d7a",
+    "results-optimization-buoyancy-grid-cpu/buoyancy-grid/optimization/solver_in_loop/params.json": "cf44763d7b67d63714e6107a6e3f6424fd3bc8bf6d869534172debc6d99f71d1",
+    "results-optimization-buoyancy-grid-cpu/buoyancy-grid/optimization/solver_in_loop/result.json": "43d98d8b28a7d4a0e0d01c87c1a03f69ff29da6bce165e368cf82ecb221539ce",
+    "results-optimization-buoyancy-grid-gpu/buoyancy-grid/optimization/solver_in_loop/result.json": "1d69fc9ae90526bb0d2a29c8bb0a4e922eaee34f5bb06c3ded0da31739f99e0e",
+    "results-optimization-buoyancy-grid-gpu/buoyancy-grid/optimization/solver_in_loop/result_partial.json": "12365d2ff9d1fee860f280babca58a689789cbb85da64a53458d6c4070b418bd",
+    "results-optimization-buoyancy-grid-gpu/buoyancy-grid/optimization/solver_in_loop/params.json": "cf44763d7b67d63714e6107a6e3f6424fd3bc8bf6d869534172debc6d99f71d1",
+    "results-optimization-buoyancy-grid-gpu/buoyancy-grid/optimization/solver_in_loop/corrector_fields.npz": "ac5d8c7277d5c015b2a663022888cf0efbb414b2eb0cca8a0e75c1c62267e8cd"
+  },
+  "artifacts": {
+    "cost/cost.png": {
+      "sha256": "f4932f01ef2b32f4eb79a3ec3c2046932165a77d7aaa9dd0ab1e09003fce66f0",
+      "bytes": 306022
+    },
+    "cost/cost.vl.json": {
+      "sha256": "beacb0335d3c6859df3e97fd54cccb4c8eb2ce580ada44cc232eaa812c246ca4",
+      "bytes": 103877
+    },
+    "gradient/jacobian_svd_comparison.png": {
+      "sha256": "91f959755afe2342efa793b0315da792600682db2b325152eb0ebad38ccc18f9",
+      "bytes": 449147
+    },
+    "gradient/jacobian_svd_comparison.vl.json": {
+      "sha256": "a3553ec2bc7dd1a9630b464664ee9e21bb09e677a0e970ea92b24abefa53c498",
+      "bytes": 91731
+    },
+    "forward/physical_laws/result_partial.json": {
+      "sha256": "806e8f94a262f4c72257b1efdaabee03d35274733234688e09de56e7e3883ece",
+      "bytes": 402
+    },
+    "forward/physical_laws/diagnostics.vl.json": {
+      "sha256": "1991fa9af22cbccf75532f3f421a6a165cba1dfcddbac4eba70b0b72dcd349ce",
+      "bytes": 10412
+    },
+    "forward/physical_laws/params.json": {
+      "sha256": "ad25a50d599ea495a069bb816690ed0ad60b2b7d9a0fe425fcbd0afc42465cdc",
+      "bytes": 285
+    },
+    "forward/physical_laws/diagnostics.png": {
+      "sha256": "fa19b54ad94c7502a24148ebf69be06cfb17a5eaa44ab80c279df98db3eead5a",
+      "bytes": 467842
+    },
+    "forward/physical_laws/result.json": {
+      "sha256": "88be92bf78639afff657af03ce5914b2578d860352125802d2f64f0966b7952f",
+      "bytes": 9019
+    },
+    "forward/diffusion/result_partial.json": {
+      "sha256": "44472d6bd852a11a3a8372b8ab02246387feb9020cba24e317a7e4ab920c0f3d",
+      "bytes": 386
+    },
+    "forward/diffusion/result.json": {
+      "sha256": "62587165aa84dce56fdac71c3955298f71dcf707a2b49ddfcebb912a85d4be51",
+      "bytes": 4218
+    },
+    "forward/diffusion/agreement.vl.json": {
+      "sha256": "2a06070674a7a149f83d797d6264287e49e6ab7bcc097be3d2ec8c2bf89d22e0",
+      "bytes": 8560
+    },
+    "forward/diffusion/params.json": {
+      "sha256": "fde6a1180380c3e7fba8b4efadc87e6f0b5d9fa4d60506e1f269f39f30c405e2",
+      "bytes": 269
+    },
+    "forward/diffusion/agreement.png": {
+      "sha256": "59c9250d74ddd6d4c224c71701e9db98498e014a4c5db53409eaa2e39730b726",
+      "bytes": 72008
+    },
+    "forward/refinement/result.json": {
+      "sha256": "c9dedccde1cc0acc56af8da74880901cbc4e2136a92d39fb4f1a2c10025088fb",
+      "bytes": 8548
+    },
+    "forward/refinement/diagnostics.png": {
+      "sha256": "5355fd0f4c220cf77f6aac3acb7ddb70faaed2f82b4d4bb67918407a516f30d8",
+      "bytes": 181173
+    },
+    "forward/refinement/diagnostics.vl.json": {
+      "sha256": "3dff0e8885f9572b4824628067b131531bddd3a189b4db7ca0fee9848fbd9224",
+      "bytes": 4503
+    },
+    "forward/refinement/result_partial.json": {
+      "sha256": "f6d6ecbbd221fbe24381406d628f2dcb194fa0cb7de866947451512f8baab8d6",
+      "bytes": 399
+    },
+    "forward/refinement/params.json": {
+      "sha256": "1a55d7aef9645b4e17b96acd4c88f36f581d8c7094a1a0c327d89cda5d520a9f",
+      "bytes": 282
+    },
+    "cost/temporal_cost/result_partial.json": {
+      "sha256": "dc12c7138ef5b19405843de7207062f18c9bacff5a06aa0e0617c91c7dd4f55f",
+      "bytes": 442
+    },
+    "cost/temporal_cost/params.json": {
+      "sha256": "3b17d07a37fa91eb3911462ddc5996d408a8400413d44c8e7a00c9b6f6036717",
+      "bytes": 319
+    },
+    "cost/temporal_cost/result.json": {
+      "sha256": "dce190d946e07720cebb48ab6350ab81e49b8558d645ad692c951beb7386b4b1",
+      "bytes": 8034
+    },
+    "cost/spatial_cost/result_partial.json": {
+      "sha256": "5c255080d19bfadf08e97a056bbd294b90d2f38c23e0078310de744344a77371",
+      "bytes": 439
+    },
+    "cost/spatial_cost/params.json": {
+      "sha256": "eb372b3b5ed3a283f86733c5bfd5b45a7920c7b2e529f7417572621a4284b125",
+      "bytes": 316
+    },
+    "cost/spatial_cost/result.json": {
+      "sha256": "1fb369684b5c72575bf82f150356d5510deee6f549f0c9f2a022f25df00f98ab",
+      "bytes": 8022
+    },
+    "cost/vjp_cost/by_N/result_partial.json": {
+      "sha256": "28dfbe5e261506828d49e81b974e6da82443f09467b460ee62248a479c9ba830",
+      "bytes": 459
+    },
+    "cost/vjp_cost/by_N/params.json": {
+      "sha256": "e6dc353d0cfeae74550611dd13d971471a32f534c20f4d829dc344f22c0c5093",
+      "bytes": 334
+    },
+    "cost/vjp_cost/by_N/result.json": {
+      "sha256": "3e17aaf0e7c4eee23793aab723f115509b1130b2bac4baa74d17d34872f8335f",
+      "bytes": 8622
+    },
+    "cost/vjp_cost/by_steps/result.json": {
+      "sha256": "3c1775b83d9c68e4b866d044747f61f7a9775083d70ca308ab09eef1ce156b5d",
+      "bytes": 8633
+    },
+    "cost/vjp_cost/by_steps/result_partial.json": {
+      "sha256": "4408998073b10a4a7436c6e90993ee753278be4b2ea87e206442516db808a2d5",
+      "bytes": 466
+    },
+    "cost/vjp_cost/by_steps/params.json": {
+      "sha256": "f05885d492ac60bb0c0c9007db0b8e12fca372070aaf079260cf5e88fc37043e",
+      "bytes": 341
+    },
+    "optimization/solver_in_loop/validation_loss.png": {
+      "sha256": "18e7d42c56201be8e8bb8fa839133b0f99cb3481b288f6826174960f7494db77",
+      "bytes": 276419
+    },
+    "optimization/solver_in_loop/result_partial.json": {
+      "sha256": "12365d2ff9d1fee860f280babca58a689789cbb85da64a53458d6c4070b418bd",
+      "bytes": 1247
+    },
+    "optimization/solver_in_loop/error_evolution.gif": {
+      "sha256": "57645d7edcdc1d24115e3b650608413866947e72d013793f0f7550b01e1421cd",
+      "bytes": 8076174
+    },
+    "optimization/solver_in_loop/rollout_errors.png": {
+      "sha256": "8885b40bf3afd0ee6e6c7110eb5f69647f0a018c2b5f2686f0a773bac65ede38",
+      "bytes": 342653
+    },
+    "optimization/solver_in_loop/error_evolution.json": {
+      "sha256": "ee55038ef24bcd77e81e43cad092734eacd31d5c0f03458cda5b4016b84f1639",
+      "bytes": 523
+    },
+    "optimization/solver_in_loop/result.json": {
+      "sha256": "ff5de428fa32929ae67cc3f4387c2d1a069e84532dc4f916bb7d89fb5d2a8ee4",
+      "bytes": 271292
+    },
+    "optimization/solver_in_loop/params.json": {
+      "sha256": "cf44763d7b67d63714e6107a6e3f6424fd3bc8bf6d869534172debc6d99f71d1",
+      "bytes": 1062
+    },
+    "optimization/solver_in_loop/rollout_errors.vl.json": {
+      "sha256": "08e725d3ae6fc89af5f3bb8f560850a8e881f3a3da3cd7dbf3995d7c86085554",
+      "bytes": 208951
+    },
+    "optimization/solver_in_loop/error_evolution.png": {
+      "sha256": "2b0d4aa091a05792ad1331a3155fa662c5ea06b1cc4b70da1bc872f7338a240b",
+      "bytes": 53833
+    },
+    "optimization/solver_in_loop/validation_loss.vl.json": {
+      "sha256": "b172636e8328c43ac6b4f83f048b32d5c6b54e314f3b2a96e7ac9ca210f1848b",
+      "bytes": 3644
+    },
+    "ics/plume/params.json": {
+      "sha256": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047",
+      "bytes": 13
+    },
+    "ics/diffusion/params.json": {
+      "sha256": "270b2db2882ab5c38ea9a2d6272fdffb9dba63531f522b20a0c1b76bdfefa047",
+      "bytes": 13
+    },
+    "ics/interacting_plumes/params.json": {
+      "sha256": "2e6571f615ba8d06862274f5ed510817c6533197917db25093b88fb338f70f52",
+      "bytes": 13
+    },
+    "gradient/fd_check/fd_check.png": {
+      "sha256": "04db52dd2991f06be9c4d259443cc22b03f21fe78f73e4bd300009eb1484b4d0",
+      "bytes": 178955
+    },
+    "gradient/fd_check/params.json": {
+      "sha256": "c89fbf81a55912b9f96568821c86099947471e1653c8544d751ec38fd8d64ea5",
+      "bytes": 273
+    },
+    "gradient/fd_check/fd_check.vl.json": {
+      "sha256": "5f0951159d9082fd42853f4a6d1c03dfe0e21eaa44adb8f445a13cf27a806cc2",
+      "bytes": 10968
+    },
+    "gradient/fd_check/result_partial.json": {
+      "sha256": "a7f2293540074ffb6428a8b11cff079ca8b7d87c243c651ca5c6c3da961f2852",
+      "bytes": 390
+    },
+    "gradient/fd_check/result.json": {
+      "sha256": "50ca0d5fb83c48054873cb917dee6fec49260a5dae528792cab28e438f1cfe95",
+      "bytes": 8845
+    },
+    "gradient/horizon_sweep/horizon_sweep.vl.json": {
+      "sha256": "72cd90d352a9646a640719a166389e960473ff89736748f5ca6965ff71a2c778",
+      "bytes": 12943
+    },
+    "gradient/horizon_sweep/params.json": {
+      "sha256": "bde5551300326a583ca965c2607574496414a78f306760ffdb50ed508e383844",
+      "bytes": 360
+    },
+    "gradient/horizon_sweep/result.json": {
+      "sha256": "db96dfce5c8059ec318a641cb96b2e85ea73bd49871c8f24d9f7faf89380b076",
+      "bytes": 13837
+    },
+    "gradient/horizon_sweep/result_partial.json": {
+      "sha256": "50a5223fe73f39e55fe03339c1859012b4b2db6a3da3ac79fabb7bb6a6b4d197",
+      "bytes": 493
+    },
+    "gradient/horizon_sweep/horizon_sweep.png": {
+      "sha256": "29558d750dbc5555c0b5b4a1b02a5dd563deaa81d25709c2bd2407971638f67b",
+      "bytes": 158784
+    },
+    "gradient/jacobian_svd/result_partial.json": {
+      "sha256": "35641903e3036556b2226b08c020aa05481aa256a4d36164050b69db472a69f2",
+      "bytes": 280
+    },
+    "gradient/jacobian_svd/params.json": {
+      "sha256": "6c1e2f2d06b64b3b8907787b877cdafb9fab9984f3fdcd1c97fe57e4d00d5dd5",
+      "bytes": 179
+    },
+    "gradient/jacobian_svd/result.json": {
+      "sha256": "34f66fc56a90b8a23312e111464dbc7b6e35ead00edf383e8d4bdbc7485951a5",
+      "bytes": 52138
+    }
+  },
+  "complete": true,
+  "slurm_job_id": "3615077",
+  "png_count": 10,
+  "gif_count": 1,
+  "vegalite_count": 9
+}
