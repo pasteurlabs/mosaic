@@ -53,6 +53,14 @@ Gradient finite differences and horizon sweeps start after four undifferentiated
 warmup steps to move away from transport kinks at zero velocity. Jacobian spectra
 instead use the same resting state for every solver, so they describe each
 backend's AD-selected derivative there, including any nonsmooth transport choices.
+For an N×N grid, the packed state has 3N² entries, but closed-wall
+incompressible velocity has (N−1)² independent degrees of freedom and temperature
+adds N². The expected rank is therefore 2N²−2N+1: 113 of 192 at N=8.
+The spectrum marks this boundary and reports full and non-null singular-value
+ratios separately. Numerical rank uses a relative cutoff of 10⁻⁶, stated on the
+plot. The non-null ratio describes the map outside its numerical kernel; it is
+not a separately projected physical-coordinate Jacobian. These short resting-state
+measurements do not establish long-rollout conditioning or training quality.
 These bounded sweeps complement the larger corrector experiment.
 
 The benchmark trains a small convolutional neural network to correct velocity
