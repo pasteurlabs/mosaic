@@ -109,6 +109,8 @@ class TimedResult:
             ``capture_value=True``; otherwise ``None``.
         failure: ``None`` on success; otherwise
             ``{"failure_type", "exc_type", "exc_msg", "traceback"}``.
+        warmup_elapsed: Elapsed seconds for the warmup call, or ``None`` if
+            it raised.
     """
 
     times: list[float]
@@ -117,6 +119,7 @@ class TimedResult:
     first_elapsed: float | None
     last_value: Any | None
     failure: dict | None
+    warmup_elapsed: float | None = None
 
     @property
     def succeeded(self) -> bool:
@@ -126,8 +129,9 @@ class TimedResult:
     def as_record(self, **extra: object) -> dict:
         """Return a dict suitable for inserting into a suite result.
 
-        On success: ``{"mean", "std", "trials_s", **mem, **extra}``.
-        On failure: ``{"status": "failed", "trials_s", **failure, **mem, **extra}``.
+        On success: ``{"mean", "std", "trials_s", "first_call_s", **mem, **extra}``.
+        On failure: ``{"status": "failed", "trials_s", **failure, **mem, **extra}``,
+        plus ``first_call_s`` if the warmup completed.
 
         ``trials_s`` is the raw list of per-trial elapsed seconds (in trial
         order). It's emitted unconditionally so downstream tooling can
@@ -135,12 +139,22 @@ class TimedResult:
         without re-running the benchmark. On warmup-time failure the list
         is empty; on mid-trial failure it contains every successful trial
         before the exception.
+
+        ``first_call_s`` is the warmup call's elapsed time. It includes the
+        compilation and setup that the timed trials reuse, so it is reported
+        next to ``mean`` but is not part of it.
         """
         trials = [float(t) for t in self.times]
+        first_call = (
+            {"first_call_s": float(self.warmup_elapsed)}
+            if self.warmup_elapsed is not None
+            else {}
+        )
         if self.failure is not None:
             return {
                 "status": "failed",
                 "trials_s": trials,
+                **first_call,
                 **self.failure,
                 **self.mem,
                 **extra,
@@ -151,6 +165,7 @@ class TimedResult:
             if len(self.times) > 1
             else 0.0,
             "trials_s": trials,
+            **first_call,
             **self.mem,
             **extra,
         }
@@ -171,9 +186,10 @@ def run_timed_trials(
     Behaviour:
       * ``setup()``, when given, runs once before the warmup. It is neither
         timed nor returned, but a failure in it is recorded like one in ``fn``.
-      * One unreported warmup ``fn()`` call is performed first to absorb
-        per-solver JIT compilation, first-touch CUDA kernel caching, and
-        scan-unroll tracing.
+      * One warmup ``fn()`` call is performed first to absorb per-solver JIT
+        compilation, first-touch CUDA kernel caching, and scan-unroll tracing.
+        Its elapsed time is kept as ``warmup_elapsed`` and is not one of the
+        trials.
       * ``n_trials`` timed calls follow, each bracketed by ``perf_counter``.
       * If the first timed trial exceeds ``wall_limit_s``, the loop stops
         immediately and ``wall_limit_hit`` is set on the result.
@@ -190,12 +206,15 @@ def run_timed_trials(
     last_value: Any = None
     wall_limit_hit = False
     first_elapsed: float | None = None
+    warmup_elapsed: float | None = None
     failure: dict | None = None
     try:
         with sampler:
             if setup is not None:
                 setup()
+            t0 = time.perf_counter()
             fn()  # warmup; return value intentionally discarded
+            warmup_elapsed = time.perf_counter() - t0
             for i in range(n_trials):
                 t0 = time.perf_counter()
                 v = fn()
@@ -223,4 +242,5 @@ def run_timed_trials(
         first_elapsed=first_elapsed,
         last_value=last_value,
         failure=failure,
+        warmup_elapsed=warmup_elapsed,
     )
