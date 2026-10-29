@@ -131,11 +131,12 @@ problem.add_experiment(
         "dt": 0.04,
         "steps": 4,
     },
-    fd={"eps_values": [0.1, 0.01, 0.001], "n_dirs": 3},
+    fd={"eps_values": [5.0, 1.0, 0.1, 0.01, 0.001, 0.0001], "n_dirs": 10},
     status_check=[min_cosine(0.99), max_rel_err(0.05)],
     plot=plot_fd_check,
     plot_description=(
-        "Directional finite differences of the coupled velocity–scalar transition "
+        "Ten-direction finite differences across six epsilon values (5 to 1e-4) "
+        "of the coupled velocity–scalar transition "
         "after four warmup steps, away from transport derivative kinks at zero velocity."
     ),
 )
@@ -263,10 +264,11 @@ problem.add_experiment(
         "dt": 0.01,
         "steps": [1, 4, 16],
     },
-    fd={"eps_values": [0.1, 0.01, 0.001], "n_dirs": 3},
+    fd={"eps_values": [5.0, 1.0, 0.1, 0.01, 0.001, 0.0001], "n_dirs": 8},
     plot=plot_horizon_sweep,
     plot_description=(
-        "State-gradient norm, directional finite-difference error and cosine versus "
+        "State-gradient norm, eight-direction finite-difference error across six epsilon "
+        "values (5 to 1e-4), and cosine versus "
         "differentiated horizon, after four fixed undifferentiated warmup steps."
     ),
 )
