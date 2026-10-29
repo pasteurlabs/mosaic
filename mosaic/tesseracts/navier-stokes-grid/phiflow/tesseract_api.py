@@ -78,12 +78,11 @@ class OutputSchema(
 
 
 # The periodic pressure solve stops at a relative and absolute residual of
-# 1e-7, the loosest tolerance whose results match a fully converged solve.
-# phiflow's default 1e-5 leaves enough noise in the loss that the ns-3d
-# recovery stalls at ~3x the IC error. Much tighter (1e-10) is below float32's
-# residual floor, so CG runs to max_iterations at 2-3x the cost without
-# improving any result.
-_CG_TOL = 1e-7
+# 1e-5, phiml's default in float32. Tightening it to 1e-7 changes no check
+# (forward errors move by less than 0.15%, the ns-3d recovery reaches the same
+# IC error) and makes each solve up to 1.8x slower, since 1e-7 is close to
+# float32's residual floor.
+_CG_TOL = 1e-5
 # The channel's pressure solve stops at phiflow's default 1e-5, which gives the
 # same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
 _CHANNEL_CG_TOL = 1e-5

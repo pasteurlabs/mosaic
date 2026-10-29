@@ -65,6 +65,16 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
     "order drops. More correctors remove the floor at a multiple of the wall "
     "time and reverse-mode memory",
 )
+PHIFLOW_SPARSE_CG_COST = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "PhiFlow solves each pressure projection with phiml's conjugate gradient "
+    "on an explicit sparse matrix, as phiml does for every linear solve on a "
+    "backend with sparse tensors, JAX included. JAX runs the sparse "
+    "matrix-vector product as a gather and a scatter-add, about 160 of the "
+    "184 µs per CG iteration at 256², against 14 µs for the same Laplacian "
+    "as a stencil. A projection takes about 300 iterations at 256², and each "
+    "RK4 step four projections",
+)
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
@@ -79,6 +89,8 @@ def register(problem: Problem) -> None:
 
     # Cost
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
+    for key in ("cost/spatial_cost", "cost/temporal_cost", "cost/vjp_cost/by_N"):
+        problem.exclude(key, {"phiflow": PHIFLOW_SPARSE_CG_COST})
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
