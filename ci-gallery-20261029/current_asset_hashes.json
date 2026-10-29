@@ -1,9 +1,10 @@
 {
-  "README.md": "7c26f2f9233afc18c9bf54872b5a6e59bc3c9a33752ada6e713d9758264076ba",
+  "diagnostic_validation_receipt.json": "deadd0b76be53e7be81a45ff79d93e590de5b281c571d37569dd326da8a6d0e1",
+  "README.md": "b66d14f51a7ae00a7383b511c0d63910a71b1109be59361fbb38019fdab2098d",
   "validation_receipt.json": "d868a4abcfa1904f2e721b2afe480602a80acf1fa9f56faeaf7c587aa1645bb0",
   "palette_validation_receipt.json": "06d5255cf55eb98e1e33da4b6c89be2c96fd9fa9b66b4f18526625452a028ec1",
-  "buoyancy-grid/gradient/jacobian_svd_comparison.png": "89a86065cd0712c61804a99cf28cabea7752b938141a6d5c75a12508e0fe3bf6",
-  "buoyancy-grid/gradient/jacobian_svd_comparison.vl.json": "a3553ec2bc7dd1a9630b464664ee9e21bb09e677a0e970ea92b24abefa53c498",
+  "buoyancy-grid/gradient/jacobian_svd_comparison.png": "4a661f3076187b1163a2110bce2a688365483b1f015fa4dfae8d338d2952eb42",
+  "buoyancy-grid/gradient/jacobian_svd_comparison.vl.json": "8372f4aee2046a06ad289504f27ebce52857a06f6058366ebf067ccdec272618",
   "buoyancy-grid/ics/ics.vl.json": "fa0b3c0a983e36cd8bd863bfc68fce78ea219e6ac5cf2332552f1e7e1a954949",
   "buoyancy-grid/ics/ics.png": "c2e54a4d891afb64ef71c68e6e69c20795ef39fb9865934a208ff4b1c487b7b3",
   "buoyancy-grid/cost/cost.png": "d395869d94b8a014a5daa6f389f5863c88b3da3a1a6de67d11bc150729b8ed24",
@@ -18,11 +19,11 @@
   "buoyancy-grid/gradient/horizon_sweep/horizon_sweep.png": "33b5711417ab4cad7f1fd13440b91e233c72746febde489260beaf9cf92eb70c",
   "buoyancy-grid/gradient/fd_check/fd_check.png": "7faa7a5076f1180b38c9cf14aff7d3b1f9dc388b69a8a3719ea981dda3eb60d9",
   "buoyancy-grid/gradient/fd_check/fd_check.vl.json": "5f0951159d9082fd42853f4a6d1c03dfe0e21eaa44adb8f445a13cf27a806cc2",
-  "buoyancy-grid/optimization/solver_in_loop/error_evolution.gif": "4f7f04f543e2f045a554f0cf6c000068655f633fc501dbe5b0a8cf48110e9363",
+  "buoyancy-grid/optimization/solver_in_loop/error_evolution.gif": "4a43bd470323d27a88f3de32c2f5cde89f5bf6eefb359e8babfe6e060434b238",
   "buoyancy-grid/optimization/solver_in_loop/validation_loss.vl.json": "b172636e8328c43ac6b4f83f048b32d5c6b54e314f3b2a96e7ac9ca210f1848b",
   "buoyancy-grid/optimization/solver_in_loop/validation_loss.png": "18e7d42c56201be8e8bb8fa839133b0f99cb3481b288f6826174960f7494db77",
-  "buoyancy-grid/optimization/solver_in_loop/error_evolution.png": "34cde16b96101578ca6fd491653082406cb66b9c435e4a90825c4301e62779a3",
-  "buoyancy-grid/optimization/solver_in_loop/error_evolution.json": "3270b57c6902f26cd19644a8aeb526a1f9562477a254f57b7d25cefd6626268f",
+  "buoyancy-grid/optimization/solver_in_loop/error_evolution.png": "1ae6278f239cfa1ba723be2d23d124eb90e03d0729b3b5652d80b2d6fb1220a1",
+  "buoyancy-grid/optimization/solver_in_loop/error_evolution.json": "7b54713a7bb2926aacb0d7e78c5d948d19edf1d3015ae4abe95e774d61a22895",
   "buoyancy-grid/optimization/solver_in_loop/rollout_errors.png": "dd1b046350f63b87fcc12c24893fc58f2e38ab72f77cb0055f1bb9da5ae54c83",
   "buoyancy-grid/optimization/solver_in_loop/rollout_errors.vl.json": "e7c7f6b7f4f5233bdf12ac463d8bc12b98e7d72c4a795d3184feb7165cb23b5f"
 }

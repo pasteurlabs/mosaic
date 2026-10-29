@@ -9,3 +9,7 @@ The combined initial-condition figure contains all three temperature fields. All
 The receipt records source, numerical inputs and output hashes. Vega-Lite sidecars accompany interactive figures.
 
 The GIF and its poster were subsequently recolored on Slurm job 3615508, source `1cb7256`: temperature-anomaly error uses a red ramp and velocity error a blue ramp, both black at zero. Five animation tests passed; data, fixed scales and all 101 frames are unchanged. `palette_validation_receipt.json` supersedes the earlier receipt for these outputs.
+
+Latest spectrum and animation render: Slurm job 3616275, plot source `dac275a`, 24 focused tests passed. Spectrum panels mark expected rank 113/192 and report numerical rank with relative cutoff 1e-6, non-null singular-value ratio and full ratio separately. These are short resting-state, packed-coordinate diagnostics, not long-rollout conditioning guarantees.
+
+The four-column GIF now shows each arm’s own forward field in gray, with red temperature-error and blue velocity-error contours. Scales are fixed in time but differ by solver row; corrected and uncorrected arms share each row’s scale. Compare colors within a row and use printed physical limits across rows. `diagnostic_validation_receipt.json` supersedes previous receipts for these five updated assets.

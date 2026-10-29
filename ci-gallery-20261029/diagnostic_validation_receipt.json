@@ -1,0 +1,72 @@
+{
+  "source_commit": "dac275aa32375af5215660c51aacfc19cd7bcbec",
+  "numeric_source": "CI38577109543, head4887715; old velocity-only corrector saved arrays, no retraining",
+  "spectra": {
+    "INS.jl": {
+      "dimension": 192,
+      "expected_rank": 113,
+      "structural_nullity": 79,
+      "numerical_rank": 113,
+      "relative_cutoff": 1e-06,
+      "condition_non_null": 1.1470857136918577,
+      "condition_full": 2.0536835926648132e+16
+    },
+    "Oceananigans": {
+      "dimension": 192,
+      "expected_rank": 113,
+      "structural_nullity": 79,
+      "numerical_rank": 113,
+      "relative_cutoff": 1e-06,
+      "condition_non_null": 1.2047688614237073,
+      "condition_full": 2.867855848058338e+16
+    },
+    "WaterLily": {
+      "dimension": 192,
+      "expected_rank": 113,
+      "structural_nullity": 79,
+      "numerical_rank": 113,
+      "relative_cutoff": 1e-06,
+      "condition_non_null": 1.2315919491906775,
+      "condition_full": 3.553542501431878e+16
+    },
+    "JAX-CFD": {
+      "dimension": 192,
+      "expected_rank": 113,
+      "structural_nullity": 79,
+      "numerical_rank": 113,
+      "relative_cutoff": 1e-06,
+      "condition_non_null": 1.171024792991559,
+      "condition_full": 1.0544643400795884e+16
+    },
+    "PhiFlow": {
+      "dimension": 192,
+      "expected_rank": 113,
+      "structural_nullity": 79,
+      "numerical_rank": 113,
+      "relative_cutoff": 1e-06,
+      "condition_non_null": 1.1684062884339226,
+      "condition_full": 1.0621793669889094e+16
+    }
+  },
+  "artifacts": {
+    "results/buoyancy-grid/gradient/jacobian_svd_comparison.png": "4a661f3076187b1163a2110bce2a688365483b1f015fa4dfae8d338d2952eb42",
+    "results/buoyancy-grid/gradient/jacobian_svd_comparison.vl.json": "8372f4aee2046a06ad289504f27ebce52857a06f6058366ebf067ccdec272618",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.png": "1ae6278f239cfa1ba723be2d23d124eb90e03d0729b3b5652d80b2d6fb1220a1",
+    "results/buoyancy-grid/optimization/solver_in_loop/rollout_errors.vl.json": "e7c7f6b7f4f5233bdf12ac463d8bc12b98e7d72c4a795d3184feb7165cb23b5f",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.json": "7b54713a7bb2926aacb0d7e78c5d948d19edf1d3015ae4abe95e774d61a22895",
+    "results/buoyancy-grid/optimization/solver_in_loop/preview_middle.png": "b553c427d5df5fd733ffa57078ff0a3b53c965e2bb114a296bb2a47b5275a6ac",
+    "results/buoyancy-grid/optimization/solver_in_loop/preview_end.png": "1ae6278f239cfa1ba723be2d23d124eb90e03d0729b3b5652d80b2d6fb1220a1",
+    "results/buoyancy-grid/optimization/solver_in_loop/rollout_errors.png": "dd1b046350f63b87fcc12c24893fc58f2e38ab72f77cb0055f1bb9da5ae54c83",
+    "results/buoyancy-grid/optimization/solver_in_loop/preview_start.png": "b4f83a62483eda997af7d17098b9fa69a669a98ae46ba52a85c6507a84555deb",
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss.png": "18e7d42c56201be8e8bb8fa839133b0f99cb3481b288f6826174960f7494db77",
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss.vl.json": "b172636e8328c43ac6b4f83f048b32d5c6b54e314f3b2a96e7ac9ca210f1848b",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.gif": "4a43bd470323d27a88f3de32c2f5cde89f5bf6eefb359e8babfe6e060434b238"
+  },
+  "gif": {
+    "frames": 101,
+    "size": [
+      749,
+      1243
+    ]
+  }
+}

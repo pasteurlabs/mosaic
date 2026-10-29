@@ -9,13 +9,87 @@
   "frames": 101,
   "frame_interval": 0.04,
   "fps": 10,
-  "scalar_max": 0.10983312129974365,
-  "velocity_max": 0.07980818301439285,
-  "normalization": "None; physical-state error units",
+  "columns": [
+    "uncorrected_temperature",
+    "corrected_temperature",
+    "uncorrected_speed",
+    "corrected_speed"
+  ],
+  "row_scales": {
+    "INS.jl": {
+      "temperature_error_max": 0.05716056376695633,
+      "velocity_error_max": 0.07980818301439285,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3690947890281677
+      ]
+    },
+    "JAX-CFD": {
+      "temperature_error_max": 0.05104445293545723,
+      "velocity_error_max": 0.04885348305106163,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.35698944330215454
+      ]
+    },
+    "Oceananigans": {
+      "temperature_error_max": 0.02551414631307125,
+      "velocity_error_max": 0.030357591807842255,
+      "temperature_range": [
+        -0.00043204709072597325,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3686273992061615
+      ]
+    },
+    "PhiFlow": {
+      "temperature_error_max": 0.10983312129974365,
+      "velocity_error_max": 0.06452363729476929,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.30305153131484985
+      ]
+    },
+    "WaterLily": {
+      "temperature_error_max": 0.07424889504909515,
+      "velocity_error_max": 0.04762910678982735,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3490312993526459
+      ]
+    }
+  },
+  "contour_levels": [
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9
+  ],
+  "normalization": "Per solver and physical field, shared across both arms and all frames; not comparable across rows",
   "palettes": {
     "temperature": "sequential red",
     "velocity": "sequential blue",
-    "zero": "black"
+    "zero_error": "no contour; actual grayscale field remains visible",
+    "actual_fields": "sequential grayscale"
   },
   "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
   "selected_updates": {
