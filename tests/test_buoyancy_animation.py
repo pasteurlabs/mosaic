@@ -69,12 +69,22 @@ def test_animation_all_solvers_frames_and_global_scales(tmp_path):
         assert zero.getpixel((197, 188)) == zero.getpixel((509, 188)) == (0, 0, 0)
         animation.seek(2)
         frame = animation.convert("RGB")
-        temperature, velocity = frame.getpixel((197, 188)), frame.getpixel((509, 188))
+        temperature, velocity = frame.getpixel((353, 188)), frame.getpixel((821, 188))
+        assert animation.width <= 1100
+        for row in range(5):
+            for x in (197, 665):
+                gray = frame.getpixel((x, 188 + row * 172))
+                assert gray[0] == gray[1] == gray[2] and gray[0] > 0
         assert temperature[0] > temperature[2]
         assert velocity[2] > velocity[0]
     assert path.with_suffix(".png").exists()
     receipt = json.loads(path.with_suffix(".json").read_text())
     assert receipt["solvers"] == names
+    assert len(receipt["columns"]) == 6
+    assert receipt["actual_field_ranges"] == {
+        "temperature": [0, 2.5],
+        "speed": [0, 2.5],
+    }
     assert receipt["scalar_max"] == 5
     assert receipt["velocity_max"] == 5
     assert receipt["frames"] == 3 and receipt["frame_interval"] == 0.04
@@ -98,8 +108,8 @@ def test_field_palettes_distinguish_equal_errors_and_preserve_zero():
     normalized = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
     red_indices = _field_indices(normalized, 0)
     blue_indices = _field_indices(normalized, 1)
-    assert red_indices.min() == 0 and red_indices.max() == 119
-    assert blue_indices.min() == 120 and blue_indices.max() == 239
+    assert red_indices.min() == 0 and red_indices.max() == 95
+    assert blue_indices.min() == 96 and blue_indices.max() == 191
     red, blue = palette[red_indices], palette[blue_indices]
     np.testing.assert_array_equal(red[0], [0, 0, 0])
     np.testing.assert_array_equal(blue[0], red[0])
@@ -108,3 +118,34 @@ def test_field_palettes_distinguish_equal_errors_and_preserve_zero():
     assert np.all(np.diff(red.astype(int).sum(axis=1)) > 0)
     assert np.all(np.diff(blue.astype(int).sum(axis=1)) > 0)
     np.testing.assert_array_equal(palette[255], [255, 255, 255])
+
+
+def test_corrected_fields_remain_visible_when_errors_are_zero(tmp_path):
+    cfg = SimpleNamespace(solvers=[SimpleNamespace(name="PhiFlow")], domain_extent=1.0)
+    state = np.zeros((2, 4, 4, 3), dtype=np.float32)
+    state[..., 2] = np.linspace(-1, 1, 4)[None, :, None]
+    state[:, :-1, :, 0] = 1
+    snapshots = {"solver_names": np.array(["PhiFlow"])}
+    snapshots.update(
+        {f"{arm}_0": state for arm in ("reference", "uncorrected", "solver_in_loop")}
+    )
+    result = {
+        "params": {"physics": {"dt": 0.005, "steps": 8}},
+        "results": [
+            {
+                "solver": "PhiFlow",
+                "metrics": {"status": "ok", "solver_in_loop": {"selected_update": 0}},
+            }
+        ],
+    }
+    path = write_error_gif(cfg, tmp_path, result, snapshots)
+    with Image.open(path) as animation:
+        frame = animation.convert("RGB")
+        for x in (197, 665):
+            gray = frame.getpixel((x, 188))
+            assert gray[0] == gray[1] == gray[2] and gray[0] > 0
+        for x in (353, 509, 821, 977):
+            assert frame.getpixel((x, 188)) == (0, 0, 0)
+    receipt = json.loads(path.with_suffix(".json").read_text())
+    assert receipt["actual_field_ranges"]["temperature"] == [-1, 1]
+    assert receipt["scalar_max"] == receipt["velocity_max"] == 0

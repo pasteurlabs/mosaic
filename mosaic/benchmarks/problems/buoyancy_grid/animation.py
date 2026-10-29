@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Fixed-scale animated error fields for the held-out buoyancy rollout."""
+"""Fixed-scale corrected fields and errors for the held-out buoyancy rollout."""
 
 import json
 from pathlib import Path
@@ -34,14 +34,15 @@ def _reduce(fields: np.ndarray, maximum: int = 32) -> np.ndarray:
     )
 
 
-_COLORS_PER_FIELD = 120
+_COLORS_PER_FIELD = 96
+_GRAY_COLORS = 48
 
 
 def _field_indices(normalized: np.ndarray, group: int) -> np.ndarray:
     """Map a fixed [0,1] scale into its field's disjoint palette block."""
+    count = _GRAY_COLORS if group == 2 else _COLORS_PER_FIELD
     return (
-        np.rint(np.clip(normalized, 0, 1) * (_COLORS_PER_FIELD - 1))
-        + group * _COLORS_PER_FIELD
+        np.rint(np.clip(normalized, 0, 1) * (count - 1)) + group * _COLORS_PER_FIELD
     ).astype(np.uint8)
 
 
@@ -67,6 +68,7 @@ def _palette() -> list[int]:
         )
         start = group * _COLORS_PER_FIELD
         palette[start : start + _COLORS_PER_FIELD] = colors.astype(np.uint8)
+    palette[192:240] = np.linspace(0, 255, _GRAY_COLORS).astype(np.uint8)[:, None]
     palette[253] = [100, 100, 100]
     palette[255] = [255, 255, 255]
     return palette.ravel().tolist()
@@ -113,17 +115,28 @@ def write_error_gif(
             np.linalg.norm(_center_velocity(baseline) - ref_velocity, axis=-1),
             np.linalg.norm(_center_velocity(corrected) - ref_velocity, axis=-1),
         ]
-        rows.append((name, [_reduce(a) for a in errors]))
+        fields = [
+            corrected[..., 2],
+            np.linalg.norm(_center_velocity(corrected), axis=-1),
+        ]
+        rows.append((name, [_reduce(a) for a in errors], [_reduce(a) for a in fields]))
     if not rows:
         return None
     frames = len(rows[0][1][0])
-    if any(len(a) != frames for _, errors in rows for a in errors):
+    if any(len(a) != frames for _, errors, _ in rows for a in errors):
         raise ValueError("Combined error animation requires equal frame counts")
     maxima = [
-        max(float(a.max()) for _, errors in rows for a in errors[start : start + 2])
+        max(float(a.max()) for _, errors, _ in rows for a in errors[start : start + 2])
         for start in (0, 2)
     ]
     scales = [max(v, 1e-12) for v in maxima]
+    field_ranges = [
+        (
+            min(float(a[0].min()) for _, _, a in rows),
+            max(float(a[0].max()) for _, _, a in rows),
+        ),
+        (0.0, max(float(a[1].max()) for _, _, a in rows)),
+    ]
     physics = result.get("params", {}).get("physics", {})
     interval = float(physics["dt"]) * int(physics["steps"])
     extent = float(physics.get("domain_extent", cfg.domain_extent))
@@ -131,7 +144,7 @@ def write_error_gif(
     font = ImageFont.load_default(size=14)
     small = ImageFont.load_default(size=12)
     panel, gap, left, top = 144, 12, 125, 116
-    width, height = left + 4 * (panel + gap), top + len(rows) * (panel + 28) + 38
+    width, height = left + 6 * (panel + gap), top + len(rows) * (panel + 28) + 38
     images = []
     for frame in range(frames):
         image = Image.new("P", (width, height), color=255)
@@ -139,7 +152,7 @@ def write_error_gif(
         draw = ImageDraw.Draw(image)
         draw.text(
             (12, 8),
-            f"Held-out spatial errors | time {frame * interval:.2f} | frame {frame}/{frames - 1}",
+            f"Held-out corrected fields and errors | time {frame * interval:.2f} | frame {frame}/{frames - 1}",
             fill=254,
             font=font,
         )
@@ -149,32 +162,39 @@ def write_error_gif(
             fill=253,
             font=small,
         )
-        for group, title in enumerate(
-            ("Temperature anomaly absolute error", "Velocity vector-error magnitude")
+        for column, title, group, limits, span in (
+            (0, "Corrected temperature", 2, field_ranges[0], 1),
+            (1, "Temperature absolute error", 0, (0, maxima[0]), 2),
+            (3, "Corrected speed", 2, field_ranges[1], 1),
+            (4, "Velocity vector error", 1, (0, maxima[1]), 2),
         ):
-            x = left + 2 * group * (panel + gap)
-            draw.text((x, 50), title, fill=254, font=font)
-            for pixel in range(2 * panel + gap):
-                draw.line(
-                    (x + pixel, 72, x + pixel, 80),
-                    fill=group * _COLORS_PER_FIELD
-                    + round((_COLORS_PER_FIELD - 1) * pixel / (2 * panel + gap - 1)),
-                )
-            draw.text((x, 82), "0", fill=254, font=small)
+            x = left + column * (panel + gap)
+            bar_width = span * panel + (span - 1) * gap
+            draw.text((x, 50), title, fill=254, font=small)
+            colors = _field_indices(np.linspace(0, 1, bar_width), group)
+            for pixel, color in enumerate(colors):
+                draw.line((x + pixel, 72, x + pixel, 80), fill=int(color))
+            draw.text((x, 82), f"{limits[0]:.3g}", fill=254, font=small)
             draw.text(
-                (x + 2 * panel + gap - 70, 82),
-                f"{maxima[group]:.3g}",
-                fill=254,
-                font=small,
+                (x + bar_width - 55, 82), f"{limits[1]:.3g}", fill=254, font=small
             )
-        for i, (name, errors) in enumerate(rows):
+        for i, (name, errors, fields) in enumerate(rows):
             y = top + i * (panel + 28)
             draw.text((8, y + panel // 2), name, fill=254, font=font)
-            for column, error in enumerate(errors):
+            panels = (
+                (fields[0], 2, field_ranges[0], "Selected correction"),
+                (errors[0], 0, (0, scales[0]), "Uncorrected error"),
+                (errors[1], 0, (0, scales[0]), "Corrected error"),
+                (fields[1], 2, field_ranges[1], "Selected correction"),
+                (errors[2], 1, (0, scales[1]), "Uncorrected error"),
+                (errors[3], 1, (0, scales[1]), "Corrected error"),
+            )
+            for column, (values, group, limits, label) in enumerate(panels):
                 x = left + column * (panel + gap)
-                indices = _field_indices(
-                    error[frame].T[::-1] / scales[column // 2], column // 2
+                normalized = (values[frame].T[::-1] - limits[0]) / max(
+                    limits[1] - limits[0], 1e-12
                 )
+                indices = _field_indices(normalized, group)
                 tile = Image.frombytes(
                     "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
                 )
@@ -182,15 +202,10 @@ def write_error_gif(
                 image.paste(
                     tile.resize((panel, panel), Image.Resampling.NEAREST), (x, y)
                 )
-                draw.text(
-                    (x, y + panel + 3),
-                    "Uncorrected" if column % 2 == 0 else "Selected correction",
-                    fill=254,
-                    font=small,
-                )
+                draw.text((x, y + panel + 3), label, fill=254, font=small)
         draw.text(
             (12, height - 28),
-            f"Box [0,{extent:g}]^2; block-mean errors at up to 32x32 when divisible; 10 fps",
+            f"Box [0,{extent:g}]^2; block-mean fields/errors at up to 32x32 when divisible; 10 fps",
             fill=253,
             font=small,
         )
@@ -210,22 +225,35 @@ def write_error_gif(
     target.with_suffix(".json").write_text(
         json.dumps(
             {
-                "solvers": [name for name, _ in rows],
+                "solvers": [name for name, _, _ in rows],
                 "frames": frames,
                 "frame_interval": interval,
                 "fps": 10,
                 "scalar_max": maxima[0],
                 "velocity_max": maxima[1],
+                "columns": [
+                    "corrected_temperature",
+                    "uncorrected_temperature_error",
+                    "corrected_temperature_error",
+                    "corrected_speed",
+                    "uncorrected_velocity_error",
+                    "corrected_velocity_error",
+                ],
+                "actual_field_ranges": {
+                    "temperature": list(field_ranges[0]),
+                    "speed": list(field_ranges[1]),
+                },
                 "normalization": "None; physical-state error units",
                 "palettes": {
                     "temperature": "sequential red",
                     "velocity": "sequential blue",
                     "zero": "black",
+                    "actual_fields": "sequential grayscale",
                 },
                 "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
                 "selected_updates": {
                     name: metrics[name]["solver_in_loop"]["selected_update"]
-                    for name, _ in rows
+                    for name, _, _ in rows
                 },
             },
             indent=2,
