@@ -18,7 +18,7 @@ def test_buoyancy_scalar_panels():
     assert {p[0] for p in panels} == {"plume", "interacting_plumes", "diffusion"}
     for name, field, low, high in panels:
         spec = problem.make_ic[name]
-        expected = scalar_field(spec(**spec.plot_params))
+        expected = np.asarray(scalar_field(spec(**spec.plot_params)), dtype=np.float32)
         np.testing.assert_array_equal(field, expected)
         assert low == float(expected.min())
         assert high == float(expected.max())
