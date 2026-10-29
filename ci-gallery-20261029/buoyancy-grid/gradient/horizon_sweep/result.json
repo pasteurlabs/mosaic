@@ -1,0 +1,704 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "gradient",
+    "name": "horizon_sweep"
+  },
+  "params": {
+    "ic": {
+      "name": "plume",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.001,
+      "diffusivity": 0.001,
+      "buoyancy": 1.0,
+      "dt": 0.01,
+      "steps": 1
+    },
+    "fd": {
+      "eps_values": [
+        5.0,
+        1.0,
+        0.1,
+        0.01,
+        0.001,
+        0.0001
+      ],
+      "n_dirs": 8
+    },
+    "sweep": {
+      "key": "steps",
+      "values": [
+        1,
+        4,
+        16
+      ]
+    }
+  },
+  "sweep": {
+    "key": "steps",
+    "values": [
+      "1",
+      "4",
+      "16"
+    ]
+  },
+  "results": [
+    {
+      "solver": "INS.jl",
+      "sweep_value": "1",
+      "metrics": {
+        "grad_norm": 4.023717880249023,
+        "ic_scale": 0.07281871885061264,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.00011036809217256287,
+            "rel_error_std": 0.00016808435313502587,
+            "cosine_mean": 0.9999999968460103
+          },
+          "1.0": {
+            "rel_error_mean": 1.66354070832857e-05,
+            "rel_error_std": 1.6327798818491028e-05,
+            "cosine_mean": 0.999999999946149
+          },
+          "0.1": {
+            "rel_error_mean": 7.674665246455646e-05,
+            "rel_error_std": 7.57930375281925e-05,
+            "cosine_mean": 0.9999999984906163
+          },
+          "0.01": {
+            "rel_error_mean": 0.0012453534199920167,
+            "rel_error_std": 0.0011944073486798831,
+            "cosine_mean": 0.9999994714758558
+          },
+          "0.001": {
+            "rel_error_mean": 0.009259879934564976,
+            "rel_error_std": 0.010824163509413362,
+            "cosine_mean": 0.9999765045533759
+          },
+          "0.0001": {
+            "rel_error_mean": 0.08003690219533884,
+            "rel_error_std": 0.053262486212063594,
+            "cosine_mean": 0.9962016699452408
+          }
+        },
+        "ram_peak_mib": 1555.976192
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "4",
+      "metrics": {
+        "grad_norm": 3.9897303581237793,
+        "ic_scale": 0.07281871885061264,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 9.59398816061299e-05,
+            "rel_error_std": 0.000136502992813177,
+            "cosine_mean": 0.999999997244276
+          },
+          "1.0": {
+            "rel_error_mean": 1.5028380763965265e-05,
+            "rel_error_std": 1.5681425735773625e-05,
+            "cosine_mean": 0.9999999999415224
+          },
+          "0.1": {
+            "rel_error_mean": 9.758528729156781e-05,
+            "rel_error_std": 6.0062152110282596e-05,
+            "cosine_mean": 0.9999999967927534
+          },
+          "0.01": {
+            "rel_error_mean": 0.000972113969434409,
+            "rel_error_std": 0.000749428730072425,
+            "cosine_mean": 0.9999997216345637
+          },
+          "0.001": {
+            "rel_error_mean": 0.013874533273280993,
+            "rel_error_std": 0.018809325124498955,
+            "cosine_mean": 0.9999566580277274
+          },
+          "0.0001": {
+            "rel_error_mean": 0.09977803919483594,
+            "rel_error_std": 0.09136354756434165,
+            "cosine_mean": 0.996125726628772
+          }
+        },
+        "ram_peak_mib": 1558.183936
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "16",
+      "metrics": {
+        "grad_norm": 3.9036242961883545,
+        "ic_scale": 0.07281871885061264,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.00011929809347826793,
+            "rel_error_std": 7.511657423891898e-05,
+            "cosine_mean": 0.9999999944849058
+          },
+          "1.0": {
+            "rel_error_mean": 1.2457980188047847e-05,
+            "rel_error_std": 1.2501503692050696e-05,
+            "cosine_mean": 0.9999999999715263
+          },
+          "0.1": {
+            "rel_error_mean": 8.418996929403512e-05,
+            "rel_error_std": 0.00011363959425974009,
+            "cosine_mean": 0.9999999978550078
+          },
+          "0.01": {
+            "rel_error_mean": 0.0005475605802248251,
+            "rel_error_std": 0.000644159318096034,
+            "cosine_mean": 0.999999909198191
+          },
+          "0.001": {
+            "rel_error_mean": 0.009400518390432943,
+            "rel_error_std": 0.016610602034929707,
+            "cosine_mean": 0.9999801584233711
+          },
+          "0.0001": {
+            "rel_error_mean": 0.0703326632776399,
+            "rel_error_std": 0.04062731894599491,
+            "cosine_mean": 0.9982222499030915
+          }
+        },
+        "ram_peak_mib": 1573.920768
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "1",
+      "metrics": {
+        "grad_norm": 4.031224250793457,
+        "ic_scale": 0.07280485332012177,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.018182232342295216,
+            "rel_error_std": 0.021322742662671024,
+            "cosine_mean": 0.9999360472059479
+          },
+          "1.0": {
+            "rel_error_mean": 0.013628325658823832,
+            "rel_error_std": 0.019851832299616096,
+            "cosine_mean": 0.9999703448224639
+          },
+          "0.1": {
+            "rel_error_mean": 0.005186243423810515,
+            "rel_error_std": 0.004960962040091767,
+            "cosine_mean": 0.999990834989682
+          },
+          "0.01": {
+            "rel_error_mean": 0.0018223350044454434,
+            "rel_error_std": 0.0015924486376113845,
+            "cosine_mean": 0.9999990820419968
+          },
+          "0.001": {
+            "rel_error_mean": 0.02033049372892732,
+            "rel_error_std": 0.034057609656592956,
+            "cosine_mean": 0.9999584793105707
+          },
+          "0.0001": {
+            "rel_error_mean": 0.13759692672551882,
+            "rel_error_std": 0.1728952018666995,
+            "cosine_mean": 0.9967694015005074
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 2303.901696
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "4",
+      "metrics": {
+        "grad_norm": 3.9906036853790283,
+        "ic_scale": 0.07280485332012177,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.026193046336390184,
+            "rel_error_std": 0.011277937108008758,
+            "cosine_mean": 0.9996950113325378
+          },
+          "1.0": {
+            "rel_error_mean": 0.023468447316902345,
+            "rel_error_std": 0.008124345657494793,
+            "cosine_mean": 0.9997805008137064
+          },
+          "0.1": {
+            "rel_error_mean": 0.007347071341184542,
+            "rel_error_std": 0.002746496368148877,
+            "cosine_mean": 0.9999725408900159
+          },
+          "0.01": {
+            "rel_error_mean": 0.004015407389337754,
+            "rel_error_std": 0.005078806594310047,
+            "cosine_mean": 0.9999968049974483
+          },
+          "0.001": {
+            "rel_error_mean": 0.015210240235379566,
+            "rel_error_std": 0.02033337597221613,
+            "cosine_mean": 0.9999614165959884
+          },
+          "0.0001": {
+            "rel_error_mean": 0.09005717176061656,
+            "rel_error_std": 0.06301360616907244,
+            "cosine_mean": 0.9894386426227948
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 2303.926272
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "16",
+      "metrics": {
+        "grad_norm": 3.8558945655822754,
+        "ic_scale": 0.07280485332012177,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.0753051605249252,
+            "rel_error_std": 0.03130701825146395,
+            "cosine_mean": 0.9976877301850786
+          },
+          "1.0": {
+            "rel_error_mean": 0.06387696717171135,
+            "rel_error_std": 0.028725579213054048,
+            "cosine_mean": 0.9982365285859892
+          },
+          "0.1": {
+            "rel_error_mean": 0.015932004431453484,
+            "rel_error_std": 0.00924617955304171,
+            "cosine_mean": 0.9998963322564904
+          },
+          "0.01": {
+            "rel_error_mean": 0.0026334033517834217,
+            "rel_error_std": 0.0018769168208467484,
+            "cosine_mean": 0.9999977463410863
+          },
+          "0.001": {
+            "rel_error_mean": 0.006791117363038343,
+            "rel_error_std": 0.0050028757021279196,
+            "cosine_mean": 0.9999803000824792
+          },
+          "0.0001": {
+            "rel_error_mean": 0.0721166972477122,
+            "rel_error_std": 0.044625136228103025,
+            "cosine_mean": 0.9964212797760286
+          }
+        },
+        "vram_peak_mib": 2.0,
+        "ram_peak_mib": 2350.63296
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "1",
+      "metrics": {
+        "grad_norm": 4.020652770996094,
+        "ic_scale": 0.07277808338403702,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.01936272042207674,
+            "rel_error_std": 0.007190380850995868,
+            "cosine_mean": 0.9998709656300028
+          },
+          "1.0": {
+            "rel_error_mean": 0.017206396354971894,
+            "rel_error_std": 0.016958444470335076,
+            "cosine_mean": 0.9998880850972839
+          },
+          "0.1": {
+            "rel_error_mean": 0.01677547971930069,
+            "rel_error_std": 0.017225872228294144,
+            "cosine_mean": 0.9998773734187022
+          },
+          "0.01": {
+            "rel_error_mean": 0.005953573856613761,
+            "rel_error_std": 0.007961831419537718,
+            "cosine_mean": 0.9999746359897155
+          },
+          "0.001": {
+            "rel_error_mean": 0.00872278562751774,
+            "rel_error_std": 0.012204069456015315,
+            "cosine_mean": 0.9999762058317218
+          },
+          "0.0001": {
+            "rel_error_mean": 0.06807391075325267,
+            "rel_error_std": 0.050389921221598175,
+            "cosine_mean": 0.9968217730402807
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 2099.679232
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "4",
+      "metrics": {
+        "grad_norm": 3.9738171100616455,
+        "ic_scale": 0.07277808338403702,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.032945277355477254,
+            "rel_error_std": 0.009616297138559087,
+            "cosine_mean": 0.999586057502491
+          },
+          "1.0": {
+            "rel_error_mean": 0.02729781952650863,
+            "rel_error_std": 0.021388380630962208,
+            "cosine_mean": 0.9995438562168063
+          },
+          "0.1": {
+            "rel_error_mean": 0.03738544061455211,
+            "rel_error_std": 0.02138884577576625,
+            "cosine_mean": 0.9990825544873149
+          },
+          "0.01": {
+            "rel_error_mean": 0.008654379178282021,
+            "rel_error_std": 0.011982886442722841,
+            "cosine_mean": 0.9998668031111517
+          },
+          "0.001": {
+            "rel_error_mean": 0.010001875394921632,
+            "rel_error_std": 0.010433626231269783,
+            "cosine_mean": 0.9999618200260012
+          },
+          "0.0001": {
+            "rel_error_mean": 0.07474568856863392,
+            "rel_error_std": 0.03916872146673824,
+            "cosine_mean": 0.9951261242824636
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 2099.920896
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "16",
+      "metrics": {
+        "grad_norm": 3.823077917098999,
+        "ic_scale": 0.07277808338403702,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.1580846855533607,
+            "rel_error_std": 0.14624042146496047,
+            "cosine_mean": 0.9831312644373675
+          },
+          "1.0": {
+            "rel_error_mean": 0.1258428350488362,
+            "rel_error_std": 0.10401623933675407,
+            "cosine_mean": 0.9923822245080034
+          },
+          "0.1": {
+            "rel_error_mean": 0.018748471546303668,
+            "rel_error_std": 0.013257295336582204,
+            "cosine_mean": 0.9998971494410422
+          },
+          "0.01": {
+            "rel_error_mean": 0.010322190369812762,
+            "rel_error_std": 0.013525482123341401,
+            "cosine_mean": 0.9998644828953595
+          },
+          "0.001": {
+            "rel_error_mean": 0.012118764893961513,
+            "rel_error_std": 0.010974837479817793,
+            "cosine_mean": 0.9999529863042858
+          },
+          "0.0001": {
+            "rel_error_mean": 0.09702076436379836,
+            "rel_error_std": 0.08749705273714108,
+            "cosine_mean": 0.9932141700666511
+          }
+        },
+        "vram_peak_mib": 0.0,
+        "ram_peak_mib": 2142.57664
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "1",
+      "metrics": {
+        "grad_norm": 4.022745609283447,
+        "ic_scale": 0.0728101059794426,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.003201870854238691,
+            "rel_error_std": 0.0025334686619790233,
+            "cosine_mean": 0.999996730190153
+          },
+          "1.0": {
+            "rel_error_mean": 0.0022416682497881785,
+            "rel_error_std": 0.0006842544290746204,
+            "cosine_mean": 0.9999977160688525
+          },
+          "0.1": {
+            "rel_error_mean": 0.0007709625888785616,
+            "rel_error_std": 0.00034262346667917167,
+            "cosine_mean": 0.9999997152622996
+          },
+          "0.01": {
+            "rel_error_mean": 0.0008773864031326463,
+            "rel_error_std": 0.0005762671100115904,
+            "cosine_mean": 0.9999996129611205
+          },
+          "0.001": {
+            "rel_error_mean": 0.01015248159164223,
+            "rel_error_std": 0.007995449670139088,
+            "cosine_mean": 0.9999765073918546
+          },
+          "0.0001": {
+            "rel_error_mean": 0.07342801558567126,
+            "rel_error_std": 0.04034743381387746,
+            "cosine_mean": 0.9973239644306154
+          }
+        },
+        "ram_peak_mib": 2253.312
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "4",
+      "metrics": {
+        "grad_norm": 3.9849929809570312,
+        "ic_scale": 0.0728101059794426,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.010111420708878589,
+            "rel_error_std": 0.003578503358029719,
+            "cosine_mean": 0.9999607237763524
+          },
+          "1.0": {
+            "rel_error_mean": 0.007171605635124591,
+            "rel_error_std": 0.0029777877779645916,
+            "cosine_mean": 0.9999690296434072
+          },
+          "0.1": {
+            "rel_error_mean": 0.002834599671495107,
+            "rel_error_std": 0.002331066403114724,
+            "cosine_mean": 0.9999974071547924
+          },
+          "0.01": {
+            "rel_error_mean": 0.0012949712365837567,
+            "rel_error_std": 0.00104485530988332,
+            "cosine_mean": 0.9999993141934661
+          },
+          "0.001": {
+            "rel_error_mean": 0.01616781808345743,
+            "rel_error_std": 0.022492542213942174,
+            "cosine_mean": 0.999947296431502
+          },
+          "0.0001": {
+            "rel_error_mean": 0.068736305318752,
+            "rel_error_std": 0.08658002674771204,
+            "cosine_mean": 0.9993230640912889
+          }
+        },
+        "ram_peak_mib": 2255.949824
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "16",
+      "metrics": {
+        "grad_norm": 3.8686540126800537,
+        "ic_scale": 0.0728101059794426,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.022258505094011408,
+            "rel_error_std": 0.011598024493118515,
+            "cosine_mean": 0.999752879793118
+          },
+          "1.0": {
+            "rel_error_mean": 0.019515250848594595,
+            "rel_error_std": 0.010420051329008641,
+            "cosine_mean": 0.9998165769527005
+          },
+          "0.1": {
+            "rel_error_mean": 0.00451756784956037,
+            "rel_error_std": 0.003496599858134273,
+            "cosine_mean": 0.9999925408746619
+          },
+          "0.01": {
+            "rel_error_mean": 0.000943792284387068,
+            "rel_error_std": 0.0004625525322662456,
+            "cosine_mean": 0.9999994974158154
+          },
+          "0.001": {
+            "rel_error_mean": 0.009860288570414023,
+            "rel_error_std": 0.012030390223218028,
+            "cosine_mean": 0.9999656314463894
+          },
+          "0.0001": {
+            "rel_error_mean": 0.08811462518052182,
+            "rel_error_std": 0.04564160938988358,
+            "cosine_mean": 0.995962761564007
+          }
+        },
+        "ram_peak_mib": 2289.004544
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "1",
+      "metrics": {
+        "grad_norm": 4.019357204437256,
+        "ic_scale": 0.07277282327413559,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.017605816618477682,
+            "rel_error_std": 0.009366714515727995,
+            "cosine_mean": 0.9998551821980801
+          },
+          "1.0": {
+            "rel_error_mean": 0.016922915717583545,
+            "rel_error_std": 0.007075432460204213,
+            "cosine_mean": 0.9998981737780106
+          },
+          "0.1": {
+            "rel_error_mean": 0.0077983911193702255,
+            "rel_error_std": 0.0042811426259846295,
+            "cosine_mean": 0.9999680608374166
+          },
+          "0.01": {
+            "rel_error_mean": 0.005377547657066846,
+            "rel_error_std": 0.00869667936150535,
+            "cosine_mean": 0.9999957791692976
+          },
+          "0.001": {
+            "rel_error_mean": 0.01547503528484957,
+            "rel_error_std": 0.01920981201417136,
+            "cosine_mean": 0.9999613066826353
+          },
+          "0.0001": {
+            "rel_error_mean": 0.08591340775512205,
+            "rel_error_std": 0.06263900617474229,
+            "cosine_mean": 0.9971493986280383
+          }
+        },
+        "ram_peak_mib": 1641.30816
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "4",
+      "metrics": {
+        "grad_norm": 3.970452308654785,
+        "ic_scale": 0.07277282327413559,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.05723932680508473,
+            "rel_error_std": 0.021813417659856,
+            "cosine_mean": 0.9984635019685865
+          },
+          "1.0": {
+            "rel_error_mean": 0.049634696278960264,
+            "rel_error_std": 0.020637541391364398,
+            "cosine_mean": 0.9987319872242542
+          },
+          "0.1": {
+            "rel_error_mean": 0.025906727743521263,
+            "rel_error_std": 0.013038672914920313,
+            "cosine_mean": 0.9997679862858277
+          },
+          "0.01": {
+            "rel_error_mean": 0.0029903891453400143,
+            "rel_error_std": 0.002258068353914312,
+            "cosine_mean": 0.9999977215792621
+          },
+          "0.001": {
+            "rel_error_mean": 0.013136726063205838,
+            "rel_error_std": 0.01972459933772076,
+            "cosine_mean": 0.9999685928345524
+          },
+          "0.0001": {
+            "rel_error_mean": 0.09813535131544444,
+            "rel_error_std": 0.06999999969950914,
+            "cosine_mean": 0.9969683802998698
+          }
+        },
+        "ram_peak_mib": 1642.074112
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "16",
+      "metrics": {
+        "grad_norm": 3.773512363433838,
+        "ic_scale": 0.07277282327413559,
+        "eps_sweep": {
+          "5.0": {
+            "rel_error_mean": 0.20855029852227314,
+            "rel_error_std": 0.1496234610604854,
+            "cosine_mean": 0.9826407131943065
+          },
+          "1.0": {
+            "rel_error_mean": 0.18374246950648876,
+            "rel_error_std": 0.12167495371400579,
+            "cosine_mean": 0.9864059836957385
+          },
+          "0.1": {
+            "rel_error_mean": 0.04745906993390972,
+            "rel_error_std": 0.034215712510310775,
+            "cosine_mean": 0.9991989730379625
+          },
+          "0.01": {
+            "rel_error_mean": 0.004681344771764939,
+            "rel_error_std": 0.003528395409393397,
+            "cosine_mean": 0.9999872463752069
+          },
+          "0.001": {
+            "rel_error_mean": 0.009052734888848647,
+            "rel_error_std": 0.0038239617060748365,
+            "cosine_mean": 0.9999648030275594
+          },
+          "0.0001": {
+            "rel_error_mean": 0.11689599825433669,
+            "rel_error_std": 0.05955421179926464,
+            "cosine_mean": 0.9925906836478491
+          }
+        },
+        "ram_peak_mib": 1671.069696
+      }
+    }
+  ],
+  "provenance": {
+    "tesseract_hashes": {
+      "INS.jl": "a6584554f49cee5a",
+      "JAX-CFD": "a3c8ec8d615f5240",
+      "PhiFlow": "f8025ed82a5a1793",
+      "Oceananigans": "3006f94e0945ba18",
+      "WaterLily": "2aa88095045a039a"
+    },
+    "harness_hash": "ea4917f1908b5ed3",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.gradient.param_sweep",
+    "wall_time_s": {
+      "INS.jl": 2.204242001986131,
+      "JAX-CFD": 15.056066876044497,
+      "PhiFlow": 18.655903054983355,
+      "Oceananigans": 1.7905978069175035,
+      "WaterLily": 1.3355079640168697
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-29T15:08:24.878687+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-29T15:08:24Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39"
+    }
+  }
+}

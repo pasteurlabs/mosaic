@@ -1,0 +1,287 @@
+{
+  "complete": true,
+  "matched_initial_data_schedule": true,
+  "rows": [
+    {
+      "model_seed": 0,
+      "mean_heldout_loss": {
+        "adam001": 0.0005939021985061999,
+        "adamw001": 0.0005939014190104075,
+        "adam003": 0.0006950185759181693
+      },
+      "heldout_uncorrected_loss": 0.0016806774568691907,
+      "adam001_to_adamw001": 1.0000013125003029,
+      "adam001_to_baseline": 0.8545126980550304,
+      "adam001_to_uncorrected": 0.3533707173133245,
+      "selected_validation_loss": {
+        "adam001": 0.00045420996073055166,
+        "adamw001": 0.00045420806444020914,
+        "adam003": 0.0005182923276467477
+      },
+      "adam001_minus_adamw001": {
+        "heldout": 7.794957923492468e-10,
+        "validation": 1.896290342524691e-09
+      },
+      "adam001_minus_baseline": {
+        "heldout": -0.00010111637741196946,
+        "validation": -6.408236691619602e-05
+      },
+      "selected_rollout_invariants": {
+        "adam001": {
+          "max_advective_cfl": 0.2241424173116684,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        },
+        "adamw001": {
+          "max_advective_cfl": 0.2241424173116684,
+          "final_relative_heat_drift": 1.3909512119880674e-07,
+          "temperature_undershoot": 0.0
+        },
+        "adam003": {
+          "max_advective_cfl": 0.22281627357006073,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        }
+      }
+    },
+    {
+      "model_seed": 1,
+      "mean_heldout_loss": {
+        "adam001": 0.0006795661848764212,
+        "adamw001": 0.0006795632935106255,
+        "adam003": 0.0008721061657562501
+      },
+      "heldout_uncorrected_loss": 0.0016806774568691907,
+      "adam001_to_adamw001": 1.0000042547409833,
+      "adam001_to_baseline": 0.7792241490313657,
+      "adam001_to_uncorrected": 0.4043406318677794,
+      "selected_validation_loss": {
+        "adam001": 0.0004906640220572456,
+        "adamw001": 0.0004906607517072815,
+        "adam003": 0.0006325004175086235
+      },
+      "adam001_minus_adamw001": {
+        "heldout": 2.8913657956590455e-09,
+        "validation": 3.2703499641423966e-09
+      },
+      "adam001_minus_baseline": {
+        "heldout": -0.0001925399808798289,
+        "validation": -0.00014183639545137792
+      },
+      "selected_rollout_invariants": {
+        "adam001": {
+          "max_advective_cfl": 0.22366607189178467,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        },
+        "adamw001": {
+          "max_advective_cfl": 0.2236660271883011,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        },
+        "adam003": {
+          "max_advective_cfl": 0.22326689958572388,
+          "final_relative_heat_drift": 1.3909512119880674e-07,
+          "temperature_undershoot": 0.0
+        }
+      }
+    },
+    {
+      "model_seed": 2,
+      "mean_heldout_loss": {
+        "adam001": 0.0007821432987481102,
+        "adamw001": 0.0007821278796620846,
+        "adam003": 0.001060398686399111
+      },
+      "heldout_uncorrected_loss": 0.0016806774568691907,
+      "adam001_to_adamw001": 1.0000197142774558,
+      "adam001_to_baseline": 0.737593613402241,
+      "adam001_to_uncorrected": 0.4653738262219016,
+      "selected_validation_loss": {
+        "adam001": 0.0005073213679997224,
+        "adamw001": 0.0005073166629194503,
+        "adam003": 0.0007120018850561394
+      },
+      "adam001_minus_adamw001": {
+        "heldout": 1.5419086025667515e-08,
+        "validation": 4.705080272116892e-09
+      },
+      "adam001_minus_baseline": {
+        "heldout": -0.00027825538765100086,
+        "validation": -0.00020468051705641694
+      },
+      "selected_rollout_invariants": {
+        "adam001": {
+          "max_advective_cfl": 0.22382572293281555,
+          "final_relative_heat_drift": 1.3909512119880674e-07,
+          "temperature_undershoot": 0.0
+        },
+        "adamw001": {
+          "max_advective_cfl": 0.2238256186246872,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        },
+        "adam003": {
+          "max_advective_cfl": 0.2211609035730362,
+          "final_relative_heat_drift": 6.954756059940337e-08,
+          "temperature_undershoot": 0.0
+        }
+      }
+    }
+  ],
+  "joint_fd_profiles": {
+    "32": {
+      "complete": true,
+      "purpose": "diagnostic only; original failed registeredprimary remains failed; no training retry or threshold change",
+      "original_failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616553/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}\n"
+      },
+      "model_seed": 1,
+      "hidden_channels": 32,
+      "correct_temperature": true,
+      "training_case": 0,
+      "window_start": 0,
+      "H": 8,
+      "source_training_data_sha256": "c88d2af0f358bdbc954f4c90dad055284c351262a6dd1dc1ef3bedd6901cfa61",
+      "driver_sha256": "9de0cb7a04c29bfcdb4e33cbbf7fa146bb8dbbda31f4172467e14b297ff5f880",
+      "primary_reproduced_relative_error": 0.08094925665623755,
+      "accumulation_variant": "Same float32states/parameters/normalizedsquaredresiduals; only spatialmeans andsumofframe-losses float64; not an independent gradient reference",
+      "rows": [
+        {
+          "epsilon": 0.03,
+          "original_ad": 0.002779692644253373,
+          "original_fd": -0.019527599215507507,
+          "original_relative_error": 1.1423468708865105,
+          "accumulation64_ad_same_direction": 0.002779692178592086,
+          "accumulation64_fd": -0.019527598300001295,
+          "accumulation64_relative_error": 1.1423468537137975,
+          "loss_plus_original": 0.009430677630007267,
+          "loss_minus_original": 0.010602333582937717
+        },
+        {
+          "epsilon": 0.01,
+          "original_ad": 0.002779692644253373,
+          "original_fd": 0.0002821441739797592,
+          "original_relative_error": 0.8984980679201879,
+          "accumulation64_ad_same_direction": 0.002779692178592086,
+          "accumulation64_fd": 0.0002821475844674501,
+          "accumulation64_relative_error": 0.8984968239863316,
+          "loss_plus_original": 0.0011291630798950791,
+          "loss_minus_original": 0.001123520196415484
+        },
+        {
+          "epsilon": 0.003,
+          "original_ad": 0.002779692644253373,
+          "original_fd": 0.0025546785909682512,
+          "original_relative_error": 0.08094925665623755,
+          "accumulation64_ad_same_direction": 0.002779692178592086,
+          "accumulation64_fd": 0.0025546769500511823,
+          "accumulation64_relative_error": 0.08094969301776203,
+          "loss_plus_original": 0.00011367196566425264,
+          "loss_minus_original": 9.834389493335038e-05
+        },
+        {
+          "epsilon": 0.001,
+          "original_ad": 0.002779692644253373,
+          "original_fd": 0.0027546281926333904,
+          "original_relative_error": 0.009016986705994268,
+          "accumulation64_ad_same_direction": 0.002779692178592086,
+          "accumulation64_fd": 0.0027546284855684655,
+          "accumulation64_relative_error": 0.009016715309935903,
+          "loss_plus_original": 1.897054971777834e-05,
+          "loss_minus_original": 1.3461292837746441e-05
+        },
+        {
+          "epsilon": 0.0003,
+          "original_ad": 0.002779692644253373,
+          "original_fd": 0.0027774383779615164,
+          "original_relative_error": 0.0008109768166337191,
+          "accumulation64_ad_same_direction": 0.002779692178592086,
+          "accumulation64_fd": 0.0027774378889022988,
+          "accumulation64_relative_error": 0.0008109853699444009,
+          "loss_plus_original": 6.834324267401826e-06,
+          "loss_minus_original": 5.167861218069447e-06
+        }
+      ]
+    },
+    "8": {
+      "complete": true,
+      "purpose": "diagnostic only; original failed registeredprimary remains failed; no training retry or threshold change",
+      "original_failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616557/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}\n"
+      },
+      "model_seed": 1,
+      "hidden_channels": 8,
+      "correct_temperature": true,
+      "training_case": 0,
+      "window_start": 0,
+      "H": 8,
+      "source_training_data_sha256": "c88d2af0f358bdbc954f4c90dad055284c351262a6dd1dc1ef3bedd6901cfa61",
+      "driver_sha256": "e3e81b06299f7f0b92fdf9d773a05a9722adf7f501412afbf3f5dfd612485a1d",
+      "primary_reproduced_relative_error": 0.18034993729723958,
+      "accumulation_variant": "Same float32states/parameters/normalizedsquaredresiduals; only spatialmeans andsumofframe-losses float64; not an independent gradient reference",
+      "rows": [
+        {
+          "epsilon": 0.03,
+          "original_ad": 0.0009508844232186675,
+          "original_fd": 0.02159794420003891,
+          "original_relative_error": 0.9559733827251505,
+          "accumulation64_ad_same_direction": 0.0009508844814263284,
+          "accumulation64_fd": 0.021597945626123754,
+          "accumulation64_relative_error": 0.9559733829371165,
+          "loss_plus_original": 0.010708874091506004,
+          "loss_minus_original": 0.009412997402250767
+        },
+        {
+          "epsilon": 0.01,
+          "original_ad": 0.0009508844232186675,
+          "original_fd": 0.003272289177402854,
+          "original_relative_error": 0.7094130831146885,
+          "accumulation64_ad_same_direction": 0.0009508844814263284,
+          "accumulation64_fd": 0.0032722895807699073,
+          "accumulation64_relative_error": 0.7094131011465667,
+          "loss_plus_original": 0.001157616963610053,
+          "loss_minus_original": 0.001092171180061996
+        },
+        {
+          "epsilon": 0.003,
+          "original_ad": 0.0009508844232186675,
+          "original_fd": 0.0011601102305576205,
+          "original_relative_error": 0.18034993729723958,
+          "accumulation64_ad_same_direction": 0.0009508844814263284,
+          "accumulation64_fd": 0.001160111912696061,
+          "accumulation64_relative_error": 0.1803510755988145,
+          "loss_plus_original": 0.00010929004929494113,
+          "loss_minus_original": 0.00010232938802801073
+        },
+        {
+          "epsilon": 0.001,
+          "original_ad": 0.0009508844232186675,
+          "original_fd": 0.0009741542744450271,
+          "original_relative_error": 0.023887234123790478,
+          "accumulation64_ad_same_direction": 0.0009508844814263284,
+          "accumulation64_fd": 0.0009741543901714944,
+          "accumulation64_relative_error": 0.023887290330919117,
+          "loss_plus_original": 1.7167347323265858e-05,
+          "loss_minus_original": 1.5219038687064312e-05
+        },
+        {
+          "epsilon": 0.0003,
+          "original_ad": 0.0009508844232186675,
+          "original_fd": 0.0009530185488983989,
+          "original_relative_error": 0.0022393327833946366,
+          "accumulation64_ad_same_direction": 0.0009508844814263284,
+          "accumulation64_fd": 0.0009530193958712439,
+          "accumulation64_relative_error": 0.0022401584418581325,
+          "loss_plus_original": 6.284942628553836e-06,
+          "loss_minus_original": 5.713131486118073e-06
+        }
+      ]
+    }
+  },
+  "scope": "3modelinitializations,sameonevalidationIC/oneheldoutIC; seed0wasmethodselection; no significanceclaim; failedjointprimary remainsfailed and no rejectedtrainingretry"
+}

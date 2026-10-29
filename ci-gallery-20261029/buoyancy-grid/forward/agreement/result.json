@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "experiment": {
+    "domain": "buoyancy-grid",
+    "suite": "forward",
+    "name": "agreement"
+  },
+  "params": {
+    "ic": {
+      "name": "interacting_plumes",
+      "seed": 0
+    },
+    "physics": {
+      "N": 16,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 80
+    },
+    "sweep": {
+      "key": "N",
+      "values": [
+        16,
+        32
+      ]
+    }
+  },
+  "sweep": {
+    "key": "N",
+    "values": [
+      "16",
+      "32"
+    ]
+  },
+  "results": [
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.0722164735198021,
+        "valid": true
+      }
+    },
+    {
+      "solver": "PhiFlow",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.04359282925724983,
+        "valid": true
+      }
+    },
+    {
+      "solver": "OpenFOAM",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.05843053758144379,
+        "valid": true
+      }
+    },
+    {
+      "solver": "OpenFOAM",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.01981668919324875,
+        "valid": true
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.03343785181641579,
+        "valid": true
+      }
+    },
+    {
+      "solver": "Oceananigans",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.010237990878522396,
+        "valid": true
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.07079095393419266,
+        "valid": true
+      }
+    },
+    {
+      "solver": "WaterLily",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.042394332587718964,
+        "valid": true
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.04897480830550194,
+        "valid": true
+      }
+    },
+    {
+      "solver": "INS.jl",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.016216404736042023,
+        "valid": true
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "16",
+      "metrics": {
+        "error": 0.05301583185791969,
+        "valid": true
+      }
+    },
+    {
+      "solver": "JAX-CFD",
+      "sweep_value": "32",
+      "metrics": {
+        "error": 0.017410458996891975,
+        "valid": true
+      }
+    }
+  ],
+  "extras": {
+    "spread": {
+      "16": 0.0,
+      "32": 0.0
+    },
+    "reference_label": "OpenFOAM numerical reference",
+    "convergence_order": {
+      "JAX-CFD": 1.606469011291571
+    }
+  },
+  "provenance": {
+    "tesseract_hashes": {
+      "PhiFlow": "f8025ed82a5a1793",
+      "OpenFOAM": "9798c3d4b9cd23ec",
+      "Oceananigans": "3006f94e0945ba18",
+      "WaterLily": "2aa88095045a039a",
+      "INS.jl": "a6584554f49cee5a",
+      "JAX-CFD": "a3c8ec8d615f5240"
+    },
+    "harness_hash": "03e37545ec5227ae",
+    "harness_fn": "mosaic.benchmarks.problems.buoyancy_grid.forward.openfoam_agreement",
+    "wall_time_s": {
+      "PhiFlow": 5.8604193539358675,
+      "OpenFOAM": 2.2933742670575157,
+      "Oceananigans": 6.656281421077438,
+      "WaterLily": 0.7173181640682742,
+      "INS.jl": 17.796431003022008,
+      "JAX-CFD": 3.24518825893756
+    },
+    "environment": {
+      "python_version": "3.12.3",
+      "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+      "mosaic_version": "0.0.0+unknown",
+      "timestamp": "2026-10-29T15:09:15.653333+00:00"
+    },
+    "run_meta": {
+      "timestamp": "2026-10-29T15:09:15Z",
+      "ci": false,
+      "runner": "",
+      "github_run_id": "",
+      "github_sha": "",
+      "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39"
+    }
+  }
+}
