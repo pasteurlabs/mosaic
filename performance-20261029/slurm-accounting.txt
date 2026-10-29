@@ -1,0 +1,15 @@
+3619395|COMPLETED|00:00:41||rtx12|billing=4,cpu=4,mem=16G,node=1
+3619395.batch|COMPLETED|00:00:41|2239944K|rtx12|cpu=4,mem=16G,node=1
+3619395.extern|COMPLETED|00:00:41||rtx12|billing=4,cpu=4,mem=16G,node=1
+3619401|COMPLETED|00:22:44||rtx02|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619401.batch|COMPLETED|00:22:44|14306276K|rtx02|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619401.extern|COMPLETED|00:22:44||rtx02|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619405|FAILED|00:00:25||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619405.batch|FAILED|00:00:25|13409504K|rtx05|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619405.extern|COMPLETED|00:00:25||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619434|COMPLETED|00:47:08||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619434.batch|COMPLETED|00:47:08|7954008K|rtx05|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619434.extern|COMPLETED|00:47:08||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619994|COMPLETED|00:26:50||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619994.batch|COMPLETED|00:26:50|14642060K|rtx05|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1
+3619994.extern|COMPLETED|00:26:50||rtx05|billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=32G,node=1

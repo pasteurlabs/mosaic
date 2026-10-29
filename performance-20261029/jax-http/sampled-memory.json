@@ -1,0 +1,41 @@
+{
+  "scope": "Approximate phase boundaries from selected-checkpoint file modification time minus recorded fit duration; two-second process sampler, not cgroup peak. Shared process retains earlier compiled graphs. File timestamps are recorded as evidence.",
+  "phases": {
+    "old": {
+      "start_epoch_approx": 1793293789.9914875,
+      "end_checkpoint_mtime_epoch": 1793294348.0421293,
+      "samples": 276,
+      "max_sampled_summed_rss_bytes": 2506620928,
+      "start_sampled_rss_bytes": 2409623552,
+      "last_sampled_rss_bytes": 2506620928,
+      "max_owned_gpu_memory_mib": 610.0,
+      "gpu_server_pids": [
+        3989
+      ],
+      "max_sampled_rss_by_pid_bytes": {
+        "3716": 3145728,
+        "3989": 1221066752,
+        "4056": 1280835584,
+        "4057": 1572864
+      }
+    },
+    "fused": {
+      "start_epoch_approx": 1793294348.2736409,
+      "end_checkpoint_mtime_epoch": 1793294678.8675401,
+      "samples": 164,
+      "max_sampled_summed_rss_bytes": 2656985088,
+      "start_sampled_rss_bytes": 2509766656,
+      "last_sampled_rss_bytes": 2656985088,
+      "max_owned_gpu_memory_mib": 610.0,
+      "gpu_server_pids": [
+        3989
+      ],
+      "max_sampled_rss_by_pid_bytes": {
+        "3716": 3145728,
+        "3989": 1221066752,
+        "4056": 1431199744,
+        "4057": 1572864
+      }
+    }
+  }
+}

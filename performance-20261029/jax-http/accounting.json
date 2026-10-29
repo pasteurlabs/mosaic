@@ -1,0 +1,119 @@
+{
+  "complete": true,
+  "solver": "jax-cfd",
+  "client_devices": [
+    "cpu:0"
+  ],
+  "parity": {
+    "history_max_abs": 8.003553375601768e-11,
+    "history_relative_l2": 2.3557388896333929e-07,
+    "selected_params_max_abs": 3.2782554626464844e-07,
+    "same_selected_update": true,
+    "old_validation": 0.0006556209940738711,
+    "fused_validation": 0.00065561905186172
+  },
+  "initial_loss_gradient_parity": {
+    "value_bitwise": true,
+    "gradient_bitwise": true
+  },
+  "fits": {
+    "old": {
+      "fit_seconds": 558.0506416989956,
+      "training_seconds_including_first_compilation": 510.3351185658248,
+      "validation_seconds": 47.65128812298644,
+      "completed_updates": 256,
+      "selected_update": 192,
+      "selected_validation": 0.0006556209940738711,
+      "service_work": {
+        "apply:N64:steps8": {
+          "calls": 2548,
+          "server_seconds": 4.904305321048014,
+          "max_input_cfl": 0.24119915068149567,
+          "all_inputs_finite": true
+        },
+        "vjp:N64:steps8": {
+          "calls": 1792,
+          "server_seconds": 6.37358764547389,
+          "max_input_cfl": 0.2403586506843567,
+          "all_inputs_finite": true
+        }
+      },
+      "http_requests": {
+        "/abstract_eval": 2548,
+        "/apply": 2548,
+        "/vector_jacobian_product": 1792
+      }
+    },
+    "fused": {
+      "fit_seconds": 330.5938991549192,
+      "training_seconds_including_first_compilation": 295.630177598563,
+      "validation_seconds": 34.929648115998134,
+      "completed_updates": 256,
+      "selected_update": 192,
+      "selected_validation": 0.00065561905186172,
+      "service_work": {
+        "apply:N64:steps8": {
+          "calls": 2548,
+          "server_seconds": 4.8391810251632705,
+          "max_input_cfl": 0.24119915068149567,
+          "all_inputs_finite": true
+        },
+        "vjp:N64:steps8": {
+          "calls": 1792,
+          "server_seconds": 6.352646579733118,
+          "max_input_cfl": 0.2403586506843567,
+          "all_inputs_finite": true
+        }
+      },
+      "http_requests": {
+        "/abstract_eval": 508,
+        "/apply": 2548,
+        "/vector_jacobian_product": 1792
+      }
+    }
+  },
+  "all_service_work": {
+    "apply:N128:steps16": {
+      "calls": 600,
+      "server_seconds": 2.8555646260501817,
+      "max_input_cfl": 0.24252387881278992,
+      "all_inputs_finite": true
+    },
+    "apply:N128:steps32": {
+      "calls": 600,
+      "server_seconds": 3.7295290430774912,
+      "max_input_cfl": 0.12141566723585129,
+      "all_inputs_finite": true
+    },
+    "apply:N64:steps8": {
+      "calls": 5862,
+      "server_seconds": 12.169122876483016,
+      "max_input_cfl": 0.24119915068149567,
+      "all_inputs_finite": true
+    },
+    "vjp:N64:steps8": {
+      "calls": 3612,
+      "server_seconds": 18.931928867823444,
+      "max_input_cfl": 0.2403586506843567,
+      "all_inputs_finite": true
+    },
+    "apply:N64:steps16": {
+      "calls": 1,
+      "server_seconds": 0.8472188459709287,
+      "max_input_cfl": 0.0,
+      "all_inputs_finite": true
+    }
+  },
+  "cost_scope": "One shared reference/admission preparation; paired fits share a solver service warmed by those gates. Each host fit first-call compilation charged. Old then fused order fixed; not independent cold end-to-end CI timings.",
+  "source_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-profile-20261029/training-old.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+    "/scratch/jobs/3619401/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "42efbb8e04829fdf995131efba6a6f370a03e106b0fa053dfe0dd00542d88c2a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-profile-20261029/driver.py": "0b56e7ff786d912549bf1bfb596432f734e9f8d0ff71bcef3be7d3b400ff84ac",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-profile-20261029/server_api.py": "1e6b6c0319ee8d0c744590479a8d3ed357e12813bd82409c97193ba6909d0294"
+  },
+  "http_event_alignment": {
+    "counted_native_completions": 10675,
+    "recorded_native_events": 10675,
+    "scope": "Ordered serial requests; abstract requests counted at adjacent native event boundary"
+  }
+}

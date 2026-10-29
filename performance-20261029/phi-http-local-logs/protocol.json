@@ -1,0 +1,163 @@
+{
+  "job": 3619994,
+  "campaign": "buoyancy-http-fit-phiflow-lowio-20261029",
+  "source_commit": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "candidate_training_sha256": "42efbb8e04829fdf995131efba6a6f370a03e106b0fa053dfe0dd00542d88c2a",
+  "baseline_commit": "54c53d7",
+  "source_archive_manifest": "0ca8f263ef1676fd2b79871de7202e34f8a9e3df32ac416037f6c66ac01c36bf  source.tar",
+  "executed_script_manifest": [
+    "f64965b7eb11c7c99c1d8ab8b55e3a03b33a9267674c2fbc5965b41d8790defb  driver.py",
+    "c67fb869c9344790c97025c584bccaa8806e1cf6def71d56ccf877951a70b5ef  server_api.py",
+    "edbe5a9080fc6621f9cc739172bd42015f32cf0f85d7ae08dea1b392b5883e2a  node.sh",
+    "b224bd4f2d033ddb067abe7dde16e894f9d5c77a9dde5fac5024e057125992cd  submit.py",
+    "cab2e765505bb9b836132c90aa4d0afa42399b0fea5873954b931e2905e1f094  monitor.py",
+    "0aac9df11b80518d7286889244d1598a420dfd423c7dcfaae010d8661edc1cd9  progress.py",
+    "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6  training-old.py",
+    "42efbb8e04829fdf995131efba6a6f370a03e106b0fa053dfe0dd00542d88c2a  training-candidate.py"
+  ],
+  "run": {
+    "ic": {
+      "name": "interacting_plumes",
+      "seed": 0
+    },
+    "physics": {
+      "N": 64,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 8
+    },
+    "training": {
+      "updates": 256,
+      "unroll": 8,
+      "train_frames": 100,
+      "eval_frames": 100,
+      "reference_factor": 2,
+      "learning_rates": [
+        0.003
+      ],
+      "hidden_channels": 8,
+      "train_cases": [
+        {
+          "seed": 0
+        },
+        {
+          "seed": 2,
+          "position_jitter": 0.04,
+          "width_jitter": 0.15,
+          "amplitude_jitter": 0.15
+        },
+        {
+          "seed": 3,
+          "position_jitter": 0.04,
+          "width_jitter": 0.15,
+          "amplitude_jitter": 0.15
+        },
+        {
+          "seed": 4,
+          "position_jitter": 0.04,
+          "width_jitter": 0.15,
+          "amplitude_jitter": 0.15
+        }
+      ],
+      "validation_seed": 1,
+      "test_seed": 100,
+      "model_seed": 0,
+      "window_seed": 0,
+      "validation_interval": 64,
+      "reference_tolerance": 0.05,
+      "fd_epsilon": 0.003,
+      "fd_tolerance": 0.05,
+      "correct_temperature": false
+    }
+  },
+  "fit_protocol": {
+    "updates": 256,
+    "lr": 0.003,
+    "validation_interval": 64,
+    "horizon": 8
+  },
+  "order": "fused, old",
+  "logging": "node-local, copied on exit",
+  "client": "JAX CPU",
+  "solver_service": "Separate GPU process through actual Tesseract HTTP apply/VJP; no native bypass",
+  "hardware": "RTX 5090, four allocated CPU cores, 32 GB allocation",
+  "transport_environment": "Package-based allocation, not a production Docker container or a matched T4 CI VM. Package versions included. Container XLA environment was not replicated exactly.",
+  "compilation_accounting": "Timers include first-call work (compilation or executable-cache loading). Slurm Runner supplies a shared persistent JAX compilation cache; these are not isolated cold-cache trials.",
+  "data_hashes": {
+    "training_jax": "eddcbf40c3b03b919d7dc5450880c1df20026e2882f0e7f5a152dca0b2acbfa6",
+    "scales": "ad7e19a0a9b18af2d129035b3c2b825aa2d260287c401d65ab455d2a5c02320b",
+    "case_schedule": "5d27e88753c417ea8acec202db1ce50ae508b702e464147cae5140e066d6237e",
+    "start_schedule": "5cfdc97db4be02c017046eae3060b100e09d76095080bb6b797ca743fb6cd353"
+  },
+  "validation_sha256": "0c2b622aa2fa5c8ad4acb715d7ab64151f2d9e487ff87bec24e8ced177e7f735",
+  "initial_parameter_leaf_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "b9e3026b6f2f22769417a476e83dc1bf9c1c853fd43a4631e7bdbb17ed4406d0",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "39396c525b9c3f4aff19332428586a17ff43451dcc87ebfd23bc9d452b549020",
+    "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+  ],
+  "source_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/training-old.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+    "/scratch/jobs/3619994/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "42efbb8e04829fdf995131efba6a6f370a03e106b0fa053dfe0dd00542d88c2a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/driver.py": "f64965b7eb11c7c99c1d8ab8b55e3a03b33a9267674c2fbc5965b41d8790defb",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/server_api.py": "c67fb869c9344790c97025c584bccaa8806e1cf6def71d56ccf877951a70b5ef"
+  },
+  "reference_and_gradient_gates": {
+    "reference": {
+      "spatial_factor": 2,
+      "time_refinement_error": 0.001894327477755483,
+      "audit_gap_ratio": 0.0174148510710387,
+      "splits": {
+        "train": {
+          "time_refinement_error": 0.0018815258063322941,
+          "coarse_gap": 0.10804145258878009,
+          "audit_gap_ratio": 0.0174148510710387
+        },
+        "train_1": {
+          "time_refinement_error": 0.001417237961323953,
+          "coarse_gap": 0.08699176317886939,
+          "audit_gap_ratio": 0.016291633937915228
+        },
+        "train_2": {
+          "time_refinement_error": 0.0012861554379013595,
+          "coarse_gap": 0.08289502900300964,
+          "audit_gap_ratio": 0.0155154712335605
+        },
+        "train_3": {
+          "time_refinement_error": 0.0016367327986740818,
+          "coarse_gap": 0.09780145899075064,
+          "audit_gap_ratio": 0.016735259530523693
+        },
+        "validation": {
+          "time_refinement_error": 0.0017245510885987925,
+          "coarse_gap": 0.09981946881721068,
+          "audit_gap_ratio": 0.017276700718141358
+        },
+        "test": {
+          "time_refinement_error": 0.001894327477755483,
+          "coarse_gap": 0.11014537543475966,
+          "audit_gap_ratio": 0.017198429532590903
+        }
+      }
+    },
+    "gradient_check": {
+      "autodiff": 0.0009254717151634395,
+      "finite_difference": 0.000943118124268949,
+      "relative_error": 0.01871070934957167,
+      "epsilon": 0.003
+    },
+    "gradient_check_nonzero": {
+      "autodiff": 0.009617606177926064,
+      "finite_difference": 0.009627629071474075,
+      "relative_error": 0.0010410552248745065,
+      "epsilon": 0.003
+    },
+    "recurrence_error": 4.942127134199836e-07
+  },
+  "full_raw_evidence_location": "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029",
+  "raw_profile_sha256": "b489245af564c2ddbd38f1b747db1725b216400975e5f505aac407b93687782e"
+}

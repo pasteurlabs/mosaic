@@ -1,0 +1,134 @@
+{
+  "source_commit": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "source_url": "https://github.com/pasteurlabs/mosaic/commit/1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "change": "Compile recurrent loss, gradients, Adam and finite checks together; dynamically select the unchanged balanced training schedule. No learning recipe or acceptance gate changes.",
+  "tests": {
+    "slurm_job": 3619395,
+    "passed": 26,
+    "seconds": 27.59,
+    "scope": "Existing buoyancy training tests plus compiled/eager schedule/checkpoint parity and gradient/parameter nonfinite regressions; frozen production lock on non-DGX CPU."
+  },
+  "profiles": [
+    {
+      "profile": "jax-http",
+      "job": 3619401,
+      "order": "old, fused",
+      "logging": "shared filesystem",
+      "training_seconds_old": 510.3351185658248,
+      "training_seconds_fused": 295.630177598563,
+      "training_time_reduction_percent": 42.071363140878645,
+      "fit_seconds_old": 558.0506416989956,
+      "fit_seconds_fused": 330.5938991549192,
+      "fit_time_reduction_percent": 40.75915795949631,
+      "validation_seconds_old": 47.65128812298644,
+      "validation_seconds_fused": 34.929648115998134,
+      "updates_each": 256,
+      "selected_update_old": 192,
+      "selected_update_fused": 192,
+      "parity": {
+        "history_max_abs": 8.003553375601768e-11,
+        "history_relative_l2": 2.3557388896333929e-07,
+        "selected_params_max_abs": 3.2782554626464844e-07,
+        "same_selected_update": true,
+        "old_validation": 0.0006556209940738711,
+        "fused_validation": 0.00065561905186172
+      },
+      "initial_objective_and_gradient_bitwise_equal": true,
+      "actual_native_calls_per_fit": {
+        "apply": 2548,
+        "vjp": 1792
+      },
+      "abstract_eval_calls_old": 2548,
+      "abstract_eval_calls_fused": 508
+    },
+    {
+      "profile": "phi-http-original",
+      "job": 3619434,
+      "order": "old, fused",
+      "logging": "shared filesystem",
+      "training_seconds_old": 789.4962535478408,
+      "training_seconds_fused": 799.1074572268408,
+      "training_time_reduction_percent": -1.2173843303003862,
+      "fit_seconds_old": 864.5299326039385,
+      "fit_seconds_fused": 888.4946917829802,
+      "fit_time_reduction_percent": -2.771998779366802,
+      "validation_seconds_old": 74.96741795411799,
+      "validation_seconds_fused": 89.35841233597603,
+      "updates_each": 256,
+      "selected_update_old": 256,
+      "selected_update_fused": 256,
+      "parity": {
+        "history_max_abs": 1.1641532182693481e-10,
+        "history_relative_l2": 1.2085723988766912e-07,
+        "selected_params_max_abs": 2.980232238769531e-07,
+        "same_selected_update": true,
+        "old_validation": 0.004846764112950268,
+        "fused_validation": 0.004846768813570748
+      },
+      "initial_objective_and_gradient_bitwise_equal": true,
+      "actual_native_calls_per_fit": {
+        "apply": 2548,
+        "vjp": 1792
+      },
+      "abstract_eval_calls_old": 2548,
+      "abstract_eval_calls_fused": 508
+    },
+    {
+      "profile": "phi-http-local-logs",
+      "job": 3619994,
+      "order": "fused, old",
+      "logging": "node-local, copied on exit",
+      "training_seconds_old": 416.4092217759462,
+      "training_seconds_fused": 353.5783082722919,
+      "training_time_reduction_percent": 15.088742087816009,
+      "fit_seconds_old": 452.0033141900785,
+      "fit_seconds_fused": 390.28309852594975,
+      "fit_time_reduction_percent": 13.654814849028718,
+      "validation_seconds_old": 35.591081970138475,
+      "validation_seconds_fused": 36.629256278974935,
+      "updates_each": 256,
+      "selected_update_old": 256,
+      "selected_update_fused": 256,
+      "parity": {
+        "history_max_abs": 8.731149137020111e-11,
+        "history_relative_l2": 1.2476617230531536e-07,
+        "selected_params_max_abs": 2.682209014892578e-07,
+        "same_selected_update": true,
+        "old_validation": 0.004846772963946364,
+        "fused_validation": 0.004846766860176217
+      },
+      "initial_objective_and_gradient_bitwise_equal": true,
+      "actual_native_calls_per_fit": {
+        "apply": 2548,
+        "vjp": 1792
+      },
+      "abstract_eval_calls_old": 2548,
+      "abstract_eval_calls_fused": 508,
+      "fused_per_update_timing": {
+        "first_seconds": 2.8700023900019005,
+        "remaining_total_seconds": 350.70830588229,
+        "remaining_median_seconds": 1.3690348929958418
+      },
+      "old_per_update_timing": {
+        "first_seconds": 3.3644818320171908,
+        "remaining_total_seconds": 413.044739943929,
+        "remaining_median_seconds": 1.6205582990078256
+      }
+    }
+  ],
+  "interpretation": [
+    "Both completed comparisons preserve all 256 updates, the selected update, original reference/FD/restart gates, and near-identical float32 loss histories/parameters. This is an execution optimization, not an accuracy improvement.",
+    "JAX shows a substantial paired training reduction. The first Phi profile showed a 1.22% regression; this negative result is deliberately retained.",
+    "The counterbalanced Phi repeat with node-local logs shows a 15.09% training reduction. Both order and logging changed, so the difference between Phi trials is not proof that filesystem logging alone caused the earlier result.",
+    "First-call work is included, but shared persistent executable caches were enabled. No claim of isolated cold compilation or cold end-to-end CI speedup.",
+    "Reference generation and initial admission are shared preparation, unchanged by this patch. Whole CI also includes image/setup/plotting costs not measured by the fit comparison.",
+    "Sampled process RSS is distinct from Slurm whole-allocation MaxRSS. Both measures are retained; no claim that the whole job fits within the smaller sampled fit-phase RSS."
+  ],
+  "preserved_setup_failure": {
+    "job": 3619405,
+    "campaign": "buoyancy-http-fit-phiflow-20261029",
+    "failure": "Server configured with cuda-only backend; Phi DLPack host conversion required CPU backend too. Retried with cuda,cpu while asserting default GPU; CPU client unchanged. Not a numerical training failure."
+  },
+  "benchmark_ci_label": "Not enabled or dispatched by this work",
+  "large_raw_artifacts": "No NPZ arrays, raw HTTP logs, or source tar archives copied to this artifact folder; hashes and cluster locations retained."
+}

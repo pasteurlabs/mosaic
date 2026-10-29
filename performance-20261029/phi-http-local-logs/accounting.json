@@ -1,0 +1,119 @@
+{
+  "complete": true,
+  "solver": "phiflow",
+  "client_devices": [
+    "cpu:0"
+  ],
+  "parity": {
+    "history_max_abs": 8.731149137020111e-11,
+    "history_relative_l2": 1.2476617230531536e-07,
+    "selected_params_max_abs": 2.682209014892578e-07,
+    "same_selected_update": true,
+    "old_validation": 0.004846772963946364,
+    "fused_validation": 0.004846766860176217
+  },
+  "initial_loss_gradient_parity": {
+    "value_bitwise": true,
+    "gradient_bitwise": true
+  },
+  "fits": {
+    "fused": {
+      "fit_seconds": 390.28309852594975,
+      "training_seconds_including_first_compilation": 353.5783082722919,
+      "validation_seconds": 36.629256278974935,
+      "completed_updates": 256,
+      "selected_update": 256,
+      "selected_validation": 0.004846766860176217,
+      "service_work": {
+        "apply:N64:steps8": {
+          "calls": 2548,
+          "server_seconds": 145.9940943948459,
+          "max_input_cfl": 0.19996996223926544,
+          "all_inputs_finite": true
+        },
+        "vjp:N64:steps8": {
+          "calls": 1792,
+          "server_seconds": 185.87535009847488,
+          "max_input_cfl": 0.19968350231647491,
+          "all_inputs_finite": true
+        }
+      },
+      "http_requests": {
+        "/abstract_eval": 508,
+        "/apply": 2548,
+        "/vector_jacobian_product": 1792
+      }
+    },
+    "old": {
+      "fit_seconds": 452.0033141900785,
+      "training_seconds_including_first_compilation": 416.4092217759462,
+      "validation_seconds": 35.591081970138475,
+      "completed_updates": 256,
+      "selected_update": 256,
+      "selected_validation": 0.004846772963946364,
+      "service_work": {
+        "apply:N64:steps8": {
+          "calls": 2548,
+          "server_seconds": 136.21753540216014,
+          "max_input_cfl": 0.19996996223926544,
+          "all_inputs_finite": true
+        },
+        "vjp:N64:steps8": {
+          "calls": 1792,
+          "server_seconds": 187.96028504590504,
+          "max_input_cfl": 0.19968350231647491,
+          "all_inputs_finite": true
+        }
+      },
+      "http_requests": {
+        "/abstract_eval": 2548,
+        "/apply": 2548,
+        "/vector_jacobian_product": 1792
+      }
+    }
+  },
+  "all_service_work": {
+    "apply:N128:steps16": {
+      "calls": 600,
+      "server_seconds": 203.02875915530603,
+      "max_input_cfl": 0.2009008675813675,
+      "all_inputs_finite": true
+    },
+    "apply:N128:steps32": {
+      "calls": 600,
+      "server_seconds": 405.71598889818415,
+      "max_input_cfl": 0.10024724900722504,
+      "all_inputs_finite": true
+    },
+    "apply:N64:steps8": {
+      "calls": 5862,
+      "server_seconds": 326.74095790379215,
+      "max_input_cfl": 0.19996996223926544,
+      "all_inputs_finite": true
+    },
+    "vjp:N64:steps8": {
+      "calls": 3612,
+      "server_seconds": 380.3410385607276,
+      "max_input_cfl": 0.19968350231647491,
+      "all_inputs_finite": true
+    },
+    "apply:N64:steps16": {
+      "calls": 1,
+      "server_seconds": 1.5455216319533065,
+      "max_input_cfl": 0.0,
+      "all_inputs_finite": true
+    }
+  },
+  "cost_scope": "One shared reference/admission preparation; paired fits share a solver service warmed by those gates. Each host fit first-call compilation charged. Fused then old order fixed (counterbalanced against prior old-first profile); not independent cold end-to-end CI timings.",
+  "source_sha256": {
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/training-old.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+    "/scratch/jobs/3619994/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "42efbb8e04829fdf995131efba6a6f370a03e106b0fa053dfe0dd00542d88c2a",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/driver.py": "f64965b7eb11c7c99c1d8ab8b55e3a03b33a9267674c2fbc5965b41d8790defb",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-http-fit-phiflow-lowio-20261029/server_api.py": "c67fb869c9344790c97025c584bccaa8806e1cf6def71d56ccf877951a70b5ef"
+  },
+  "http_event_alignment": {
+    "counted_native_completions": 10675,
+    "recorded_native_events": 10675,
+    "scope": "Ordered serial requests; abstract requests counted at adjacent native event boundary"
+  }
+}
