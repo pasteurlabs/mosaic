@@ -11,6 +11,7 @@ from PIL import Image
 from mosaic.benchmarks.problems.buoyancy_grid.animation import (
     _center_velocity,
     _field_indices,
+    _overlay_indices,
     _palette,
     _reduce,
     write_error_gif,
@@ -69,24 +70,25 @@ def test_animation_all_solvers_frames_and_global_scales(tmp_path):
         assert zero.getpixel((197, 188)) == zero.getpixel((509, 188)) == (0, 0, 0)
         animation.seek(2)
         frame = animation.convert("RGB")
-        temperature, velocity = frame.getpixel((353, 188)), frame.getpixel((821, 188))
         assert animation.width <= 1100
         for row in range(5):
-            for x in (197, 665):
-                gray = frame.getpixel((x, 188 + row * 172))
-                assert gray[0] == gray[1] == gray[2] and gray[0] > 0
-        assert temperature[0] > temperature[2]
-        assert velocity[2] > velocity[0]
+            # Constant scalar errors have no interior contours: each arm shows
+            # its own actual scalar, with a shared row range.
+            baseline = frame.getpixel((197, 172 + row * 221))
+            corrected = frame.getpixel((353, 172 + row * 221))
+            assert baseline[0] == baseline[1] == baseline[2] == 255
+            assert corrected[0] == corrected[1] == corrected[2]
+            assert 0 < corrected[0] < baseline[0]
     assert path.with_suffix(".png").exists()
     receipt = json.loads(path.with_suffix(".json").read_text())
     assert receipt["solvers"] == names
-    assert len(receipt["columns"]) == 6
-    assert receipt["actual_field_ranges"] == {
-        "temperature": [0, 2.5],
-        "speed": [0, 2.5],
-    }
-    assert receipt["scalar_max"] == 5
-    assert receipt["velocity_max"] == 5
+    assert len(receipt["columns"]) == 4
+    for index, name in enumerate(names):
+        scale = receipt["row_scales"][name]
+        assert scale["temperature_range"] == [0, index + 1]
+        assert scale["speed_range"] == [0, index + 1]
+        assert scale["temperature_error_max"] == index + 1
+        assert scale["velocity_error_max"] == index + 1
     assert receipt["frames"] == 3 and receipt["frame_interval"] == 0.04
 
 
@@ -141,11 +143,31 @@ def test_corrected_fields_remain_visible_when_errors_are_zero(tmp_path):
     path = write_error_gif(cfg, tmp_path, result, snapshots)
     with Image.open(path) as animation:
         frame = animation.convert("RGB")
-        for x in (197, 665):
+        for x in (197, 353, 509, 665):
             gray = frame.getpixel((x, 188))
             assert gray[0] == gray[1] == gray[2] and gray[0] > 0
-        for x in (353, 509, 821, 977):
-            assert frame.getpixel((x, 188)) == (0, 0, 0)
     receipt = json.loads(path.with_suffix(".json").read_text())
-    assert receipt["actual_field_ranges"]["temperature"] == [-1, 1]
-    assert receipt["scalar_max"] == receipt["velocity_max"] == 0
+    scale = receipt["row_scales"]["PhiFlow"]
+    assert scale["temperature_range"] == [-1, 1]
+    assert scale["temperature_error_max"] == scale["velocity_error_max"] == 0
+
+
+def test_contours_preserve_underlay_and_do_not_fill_constant_errors():
+    actual = np.full((32, 32), 0.6)
+    constant_error = np.ones_like(actual)
+    np.testing.assert_array_equal(
+        _overlay_indices(actual, constant_error, 0), _field_indices(actual, 2)
+    )
+    error = np.broadcast_to(np.linspace(0, 1, 32), (32, 32))
+    baseline = _overlay_indices(actual, error, 0)
+    corrected = _overlay_indices(actual / 2, error, 0)
+    colored = baseline < 192
+    assert colored.any() and (~colored).any()
+    np.testing.assert_array_equal(baseline[colored], corrected[colored])
+    assert np.all(baseline[~colored] > corrected[~colored])
+    # A thousandfold smaller row remains legible with its own fixed paired scale.
+    np.testing.assert_array_equal(
+        _overlay_indices(actual, (error * 0.001) / 0.001, 0), baseline
+    )
+    blue = _overlay_indices(actual, error, 1)
+    assert np.all((blue[colored] >= 96) & (blue[colored] < 192))

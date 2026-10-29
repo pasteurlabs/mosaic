@@ -74,10 +74,33 @@ def _palette() -> list[int]:
     return palette.ravel().tolist()
 
 
+_CONTOUR_LEVELS = (0.1, 0.25, 0.5, 0.75, 0.9)
+
+
+def _overlay_indices(actual: np.ndarray, error: np.ndarray, group: int) -> np.ndarray:
+    """Draw threshold crossings over grayscale, without tinting entire error regions.
+
+    Crossings mark the high side of neighboring cell pairs. The domain border
+    is not a contour; a spatially constant error has no interior contour.
+    """
+    indices = _field_indices(actual, 2)
+    for level in _CONTOUR_LEVELS:
+        high = error >= level
+        boundary = np.zeros_like(high)
+        cross = high[1:, :] != high[:-1, :]
+        boundary[1:, :] |= cross & high[1:, :]
+        boundary[:-1, :] |= cross & high[:-1, :]
+        cross = high[:, 1:] != high[:, :-1]
+        boundary[:, 1:] |= cross & high[:, 1:]
+        boundary[:, :-1] |= cross & high[:, :-1]
+        indices[boundary] = _field_indices(np.asarray(level), group)
+    return indices
+
+
 def write_error_gif(
     cfg: Problem, out: Path, result: dict, snapshots: dict
 ) -> Path | None:
-    """Save all available solvers together, with one fixed scale per physical field.
+    """Save both actual arms with error contours; paired scales stay fixed per row.
 
     Scalar error is absolute scalar difference. Velocity error is the norm of
     the difference of cell-centered velocity vectors, not speed differences.
@@ -116,7 +139,9 @@ def write_error_gif(
             np.linalg.norm(_center_velocity(corrected) - ref_velocity, axis=-1),
         ]
         fields = [
+            baseline[..., 2],
             corrected[..., 2],
+            np.linalg.norm(_center_velocity(baseline), axis=-1),
             np.linalg.norm(_center_velocity(corrected), axis=-1),
         ]
         rows.append((name, [_reduce(a) for a in errors], [_reduce(a) for a in fields]))
@@ -125,26 +150,26 @@ def write_error_gif(
     frames = len(rows[0][1][0])
     if any(len(a) != frames for _, errors, _ in rows for a in errors):
         raise ValueError("Combined error animation requires equal frame counts")
-    maxima = [
-        max(float(a.max()) for _, errors, _ in rows for a in errors[start : start + 2])
-        for start in (0, 2)
-    ]
-    scales = [max(v, 1e-12) for v in maxima]
-    field_ranges = [
-        (
-            min(float(a[0].min()) for _, _, a in rows),
-            max(float(a[0].max()) for _, _, a in rows),
-        ),
-        (0.0, max(float(a[1].max()) for _, _, a in rows)),
-    ]
+    row_scales = {}
+    for name, errors, fields in rows:
+        row_scales[name] = {
+            "temperature_error_max": max(float(a.max()) for a in errors[:2]),
+            "velocity_error_max": max(float(a.max()) for a in errors[2:]),
+            "temperature_range": [
+                min(0.0, *(float(a.min()) for a in fields[:2])),
+                max(0.0, *(float(a.max()) for a in fields[:2])),
+            ],
+            "speed_range": [0.0, max(float(a.max()) for a in fields[2:])],
+        }
     physics = result.get("params", {}).get("physics", {})
     interval = float(physics["dt"]) * int(physics["steps"])
     extent = float(physics.get("domain_extent", cfg.domain_extent))
     palette = _palette()
     font = ImageFont.load_default(size=14)
     small = ImageFont.load_default(size=12)
-    panel, gap, left, top = 144, 12, 125, 116
-    width, height = left + 6 * (panel + gap), top + len(rows) * (panel + 28) + 38
+    panel, gap, left, top = 144, 12, 125, 100
+    row_height = panel + 77
+    width, height = left + 4 * (panel + gap), top + len(rows) * row_height + 38
     images = []
     for frame in range(frames):
         image = Image.new("P", (width, height), color=255)
@@ -152,60 +177,85 @@ def write_error_gif(
         draw = ImageDraw.Draw(image)
         draw.text(
             (12, 8),
-            f"Held-out corrected fields and errors | time {frame * interval:.2f} | frame {frame}/{frames - 1}",
+            f"Held-out fields + error contours | time {frame * interval:.2f} | frame {frame}/{frames - 1}",
             fill=254,
             font=font,
         )
         draw.text(
             (12, 29),
-            "Own-solver restricted fine reference; fixed scales over all solvers and times",
+            "Gray: each arm's actual field. Red/blue lines: error vs own-solver fine reference.",
             fill=253,
             font=small,
         )
-        for column, title, group, limits, span in (
-            (0, "Corrected temperature", 2, field_ranges[0], 1),
-            (1, "Temperature absolute error", 0, (0, maxima[0]), 2),
-            (3, "Corrected speed", 2, field_ranges[1], 1),
-            (4, "Velocity vector error", 1, (0, maxima[1]), 2),
+        draw.text(
+            (12, 46),
+            "Scales differ by row; paired arms share scales fixed over time. Compare within each row.",
+            fill=253,
+            font=small,
+        )
+        for column, title in enumerate(
+            (
+                "Uncorrected temperature",
+                "Corrected temperature",
+                "Uncorrected speed",
+                "Corrected speed",
+            )
         ):
-            x = left + column * (panel + gap)
-            bar_width = span * panel + (span - 1) * gap
-            draw.text((x, 50), title, fill=254, font=small)
-            colors = _field_indices(np.linspace(0, 1, bar_width), group)
-            for pixel, color in enumerate(colors):
-                draw.line((x + pixel, 72, x + pixel, 80), fill=int(color))
-            draw.text((x, 82), f"{limits[0]:.3g}", fill=254, font=small)
-            draw.text(
-                (x + bar_width - 55, 82), f"{limits[1]:.3g}", fill=254, font=small
-            )
+            draw.text((left + column * (panel + gap), 76), title, fill=254, font=small)
         for i, (name, errors, fields) in enumerate(rows):
-            y = top + i * (panel + 28)
+            y = top + i * row_height
             draw.text((8, y + panel // 2), name, fill=254, font=font)
-            panels = (
-                (fields[0], 2, field_ranges[0], "Selected correction"),
-                (errors[0], 0, (0, scales[0]), "Uncorrected error"),
-                (errors[1], 0, (0, scales[0]), "Corrected error"),
-                (fields[1], 2, field_ranges[1], "Selected correction"),
-                (errors[2], 1, (0, scales[1]), "Uncorrected error"),
-                (errors[3], 1, (0, scales[1]), "Corrected error"),
-            )
-            for column, (values, group, limits, label) in enumerate(panels):
-                x = left + column * (panel + gap)
+            scale = row_scales[name]
+            for column, (values, error) in enumerate(zip(fields, errors, strict=True)):
+                group = column // 2
+                limits = scale["temperature_range" if group == 0 else "speed_range"]
+                error_max = scale[
+                    "temperature_error_max" if group == 0 else "velocity_error_max"
+                ]
                 normalized = (values[frame].T[::-1] - limits[0]) / max(
                     limits[1] - limits[0], 1e-12
                 )
-                indices = _field_indices(normalized, group)
+                indices = _overlay_indices(
+                    normalized, error[frame].T[::-1] / max(error_max, 1e-12), group
+                )
                 tile = Image.frombytes(
                     "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
                 )
                 tile.putpalette(palette)
                 image.paste(
-                    tile.resize((panel, panel), Image.Resampling.NEAREST), (x, y)
+                    tile.resize((panel, panel), Image.Resampling.NEAREST),
+                    (left + column * (panel + gap), y),
                 )
-                draw.text((x, y + panel + 3), label, fill=254, font=small)
+            for group, field in enumerate(("temperature", "velocity")):
+                x = left + 2 * group * (panel + gap)
+                maximum = scale[f"{field}_error_max"]
+                limits = scale["temperature_range" if group == 0 else "speed_range"]
+                draw.text(
+                    (x, y + panel + 4),
+                    f"Gray range: {limits[0]:.3g} to {limits[1]:.3g}",
+                    fill=253,
+                    font=small,
+                )
+                draw.text(
+                    (x, y + panel + 21),
+                    f"Error max: {maximum:.3g}; contours / max:",
+                    fill=254,
+                    font=small,
+                )
+                for index, level in enumerate(_CONTOUR_LEVELS):
+                    bx = x + index * 60
+                    color = int(_field_indices(np.asarray(level), group))
+                    draw.line(
+                        (bx, y + panel + 44, bx + 12, y + panel + 44),
+                        fill=color,
+                        width=3,
+                    )
+                    draw.text(
+                        (bx + 16, y + panel + 36), f"{level:g}", fill=254, font=small
+                    )
         draw.text(
             (12, height - 28),
-            f"Box [0,{extent:g}]^2; block-mean fields/errors at up to 32x32 when divisible; 10 fps",
+            f"Box [0,{extent:g}]^2; block means up to 32x32; contour crossings only; 10 fps",
             fill=253,
             font=small,
         )
@@ -229,25 +279,22 @@ def write_error_gif(
                 "frames": frames,
                 "frame_interval": interval,
                 "fps": 10,
-                "scalar_max": maxima[0],
-                "velocity_max": maxima[1],
                 "columns": [
+                    "uncorrected_temperature",
                     "corrected_temperature",
-                    "uncorrected_temperature_error",
-                    "corrected_temperature_error",
+                    "uncorrected_speed",
                     "corrected_speed",
-                    "uncorrected_velocity_error",
-                    "corrected_velocity_error",
                 ],
-                "actual_field_ranges": {
-                    "temperature": list(field_ranges[0]),
-                    "speed": list(field_ranges[1]),
-                },
-                "normalization": "None; physical-state error units",
+                "row_scales": row_scales,
+                "contour_levels": list(_CONTOUR_LEVELS),
+                "normalization": (
+                    "Per solver and physical field, shared across both arms and all frames; "
+                    "not comparable across rows"
+                ),
                 "palettes": {
                     "temperature": "sequential red",
                     "velocity": "sequential blue",
-                    "zero": "black",
+                    "zero_error": "no contour; actual grayscale field remains visible",
                     "actual_fields": "sequential grayscale",
                 },
                 "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
