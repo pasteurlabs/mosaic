@@ -1,0 +1,54 @@
+{
+  "source_commit": "116cd4a",
+  "slurm_job": "3616995",
+  "numeric_source": "Existing CI38577109543 saved velocity-only corrector rollout; no numerical rerun",
+  "frames": 101,
+  "dimensions": [
+    743,
+    1314
+  ],
+  "row_error_maxima_unchanged": true,
+  "row_scales": {
+    "INS.jl": {
+      "temperature_error_max": 0.05716056376695633,
+      "velocity_error_max": 0.07980818301439285
+    },
+    "JAX-CFD": {
+      "temperature_error_max": 0.05104445293545723,
+      "velocity_error_max": 0.04885348305106163
+    },
+    "Oceananigans": {
+      "temperature_error_max": 0.02551414631307125,
+      "velocity_error_max": 0.030357591807842255
+    },
+    "PhiFlow": {
+      "temperature_error_max": 0.10983312129974365,
+      "velocity_error_max": 0.06452363729476929
+    },
+    "WaterLily": {
+      "temperature_error_max": 0.07424889504909515,
+      "velocity_error_max": 0.04762910678982735
+    }
+  },
+  "orientation": {
+    "solver": "JAX-CFD",
+    "method": "selected solver_in_loop correction",
+    "temperature_range": [
+      0.0,
+      0.9523515701293945
+    ],
+    "speed_range": [
+      0.0,
+      0.35698944330215454
+    ],
+    "selection": "JAX-CFD when available, otherwise first available solver"
+  },
+  "artifacts": {
+    "preview_end.png": "97216025743feeb6b6550bf8f79b0ea819be12445d59e6b796ad62ad6c40f883",
+    "error_evolution.json": "c6ba0c57b2501bd9dc683980994fbde0eec8786b899b3027fe4bc95df261fd5c",
+    "error_evolution.png": "97216025743feeb6b6550bf8f79b0ea819be12445d59e6b796ad62ad6c40f883",
+    "preview_middle.png": "7802ed3685955b1ead545e149b2ce6b7c9a2f9839342cad341952b2473938c43",
+    "error_evolution.gif": "8e7d13edf93b17014a4a9bdde258e75fa7596ea6bacea40334c4660bce3a9b3d",
+    "preview_start.png": "d85d645d1af7d6ea561b22b1c2602ae05cabf02e58a7ac4fbd6fed8491d0915e"
+  }
+}

@@ -1,0 +1,576 @@
+{
+  "rows": [
+    {
+      "path": "velocity-w32-muon-lr0.001-cosine-seed1",
+      "family": "Velocity w32 muon 0.001 cosine",
+      "seed": 1,
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed1",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 10433,
+      "status": "Completed",
+      "heldout_ratio": 0.5898871297520847,
+      "mean_heldout_loss": 0.0009914100010716,
+      "selected_validation_loss": 0.0005049391296066119,
+      "selected_window_evaluations": 160,
+      "final_validation_loss": 0.000506948063583792,
+      "largest_validation_jump_ratio": 1.2729833953103127,
+      "validation_log_total_variation": 2.610472283423638,
+      "training_seconds": 147.9832769347122,
+      "validation_seconds": 8.908691522665322,
+      "max_selected_advective_cfl": 0.22305236756801605,
+      "temperature": {
+        "final_relative_integral_drift": 1.3909512119880674e-07,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 1.1367996695813922
+    },
+    {
+      "path": "velocity-w32-muon-lr0.001-cosine-seed2",
+      "family": "Velocity w32 muon 0.001 cosine",
+      "seed": 2,
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed2",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 10433,
+      "status": "Completed",
+      "heldout_ratio": 0.3633516840923294,
+      "mean_heldout_loss": 0.0006106769843694337,
+      "selected_validation_loss": 0.0004699884720709946,
+      "selected_window_evaluations": 160,
+      "final_validation_loss": 0.0005069363536403416,
+      "largest_validation_jump_ratio": 1.354417726681303,
+      "validation_log_total_variation": 2.9281141939247854,
+      "training_seconds": 149.1472503246041,
+      "validation_seconds": 8.634241619263776,
+      "max_selected_advective_cfl": 0.22417274117469788,
+      "temperature": {
+        "final_relative_integral_drift": 1.3909512119880674e-07,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.5758937578875764
+    },
+    {
+      "path": "joint-w32-muon-lr0.001-cosine-seed1",
+      "family": "Joint w32 muon 0.001 cosine",
+      "seed": 1,
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed1",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": false,
+      "parameter_count": null,
+      "status": "FD admission rejected",
+      "failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616553/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}\n"
+      },
+      "heldout_ratio": null
+    },
+    {
+      "path": "joint-w32-muon-lr0.001-cosine-seed2",
+      "family": "Joint w32 muon 0.001 cosine",
+      "seed": 2,
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed2",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 10722,
+      "status": "Completed",
+      "heldout_ratio": 0.34746337552067935,
+      "mean_heldout_loss": 0.00058397386232528,
+      "selected_validation_loss": 0.0003567742425788367,
+      "selected_window_evaluations": 256,
+      "final_validation_loss": 0.0003567742425788367,
+      "largest_validation_jump_ratio": 18.835085234950547,
+      "validation_log_total_variation": 13.600490023855578,
+      "training_seconds": 161.97178954293486,
+      "validation_seconds": 9.851163315121084,
+      "max_selected_advective_cfl": 0.2243984043598175,
+      "temperature": {
+        "final_relative_integral_drift": 0.015486154705286026,
+        "maximum_undershoot": 0.001413344987668097,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.550711604810009
+    },
+    {
+      "path": "velocity-w8-adamw-lr0.001-none-seed1",
+      "family": "Velocity w8 adamw 0.001 constant",
+      "seed": 1,
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed1",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.4043389115104415,
+      "mean_heldout_loss": 0.0006795632935106255,
+      "selected_validation_loss": 0.0004906607517072815,
+      "selected_window_evaluations": 208,
+      "final_validation_loss": 0.0005278167164199487,
+      "largest_validation_jump_ratio": 1.3279161706469726,
+      "validation_log_total_variation": 2.5875981080255954,
+      "training_seconds": 14.426407916704193,
+      "validation_seconds": 9.461198030039668,
+      "max_selected_advective_cfl": 0.2236660271883011,
+      "temperature": {
+        "final_relative_integral_drift": 6.954756059940337e-08,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.7792208336485498
+    },
+    {
+      "path": "velocity-w8-adamw-lr0.001-none-seed2",
+      "family": "Velocity w8 adamw 0.001 constant",
+      "seed": 2,
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed2",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.465364651894036,
+      "mean_heldout_loss": 0.0007821278796620846,
+      "selected_validation_loss": 0.0005073166629194503,
+      "selected_window_evaluations": 240,
+      "final_validation_loss": 0.0005709299254014155,
+      "largest_validation_jump_ratio": 1.4199197301189896,
+      "validation_log_total_variation": 2.745510983938652,
+      "training_seconds": 13.971768383868039,
+      "validation_seconds": 8.85882231220603,
+      "max_selected_advective_cfl": 0.2238256186246872,
+      "temperature": {
+        "final_relative_integral_drift": 6.954756059940337e-08,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.7375790725637589
+    },
+    {
+      "path": "joint-w8-adamw-lr0.001-none-seed1",
+      "family": "Joint w8 adamw 0.001 constant",
+      "seed": 1,
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-none-seed1",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": false,
+      "parameter_count": null,
+      "status": "FD admission rejected",
+      "failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616557/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}\n"
+      },
+      "heldout_ratio": null
+    },
+    {
+      "path": "joint-w8-adamw-lr0.001-none-seed2",
+      "family": "Joint w8 adamw 0.001 constant",
+      "seed": 2,
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-none-seed2",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 954,
+      "status": "Completed",
+      "heldout_ratio": 0.5448111016445306,
+      "mean_heldout_loss": 0.0009156517367860318,
+      "selected_validation_loss": 0.0006226791189854453,
+      "selected_window_evaluations": 176,
+      "final_validation_loss": 0.014719032484860008,
+      "largest_validation_jump_ratio": 71.19041200832153,
+      "validation_log_total_variation": 16.616560314043053,
+      "training_seconds": 14.172471953555942,
+      "validation_seconds": 11.016169102978893,
+      "max_selected_advective_cfl": 0.22168776392936707,
+      "temperature": {
+        "final_relative_integral_drift": -0.0034510192926973104,
+        "maximum_undershoot": 0.004365187603980303,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.8634976151237896
+    },
+    {
+      "path": "velocity-w8-adam-lr0.003-none-seed1",
+      "family": "Velocity w8 adam 0.003 constant",
+      "seed": 1,
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed1",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.5189015668603254,
+      "mean_heldout_loss": 0.0008721061657562501,
+      "selected_validation_loss": 0.0006325004175086235,
+      "selected_window_evaluations": 160,
+      "final_validation_loss": 0.0006933923293139089,
+      "largest_validation_jump_ratio": 7.021172567684862,
+      "validation_log_total_variation": 6.769955860452463,
+      "training_seconds": 14.330684039276093,
+      "validation_seconds": 9.155603386112489,
+      "max_selected_advective_cfl": 0.22326689958572388,
+      "temperature": {
+        "final_relative_integral_drift": 1.3909512119880674e-07,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 1.0
+    },
+    {
+      "path": "velocity-w8-adam-lr0.003-none-seed2",
+      "family": "Velocity w8 adam 0.003 constant",
+      "seed": 2,
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed2",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.6309352708130262,
+      "mean_heldout_loss": 0.001060398686399111,
+      "selected_validation_loss": 0.0007120018850561394,
+      "selected_window_evaluations": 160,
+      "final_validation_loss": 0.0007976680676099335,
+      "largest_validation_jump_ratio": 3.737672027135488,
+      "validation_log_total_variation": 4.551410210775804,
+      "training_seconds": 28.70545189396944,
+      "validation_seconds": 9.1375349892769,
+      "max_selected_advective_cfl": 0.2211609035730362,
+      "temperature": {
+        "final_relative_integral_drift": 6.954756059940337e-08,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 1.0
+    },
+    {
+      "path": "velocity-w32-muon-lr0.001-cosine-seed0",
+      "family": "Velocity w32 muon 0.001 cosine",
+      "seed": 0,
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 10433,
+      "status": "Completed",
+      "heldout_ratio": 0.3623750781485546,
+      "mean_heldout_loss": 0.000609035624775487,
+      "selected_validation_loss": 0.00043944959238181977,
+      "selected_window_evaluations": 160,
+      "final_validation_loss": 0.0005462630927923584,
+      "largest_validation_jump_ratio": 1.3141893375408056,
+      "validation_log_total_variation": 3.4214650700985274,
+      "training_seconds": 152.59087743167765,
+      "validation_seconds": 8.726160948164761,
+      "max_selected_advective_cfl": 0.22263984382152557,
+      "temperature": {
+        "final_relative_integral_drift": 6.954756059940337e-08,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.876286830133867
+    },
+    {
+      "path": "joint-w32-muon-lr0.001-cosine-seed0",
+      "family": "Joint w32 muon 0.001 cosine",
+      "seed": 0,
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 10722,
+      "status": "Completed",
+      "heldout_ratio": 0.3129064928272607,
+      "mean_heldout_loss": 0.0005258948886027781,
+      "selected_validation_loss": 0.0003458140692178802,
+      "selected_window_evaluations": 256,
+      "final_validation_loss": 0.0003458140692178802,
+      "largest_validation_jump_ratio": 35.95404029819996,
+      "validation_log_total_variation": 14.481099301045186,
+      "training_seconds": 172.78078315081075,
+      "validation_seconds": 11.370608117897063,
+      "max_selected_advective_cfl": 0.22311851382255554,
+      "temperature": {
+        "final_relative_integral_drift": 0.019975310191512108,
+        "maximum_undershoot": 0.0017597262049093843,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.7566630689086739
+    },
+    {
+      "path": "velocity-w8-adamw-lr0.001-seed0",
+      "family": "Velocity w8 adamw 0.001 constant",
+      "seed": 0,
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.3533702535147597,
+      "mean_heldout_loss": 0.0005939014190104075,
+      "selected_validation_loss": 0.00045420806444020914,
+      "selected_window_evaluations": 240,
+      "final_validation_loss": 0.0007074383189596744,
+      "largest_validation_jump_ratio": 1.690300869739869,
+      "validation_log_total_variation": 4.024233015762645,
+      "training_seconds": 27.300722752697766,
+      "validation_seconds": 8.614148995606229,
+      "max_selected_advective_cfl": 0.2241424173116684,
+      "temperature": {
+        "final_relative_integral_drift": 1.3909512119880674e-07,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 0.8545115765083274
+    },
+    {
+      "path": "joint-w8-adamw-lr0.001-none-seed0",
+      "family": "Joint w8 adamw 0.001 constant",
+      "seed": 0,
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 954,
+      "status": "Completed",
+      "heldout_ratio": 0.7675075779617573,
+      "mean_heldout_loss": 0.0012899326842565984,
+      "selected_validation_loss": 0.0008108956613438067,
+      "selected_window_evaluations": 128,
+      "final_validation_loss": 0.002597376327742609,
+      "largest_validation_jump_ratio": 19.53762321891253,
+      "validation_log_total_variation": 9.453374900286029,
+      "training_seconds": 29.64670108188875,
+      "validation_seconds": 11.636522468877956,
+      "max_selected_advective_cfl": 0.21871982514858246,
+      "temperature": {
+        "final_relative_integral_drift": -0.01874772645533085,
+        "maximum_undershoot": 0.003798675024881959,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 1.855968644510695
+    },
+    {
+      "path": "velocity-w8-adam-lr0.003-seed0",
+      "family": "Velocity w8 adam 0.003 constant",
+      "seed": 0,
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "complete": true,
+      "parameter_count": 881,
+      "status": "Completed",
+      "heldout_ratio": 0.41353477615679324,
+      "mean_heldout_loss": 0.0006950185759181693,
+      "selected_validation_loss": 0.0005182923276467477,
+      "selected_window_evaluations": 176,
+      "final_validation_loss": 0.0006998720959898463,
+      "largest_validation_jump_ratio": 3.978359666934505,
+      "validation_log_total_variation": 5.231792780276912,
+      "training_seconds": 27.013107318780385,
+      "validation_seconds": 8.562252167263068,
+      "max_selected_advective_cfl": 0.22281627357006073,
+      "temperature": {
+        "final_relative_integral_drift": 6.954756059940337e-08,
+        "maximum_undershoot": 0.0,
+        "maximum_overshoot": 0.0
+      },
+      "paired_vs_original_baseline": 1.0
+    }
+  ],
+  "families": [
+    {
+      "family": "Joint w32 muon 0.001 cosine",
+      "completed_seeds": [
+        2,
+        0
+      ],
+      "failed_seeds": [
+        1
+      ],
+      "mean_heldout_ratio_all3": null,
+      "mean_paired_baseline_ratio_all3": null
+    },
+    {
+      "family": "Joint w8 adamw 0.001 constant",
+      "completed_seeds": [
+        2,
+        0
+      ],
+      "failed_seeds": [
+        1
+      ],
+      "mean_heldout_ratio_all3": null,
+      "mean_paired_baseline_ratio_all3": null
+    },
+    {
+      "family": "Velocity w32 muon 0.001 cosine",
+      "completed_seeds": [
+        1,
+        2,
+        0
+      ],
+      "failed_seeds": [],
+      "mean_heldout_ratio_all3": 0.43853796399765627,
+      "mean_paired_baseline_ratio_all3": 0.8629934192009451
+    },
+    {
+      "family": "Velocity w8 adam 0.003 constant",
+      "completed_seeds": [
+        1,
+        2,
+        0
+      ],
+      "failed_seeds": [],
+      "mean_heldout_ratio_all3": 0.521123871276715,
+      "mean_paired_baseline_ratio_all3": 1.0
+    },
+    {
+      "family": "Velocity w8 adamw 0.001 constant",
+      "completed_seeds": [
+        1,
+        2,
+        0
+      ],
+      "failed_seeds": [],
+      "mean_heldout_ratio_all3": 0.40769127230641233,
+      "mean_paired_baseline_ratio_all3": 0.7904371609068787
+    }
+  ],
+  "selection": "Allfamilies frozen by seed0validation beforeconfirmation. No postconfirmation selection.",
+  "limitations": [
+    "seed0 selected recipes;seeds1/2confirmation independentmodelinitialization but same singlevalidationIC/singleheldoutIC",
+    "Joint failedFD admissions remain failures, no aggregate3seed means forincompletefamilies",
+    "Same256windowevaluations, batch4has64optimizersteps; optimizer/runtime budgets notmatched",
+    "NativeAPI bypasses per-callPydanticchecks; posthoc savedselectedtrajectoryCFL doesnotvalidate everytrainingtransient",
+    "No CIs/significanceclaims withthree modelinitializations"
+  ]
+}

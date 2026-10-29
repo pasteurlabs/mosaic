@@ -1,0 +1,467 @@
+{
+  "ranked": [
+    {
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w32-muon-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0003458140692178802,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.00043944959238181977,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-seed0",
+      "reuse": true,
+      "validation_loss": 0.00045420806444020914,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.001-seed0",
+      "reuse": true,
+      "validation_loss": 0.00045420996073055166,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-none-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-seed0",
+      "reuse": true,
+      "validation_loss": 0.0004556286767895301,
+      "selected_update": 96
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-batch4-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0004815072346072924,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.001-cosine-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0005131927189593455,
+      "selected_update": 208
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-cosine-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0005131935524805442,
+      "selected_update": 208
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.003-seed0",
+      "reuse": true,
+      "validation_loss": 0.0005182923276467477,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-cosine-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.003-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0005482535633512953,
+      "selected_update": 208
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.003-none-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.003-none-seed0",
+      "reuse": false,
+      "validation_loss": 0.0006799802012403688,
+      "selected_update": 192
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-batch4-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.000699080790450708,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.001-batch4-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0006990839160302898,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-cosine-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adamw-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0007281528991990171,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.001-cosine-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0007281589093268792,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-batch4-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.003-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0007581315197123928,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adamw-lr0.001-none-seed0",
+      "reuse": false,
+      "validation_loss": 0.0008108956613438067,
+      "selected_update": 128
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.001-none-seed0",
+      "reuse": false,
+      "validation_loss": 0.0008109096266792903,
+      "selected_update": 128
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.003-cosine-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.003-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.000846929336980935,
+      "selected_update": 192
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-batch4-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adamw-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0009167909226799509,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.001-batch4-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.00091679678259041,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-batch4-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w32-muon-lr0.001-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-none-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w32-muon-lr0.001-none-seed0",
+      "reuse": false,
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adam-lr0.003-batch4-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 4,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adam-lr0.003-batch4-seed0",
+      "reuse": false,
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    }
+  ],
+  "failures": [],
+  "top3": [
+    {
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w32-muon-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.0003458140692178802,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-cosine-seed0",
+      "reuse": false,
+      "validation_loss": 0.00043944959238181977,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-seed0",
+      "reuse": true,
+      "validation_loss": 0.00045420806444020914,
+      "selected_update": 240
+    }
+  ],
+  "selection_metric": "validation only"
+}

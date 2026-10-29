@@ -1,0 +1,594 @@
+{
+  "ranked": [
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00045420806444020914,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.001-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00045420996073055166,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0004556286767895301,
+      "selected_update": 96
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adamw-lr0.0003-seed0",
+        "width": 32,
+        "optimizer": "adamw",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00045939415888540224,
+      "selected_update": 112
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adam-lr0.0003-seed0",
+        "width": 32,
+        "optimizer": "adam",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0004593943652405841,
+      "selected_update": 112
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-muon-lr0.001-seed0",
+        "width": 16,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00048518802375390634,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.003-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005182919012165143,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005182923276467477,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-muon-lr0.005-seed0",
+        "width": 16,
+        "optimizer": "muon",
+        "lr": 0.005,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005293592450327367,
+      "selected_update": 224
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-muon-lr0.001-seed0",
+        "width": 8,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005365653264655635,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adamw-lr0.0003-seed0",
+        "width": 16,
+        "optimizer": "adamw",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005388643775960844,
+      "selected_update": 224
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adam-lr0.0003-seed0",
+        "width": 16,
+        "optimizer": "adam",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005388653670922139,
+      "selected_update": 224
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adamw-lr0.001-seed0",
+        "width": 32,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005472749423178413,
+      "selected_update": 224
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adam-lr0.001-seed0",
+        "width": 32,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005472775799519524,
+      "selected_update": 224
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.0003-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005599388105956393,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.0003-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005599390585412323,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-muon-lr0.005-seed0",
+        "width": 8,
+        "optimizer": "muon",
+        "lr": 0.005,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005648402706702172,
+      "selected_update": 96
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.005-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.005,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0005809085895893417,
+      "selected_update": 208
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adam-lr0.001-seed0",
+        "width": 16,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006111909831012241,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adamw-lr0.001-seed0",
+        "width": 16,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006111979757108799,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adam-lr0.003-seed0",
+        "width": 16,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006209840431839808,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-adamw-lr0.003-seed0",
+        "width": 16,
+        "optimizer": "adamw",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006210669882492681,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adam-lr0.003-seed0",
+        "width": 32,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006777895569696568,
+      "selected_update": 112
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-adamw-lr0.003-seed0",
+        "width": 32,
+        "optimizer": "adamw",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0006778255025086111,
+      "selected_update": 112
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-muon-lr0.005-seed0",
+        "width": 4,
+        "optimizer": "muon",
+        "lr": 0.005,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0007057063468874958,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adam-lr0.0003-seed0",
+        "width": 4,
+        "optimizer": "adam",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0007706570287480475,
+      "selected_update": 144
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adamw-lr0.0003-seed0",
+        "width": 4,
+        "optimizer": "adamw",
+        "lr": 0.0003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0007706587632957707,
+      "selected_update": 144
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-muon-lr0.001-seed0",
+        "width": 4,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.000823098370051909,
+      "selected_update": 80
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adamw-lr0.001-seed0",
+        "width": 4,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0008663677338147124,
+      "selected_update": 16
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adam-lr0.001-seed0",
+        "width": 4,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0008663680488810854,
+      "selected_update": 16
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adamw-lr0.003-seed0",
+        "width": 4,
+        "optimizer": "adamw",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0009530283796024719,
+      "selected_update": 32
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-adam-lr0.003-seed0",
+        "width": 4,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0009530295746620964,
+      "selected_update": 32
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w16-muon-lr0.02-seed0",
+        "width": 16,
+        "optimizer": "muon",
+        "lr": 0.02,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.02-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.02,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w4-muon-lr0.02-seed0",
+        "width": 4,
+        "optimizer": "muon",
+        "lr": 0.02,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-muon-lr0.02-seed0",
+        "width": 8,
+        "optimizer": "muon",
+        "lr": 0.02,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0011007894160869824,
+      "selected_update": 0
+    }
+  ],
+  "failures": [],
+  "top3": [
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-seed0",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00045420806444020914,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.001-seed0",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.00045420996073055166,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-seed0",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 0,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "validation_loss": 0.0004556286767895301,
+      "selected_update": 96
+    }
+  ],
+  "selection_uses": "validation only; no heldoutmetric reads",
+  "baseline": "velocity-w8-adam-lr0.003-seed0"
+}

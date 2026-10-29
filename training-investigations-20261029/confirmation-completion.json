@@ -1,0 +1,151 @@
+{
+  "completed": [
+    {
+      "recipe": {
+        "candidate_id": "joint-w32-muon-lr0.001-cosine-seed2",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "joint-w32-muon-lr0.001-cosine-seed2",
+      "validation_loss": 0.0003567742425788367,
+      "selected_update": 256
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed2",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-cosine-seed2",
+      "validation_loss": 0.0004699884720709946,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed1",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-none-seed1",
+      "validation_loss": 0.0004906607517072815,
+      "selected_update": 208
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w32-muon-lr0.001-cosine-seed1",
+        "width": 32,
+        "optimizer": "muon",
+        "lr": 0.001,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": true,
+        "diagnostics": false
+      },
+      "path": "velocity-w32-muon-lr0.001-cosine-seed1",
+      "validation_loss": 0.0005049391296066119,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adamw-lr0.001-none-seed2",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adamw-lr0.001-none-seed2",
+      "validation_loss": 0.0005073166629194503,
+      "selected_update": 240
+    },
+    {
+      "recipe": {
+        "candidate_id": "joint-w8-adamw-lr0.001-none-seed2",
+        "width": 8,
+        "optimizer": "adamw",
+        "lr": 0.001,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": true,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "joint-w8-adamw-lr0.001-none-seed2",
+      "validation_loss": 0.0006226791189854453,
+      "selected_update": 176
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed1",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 1,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.003-none-seed1",
+      "validation_loss": 0.0006325004175086235,
+      "selected_update": 160
+    },
+    {
+      "recipe": {
+        "candidate_id": "velocity-w8-adam-lr0.003-none-seed2",
+        "width": 8,
+        "optimizer": "adam",
+        "lr": 0.003,
+        "model_seed": 2,
+        "batch": 1,
+        "correct_temperature": false,
+        "cosine": false,
+        "diagnostics": false
+      },
+      "path": "velocity-w8-adam-lr0.003-none-seed2",
+      "validation_loss": 0.0007120018850561394,
+      "selected_update": 160
+    }
+  ],
+  "failures": [
+    {
+      "path": "joint-w32-muon-lr0.001-cosine-seed1",
+      "failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616553/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}\n"
+      }
+    },
+    {
+      "path": "joint-w8-adamw-lr0.001-none-seed1",
+      "failure": {
+        "type": "ValueError",
+        "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}",
+        "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616557/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.0009508844232186675, 'finite_difference': 0.0011601102305576205, 'relative_error': 0.18034993729723958, 'epsilon': 0.003}\n"
+      }
+    }
+  ],
+  "no_post_confirmation_recipe_selection": true
+}

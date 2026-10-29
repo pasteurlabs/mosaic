@@ -1,0 +1,76 @@
+{
+  "complete": true,
+  "purpose": "diagnostic only; original failed registeredprimary remains failed; no training retry or threshold change",
+  "original_failure": {
+    "type": "ValueError",
+    "message": "recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}",
+    "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-training-sweep-20261029/driver.py\", line 96, in <module>\n    write();result=training.solver_in_loop(None,ctx);receipt['metrics']=result['metrics'];np.savez(out/'heldout_fields.npz',**result['snapshots']);receipt['training_complete']=True;write()\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3616553/work/probe/mosaic/benchmarks/problems/buoyancy_grid/training.py\", line 381, in solver_in_loop\n    raise ValueError(f\"recurrent gradient finite-difference check failed: {fd}\")\nValueError: recurrent gradient finite-difference check failed: {'autodiff': 0.002779692644253373, 'finite_difference': 0.0025546785909682512, 'relative_error': 0.08094925665623755, 'epsilon': 0.003}\n"
+  },
+  "model_seed": 1,
+  "hidden_channels": 32,
+  "correct_temperature": true,
+  "training_case": 0,
+  "window_start": 0,
+  "H": 8,
+  "source_training_data_sha256": "c88d2af0f358bdbc954f4c90dad055284c351262a6dd1dc1ef3bedd6901cfa61",
+  "driver_sha256": "9de0cb7a04c29bfcdb4e33cbbf7fa146bb8dbbda31f4172467e14b297ff5f880",
+  "primary_reproduced_relative_error": 0.08094925665623755,
+  "accumulation_variant": "Same float32states/parameters/normalizedsquaredresiduals; only spatialmeans andsumofframe-losses float64; not an independent gradient reference",
+  "rows": [
+    {
+      "epsilon": 0.03,
+      "original_ad": 0.002779692644253373,
+      "original_fd": -0.019527599215507507,
+      "original_relative_error": 1.1423468708865105,
+      "accumulation64_ad_same_direction": 0.002779692178592086,
+      "accumulation64_fd": -0.019527598300001295,
+      "accumulation64_relative_error": 1.1423468537137975,
+      "loss_plus_original": 0.009430677630007267,
+      "loss_minus_original": 0.010602333582937717
+    },
+    {
+      "epsilon": 0.01,
+      "original_ad": 0.002779692644253373,
+      "original_fd": 0.0002821441739797592,
+      "original_relative_error": 0.8984980679201879,
+      "accumulation64_ad_same_direction": 0.002779692178592086,
+      "accumulation64_fd": 0.0002821475844674501,
+      "accumulation64_relative_error": 0.8984968239863316,
+      "loss_plus_original": 0.0011291630798950791,
+      "loss_minus_original": 0.001123520196415484
+    },
+    {
+      "epsilon": 0.003,
+      "original_ad": 0.002779692644253373,
+      "original_fd": 0.0025546785909682512,
+      "original_relative_error": 0.08094925665623755,
+      "accumulation64_ad_same_direction": 0.002779692178592086,
+      "accumulation64_fd": 0.0025546769500511823,
+      "accumulation64_relative_error": 0.08094969301776203,
+      "loss_plus_original": 0.00011367196566425264,
+      "loss_minus_original": 9.834389493335038e-05
+    },
+    {
+      "epsilon": 0.001,
+      "original_ad": 0.002779692644253373,
+      "original_fd": 0.0027546281926333904,
+      "original_relative_error": 0.009016986705994268,
+      "accumulation64_ad_same_direction": 0.002779692178592086,
+      "accumulation64_fd": 0.0027546284855684655,
+      "accumulation64_relative_error": 0.009016715309935903,
+      "loss_plus_original": 1.897054971777834e-05,
+      "loss_minus_original": 1.3461292837746441e-05
+    },
+    {
+      "epsilon": 0.0003,
+      "original_ad": 0.002779692644253373,
+      "original_fd": 0.0027774383779615164,
+      "original_relative_error": 0.0008109768166337191,
+      "accumulation64_ad_same_direction": 0.002779692178592086,
+      "accumulation64_fd": 0.0027774378889022988,
+      "accumulation64_relative_error": 0.0008109853699444009,
+      "loss_plus_original": 6.834324267401826e-06,
+      "loss_minus_original": 5.167861218069447e-06
+    }
+  ]
+}

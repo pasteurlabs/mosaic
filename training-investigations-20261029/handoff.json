@@ -1,0 +1,69 @@
+{
+  "source_commit": "0246f6a",
+  "source_archive_sha256": "2a98c07cfec6768b68f1b665fea789e7d137b569428e8ff09b7865f330f7e9c9",
+  "stage1": {
+    "candidates": 36,
+    "eligible": 36,
+    "selection": "stage1-selection.json"
+  },
+  "stage2": {
+    "candidates": 24,
+    "new_fits": 20,
+    "reused_stage1": 4,
+    "eligible": 24,
+    "selection": "stage2-selection.json"
+  },
+  "confirmation": {
+    "attempts": 10,
+    "trained": 8,
+    "primary_fd_rejected_before_training": 2,
+    "completion": "confirmation-completion.json"
+  },
+  "controllers": "Finished; no further automatic research dispatch",
+  "hardware": "All formal stage1/stage2/confirmation candidates on single RTX5090 each; maximum8concurrent. Separate earlypilot3 andMuonfeasibility1 ranB200 and are notmixed into screenranking.",
+  "reports": {
+    "initial_pilot": "../buoyancy-training-stability-20261029/report",
+    "gradient_paths": "gradient-paths-report-v2",
+    "stage1": "stage1-report",
+    "stage2": "stage2-report",
+    "final": "final-report-v3",
+    "fd_diagnostic": "joint-seed1-fd-diagnostic/fd_diagnostic.json"
+  },
+  "report_jobs": {
+    "initial_pilot": 3616082,
+    "gradient_paths": 3616408,
+    "stage1": 3616417,
+    "stage2": 3616604,
+    "final": 3616781,
+    "fd_sensitivity": 3616623
+  },
+  "interpretation": "LowerLRwidth8AdamW improved all3 observedinitializations vsoriginalAdam.003, butseed0selected andoneheldoutIC only. No proofAdamWdecaycausedbenefit versuslowerLR. WiderMuonmixed. Jointseed0/2lowererrorinbestrecipe butseed1gradientcheckrejected; rawtemperaturecorrection introducesheatdrift/undershoot. No3seedjointmean.",
+  "fd_diagnostic_status": "Primaryepsilon.003 failure remains; smaller epsilon convergence andFloat64accumulationdiagnostic donotchangeadmission; no rejectedarmtrainingretry",
+  "limitations": [
+    "Directapply_jit bypasses per-callPydanticvalidation; originalreference/FD/recurrence/nonfinitegates preserved. Onlysavedselectedrollouts checkedposthocCFL; trainingtransients uninstrumented.",
+    "Stage1/2 selection usesvalidationonly; test scores neverread bycontrollers. SameonevalidationIC andoneheldoutIC for allmodelseeds.",
+    "256windowevaluations matched; batch4has64 optimizerupdates andthereforedifferentoptimizerbudget.",
+    "NativeJAX0.10.0/Equinox0.13.8 requirements overlaidafterproductionfrozenlock, bothmanifests retained.",
+    "Stateadjointdiagnostics arenotneuralparametergradientconditioning orindependentADcorrectnessproof."
+  ],
+  "report_artifact_sha256": {
+    "final-report-v3/validation_all_seeds.png": "42f73b57e2b1c3ac9b81a4b37e3ce1de878a432ceba278d18a01c8ace0c2c34f",
+    "final-report-v3/report.json": "c9b3f457be01f03606c9bb04caa957d692934d5d7cecc168d30f49a51a13bd11",
+    "final-report-v3/validation_all_seeds.vl.json": "7e5d20e2ecca8b43c0171717a1913afc47e6c62811b4acb0bfcb83a7b822f12f",
+    "final-report-v3/heldout_all_seeds.vl.json": "f2cad82201ab292d67b798fc0f845d2fb0199e341ab2c00e6377bbaaa975b6db",
+    "final-report-v3/heldout_all_seeds.png": "165cc05d30c54fe1f347dfcbf0c42dad89a1bd8d0ac669dbc5ce6ebe230e41b4",
+    "gradient-paths-report-v2/recurrent_effect.png": "067dbe0d15395be5a8006ab21f9e77aa3a050caa55a9f9cb230d450bc29a6725",
+    "gradient-paths-report-v2/report.json": "c8fb7799025e98e323fabee28363caa6e7b610c539aff50f63795778999c615c",
+    "gradient-paths-report-v2/correction_spectrum.png": "c448e818c87337ad3fc1e3d1e1ae952165180b6e7a4cab4ce67dd45a5d848a62",
+    "gradient-paths-report-v2/correction_spectrum.vl.json": "779cbd8330953775130410307ed43e12de87b2d28d791d07c4e33c33f99b5c10",
+    "gradient-paths-report-v2/local_adjoints.png": "f027365a312204c8d7b02949a008b74294701933387a9079fe6b3f41d10e53cf",
+    "gradient-paths-report-v2/recurrent_effect.vl.json": "ec8e54f13575734b90456eaef849f27661aaa3358c4deb663e9f10fcd76904d2",
+    "gradient-paths-report-v2/local_adjoints.vl.json": "47149dc864c72398300a803a87c733d64af5b0a3773260f68cc8db808c1c5ee8",
+    "stage1-report/comparison.vl.json": "6e152cf444f3d9f55cbba36a7bfa9f6ad4b86b0af3508105fff2ede9b0746013",
+    "stage1-report/report.json": "0d54a6d02b11237892f82d945e563b5629b7e21748929be903401989367e4813",
+    "stage1-report/comparison.png": "0795a734d823eb08a8933a68c4b1dd55e3962f9d94972c452e4362747c95b3e9",
+    "stage2-report/comparison.vl.json": "b58a09a9d90a7e89b62b6b164a3f07808d769038a1ddb1278f19b3bdb83397cb",
+    "stage2-report/report.json": "731f216804311208f8030829fb5d57a988643968ffcc55e587f813d8d1f14048",
+    "stage2-report/comparison.png": "5b653ae0165f1f99edc929220857b8d4aace7350aecac6684c37a1664bcd9808"
+  }
+}
