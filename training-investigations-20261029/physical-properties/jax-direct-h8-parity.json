@@ -1,0 +1,6 @@
+{
+  "velocity_relative_error": 0.0,
+  "temperature_relative_error": 0.0,
+  "direct": "JAX native whole-H8 jacrev of mean intermediate component losses",
+  "manual": "Shared explicit native state-VJP accumulation"
+}

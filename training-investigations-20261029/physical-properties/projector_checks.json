@@ -1,0 +1,93 @@
+{
+  "complete": true,
+  "projector_tests": [
+    {
+      "N": 8,
+      "dtype": "float64",
+      "idempotence": 2.6637545379867433e-16,
+      "symmetry": 1.5025905796843865e-17,
+      "curl_transpose_null": 2.598652518188742e-16,
+      "curl_range_identity": 2.440201918705133e-16,
+      "divergence_rms": 5.42477737333404e-16,
+      "padding_max": 0.0,
+      "linear_objective_fd_relative": 1.057118873995391e-10,
+      "jax": [
+        {
+          "dtype": "<class 'jax.numpy.float32'>",
+          "jax_numpy_relative": 1.6002301916373323e-07,
+          "jax_linear_adjoint_relative": 1.6614708601464854e-07
+        },
+        {
+          "dtype": "<class 'jax.numpy.float64'>",
+          "jax_numpy_relative": 3.0743809403801644e-16,
+          "jax_linear_adjoint_relative": 2.4811216183380475e-16
+        }
+      ]
+    },
+    {
+      "N": 16,
+      "dtype": "float64",
+      "idempotence": 3.1290913609066543e-16,
+      "symmetry": 4.197110667775144e-17,
+      "curl_transpose_null": 3.432535913817458e-16,
+      "curl_range_identity": 3.4418208466621685e-16,
+      "divergence_rms": 1.3713052168280032e-15,
+      "padding_max": 0.0,
+      "linear_objective_fd_relative": 4.939747794151955e-13,
+      "jax": [
+        {
+          "dtype": "<class 'jax.numpy.float32'>",
+          "jax_numpy_relative": 1.9716665736680066e-07,
+          "jax_linear_adjoint_relative": 1.9138453458836133e-07
+        },
+        {
+          "dtype": "<class 'jax.numpy.float64'>",
+          "jax_numpy_relative": 5.829793820832993e-16,
+          "jax_linear_adjoint_relative": 4.935738353130988e-16
+        }
+      ]
+    },
+    {
+      "N": 64,
+      "dtype": "float64",
+      "idempotence": 4.4366439519640294e-16,
+      "symmetry": 1.748743048178301e-18,
+      "curl_transpose_null": 4.099332762781494e-16,
+      "curl_range_identity": 4.089237699362099e-16,
+      "divergence_rms": 4.939990533754015e-15,
+      "padding_max": 0.0,
+      "linear_objective_fd_relative": 1.5899061565631462e-11,
+      "jax": [
+        {
+          "dtype": "<class 'jax.numpy.float32'>",
+          "jax_numpy_relative": 2.7449381208340387e-07,
+          "jax_linear_adjoint_relative": 2.530871736676518e-07
+        },
+        {
+          "dtype": "<class 'jax.numpy.float64'>",
+          "jax_numpy_relative": 6.567108537550471e-16,
+          "jax_linear_adjoint_relative": 5.997353298984573e-16
+        }
+      ]
+    }
+  ],
+  "actual_selected_checkpoint_parameter_pullback_relative": 1.0970449011438177e-06,
+  "selected_checkpoint": {
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/selected_params.npz",
+    "sha256": "c1b8f5b2311b520db107738bbc237ac6ad81c9813cc83b67ca1b7546b60ee099"
+  },
+  "reference": {
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/heldout_fields.npz",
+    "sha256": "2c0032fb391cdb90d45c3013b3e7529945b5bd660693ad54625abbd13564fe20"
+  },
+  "scales": [
+    0.07747627794742584,
+    0.07747627794742584,
+    0.12592172622680664
+  ],
+  "physical_null_control": "K.T(I-P)g=0, hence parameter pullback invariant for existing curl-only velocity head; heat covector untouched. Does not imply the input-state VJP of C is invariant (C includes identity and state dependence).",
+  "source_sha256": {
+    "closed_mac.py": "77f4fd0b8bc5a58aecbdd886759ea9b3dc54b530df346e53173faffbba614e7d",
+    "check_projector.py": "5ce40114fc7a8912ca5cbd314c654e64fa9dc042556d58c1c2dc412524a9ad3b"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "scope": "Physical forward and covector properties of solver S, velocity-only corrector C, and C after S; all five backends using common256-update H8 Adam.003 densevalidation16 checkpoints. No training or production changes.",
+  "cached_sources": "Prior immutable all-five artifact187e16289063172c14f96415f23f939bed37c2c5; full NPZ archives verified against prior manifests.",
+  "covectors": "z=x/D; g_x=g_z/D. Uniform cell area h\u00b2; coordinate covector convention, Riesz density not silently substituted. P orthogonal physical MAC curl-range projector. Padding separate; complement not wholly irrotational.",
+  "forward": "Mean heat, scalar variance/L2, min/max, excursions from initial extrema, MAC divergence, padding, cell-centered and MAC kinetic energy, interior-corner enstrophy, packed DCT spectra, sampled buoyancy work. No monotonic KE requirement. Scalar dissipation/max principle diagnostics descriptive, not new gates.",
+  "comparisons": "Matched local S(x) and C(S(x)) at common developed input; autonomous paths diverge and are not pointwise local correction comparisons. Developed32-interval paths include selected/final/solver/reference at test100frames50/25 and validation1frame50. Three probe bases deduplicated for forward trajectories. FullT4 uses cached solver/selected/reference only; finalT4 absent.",
+  "backward": "All saved local S^Tq, C^Tq, S^TC^Tq and recurrentH1/4/8/16/32 covectors across24output probes and five cases. Velocity/temperature output probes separated; these are field probes, not actual neural-loss-component gradients.",
+  "fresh_probes": "One test100frame50 per backend; physical qtheta=1/N\u00b2,qu=qv=0, plus uniform theta offsets \u00b1.01. S,Cselected,Fselected,Cfinal,Ffinal. Report raw residuals; exact mass/offset symmetry not assumed for every numerical method/network.",
+  "limits": "Native-stage wall flux and work balance not available from packed interval checkpoints; sampled work not exact energy budget. Gradient divergence/DC not itself AD defect. No smoothing benefit inferred from gauge fraction. Local projector parameter pullback null control passed~1.1e-6 relative.",
+  "jobs": {
+    "projector": 3623269,
+    "cached": 3623383,
+    "heat_ins": 3623384,
+    "heat_ocean": 3623385,
+    "heat_water": 3623386
+  },
+  "source_sha256": {
+    "cached_audit.py": "1bd86875591d9459b3c216633c8e5b1bb312444758223a11994c0e2280e77c2d",
+    "closed_mac.py": "77f4fd0b8bc5a58aecbdd886759ea9b3dc54b530df346e53173faffbba614e7d",
+    "cached-node.sh": "569c2557276b4cef9a82d03fab0cf3674aa31be4b30b97b0c3f0735f963f9ef3"
+  }
+}

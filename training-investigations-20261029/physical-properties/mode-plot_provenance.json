@@ -1,0 +1,1206 @@
+{
+  "input_sha256": "b0ef1c2c48206c02810bab0e6b3fe961adc26ccdf25f49147320365e76244855",
+  "source_sha256": "bd220c41c899115feba96eb66654b68b195ce9a5ff18b48dc802f33cdddbd5ac",
+  "masked_nearzero_velocity_blocks": [
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.095331232881159e-16,
+      "heat_covector_norm": 7.941441465792469,
+      "solenoidal_velocity_energy_fraction": 0.46950231971731726
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.332449597935411e-16,
+      "heat_covector_norm": 7.94144146579247,
+      "solenoidal_velocity_energy_fraction": 0.3420825030553755
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 6.180208469915336e-15,
+      "heat_covector_norm": 7.941441345033192,
+      "solenoidal_velocity_energy_fraction": 0.43937163777996097
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 4.9619107837891995e-15,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.3408609913882797
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 2.7452508868657925e-15,
+      "heat_covector_norm": 7.941441465792469,
+      "solenoidal_velocity_energy_fraction": 0.45087879815238485
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 2.6976618717986505e-16,
+      "heat_covector_norm": 7.941441477636774,
+      "solenoidal_velocity_energy_fraction": 0.5980209376592923
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 3.7005508835597777e-16,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.2737191130122619
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.510249008490364e-16,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.34743159913220145
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 8.875685022253742e-16,
+      "heat_covector_norm": 7.941441477636774,
+      "solenoidal_velocity_energy_fraction": 0.24673903134377811
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.26710664839353e-16,
+      "heat_covector_norm": 7.94144157926604,
+      "solenoidal_velocity_energy_fraction": 0.38290152772906627
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1217899104982621e-15,
+      "heat_covector_norm": 7.941441529431665,
+      "solenoidal_velocity_energy_fraction": 0.38754420289818486
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 8.698267141733326e-16,
+      "heat_covector_norm": 7.941441529431665,
+      "solenoidal_velocity_energy_fraction": 0.1800652018477667
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.118691469694105e-16,
+      "heat_covector_norm": 7.941441465792469,
+      "solenoidal_velocity_energy_fraction": 0.4696411622756668
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.290806617856577e-16,
+      "heat_covector_norm": 7.94144146579247,
+      "solenoidal_velocity_energy_fraction": 0.34865325819848797
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 6.2192127522604705e-15,
+      "heat_covector_norm": 7.941441345033192,
+      "solenoidal_velocity_energy_fraction": 0.43937583903754635
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 4.932491362007731e-15,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.34782565493749484
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 2.7649342605394165e-15,
+      "heat_covector_norm": 7.941441465792469,
+      "solenoidal_velocity_energy_fraction": 0.45022527378973387
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 2.7064085364747406e-16,
+      "heat_covector_norm": 7.941441477636774,
+      "solenoidal_velocity_energy_fraction": 0.5976572863580637
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 3.6960213706885137e-16,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.2758702053443084
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.469828834612551e-16,
+      "heat_covector_norm": 7.941441513128316,
+      "solenoidal_velocity_energy_fraction": 0.3536382544061671
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 8.915592074862902e-16,
+      "heat_covector_norm": 7.941441477636774,
+      "solenoidal_velocity_energy_fraction": 0.24795155127777882
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.306301207283834e-16,
+      "heat_covector_norm": 7.94144157926604,
+      "solenoidal_velocity_energy_fraction": 0.38276168024964885
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1168396251667183e-15,
+      "heat_covector_norm": 7.941441529431665,
+      "solenoidal_velocity_energy_fraction": 0.3931057648705728
+    },
+    {
+      "solver": "jax-cfd",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 8.655724867171611e-16,
+      "heat_covector_norm": 7.941441529431665,
+      "solenoidal_velocity_energy_fraction": 0.18309826999694015
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.667443295710959e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.5003881360646696
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 8.083319098626614e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.35402566465229485
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 6.932945149234311e-15,
+      "heat_covector_norm": 8.291513233219986,
+      "solenoidal_velocity_energy_fraction": 0.47433612741235115
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 3.0424535610109617e-15,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.3751032332065457
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 4.027815170939437e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.5493141080210173
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.0675732723454783e-16,
+      "heat_covector_norm": 8.291513347773803,
+      "solenoidal_velocity_energy_fraction": 0.7103084348649434
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 4.009932083920267e-16,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.4814669989232018
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 2.3527866640579434e-15,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.3708036562208762
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.5333303171641827e-15,
+      "heat_covector_norm": 8.291513347773803,
+      "solenoidal_velocity_energy_fraction": 0.5188216879911162
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 1.020334675922604e-15,
+      "heat_covector_norm": 8.291513509611114,
+      "solenoidal_velocity_energy_fraction": 0.4389111999409387
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.222644879483059e-15,
+      "heat_covector_norm": 8.291513480763141,
+      "solenoidal_velocity_energy_fraction": 0.42411226732644614
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 2.4383328257773418e-15,
+      "heat_covector_norm": 8.291513480763141,
+      "solenoidal_velocity_energy_fraction": 0.3167773591782458
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.677121834770858e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.49925297701326526
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 8.071181517691744e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.3544100257584653
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 6.952062112154102e-15,
+      "heat_covector_norm": 8.291513233219986,
+      "solenoidal_velocity_energy_fraction": 0.4733098151156202
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 3.0380639412790133e-15,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.3756145400882002
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 4.0286475426107397e-16,
+      "heat_covector_norm": 8.291513299073944,
+      "solenoidal_velocity_energy_fraction": 0.549662564717438
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.0663113279250776e-16,
+      "heat_covector_norm": 8.291513347773803,
+      "solenoidal_velocity_energy_fraction": 0.7094894585808154
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 4.010461441898432e-16,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.48151319963166633
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 2.349999605473012e-15,
+      "heat_covector_norm": 8.29151343565213,
+      "solenoidal_velocity_energy_fraction": 0.3710869833196702
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.5377430432623686e-15,
+      "heat_covector_norm": 8.291513347773803,
+      "solenoidal_velocity_energy_fraction": 0.517452244185516
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 1.0229355474082928e-15,
+      "heat_covector_norm": 8.291513509611114,
+      "solenoidal_velocity_energy_fraction": 0.43782233858362346
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.221723366933753e-15,
+      "heat_covector_norm": 8.291513480763141,
+      "solenoidal_velocity_energy_fraction": 0.4241593495591084
+    },
+    {
+      "solver": "phiflow",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 2.4372152522268595e-15,
+      "heat_covector_norm": 8.291513480763141,
+      "solenoidal_velocity_energy_fraction": 0.31698844317768693
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.1716051547228335e-16,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.4797675015518706
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.40360303427879e-16,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.3451621146037021
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 1.2542585998914942e-15,
+      "heat_covector_norm": 7.927787106770142,
+      "solenoidal_velocity_energy_fraction": 0.4646117038165466
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 1.7400759561904083e-15,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.4520414967336545
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 3.583821835624338e-15,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.424227092953841
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 2.3157775805831223e-16,
+      "heat_covector_norm": 7.9277873411968285,
+      "solenoidal_velocity_energy_fraction": 0.554335565465302
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 2.8072753633540364e-16,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.46066201182342903
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.487145029820147e-16,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.40835009154660373
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.5626200425218035e-15,
+      "heat_covector_norm": 7.9277873411968285,
+      "solenoidal_velocity_energy_fraction": 0.5061440387650098
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.179317085130938e-16,
+      "heat_covector_norm": 7.9277873383209725,
+      "solenoidal_velocity_energy_fraction": 0.4772355368019911
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1411157490851608e-15,
+      "heat_covector_norm": 7.927787335376561,
+      "solenoidal_velocity_energy_fraction": 0.475188551504101
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 1.6840407376596778e-15,
+      "heat_covector_norm": 7.9277873353765616,
+      "solenoidal_velocity_energy_fraction": 0.4305747227611419
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.160658901602259e-16,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.47833843596023573
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.409525446609339e-16,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.34339966063366695
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 1.2507369234657993e-15,
+      "heat_covector_norm": 7.927787106770142,
+      "solenoidal_velocity_energy_fraction": 0.46283264906727306
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 1.7408514188305232e-15,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.4489900407633824
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 3.574897936093365e-15,
+      "heat_covector_norm": 7.927787313635175,
+      "solenoidal_velocity_energy_fraction": 0.42237266524941003
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 2.314872015477917e-16,
+      "heat_covector_norm": 7.9277873411968285,
+      "solenoidal_velocity_energy_fraction": 0.5541569863369171
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 2.8036987185741105e-16,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.4597853751809411
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.486340792524703e-16,
+      "heat_covector_norm": 7.927787287869013,
+      "solenoidal_velocity_energy_fraction": 0.406852695555832
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.5581280952271449e-15,
+      "heat_covector_norm": 7.9277873411968285,
+      "solenoidal_velocity_energy_fraction": 0.504740664528505
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.157686219372743e-16,
+      "heat_covector_norm": 7.9277873383209725,
+      "solenoidal_velocity_energy_fraction": 0.47567653976441837
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1427796934030989e-15,
+      "heat_covector_norm": 7.927787335376561,
+      "solenoidal_velocity_energy_fraction": 0.4724297274646895
+    },
+    {
+      "solver": "ins-jl",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 1.6854636848570784e-15,
+      "heat_covector_norm": 7.9277873353765616,
+      "solenoidal_velocity_energy_fraction": 0.4286307963453076
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.151346407147343e-16,
+      "heat_covector_norm": 7.932772138014693,
+      "solenoidal_velocity_energy_fraction": 0.4814118811045024
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.527979521939905e-16,
+      "heat_covector_norm": 7.932772138014692,
+      "solenoidal_velocity_energy_fraction": 0.2855546685144117
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 1.6261953819165385e-15,
+      "heat_covector_norm": 7.932772012900105,
+      "solenoidal_velocity_energy_fraction": 0.4115632794224874
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 6.3675301073089126e-15,
+      "heat_covector_norm": 7.932772157501439,
+      "solenoidal_velocity_energy_fraction": 0.35514827544496547
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 3.3200787549437388e-15,
+      "heat_covector_norm": 7.932772138014693,
+      "solenoidal_velocity_energy_fraction": 0.44381136693307366
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.3714731500673017e-16,
+      "heat_covector_norm": 7.932772140530453,
+      "solenoidal_velocity_energy_fraction": 0.6206594242058946
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 2.674220120248711e-16,
+      "heat_covector_norm": 7.9327721575014385,
+      "solenoidal_velocity_energy_fraction": 0.550883332420053
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.430255308234643e-16,
+      "heat_covector_norm": 7.932772157501439,
+      "solenoidal_velocity_energy_fraction": 0.3820671823249974
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.4664982673261343e-15,
+      "heat_covector_norm": 7.932772140530453,
+      "solenoidal_velocity_energy_fraction": 0.3808316791689189
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.19573252811036e-16,
+      "heat_covector_norm": 7.932772204494283,
+      "solenoidal_velocity_energy_fraction": 0.4088719756981928
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1183737789385979e-15,
+      "heat_covector_norm": 7.9327721489052365,
+      "solenoidal_velocity_energy_fraction": 0.41576231043525186
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 9.57958948720759e-16,
+      "heat_covector_norm": 7.9327721489052365,
+      "solenoidal_velocity_energy_fraction": 0.3386762092574868
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.1254547718386127e-16,
+      "heat_covector_norm": 7.932772138014693,
+      "solenoidal_velocity_energy_fraction": 0.4688669049419709
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.513243325132298e-16,
+      "heat_covector_norm": 7.932772138014692,
+      "solenoidal_velocity_energy_fraction": 0.2844881402129876
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 1.6172366499619483e-15,
+      "heat_covector_norm": 7.932772012900105,
+      "solenoidal_velocity_energy_fraction": 0.3982474362299432
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 6.337383403845845e-15,
+      "heat_covector_norm": 7.932772157501439,
+      "solenoidal_velocity_energy_fraction": 0.35236174835742345
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 3.299666794538549e-15,
+      "heat_covector_norm": 7.932772138014693,
+      "solenoidal_velocity_energy_fraction": 0.43013435197923916
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.3546653676138617e-16,
+      "heat_covector_norm": 7.932772140530453,
+      "solenoidal_velocity_energy_fraction": 0.6140694377917159
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 2.668561321862095e-16,
+      "heat_covector_norm": 7.9327721575014385,
+      "solenoidal_velocity_energy_fraction": 0.5440012789505715
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.389031440728668e-16,
+      "heat_covector_norm": 7.932772157501439,
+      "solenoidal_velocity_energy_fraction": 0.37996599313786017
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.4600918130754428e-15,
+      "heat_covector_norm": 7.932772140530453,
+      "solenoidal_velocity_energy_fraction": 0.3670757817048569
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 9.152509077890839e-16,
+      "heat_covector_norm": 7.932772204494283,
+      "solenoidal_velocity_energy_fraction": 0.39555118868624384
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1135639366381444e-15,
+      "heat_covector_norm": 7.9327721489052365,
+      "solenoidal_velocity_energy_fraction": 0.4144009547666488
+    },
+    {
+      "solver": "oceananigans",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 9.526605173649088e-16,
+      "heat_covector_norm": 7.9327721489052365,
+      "solenoidal_velocity_energy_fraction": 0.33624082819693274
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.247627342904702e-16,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.49569961877714497
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.849620992860001e-16,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.26560187003833996
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 3.400558180175987e-15,
+      "heat_covector_norm": 8.23391042388887,
+      "solenoidal_velocity_energy_fraction": 0.485014817567915
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 4.262441558175687e-15,
+      "heat_covector_norm": 8.233910547687406,
+      "solenoidal_velocity_energy_fraction": 0.353429504392036
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 1.989997355838001e-15,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.4616640398657678
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.1458015799243365e-16,
+      "heat_covector_norm": 8.23391050522805,
+      "solenoidal_velocity_energy_fraction": 0.6396594687936449
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 3.2095129180241886e-16,
+      "heat_covector_norm": 8.233910547687406,
+      "solenoidal_velocity_energy_fraction": 0.6431427766703159
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.953016835017372e-16,
+      "heat_covector_norm": 8.233910547687405,
+      "solenoidal_velocity_energy_fraction": 0.44134923444398133
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.4900726505299488e-15,
+      "heat_covector_norm": 8.23391050522805,
+      "solenoidal_velocity_energy_fraction": 0.42060702950162093
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 1.9652427649713398e-15,
+      "heat_covector_norm": 8.23391061928512,
+      "solenoidal_velocity_energy_fraction": 0.46428071972326995
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1691906631590093e-15,
+      "heat_covector_norm": 8.23391055737107,
+      "solenoidal_velocity_energy_fraction": 0.4375469677609374
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "selected",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 3.968164064182401e-16,
+      "heat_covector_norm": 8.23391055737107,
+      "solenoidal_velocity_energy_fraction": 0.2791672676594503
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 12,
+      "velocity_covector_norm": 4.2643456605797486e-16,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.4822711666004967
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 13,
+      "velocity_covector_norm": 7.798286069951902e-16,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.2658606469114076
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 14,
+      "velocity_covector_norm": 3.414681533440645e-15,
+      "heat_covector_norm": 8.23391042388887,
+      "solenoidal_velocity_energy_fraction": 0.47020089756033306
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 15,
+      "velocity_covector_norm": 4.227794799112455e-15,
+      "heat_covector_norm": 8.233910547687406,
+      "solenoidal_velocity_energy_fraction": 0.3532312339600501
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 16,
+      "velocity_covector_norm": 1.9960073008163886e-15,
+      "heat_covector_norm": 8.233910475681732,
+      "solenoidal_velocity_energy_fraction": 0.4483271369943848
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 17,
+      "velocity_covector_norm": 3.1362034432063633e-16,
+      "heat_covector_norm": 8.23391050522805,
+      "solenoidal_velocity_energy_fraction": 0.641623044957572
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 18,
+      "velocity_covector_norm": 3.211731176496869e-16,
+      "heat_covector_norm": 8.233910547687406,
+      "solenoidal_velocity_energy_fraction": 0.6366440631762901
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 19,
+      "velocity_covector_norm": 7.906101789642681e-16,
+      "heat_covector_norm": 8.233910547687405,
+      "solenoidal_velocity_energy_fraction": 0.4418338068444293
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 20,
+      "velocity_covector_norm": 1.4946705985423495e-15,
+      "heat_covector_norm": 8.23391050522805,
+      "solenoidal_velocity_energy_fraction": 0.4042003797198811
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 21,
+      "velocity_covector_norm": 1.9709791556406683e-15,
+      "heat_covector_norm": 8.23391061928512,
+      "solenoidal_velocity_energy_fraction": 0.4506765894854461
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 22,
+      "velocity_covector_norm": 1.1614444838933046e-15,
+      "heat_covector_norm": 8.23391055737107,
+      "solenoidal_velocity_energy_fraction": 0.4366949156274133
+    },
+    {
+      "solver": "waterlily",
+      "case": 0,
+      "arm": "final",
+      "kind": "local_C",
+      "probe": 23,
+      "velocity_covector_norm": 3.9526378117368254e-16,
+      "heat_covector_norm": 8.23391055737107,
+      "solenoidal_velocity_energy_fraction": 0.2788095893628691
+    }
+  ]
+}

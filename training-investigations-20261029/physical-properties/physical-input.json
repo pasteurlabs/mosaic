@@ -1,0 +1,56 @@
+{
+  "solvers": {
+    "jax-cfd": {
+      "heat": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-heat-probes-20261029/jax-cfd/profile/heat_probe.json",
+        "job_id": 3623390
+      },
+      "loss": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-loss-probes-20261029/jax-cfd/profile/loss_probe.json",
+        "job_id": 3623414
+      }
+    },
+    "phiflow": {
+      "heat": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-heat-probes-20261029/phiflow/profile/heat_probe.json",
+        "job_id": 3623391
+      },
+      "loss": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-loss-probes-20261029/phiflow/profile/loss_probe.json",
+        "job_id": 3623416
+      }
+    },
+    "ins-jl": {
+      "heat": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/heat-v1/ins-jl/results/heat_probe.json",
+        "job_id": 3623384
+      },
+      "loss": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/loss-v1/ins-jl/results/loss_probe.json",
+        "job_id": 3623406
+      }
+    },
+    "oceananigans": {
+      "heat": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/heat-v1/oceananigans/results/heat_probe.json",
+        "job_id": 3623385
+      },
+      "loss": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/loss-v1/oceananigans/results/loss_probe.json",
+        "job_id": 3623407
+      }
+    },
+    "waterlily": {
+      "heat": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/heat-v1/waterlily/results/heat_probe.json",
+        "job_id": 3623386
+      },
+      "loss": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physical-gradients-20261029/loss-v1/waterlily/results/loss_probe.json",
+        "job_id": 3623408
+      }
+    }
+  },
+  "cached_job": 3623383,
+  "rest_job": 3623413
+}

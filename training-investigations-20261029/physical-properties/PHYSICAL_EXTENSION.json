@@ -1,0 +1,20 @@
+{
+  "authorized_extension": "Actual velocity and temperature loss-component state covectors and C-only rest fixedpoint tests, no training.",
+  "loss_definition": "Lv=.5 mean(((u-u_ref)/Dv)^2 across both velocity components); Ltheta=.5 mean(((theta-theta_ref)/Dtheta)^2); mean over ALL intermediate1/8/32 outputs. Selected model, heldout100/frame50. Native reverse accumulation adds each intermediate residual/H.",
+  "comparisons": "S and C_after_S use own autonomous residuals; local matched output residual controls S,C,F separately at x or S(x). Statecovectors not parametergradients. Direct physical C temperature identity asserted.",
+  "rest": "All5 exactsaved initial/selected/final checkpoints; u=0, theta=0/\u00b1.1Dtheta; no solvercalls.",
+  "jobs": {
+    "rest": 3623413,
+    "loss_jax": 3623414,
+    "loss_phi": 3623416,
+    "loss_ins": 3623406,
+    "loss_ocean": 3623407,
+    "loss_water": 3623408,
+    "report": 3623499
+  },
+  "source_sha256": {
+    "loss_probe.py": "07c4294d72a72463282ce6bf4ef11ac8ef1dc556d863b500f30fd2754cee6e68",
+    "rest_control.py": "b6d5bc10deafd71171aa05aafd05cdd197b6f67fbd02e68abae4bdc22eaf3b5d",
+    "physical_summary.py": "608defb08f1b09fd48a849a722a7c89428f736e10edad16e9d134561c28c03cd"
+  }
+}

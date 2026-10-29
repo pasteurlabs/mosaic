@@ -1,0 +1,597 @@
+{
+  "completed": true,
+  "scope": "C alone at rest; no solver calls or claim about S equilibrium. Uniform temperatures0,\u00b10.1 times own training theta RMS. Original physical apply_corrector, no normalize/de-normalize wrapper. Saved exact initial/selected/final checkpoints; no retraining. CPU execution may differ slightly from GPU.",
+  "devices": [
+    "cpu:0"
+  ],
+  "source_sha256": "b6d5bc10deafd71171aa05aafd05cdd197b6f67fbd02e68abae4bdc22eaf3b5d",
+  "inputs": [
+    {
+      "solver": "jax-cfd",
+      "model": "initial",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/initial_params.npz",
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "selected",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/selected_params.npz",
+      "sha256": "c1b8f5b2311b520db107738bbc237ac6ad81c9813cc83b67ca1b7546b60ee099"
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "final",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/final_params.npz",
+      "sha256": "a2b1af9491efde0ac042cbc952769b33f2e5a410461af2e360f53e816ddc69fb"
+    },
+    {
+      "solver": "phiflow",
+      "model": "initial",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-20261029/phiflow/results/baseline/initial_params.npz",
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "solver": "phiflow",
+      "model": "selected",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-20261029/phiflow/results/baseline/selected_params.npz",
+      "sha256": "d7cf1786ab75b5d5c398ab3cb7b074fc80a84d54e4d5d1faf7c10b01f2919d1e"
+    },
+    {
+      "solver": "phiflow",
+      "model": "final",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-20261029/phiflow/results/baseline/final_params.npz",
+      "sha256": "b91d68191a4b49da826e5b50724b2589e895c3a7a266eaeb0dd11b25fe38170d"
+    },
+    {
+      "solver": "ins-jl",
+      "model": "initial",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/ins-jl/results/baseline/initial_params.npz",
+      "sha256": "e5ea2c5d5317d0af0053e4cb6e26cd422a7eb1184ed3144432f53cc4a1d99922"
+    },
+    {
+      "solver": "ins-jl",
+      "model": "selected",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/ins-jl/results/baseline/selected_params.npz",
+      "sha256": "4e20ec88ac2c14d6043a2a9dc74e346395e4f2bdd9284e2987302b4a027a5271"
+    },
+    {
+      "solver": "ins-jl",
+      "model": "final",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/ins-jl/results/baseline/final_params.npz",
+      "sha256": "069693b91ae678346fcd1c7088cd8bd9afe23d47a0bddf9e9bc68e4d36c3a572"
+    },
+    {
+      "solver": "oceananigans",
+      "model": "initial",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/oceananigans/results/baseline/initial_params.npz",
+      "sha256": "e5ea2c5d5317d0af0053e4cb6e26cd422a7eb1184ed3144432f53cc4a1d99922"
+    },
+    {
+      "solver": "oceananigans",
+      "model": "selected",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/oceananigans/results/baseline/selected_params.npz",
+      "sha256": "d2b73d0831b0c6024d7904a7d458058c14c965335b871544431f5e61a2efcd63"
+    },
+    {
+      "solver": "oceananigans",
+      "model": "final",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-isolated-20261029/oceananigans/results/baseline/final_params.npz",
+      "sha256": "1def403225800f49ca2ff6aa36ddbef923890e2ba69a1f585d06091727b9164b"
+    },
+    {
+      "solver": "waterlily",
+      "model": "initial",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-water-v3-20261029/waterlily/results/baseline/initial_params.npz",
+      "sha256": "e5ea2c5d5317d0af0053e4cb6e26cd422a7eb1184ed3144432f53cc4a1d99922"
+    },
+    {
+      "solver": "waterlily",
+      "model": "selected",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-water-v3-20261029/waterlily/results/baseline/selected_params.npz",
+      "sha256": "50a10972501b81d1d596f0a662e4ebdc7b45c8006efc5a5d6e5fbed0bd47b9bb"
+    },
+    {
+      "solver": "waterlily",
+      "model": "final",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-lr-transfer-water-v3-20261029/waterlily/results/baseline/final_params.npz",
+      "sha256": "496851ab97cd9144e0c984222dd243b63a16824b51cf41f9009adb3f45bc053f"
+    }
+  ],
+  "rows": [
+    {
+      "solver": "jax-cfd",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "initial",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012592173181474209,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012592173181474209,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 5.679063127090215e-06,
+      "velocity_injection_max": 3.237959390389733e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "selected",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012592173181474209,
+      "velocity_injection_rms": 1.1748436284783317e-07,
+      "velocity_injection_max": 6.698456900267047e-07,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012592173181474209,
+      "velocity_injection_rms": 1.0134086995265372e-05,
+      "velocity_injection_max": 5.778023842140101e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 4.267738477225715e-06,
+      "velocity_injection_max": 2.4332823159056716e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "final",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012592173181474209,
+      "velocity_injection_rms": 4.242225416444225e-06,
+      "velocity_injection_max": 2.4187358576455154e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "jax-cfd",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012592173181474209,
+      "velocity_injection_rms": 1.372412781663813e-05,
+      "velocity_injection_max": 7.824911881471053e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "initial",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012060523964464664,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012060523964464664,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 9.445194156020102e-06,
+      "velocity_injection_max": 5.3852465498493984e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "selected",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012060523964464664,
+      "velocity_injection_rms": 1.8187572877165272e-05,
+      "velocity_injection_max": 0.0001036977773765102,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012060523964464664,
+      "velocity_injection_rms": 1.1308423321558194e-06,
+      "velocity_injection_max": 6.447580290114274e-06,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 9.032795643511476e-06,
+      "velocity_injection_max": 5.1501145208021626e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "final",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012060523964464664,
+      "velocity_injection_rms": 8.29616144541182e-06,
+      "velocity_injection_max": 4.7301171434810385e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "phiflow",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012060523964464664,
+      "velocity_injection_rms": 9.733739631411991e-06,
+      "velocity_injection_max": 5.549762863665819e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "initial",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012613859958946705,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012613859958946705,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 8.102163283274393e-06,
+      "velocity_injection_max": 4.6195076720323414e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "selected",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012613859958946705,
+      "velocity_injection_rms": 1.0130573166936657e-05,
+      "velocity_injection_max": 5.7760204072110355e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012613859958946705,
+      "velocity_injection_rms": 7.200536755976305e-06,
+      "velocity_injection_max": 4.1054387111216784e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 5.949586434124641e-06,
+      "velocity_injection_max": 3.392200233065523e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "final",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012613859958946705,
+      "velocity_injection_rms": 2.1774686890739988e-05,
+      "velocity_injection_max": 0.0001241499703610316,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "ins-jl",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012613859958946705,
+      "velocity_injection_rms": 7.701195081403246e-06,
+      "velocity_injection_max": 4.3908927182201296e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "initial",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012605934403836727,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012605934403836727,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 5.3498725415742465e-06,
+      "velocity_injection_max": 3.0502689696731977e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "selected",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012605934403836727,
+      "velocity_injection_rms": 5.399453763146238e-06,
+      "velocity_injection_max": 3.078538065892644e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012605934403836727,
+      "velocity_injection_rms": 5.704262897566748e-06,
+      "velocity_injection_max": 3.252327223890461e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 3.3986944606760686e-05,
+      "velocity_injection_max": 0.0001937790511874482,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "final",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012605934403836727,
+      "velocity_injection_rms": 1.8430552159995235e-05,
+      "velocity_injection_max": 0.00010508314153412357,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "oceananigans",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012605934403836727,
+      "velocity_injection_rms": 4.7608462510768713e-05,
+      "velocity_injection_max": 0.0002714431320782751,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "initial",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012144897133111954,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "initial",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012144897133111954,
+      "velocity_injection_rms": 0.0,
+      "velocity_injection_max": 0.0,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 1.0007858439196791e-05,
+      "velocity_injection_max": 5.7060537073994055e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "selected",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012144897133111954,
+      "velocity_injection_rms": 3.931110277779537e-06,
+      "velocity_injection_max": 2.2413512851926498e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "selected",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012144897133111954,
+      "velocity_injection_rms": 1.6104293163595705e-05,
+      "velocity_injection_max": 9.181980567518622e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.0,
+      "temperature_physical": 0.0,
+      "velocity_injection_rms": 2.044385647404537e-05,
+      "velocity_injection_max": 0.00011656214337563142,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "final",
+      "temperature_in_training_rms_units": -0.1,
+      "temperature_physical": -0.012144897133111954,
+      "velocity_injection_rms": 3.188949983255966e-05,
+      "velocity_injection_max": 0.00018182031635660678,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    },
+    {
+      "solver": "waterlily",
+      "model": "final",
+      "temperature_in_training_rms_units": 0.1,
+      "temperature_physical": 0.012144897133111954,
+      "velocity_injection_rms": 1.0354081233990506e-05,
+      "velocity_injection_max": 5.903455166844651e-05,
+      "divergence_rms": 0.0,
+      "normal_padding_max": 0.0,
+      "temperature_bitwise_equal": true
+    }
+  ]
+}
