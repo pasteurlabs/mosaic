@@ -17,6 +17,7 @@ dependencies = [
     "typer>=0.12",
     "numpy",
     "pandas",
+    "pillow>=10.1",
     "altair>=6.3",
     "vl-convert-python>=1.9",
     "jax[cpu]",

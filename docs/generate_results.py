@@ -607,7 +607,8 @@ def _img_src(problem: str, suite: str, experiment: str, png: Path) -> str:
 
 
 def _img_tag(problem: str, suite: str, experiment: str, png: Path) -> str:
-    return f"![]({_img_src(problem, suite, experiment, png)}){{.lightbox}}"
+    image = png.with_suffix(".gif") if png.with_suffix(".gif").exists() else png
+    return f"![]({_img_src(problem, suite, experiment, image)}){{.lightbox}}"
 
 
 def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | None:
@@ -618,7 +619,7 @@ def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | 
     lazily (docs/charts.html) and keeps the PNG as the fallback when there is
     no JS or the chart fails to load.
     """
-    if not png.with_suffix(".vl.json").exists():
+    if png.with_suffix(".gif").exists() or not png.with_suffix(".vl.json").exists():
         return None
     src = _img_src(problem, suite, experiment, png)
     spec = src.removesuffix(".png") + ".vl.json"

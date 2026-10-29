@@ -1,0 +1,209 @@
+# Copyright 2026 Pasteur Labs. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""Fixed-scale animated error fields for the held-out buoyancy rollout."""
+
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+from mosaic.benchmarks.core.config import Problem
+
+
+def _center_velocity(states: np.ndarray) -> np.ndarray:
+    ux = np.pad(states[..., :-1, :, 0], ((0, 0), (1, 1), (0, 0)))
+    uy = np.pad(states[..., :, :-1, 1], ((0, 0), (0, 0), (1, 1)))
+    return np.stack(
+        ((ux[:, :-1] + ux[:, 1:]) / 2, (uy[:, :, :-1] + uy[:, :, 1:]) / 2), axis=-1
+    )
+
+
+def _reduce(fields: np.ndarray, maximum: int = 32) -> np.ndarray:
+    n = fields.shape[-1]
+    if n <= maximum:
+        return fields
+    # Block means retain the local mean error magnitude, without signed-error
+    # cancellation. Non-divisible sizes retain their original resolution.
+    factor = (n + maximum - 1) // maximum
+    if n % factor:
+        return fields
+    return fields.reshape(len(fields), n // factor, factor, n // factor, factor).mean(
+        axis=(2, 4)
+    )
+
+
+def _palette() -> list[int]:
+    anchors = np.array(
+        [[0, 0, 4], [87, 15, 109], [188, 55, 84], [249, 142, 9], [252, 255, 164]]
+    )
+    colors = np.stack(
+        [
+            np.interp(np.linspace(0, 4, 240), np.arange(5), anchors[:, c])
+            for c in range(3)
+        ],
+        axis=1,
+    )
+    palette = np.zeros((256, 3), dtype=np.uint8)
+    palette[:240] = colors.astype(np.uint8)
+    palette[253] = [100, 100, 100]
+    palette[255] = [255, 255, 255]
+    return palette.ravel().tolist()
+
+
+def write_error_gif(
+    cfg: Problem, out: Path, result: dict, snapshots: dict
+) -> Path | None:
+    """Save all available solvers together, with one fixed scale per physical field.
+
+    Scalar error is absolute scalar difference. Velocity error is the norm of
+    the difference of cell-centered velocity vectors, not speed differences.
+    Input frame zero is retained; each subsequent frame is one solver interval.
+    """
+    names = [str(name) for name in snapshots.get("solver_names", [])]
+    metrics = {r["solver"]: r.get("metrics", {}) for r in result.get("results", [])}
+    rows = []
+    for solver in cfg.solvers:
+        name = solver.name
+        if name not in names or metrics.get(name, {}).get("status") != "ok":
+            continue
+        index = names.index(name)
+        keys = [
+            f"{arm}_{index}" for arm in ("reference", "uncorrected", "solver_in_loop")
+        ]
+        if not all(key in snapshots for key in keys):
+            continue
+        reference, baseline, corrected = [np.asarray(snapshots[key]) for key in keys]
+        if (
+            reference.ndim != 4
+            or reference.shape[-1] != 3
+            or reference.shape[1] != reference.shape[2]
+        ):
+            raise ValueError("Expected rollout shape (frames,N,N,3)")
+        if any(
+            a.shape != reference.shape or not np.isfinite(a).all()
+            for a in (reference, baseline, corrected)
+        ):
+            raise ValueError(f"Invalid saved rollout for {name}")
+        ref_velocity = _center_velocity(reference)
+        errors = [
+            np.abs(baseline[..., 2] - reference[..., 2]),
+            np.abs(corrected[..., 2] - reference[..., 2]),
+            np.linalg.norm(_center_velocity(baseline) - ref_velocity, axis=-1),
+            np.linalg.norm(_center_velocity(corrected) - ref_velocity, axis=-1),
+        ]
+        rows.append((name, [_reduce(a) for a in errors]))
+    if not rows:
+        return None
+    frames = len(rows[0][1][0])
+    if any(len(a) != frames for _, errors in rows for a in errors):
+        raise ValueError("Combined error animation requires equal frame counts")
+    maxima = [
+        max(float(a.max()) for _, errors in rows for a in errors[start : start + 2])
+        for start in (0, 2)
+    ]
+    scales = [max(v, 1e-12) for v in maxima]
+    physics = result.get("params", {}).get("physics", {})
+    interval = float(physics["dt"]) * int(physics["steps"])
+    extent = float(physics.get("domain_extent", cfg.domain_extent))
+    palette = _palette()
+    font = ImageFont.load_default(size=14)
+    small = ImageFont.load_default(size=12)
+    panel, gap, left, top = 144, 12, 125, 116
+    width, height = left + 4 * (panel + gap), top + len(rows) * (panel + 28) + 38
+    images = []
+    for frame in range(frames):
+        image = Image.new("P", (width, height), color=255)
+        image.putpalette(palette)
+        draw = ImageDraw.Draw(image)
+        draw.text(
+            (12, 8),
+            f"Held-out spatial errors | time {frame * interval:.2f} | frame {frame}/{frames - 1}",
+            fill=254,
+            font=font,
+        )
+        draw.text(
+            (12, 29),
+            "Own-solver restricted fine reference; fixed scales over all solvers and times",
+            fill=253,
+            font=small,
+        )
+        for group, title in enumerate(
+            ("Scalar absolute error", "Velocity vector-error magnitude")
+        ):
+            x = left + 2 * group * (panel + gap)
+            draw.text((x, 50), title, fill=254, font=font)
+            for pixel in range(2 * panel + gap):
+                draw.line(
+                    (x + pixel, 72, x + pixel, 80),
+                    fill=round(239 * pixel / (2 * panel + gap - 1)),
+                )
+            draw.text((x, 82), "0", fill=254, font=small)
+            draw.text(
+                (x + 2 * panel + gap - 70, 82),
+                f"{maxima[group]:.3g}",
+                fill=254,
+                font=small,
+            )
+        for i, (name, errors) in enumerate(rows):
+            y = top + i * (panel + 28)
+            draw.text((8, y + panel // 2), name, fill=254, font=font)
+            for column, error in enumerate(errors):
+                x = left + column * (panel + gap)
+                indices = np.rint(
+                    np.clip(error[frame].T[::-1] / scales[column // 2], 0, 1) * 239
+                ).astype(np.uint8)
+                tile = Image.frombytes(
+                    "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
+                )
+                tile.putpalette(palette)
+                image.paste(
+                    tile.resize((panel, panel), Image.Resampling.NEAREST), (x, y)
+                )
+                draw.text(
+                    (x, y + panel + 3),
+                    "Uncorrected" if column % 2 == 0 else "Selected correction",
+                    fill=254,
+                    font=small,
+                )
+        draw.text(
+            (12, height - 28),
+            f"Box [0,{extent:g}]²; spatial mean errors at ≤32² when divisible; playback 10 fps",
+            fill=253,
+            font=small,
+        )
+        images.append(image)
+    out.mkdir(parents=True, exist_ok=True)
+    target = out / "error_evolution.gif"
+    images[0].save(
+        target,
+        save_all=True,
+        append_images=images[1:],
+        duration=100,
+        loop=0,
+        optimize=False,
+        disposal=2,
+    )
+    images[-1].convert("RGB").save(target.with_suffix(".png"))
+    target.with_suffix(".json").write_text(
+        json.dumps(
+            {
+                "solvers": [name for name, _ in rows],
+                "frames": frames,
+                "frame_interval": interval,
+                "fps": 10,
+                "scalar_max": maxima[0],
+                "velocity_max": maxima[1],
+                "normalization": "None; physical-state error units",
+                "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
+                "selected_updates": {
+                    name: metrics[name]["solver_in_loop"]["selected_update"]
+                    for name, _ in rows
+                },
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    return target
