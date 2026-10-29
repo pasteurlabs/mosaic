@@ -67,31 +67,27 @@ def test_animation_all_solvers_frames_and_fixed_paired_row_scales(tmp_path):
         assert animation.info["duration"] == 100
         assert animation.info["loop"] == 0
         zero = animation.convert("RGB")
-        assert zero.getpixel((181, 175)) == zero.getpixel((296, 175)) == (0, 0, 0)
+        assert zero.getpixel((197, 388)) == zero.getpixel((347, 388)) == (0, 0, 0)
         animation.seek(2)
         frame = animation.convert("RGB")
         assert animation.width <= 1100
         for row in range(5):
-            baseline = frame.getpixel((181, 175 + row * 174))
-            corrected = frame.getpixel((418, 175 + row * 174))
-            assert baseline[0] == baseline[1] == baseline[2] == 255
-            assert corrected[0] == corrected[1] == corrected[2]
-            assert 0 < corrected[0] < baseline[0]
-            red = frame.getpixel((296, 175 + row * 174))
-            corrected_red = frame.getpixel((533, 175 + row * 174))
-            blue = frame.getpixel((780, 175 + row * 174))
+            red = frame.getpixel((197, 388 + row * 192))
+            corrected_red = frame.getpixel((347, 388 + row * 192))
+            blue = frame.getpixel((509, 388 + row * 192))
             assert red[0] > red[2] and blue[2] > blue[0]
             assert sum(red) > sum(corrected_red) > 0
     assert path.with_suffix(".png").exists()
     receipt = json.loads(path.with_suffix(".json").read_text())
     assert receipt["solvers"] == names
-    assert len(receipt["columns"]) == 8
+    assert len(receipt["columns"]) == 4
     for index, name in enumerate(names):
         scale = receipt["row_scales"][name]
-        assert scale["temperature_range"] == [0, index + 1]
-        assert scale["speed_range"] == [0, index + 1]
         assert scale["temperature_error_max"] == index + 1
         assert scale["velocity_error_max"] == index + 1
+    assert receipt["orientation"]["solver"] == "JAX-CFD"
+    assert receipt["orientation"]["temperature_range"] == [0, 1]
+    assert receipt["orientation"]["speed_range"] == [0, 1]
     assert receipt["frames"] == 3 and receipt["frame_interval"] == 0.04
 
 
@@ -146,22 +142,22 @@ def test_corrected_fields_remain_visible_when_errors_are_zero(tmp_path):
     path = write_error_gif(cfg, tmp_path, result, snapshots)
     with Image.open(path) as animation:
         frame = animation.convert("RGB")
-        for x in (181, 418, 665, 902):
-            gray = frame.getpixel((x, 175))
-            assert gray[0] == gray[1] == gray[2] and gray[0] > 0
-        for x in (296, 533, 780, 1017):
-            assert frame.getpixel((x, 175)) == (0, 0, 0)
+        red, blue = frame.getpixel((272, 157)), frame.getpixel((584, 157))
+        assert red[0] > red[2] and blue[2] > blue[0]
+        for x in (197, 347, 509, 659):
+            assert frame.getpixel((x, 388)) == (0, 0, 0)
     receipt = json.loads(path.with_suffix(".json").read_text())
     scale = receipt["row_scales"]["PhiFlow"]
-    assert scale["temperature_range"] == [-1, 1]
+    assert receipt["orientation"]["solver"] == "PhiFlow"
+    assert receipt["orientation"]["temperature_range"] == [-1, 1]
     assert scale["temperature_error_max"] == scale["velocity_error_max"] == 0
 
 
 def test_separate_panels_keep_uniform_errors_visible_and_independent():
     actual = np.full((32, 32), 0.6)
     error = np.full_like(actual, 0.5)
-    baseline_field = _panel_indices(actual, (0, 1), 2)
-    corrected_field = _panel_indices(actual / 2, (0, 1), 2)
+    baseline_field = _panel_indices(actual, (0, 1), 0)
+    corrected_field = _panel_indices(actual / 2, (0, 1), 0)
     baseline_error = _panel_indices(error, (0, 1), 0)
     corrected_error = _panel_indices(error, (0, 1), 0)
     assert np.all(baseline_field > corrected_field)

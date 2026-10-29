@@ -35,12 +35,11 @@ def _reduce(fields: np.ndarray, maximum: int = 32) -> np.ndarray:
 
 
 _COLORS_PER_FIELD = 96
-_GRAY_COLORS = 48
 
 
 def _field_indices(normalized: np.ndarray, group: int) -> np.ndarray:
     """Map a fixed [0,1] scale into its field's disjoint palette block."""
-    count = _GRAY_COLORS if group == 2 else _COLORS_PER_FIELD
+    count = _COLORS_PER_FIELD
     return (
         np.rint(np.clip(normalized, 0, 1) * (count - 1)) + group * _COLORS_PER_FIELD
     ).astype(np.uint8)
@@ -68,7 +67,6 @@ def _palette() -> list[int]:
         )
         start = group * _COLORS_PER_FIELD
         palette[start : start + _COLORS_PER_FIELD] = colors.astype(np.uint8)
-    palette[192:240] = np.linspace(0, 255, _GRAY_COLORS).astype(np.uint8)[:, None]
     palette[253] = [100, 100, 100]
     palette[255] = [255, 255, 255]
     return palette.ravel().tolist()
@@ -134,25 +132,29 @@ def write_error_gif(
     if any(len(a) != frames for _, errors, _ in rows for a in errors):
         raise ValueError("Combined error animation requires equal frame counts")
     row_scales = {}
-    for name, errors, fields in rows:
+    for name, errors, _ in rows:
         row_scales[name] = {
             "temperature_error_max": max(float(a.max()) for a in errors[:2]),
             "velocity_error_max": max(float(a.max()) for a in errors[2:]),
-            "temperature_range": [
-                min(0.0, *(float(a.min()) for a in fields[:2])),
-                max(0.0, *(float(a.max()) for a in fields[:2])),
-            ],
-            "speed_range": [0.0, max(float(a.max()) for a in fields[2:])],
         }
+    orientation = next((row for row in rows if row[0] == "JAX-CFD"), rows[0])
+    orientation_fields = [orientation[2][1], orientation[2][3]]
+    orientation_ranges = [
+        [
+            min(0.0, float(orientation_fields[0].min())),
+            max(0.0, float(orientation_fields[0].max())),
+        ],
+        [0.0, float(orientation_fields[1].max())],
+    ]
     physics = result.get("params", {}).get("physics", {})
     interval = float(physics["dt"]) * int(physics["steps"])
     extent = float(physics.get("domain_extent", cfg.domain_extent))
     palette = _palette()
     font = ImageFont.load_default(size=14)
     small = ImageFont.load_default(size=12)
-    panel, left, top = 112, 125, 119
-    offsets = [0, 115, 237, 352, 484, 599, 721, 836]
-    row_height = panel + 62
+    panel, left, top = 144, 125, 316
+    offsets = [0, 150, 312, 462]
+    row_height = panel + 48
     width, height = left + offsets[-1] + panel + 12, top + len(rows) * row_height + 38
     images = []
     for frame in range(frames):
@@ -167,73 +169,92 @@ def write_error_gif(
         )
         draw.text(
             (12, 29),
-            "Gray: actual fields. Red: absolute temperature error. Blue: velocity vector-error magnitude.",
+            f"Orientation: selected {orientation[0]} rollout (actual fields, not errors).",
             fill=253,
             font=small,
         )
         draw.text(
             (12, 46),
-            "Scales differ by row; paired arms share scales fixed over time. Compare colors within each row.",
+            "Errors below use each solver's own fine reference; compare colors within each row.",
             fill=253,
             font=small,
         )
-        for group, title in enumerate(("Temperature", "Speed and velocity error")):
-            x = left + offsets[4 * group]
-            draw.text((x, 66), title, fill=254, font=font)
-            for arm, label in enumerate(("Uncorrected", "Selected correction")):
-                ax = x + offsets[2 * arm]
-                draw.text((ax, 84), label, fill=254, font=small)
-                draw.text((ax, 101), "Field", fill=253, font=small)
-                draw.text((ax + 115, 101), "Error", fill=253, font=small)
-        for i, (name, errors, fields) in enumerate(rows):
+        for group, title in enumerate(("Actual temperature", "Actual speed")):
+            x = left + offsets[group * 2] + 75
+            draw.text((x, 67), title, fill=254, font=small)
+            indices = _panel_indices(
+                orientation_fields[group][frame].T[::-1],
+                orientation_ranges[group],
+                group,
+            )
+            tile = Image.frombytes(
+                "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
+            )
+            tile.putpalette(palette)
+            image.paste(tile.resize((panel, panel), Image.Resampling.NEAREST), (x, 85))
+            bounds = orientation_ranges[group]
+            draw.text(
+                (x, 233),
+                f"Field: {bounds[0]:.3g} to {bounds[1]:.3g}",
+                fill=254,
+                font=small,
+            )
+            for pixel, color in enumerate(
+                _field_indices(np.linspace(0, 1, panel), group)
+            ):
+                draw.line((x + pixel, 251, x + pixel, 257), fill=int(color))
+        draw.text(
+            (12, 269),
+            "Error scales: paired arms share each row's maximum, fixed over all frames.",
+            fill=253,
+            font=small,
+        )
+        for column, title in enumerate(
+            (
+                "Uncorrected temp error",
+                "Corrected temp error",
+                "Uncorrected vel error",
+                "Corrected vel error",
+            )
+        ):
+            draw.text((left + offsets[column], 294), title, fill=254, font=small)
+        for i, (name, errors, _) in enumerate(rows):
             y = top + i * row_height
             draw.text((8, y + panel // 2), name, fill=254, font=font)
             scale = row_scales[name]
-            for column, (values, error) in enumerate(zip(fields, errors, strict=True)):
+            for column, error in enumerate(errors):
                 group = column // 2
-                limits = scale["temperature_range" if group == 0 else "speed_range"]
                 maximum = scale[
                     "temperature_error_max" if group == 0 else "velocity_error_max"
                 ]
-                for subcolumn, array, bounds, palette_group in (
-                    (0, values, limits, 2),
-                    (1, error, (0, maximum), group),
-                ):
-                    indices = _panel_indices(
-                        array[frame].T[::-1], bounds, palette_group
-                    )
-                    tile = Image.frombytes(
-                        "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
-                    )
-                    tile.putpalette(palette)
-                    image.paste(
-                        tile.resize((panel, panel), Image.Resampling.NEAREST),
-                        (left + offsets[2 * column + subcolumn], y),
-                    )
+                indices = _panel_indices(error[frame].T[::-1], (0, maximum), group)
+                tile = Image.frombytes(
+                    "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
+                )
+                tile.putpalette(palette)
+                image.paste(
+                    tile.resize((panel, panel), Image.Resampling.NEAREST),
+                    (left + offsets[column], y),
+                )
             for group, field in enumerate(("temperature", "velocity")):
-                x = left + offsets[4 * group]
+                x = left + offsets[2 * group]
                 maximum = scale[f"{field}_error_max"]
-                limits = scale["temperature_range" if group == 0 else "speed_range"]
-                for bar, title, bounds, palette_group in (
-                    (0, "Field", limits, 2),
-                    (1, "Error", (0, maximum), group),
+                draw.text(
+                    (x, y + panel + 4),
+                    f"Absolute error: 0 to {maximum:.3g}",
+                    fill=254,
+                    font=small,
+                )
+                for pixel, color in enumerate(
+                    _field_indices(np.linspace(0, 1, 294), group)
                 ):
-                    bx = x + bar * 237
-                    draw.text(
-                        (bx, y + panel + 4),
-                        f"{title}: {bounds[0]:.3g} to {bounds[1]:.3g}",
-                        fill=254,
-                        font=small,
+                    draw.line(
+                        (x + pixel, y + panel + 23, x + pixel, y + panel + 29),
+                        fill=int(color),
                     )
-                    colors = _field_indices(np.linspace(0, 1, 210), palette_group)
-                    for pixel, color in enumerate(colors):
-                        draw.line(
-                            (bx + pixel, y + panel + 23, bx + pixel, y + panel + 30),
-                            fill=int(color),
-                        )
         draw.text(
             (12, height - 28),
-            f"Box [0,{extent:g}]^2; block means up to 32x32; own-solver fine reference; 10 fps",
+            f"Box [0,{extent:g}]^2; block means up to 32x32; 10 fps",
             fill=253,
             font=small,
         )
@@ -258,16 +279,19 @@ def write_error_gif(
                 "frame_interval": interval,
                 "fps": 10,
                 "columns": [
-                    "uncorrected_temperature",
                     "uncorrected_temperature_error",
-                    "corrected_temperature",
                     "corrected_temperature_error",
-                    "uncorrected_speed",
                     "uncorrected_velocity_error",
-                    "corrected_speed",
                     "corrected_velocity_error",
                 ],
                 "row_scales": row_scales,
+                "orientation": {
+                    "solver": orientation[0],
+                    "method": "selected solver_in_loop correction",
+                    "temperature_range": orientation_ranges[0],
+                    "speed_range": orientation_ranges[1],
+                    "selection": "JAX-CFD when available, otherwise first available solver",
+                },
                 "layout": {
                     "panel_size": panel,
                     "column_offsets": offsets,
@@ -283,7 +307,7 @@ def write_error_gif(
                     "temperature": "sequential red",
                     "velocity": "sequential blue",
                     "zero_error": "black",
-                    "actual_fields": "sequential grayscale",
+                    "actual_fields": "temperature red, speed blue; independent physical scales",
                 },
                 "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
                 "selected_updates": {
