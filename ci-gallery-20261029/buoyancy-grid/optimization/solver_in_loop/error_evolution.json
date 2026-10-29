@@ -1,0 +1,28 @@
+{
+  "solvers": [
+    "INS.jl",
+    "JAX-CFD",
+    "Oceananigans",
+    "PhiFlow",
+    "WaterLily"
+  ],
+  "frames": 101,
+  "frame_interval": 0.04,
+  "fps": 10,
+  "scalar_max": 0.10983312129974365,
+  "velocity_max": 0.07980818301439285,
+  "normalization": "None; physical-state error units",
+  "palettes": {
+    "temperature": "sequential red",
+    "velocity": "sequential blue",
+    "zero": "black"
+  },
+  "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
+  "selected_updates": {
+    "INS.jl": 256,
+    "JAX-CFD": 192,
+    "Oceananigans": 128,
+    "PhiFlow": 256,
+    "WaterLily": 128
+  }
+}

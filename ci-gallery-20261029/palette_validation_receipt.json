@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "slurm_job_id": "3615508",
+  "protocol": {
+    "source_commit": "1cb725643d4133057180164fd0cbad2865fd0d59",
+    "source_sha256": "c30c58653d8b526440ac4fba4ac13a970cc02846d1bb9b70dc8fdcee6d784ec4",
+    "scientific_input_ci": "38577109543",
+    "purpose": "GIF-only separate red temperature and blue velocity palettes; unchanged data/scales",
+    "scripts": {
+      "node.sh": "47f41ccb7b7661322fc97751e31d6c678b3144c5f732fe634db93e2e4e516c21",
+      "render.py": "135fabe43bf85194b2d19459f711e9e777430ae9b210e010406215fb9547adf5",
+      "submit.py": "6e09b413aac157c1e3511d18ae0a553823d338ff24224ac45bdc7be85a3d1a99"
+    }
+  },
+  "input_sha256": {
+    "result.json": "ff5de428fa32929ae67cc3f4387c2d1a069e84532dc4f916bb7d89fb5d2a8ee4",
+    "corrector_fields.npz": "e3ce16e498dadfc32c86665e60b2a3d023e466b4964446a6cab70cdfa8589e29",
+    "error_evolution.json": "ee55038ef24bcd77e81e43cad092734eacd31d5c0f03458cda5b4016b84f1639"
+  },
+  "artifacts": {
+    "error_evolution.json": "3270b57c6902f26cd19644a8aeb526a1f9562477a254f57b7d25cefd6626268f",
+    "error_evolution.gif": "4f7f04f543e2f045a554f0cf6c000068655f633fc501dbe5b0a8cf48110e9363",
+    "error_evolution.png": "34cde16b96101578ca6fd491653082406cb66b9c435e4a90825c4301e62779a3"
+  },
+  "metadata": {
+    "solvers": [
+      "INS.jl",
+      "JAX-CFD",
+      "Oceananigans",
+      "PhiFlow",
+      "WaterLily"
+    ],
+    "frames": 101,
+    "frame_interval": 0.04,
+    "fps": 10,
+    "scalar_max": 0.10983312129974365,
+    "velocity_max": 0.07980818301439285,
+    "normalization": "None; physical-state error units",
+    "palettes": {
+      "temperature": "sequential red",
+      "velocity": "sequential blue",
+      "zero": "black"
+    },
+    "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
+    "selected_updates": {
+      "INS.jl": 256,
+      "JAX-CFD": 192,
+      "Oceananigans": 128,
+      "PhiFlow": 256,
+      "WaterLily": 128
+    }
+  }
+}

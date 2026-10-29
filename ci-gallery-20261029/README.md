@@ -7,3 +7,5 @@ The gallery includes all rendered forward, cost, gradient and optimization plots
 The combined initial-condition figure contains all three temperature fields. All 23 focused plot tests passed. The gallery has 11 PNGs, one GIF and 10 Vega-Lite sidecars. Independent OpenFOAM agreement references are still being validated and are not represented by the existing same-solver refinement plots. Temperature anomaly is the dimensionless scalar channel.
 
 The receipt records source, numerical inputs and output hashes. Vega-Lite sidecars accompany interactive figures.
+
+The GIF and its poster were subsequently recolored on Slurm job 3615508, source `1cb7256`: temperature-anomaly error uses a red ramp and velocity error a blue ramp, both black at zero. Five animation tests passed; data, fixed scales and all 101 frames are unchanged. `palette_validation_receipt.json` supersedes the earlier receipt for these outputs.
