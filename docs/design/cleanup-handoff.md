@@ -13,12 +13,13 @@ Merged: #259 to #266, #271, #278 to #283, #285 to #293.
 
 Open, all based on `main`:
 
-| PR   | Change                                                                                | Label  | Status                                                                                                       |
-| ---- | ------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
-| #269 | OpenFOAM tutorial pressure tolerance, serial channel                                  | solver | Ready. Cd within 6e-9, 82 → 53 s                                                                             |
-| #270 | TopOpt.jl gradient from its Zygote rule                                               | solver | Ready. Bit-identical gradients, same VJP time                                                                |
-| #284 | No harness-side time-step rescaling for XLB in ns-3d-grid                             | domain | Ready. Statuses unchanged; N = 8 error 0.064 → 0.079                                                         |
-| #296 | PhiFlow periodic CG tolerance back to phiml's default 1e-5; explained 2D cost anomaly | solver | Benchmark run in progress; it is the end-to-end cost measurement and covers the sweeps the local A/B skipped |
+| PR   | Change                                                                                | Label  | Status                                                                                                                             |
+| ---- | ------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| #269 | OpenFOAM tutorial pressure tolerance, serial channel                                  | solver | Ready. Cd within 6e-9, 82 → 53 s                                                                                                   |
+| #270 | TopOpt.jl gradient from its Zygote rule                                               | solver | Ready. Bit-identical gradients, same VJP time                                                                                      |
+| #284 | No harness-side time-step rescaling for XLB in ns-3d-grid                             | domain | Ready. Statuses unchanged; N = 8 error 0.064 → 0.079                                                                               |
+| #296 | PhiFlow periodic CG tolerance back to phiml's default 1e-5; explained 2D cost anomaly | solver | Benchmark run in progress; it is the end-to-end cost measurement and covers the sweeps the local A/B skipped                       |
+| #298 | ns-grid multimode agreement scored against a checked-in consensus                     | domain | Fixes subset-consensus errors in CI and the published baseline; the `benchmark:domain` run replaces the published multimode errors |
 
 #267, #268 and #272 to #275 belong to the Kolmogorov work, not to this pass. #268 also covers backlog item 6 for Exponax in 2D; not verified.
 
@@ -54,8 +55,8 @@ The sandbox's unpushed branch `refactor/one-entry-setup-caches` is superseded by
 In order. Items marked GPU need the A100.
 
 1. **Watch #296's benchmark run.** The three PhiFlow ns-grid cost cells should turn into explained anomalies. If `cost/vjp_cost/by_steps` trips as well, add it to the explanation. Left from the merged runs:
-   - #291: PhiFlow's multimode agreement error −88%, jax-cfd −71%, XLB +81%. Not explained. Its three solvers were never run on the A100 (GPU).
-   - #292: INS.jl cost +57–105% in CI, not checked locally (GPU). TopOpt.jl's structural forward error became exactly 0; the change cannot alter outputs, and TopOpt.jl ran alone in the CPU forward job, so its reference probably collapsed onto its own output. Not confirmed.
+   - #291: the multimode agreement swings (PhiFlow −88%, jax-cfd −71%, XLB +81%) were not autotuning. The multimode agreement was scored against a run-time consensus of the solvers in each CI job, here those three. #298 fixes it; against all seven solvers, PhiFlow's published 4.7e-4 is 3.7e-3. #291's solvers were never run on the A100 (GPU).
+   - #292: INS.jl cost +57–105% in CI, not checked locally (GPU); INS.jl requests one setup per call with the same key for forward and VJP, so the one-entry cache should not rebuild between calls. TopOpt.jl's structural forward error of exactly 0 is expected: the structural agreement uses a checked-in reference, and since #281 TopOpt.jl assembles the same load as the solvers that built it, so its float32 compliance matches exactly.
 2. **Tolerances** (rule in the tuning checklist): torch-fem's CG at 1e-10 in both tesseracts, then the unmeasured iterative tolerances in `policy4-tuning.md` (Warp-NS channel CG 1e-5, PhiFlow channel 1e-5). GPU.
 3. **CPU parallelism and solvers** (hardware rule): OpenFOAM periodic, GAMG against PCG/DIC and decomposition against serial at the benchmark sizes; INS.jl with `JULIA_NUM_THREADS` set to the runner's cores; FEniCS, Firedrake and deal.II heat with their documented parallelism. Keep what is faster, record what is used. deal.II heat: also compare SSOR with AMG or a direct solve.
 4. **INS.jl on its GPU backend** (GPU). If Zygote differentiates through it, set `uses_gpu: true`; otherwise record why it stays on the CPU.
