@@ -89,7 +89,12 @@ def register(problem: Problem) -> None:
 
     # Cost
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
-    for key in ("cost/spatial_cost", "cost/temporal_cost", "cost/vjp_cost/by_N"):
+    for key in (
+        "cost/spatial_cost",
+        "cost/temporal_cost",
+        "cost/vjp_cost/by_N",
+        "cost/vjp_cost/by_steps",
+    ):
         problem.exclude(key, {"phiflow": PHIFLOW_SPARSE_CG_COST})
 
     # Gradient — suite-level, covers every gradient/* below
