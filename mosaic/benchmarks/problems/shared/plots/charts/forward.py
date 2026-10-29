@@ -38,7 +38,11 @@ _SCALAR_Y = {
         "Structural compliance vs resolution",
     ),
 }
-_REF_DESC = {"analytic": "analytic", "converged": "converged reference"}
+_REF_DESC = {
+    "analytic": "analytic",
+    "converged": "converged reference",
+    "OpenFOAM numerical reference": "OpenFOAM numerical reference",
+}
 
 # Same per-problem specs as ``_PA_FEM_SPECS``.
 _PA_FEM = {

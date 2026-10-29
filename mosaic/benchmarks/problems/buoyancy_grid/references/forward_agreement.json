@@ -1,0 +1,129 @@
+{
+  "reference_type": "independent numerical reference, not an exact solution",
+  "physics_time": 0.3999999910593033,
+  "sweep_values": [
+    16,
+    32
+  ],
+  "source_receipts": [
+    {
+      "solver": "OpenCFD v2412 buoyantBoussinesqPimpleFoam",
+      "container": "opencfd/openfoam-default:2412",
+      "ic": "interacting_plumes",
+      "seed": 0,
+      "N": 64,
+      "dt_requested": 0.0025,
+      "dt_runtime": 0.0024999999441206455,
+      "steps": 160,
+      "nu": 0.0005000000237487257,
+      "kappa": 0.0005000000237487257,
+      "buoyancy": 1.0,
+      "domain_extent": 1.0,
+      "boundary": "closed no-slip velocity; homogeneous Neumann scalar",
+      "state_transfer": "native pressure-corrected phi/face area; cell temperature minus Tref",
+      "wall_seconds": 6.323696449981071,
+      "adapter_sha256": "92c5efef59b72657c935eedeb90f0e088ae18c578676b23f1ae56163413d99d4",
+      "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
+      "artifact_sha256": "633279bf57070a57e84b2235d544ac2136a39855b391569b622748d9f152bb88",
+      "diagnostics": {
+        "divergence_rms": 7.055449164014153e-08,
+        "mass_relative_drift": 3.0883676746793074e-10,
+        "scalar_min": -1.2812506611226127e-10,
+        "scalar_max": 0.889311671257019,
+        "max_abs_velocity": 0.13382776081562042,
+        "finite": true
+      }
+    },
+    {
+      "solver": "OpenCFD v2412 buoyantBoussinesqPimpleFoam",
+      "container": "opencfd/openfoam-default:2412",
+      "ic": "interacting_plumes",
+      "seed": 0,
+      "N": 128,
+      "dt_requested": 0.00125,
+      "dt_runtime": 0.0012499999720603228,
+      "steps": 320,
+      "nu": 0.0005000000237487257,
+      "kappa": 0.0005000000237487257,
+      "buoyancy": 1.0,
+      "domain_extent": 1.0,
+      "boundary": "closed no-slip velocity; homogeneous Neumann scalar",
+      "state_transfer": "native pressure-corrected phi/face area; cell temperature minus Tref",
+      "wall_seconds": 80.68977769499179,
+      "adapter_sha256": "92c5efef59b72657c935eedeb90f0e088ae18c578676b23f1ae56163413d99d4",
+      "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
+      "artifact_sha256": "d72e4c3eb6033bca9d63903dae1618a64084dd2720eb7b9f37f704db0c4b0d0b",
+      "diagnostics": {
+        "divergence_rms": 1.428950685667169e-07,
+        "mass_relative_drift": 4.185227809168719e-10,
+        "scalar_min": -4.087041816092096e-11,
+        "scalar_max": 0.9018444418907166,
+        "max_abs_velocity": 0.1355561465024948,
+        "finite": true
+      }
+    },
+    {
+      "solver": "OpenCFD v2412 buoyantBoussinesqPimpleFoam",
+      "container": "opencfd/openfoam-default:2412",
+      "ic": "interacting_plumes",
+      "seed": 0,
+      "N": 128,
+      "dt_requested": 0.000625,
+      "dt_runtime": 0.0006249999860301614,
+      "steps": 640,
+      "nu": 0.0005000000237487257,
+      "kappa": 0.0005000000237487257,
+      "buoyancy": 1.0,
+      "domain_extent": 1.0,
+      "boundary": "closed no-slip velocity; homogeneous Neumann scalar",
+      "state_transfer": "native pressure-corrected phi/face area; cell temperature minus Tref",
+      "wall_seconds": 176.59711297194008,
+      "adapter_sha256": "92c5efef59b72657c935eedeb90f0e088ae18c578676b23f1ae56163413d99d4",
+      "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
+      "artifact_sha256": "6b9169cc6e055186859f0fa9594c27bbac75795c30a7cd566291d6d7a5637a99",
+      "diagnostics": {
+        "divergence_rms": 1.4511462741995572e-07,
+        "mass_relative_drift": 3.363148093723996e-11,
+        "scalar_min": -2.9672264645341784e-11,
+        "scalar_max": 0.9019668102264404,
+        "max_abs_velocity": 0.13558845221996307,
+        "finite": true
+      }
+    }
+  ],
+  "convergence_audit": {
+    "16": {
+      "velocity": {
+        "N64_vs_N128": 0.009994919886026158,
+        "N128_dt_vs_half_dt": 0.0003108333803406739
+      },
+      "scalar": {
+        "N64_vs_N128": 0.0022300829638571646,
+        "N128_dt_vs_half_dt": 0.00019239473758005064
+      }
+    },
+    "32": {
+      "velocity": {
+        "N64_vs_N128": 0.013819067395043648,
+        "N128_dt_vs_half_dt": 0.00031872492050571694
+      },
+      "scalar": {
+        "N64_vs_N128": 0.0038896348591744216,
+        "N128_dt_vs_half_dt": 0.00021108280341925427
+      }
+    }
+  },
+  "reference_sha256": "9785f91e689b14157afa89a40d3cce69c1207a6f274392ea8155c673d39aea7a",
+  "selection": "Reviewed independent numerical reference: N128 at dt=0.00125, restricted by face/volume averages. Refinement differences are sensitivity estimates, not rigorous error bounds.",
+  "benchmark": {
+    "ic": "interacting_plumes",
+    "seed": 0,
+    "domain_extent": 1.0,
+    "nu": 0.0005,
+    "diffusivity": 0.0005,
+    "buoyancy": 1.0,
+    "dt": 0.005,
+    "steps": 80
+  },
+  "container_digest": "sha256:adbf625ac47ed81b34018602a6caeb4076bfacc2046b2f8cd36f82adb376946b"
+}

@@ -5,7 +5,12 @@
 
 from functools import partial
 
-from mosaic.benchmarks.core.config import Problem, discover_solvers
+from mosaic.benchmarks.core.config import (
+    Exclusion,
+    ExclusionCategory,
+    Problem,
+    discover_solvers,
+)
 from mosaic.benchmarks.core.status_checks import (
     max_error,
     max_peer_k,
@@ -26,7 +31,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from .forward import physical_laws, refinement
+from .forward import openfoam_agreement, physical_laws, refinement
 from .gradient import fd_check, param_sweep
 from .physics import (
     diffusion_ic,
@@ -341,3 +346,36 @@ problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",
     plot_jacobian_svd_comparison,
 )
+
+
+problem.add_experiment(
+    "forward/agreement",
+    openfoam_agreement,
+    ic={"name": "interacting_plumes", "seed": 0},
+    physics={
+        "N": [16, 32],
+        "nu": 0.0005,
+        "diffusivity": 0.0005,
+        "buoyancy": 1.0,
+        "dt": 0.005,
+        "steps": 80,
+    },
+    status_check=[max_error(0.5)],
+    plot=plot_agreement,
+    plot_description=(
+        "Coupled-flow error at time 0.4 against an independent OpenFOAM 128² "
+        "numerical reference, restricted by face/volume averages. This is not exact "
+        "ground truth: spatial refinement changes velocity by up to 1.39% and scalar "
+        "by 0.39%; timestep halving changes them by up to 0.032% and 0.022%."
+    ),
+)
+for _suite in ("gradient", "optimization", "cost/vjp_cost"):
+    problem.exclude(
+        _suite,
+        {
+            "openfoam": Exclusion(
+                ExclusionCategory.CATEGORICAL,
+                "Native buoyantBoussinesqPimpleFoam is forward-only and has no automatic derivatives.",
+            )
+        },
+    )

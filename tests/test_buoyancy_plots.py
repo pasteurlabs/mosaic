@@ -71,7 +71,14 @@ def test_combined_rollout_and_validation_include_all_solvers(
 
 def test_buoyancy_shared_styles_cover_every_backend():
     order = solver_order_for_problem("buoyancy-grid")
-    assert order == ["phiflow", "jax_cfd", "ins_jl", "waterlily", "oceananigans"]
+    assert order == [
+        "phiflow",
+        "jax_cfd",
+        "ins_jl",
+        "waterlily",
+        "oceananigans",
+        "openfoam",
+    ]
     assert resolve_solver_alias("WaterLily") == "waterlily"
     assert resolve_solver_alias("Oceananigans") == "oceananigans"
 

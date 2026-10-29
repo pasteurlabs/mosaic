@@ -3,13 +3,18 @@
 
 """Coupled-flow refinement and diagnostics on the closed staggered grid."""
 
+import hashlib
+import json
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from mosaic.benchmarks.core.experiment import KernelContext, kernel
+from mosaic.benchmarks.core.experiment import KernelContext, get_kernel_config, kernel
+from mosaic.benchmarks.core.reference import load_reference
 from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
 from mosaic.benchmarks.core.utils import active_solvers
+from mosaic.benchmarks.problems.shared.forward import agreement as shared_agreement
 from mosaic.mosaic_shared.problems.buoyancy_grid import restrict_state
 
 
@@ -154,3 +159,54 @@ def physical_laws(t: Any, ctx: KernelContext) -> dict:
         },
         "snapshot": np.asarray(result),
     }
+
+
+_REFERENCE_DIR = Path(__file__).with_name("references")
+
+
+def require_openfoam_reference(n: int, physics: dict, ic: dict) -> np.ndarray:
+    """Reject absent, altered, or mismatched independent references, never use consensus."""
+    manifest = json.loads((_REFERENCE_DIR / "forward_agreement.json").read_text())
+    expected = manifest["benchmark"]
+    if ic.get("name") != expected["ic"] or ic.get("seed", 0) != expected["seed"]:
+        raise ValueError("OpenFOAM reference initial condition does not match this run")
+    for key, value in expected.items():
+        if key in {"ic", "seed"}:
+            continue
+        if not np.isclose(physics.get(key, np.nan), value, rtol=1e-7, atol=0):
+            raise ValueError(f"OpenFOAM reference physics mismatch: {key}")
+    archive = _REFERENCE_DIR / "forward_agreement.npz"
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != manifest["reference_sha256"]:
+        raise ValueError("OpenFOAM reference archive hash mismatch")
+    if n not in manifest["sweep_values"]:
+        raise ValueError(f"No OpenFOAM reference for N={n}")
+    index = manifest["sweep_values"].index(n)
+    reference = load_reference("buoyancy-grid", "forward/agreement", index)
+    if reference is None:
+        raise FileNotFoundError(f"Required OpenFOAM reference is missing for N={n}")
+    if reference.shape != (n, n, 3) or not np.isfinite(reference).all():
+        raise ValueError("Invalid OpenFOAM reference state")
+    return reference
+
+
+def _openfoam_agreement_aggregate(by_solver: Any, **kwargs: Any) -> dict:
+    run = kwargs["run"]
+    physics = {"domain_extent": kwargs["cfg"].domain_extent, **run["physics"]}
+    for n in kwargs["sweep_values"]:
+        require_openfoam_reference(int(n), physics, run["ic"])
+    aggregate = get_kernel_config(shared_agreement)["aggregate_fn"]
+    result = aggregate(by_solver, **kwargs)
+    result["extras"]["reference_label"] = "OpenFOAM numerical reference"
+    return result
+
+
+@kernel(
+    **{
+        **get_kernel_config(shared_agreement),
+        "aggregate_fn": _openfoam_agreement_aggregate,
+    }
+)
+def openfoam_agreement(t: Any, ctx: KernelContext) -> dict:
+    """Compare to the shipped, independently refined OpenFOAM trajectory."""
+    require_openfoam_reference(int(ctx.phys["N"]), ctx.phys, ctx.run["ic"])
+    return shared_agreement(t, ctx)

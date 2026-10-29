@@ -62,6 +62,7 @@ BUOYANCY_ORDER: list[str] = [
     "ins_jl",
     "waterlily",
     "oceananigans",
+    "openfoam",
 ]
 
 

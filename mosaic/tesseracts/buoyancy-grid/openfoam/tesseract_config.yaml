@@ -1,0 +1,26 @@
+name: openfoam_buoyancy_grid
+version: "0.1.0"
+description: >
+  Native OpenCFD v2412 buoyantBoussinesqPimpleFoam, laminar closed-box flow.
+  Forward-only independent comparison solver, with pressure-corrected face-flux
+  output. Positive viscosity and diffusivity required; no exact restart claim.
+build_config:
+  base_image: "opencfd/openfoam-default:2412"
+  target_platform: "linux/x86_64"
+  package_data: []
+env:
+  OPENFOAM_BASHRC: "/usr/lib/openfoam/openfoam2412/etc/bashrc"
+  OMP_NUM_THREADS: "1"
+metadata:
+  mosaic:
+    name: "OpenFOAM"
+    backend: cpp
+    family: projection
+    scheme: "Boussinesq PIMPLE"
+    discretization: FV
+    numerics: "Euler, centered momentum, limited linear scalar, PIMPLE"
+    ad_strategy: null
+    differentiable: false
+    uses_gpu: false
+    internal_dtype: float64
+    doc_url: "https://www.openfoam.com/documentation/guides/latest/doc/guide-applications-solvers-heat-transfer-buoyantBoussinesqPimpleFoam.html"
