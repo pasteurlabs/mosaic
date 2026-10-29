@@ -1,0 +1,17 @@
+{
+  "sample_count": 270,
+  "observed_elapsed_seconds": 545.3485581874847,
+  "observed_process_tree_cpu_seconds": 592.91,
+  "max_sampled_summed_rss_bytes": 5232480256,
+  "max_sampled_owned_gpu_memory_mib": 2694.0,
+  "mean_sampled_device_gpu_utilization_percent": 16.376425855513308,
+  "mean_sampled_owned_pmon_sm_percent": 18.818181818181817,
+  "max_other_compute_processes_observed_on_device": 0,
+  "limitations": [
+    "Periodic~2s samples can miss peaks/short-lived subprocesses",
+    "Summed RSS includes shared pages more than once; not unique physical RAM",
+    "Device utilization is whole-device; per-PID pmon retained where supported",
+    "RTX5090 profiling cannot establish T4 CI fit",
+    "Resource monitor subprocess overhead may be included in process-tree observations; raw samples preserved"
+  ]
+}

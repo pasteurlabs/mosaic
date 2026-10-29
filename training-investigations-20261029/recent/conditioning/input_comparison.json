@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "reference.npy": "58979c4f34e0d6e121f90877b94e203c0c5bef662a9c462a581856ec372abb0d",
+    "scales.npy": "67b1063c9bf44c1a2cc41dc14dbff630e1851315ad0c6a42726c744bac7e0351"
+  },
+  "lower_lr": {
+    "reference.npy": "58979c4f34e0d6e121f90877b94e203c0c5bef662a9c462a581856ec372abb0d",
+    "scales.npy": "67b1063c9bf44c1a2cc41dc14dbff630e1851315ad0c6a42726c744bac7e0351"
+  },
+  "batch4": {
+    "reference.npy": "58979c4f34e0d6e121f90877b94e203c0c5bef662a9c462a581856ec372abb0d",
+    "scales.npy": "67b1063c9bf44c1a2cc41dc14dbff630e1851315ad0c6a42726c744bac7e0351"
+  }
+}

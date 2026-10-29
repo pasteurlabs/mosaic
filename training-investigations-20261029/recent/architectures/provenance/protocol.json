@@ -1,0 +1,36 @@
+{
+  "source": "0246f6a unchanged plus externalarchitecturemodule",
+  "seed": 0,
+  "architectures": [
+    "cnn_w8_d3",
+    "cnn_w8_d7",
+    "cnn_w20_d3",
+    "unet_c3"
+  ],
+  "parameter_counts": [
+    881,
+    3217,
+    4361,
+    4276
+  ],
+  "streamfunction_RF_max": [
+    7,
+    15,
+    7,
+    44
+  ],
+  "velocity_RF_max_axis": [
+    8,
+    16,
+    8,
+    48
+  ],
+  "capacity_control": "w20d3 CNN4361 versus U-Net4276 ~2% parameter mismatch disclosed; operations/topology differ",
+  "unet": "Two2x2 averagepool levels; channels3,6,12; two3x3 edge-padded tanhconv eachencoder/bottleneck/decoder block; nearestupsample+skipconcat thenconv; zero1x1 readout. Same closed-wall streamfunction curl, temperature untouched. No learnedtransposed convolution.",
+  "RF_scope": "Interior index support of ONE corrector application only; source solver pressure projection already global",
+  "shared_training": "Adam .003 clip1 H8, balancedfourcases start0..92 sharedseed0 stream,60s active perarchitecture; full100-frame validation at3.75s milestones; heldoutonlyafterselection",
+  "initialization": "Same modelseed, zero-output identity allarchitectures; originaldepth3 initialization assertedbitwise. Hiddenweights differ acrossarchitectures.",
+  "gates": "Originalzero/nonzero-model FD epsilon.003 tolerance.05 and reference/refinement/restart gates; any architecture failure retained independently. Additionalcurl/temp/identity checks.",
+  "resources": "One RTX5090 job sequentially after H8/16/32 pilot; sampledprocessCPU/RSS/VRAM from setup onward, perarm preparation/validation/training. Sharedrefs cache and retainedcompilationcaches disclosed; noT4fitclaim.",
+  "scope": "Boundedfourarm seed0pilot; no LR/optimizer search or publicmodelchange"
+}

@@ -1,0 +1,344 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.4.1.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "name": "data-d771df889c6289e8b73bcd623fc82692"
+  },
+  "datasets": {
+    "data-d771df889c6289e8b73bcd623fc82692": [
+      {
+        "frame": 25,
+        "map": "Solver S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3482780175616569
+      },
+      {
+        "frame": 25,
+        "map": "Selected corrector C",
+        "recipe": "baseline",
+        "restricted_condition": 1.027192762502331
+      },
+      {
+        "frame": 25,
+        "map": "Selected C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.336315056253374
+      },
+      {
+        "frame": 25,
+        "map": "Initial C (identity)",
+        "recipe": "baseline",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 25,
+        "map": "Initial C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3482780234321652
+      },
+      {
+        "frame": 50,
+        "map": "Solver S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3965411885497503
+      },
+      {
+        "frame": 50,
+        "map": "Selected corrector C",
+        "recipe": "baseline",
+        "restricted_condition": 1.0235664134952591
+      },
+      {
+        "frame": 50,
+        "map": "Selected C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3857870789242746
+      },
+      {
+        "frame": 50,
+        "map": "Initial C (identity)",
+        "recipe": "baseline",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 50,
+        "map": "Initial C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3965411950352897
+      },
+      {
+        "frame": 75,
+        "map": "Solver S",
+        "recipe": "baseline",
+        "restricted_condition": 1.40888650706446
+      },
+      {
+        "frame": 75,
+        "map": "Selected corrector C",
+        "recipe": "baseline",
+        "restricted_condition": 1.0211603213859461
+      },
+      {
+        "frame": 75,
+        "map": "Selected C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.3986816618587246
+      },
+      {
+        "frame": 75,
+        "map": "Initial C (identity)",
+        "recipe": "baseline",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 75,
+        "map": "Initial C∘S",
+        "recipe": "baseline",
+        "restricted_condition": 1.40888651430459
+      },
+      {
+        "frame": 25,
+        "map": "Solver S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.3482780175616569
+      },
+      {
+        "frame": 25,
+        "map": "Selected corrector C",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0305501584629324
+      },
+      {
+        "frame": 25,
+        "map": "Selected C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.3530874896946663
+      },
+      {
+        "frame": 25,
+        "map": "Initial C (identity)",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 25,
+        "map": "Initial C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.3482780234321652
+      },
+      {
+        "frame": 50,
+        "map": "Solver S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.3965411885497503
+      },
+      {
+        "frame": 50,
+        "map": "Selected corrector C",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0285053840483616
+      },
+      {
+        "frame": 50,
+        "map": "Selected C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.4019756372579733
+      },
+      {
+        "frame": 50,
+        "map": "Initial C (identity)",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 50,
+        "map": "Initial C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.3965411950352897
+      },
+      {
+        "frame": 75,
+        "map": "Solver S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.40888650706446
+      },
+      {
+        "frame": 75,
+        "map": "Selected corrector C",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0272786719966989
+      },
+      {
+        "frame": 75,
+        "map": "Selected C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.415133896702297
+      },
+      {
+        "frame": 75,
+        "map": "Initial C (identity)",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 75,
+        "map": "Initial C∘S",
+        "recipe": "lower_lr",
+        "restricted_condition": 1.40888651430459
+      },
+      {
+        "frame": 25,
+        "map": "Solver S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3482780175616569
+      },
+      {
+        "frame": 25,
+        "map": "Selected corrector C",
+        "recipe": "batch4",
+        "restricted_condition": 1.0147292626527205
+      },
+      {
+        "frame": 25,
+        "map": "Selected C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.333152141264742
+      },
+      {
+        "frame": 25,
+        "map": "Initial C (identity)",
+        "recipe": "batch4",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 25,
+        "map": "Initial C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3482780234321652
+      },
+      {
+        "frame": 50,
+        "map": "Solver S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3965411885497503
+      },
+      {
+        "frame": 50,
+        "map": "Selected corrector C",
+        "recipe": "batch4",
+        "restricted_condition": 1.0124899543560586
+      },
+      {
+        "frame": 50,
+        "map": "Selected C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3825241586374672
+      },
+      {
+        "frame": 50,
+        "map": "Initial C (identity)",
+        "recipe": "batch4",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 50,
+        "map": "Initial C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3965411950352897
+      },
+      {
+        "frame": 75,
+        "map": "Solver S",
+        "recipe": "batch4",
+        "restricted_condition": 1.40888650706446
+      },
+      {
+        "frame": 75,
+        "map": "Selected corrector C",
+        "recipe": "batch4",
+        "restricted_condition": 1.0116224572594916
+      },
+      {
+        "frame": 75,
+        "map": "Selected C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.3954059093611542
+      },
+      {
+        "frame": 75,
+        "map": "Initial C (identity)",
+        "recipe": "batch4",
+        "restricted_condition": 1.0000001212089697
+      },
+      {
+        "frame": 75,
+        "map": "Initial C∘S",
+        "recipe": "batch4",
+        "restricted_condition": 1.40888651430459
+      }
+    ]
+  },
+  "facet": {
+    "column": {
+      "field": "recipe",
+      "type": "nominal"
+    }
+  },
+  "spec": {
+    "encoding": {
+      "color": {
+        "field": "map",
+        "type": "nominal"
+      },
+      "tooltip": [
+        {
+          "field": "recipe",
+          "type": "nominal"
+        },
+        {
+          "field": "frame",
+          "type": "quantitative"
+        },
+        {
+          "field": "map",
+          "type": "nominal"
+        },
+        {
+          "field": "restricted_condition",
+          "type": "quantitative"
+        }
+      ],
+      "x": {
+        "field": "frame",
+        "title": "Developed trajectory frame",
+        "type": "quantitative"
+      },
+      "y": {
+        "field": "restricted_condition",
+        "scale": {
+          "zero": false
+        },
+        "title": "Restricted σmax / σmin",
+        "type": "quantitative"
+      }
+    },
+    "height": 220,
+    "mark": {
+      "point": true,
+      "type": "line"
+    },
+    "width": 260
+  },
+  "title": {
+    "subtitle": [
+      "Exact full-output Jacobian spectra on a fixed72D admissible input subspace; not full condition numbers.",
+      "Same RMS coordinates, state and basis; C evaluated at S(x). Low/high curl and scalar modes."
+    ],
+    "text": "JAX-CFD N64: matched solver / corrector / composition conditioning"
+  }
+}

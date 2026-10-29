@@ -1,0 +1,31 @@
+{
+  "source_commit": "0246f6a",
+  "solver": "JAX-CFD native RTX5090",
+  "model_seed": 0,
+  "width": 8,
+  "temperature_correction": false,
+  "methods": [
+    "fixed-batch Adam .001 clip1",
+    "fixed-batch L-BFGS-B true unclipped gradients"
+  ],
+  "cases": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "window_starts": [
+    0,
+    24,
+    48,
+    72
+  ],
+  "horizon": 8,
+  "max_full_batch_objective_grad_calls": 64,
+  "max_window_evaluations": 256,
+  "lbfgs_maxls": 10,
+  "validation": "Initial + accepted iterate after crossing each4-call milestone + final accepted; variable checkpoint stamps retained. Never select rejected queries.",
+  "scientific_controls": "Reference audits, recurrent FD unchanged. Per-query CFL <=.5; all transient diagnostics preserved. Adam objectives identical fixed batch; historical stochastic Adam explicitly different data objective.",
+  "cost": "Each oracle evaluates four windows forward+gradient; line-search queries charged even rejected; accepted iterations separate.",
+  "scope": "seed0 feasibility only; no confirmation before outcomes reviewed"
+}

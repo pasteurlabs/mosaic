@@ -1,0 +1,32 @@
+{
+  "source_commit": "0246f6a27aaf80773b55e1c39d155c1819e0a3db",
+  "solvers": [
+    "phiflow",
+    "ins-jl",
+    "oceananigans",
+    "waterlily"
+  ],
+  "arms": {
+    "baseline": 0.003,
+    "lower_lr": 0.001
+  },
+  "optimizer": "Adam clipglobalnorm1",
+  "updates": 256,
+  "validation_interval": 16,
+  "model_seed": 0,
+  "window_seed": 0,
+  "training_cases": [
+    0,
+    2,
+    3,
+    4
+  ],
+  "validation_seed": 1,
+  "heldout_seed": 100,
+  "selection": "validation checkpoint only;candidate LRfixed beforeheldout",
+  "reference_cache": "Sharedwithin eachsolverpair, keyphysics/subdivision/initialarrayhash/frames; initial/scales/trainvaldata/schedule hashesassertedmatched",
+  "state_invariants": "Stopped-gradient callbacks record eachtraining solverinput andcorrectedoutput CFL,wallnormalvelocity,temperaturemin/max/mean,finiteflag; exactinitialforward+gradientparity checked againstuninstrumented loss. Noequationchanges; additionalcallbacktimeincludedfitcost",
+  "scope": "singlemodelseed0 feasibility forotherbackends, no crosssolverranking. Sameown-solvercoarse64/fine128references andalloriginalgates unchanged",
+  "hardware": "Phi RTX5090GPU;nativeJulia CPU onRTX10; noDGX",
+  "dependency": "frozenproductionlock thenexactsolverdependencyoverlay; JuliaProjectManifestretained"
+}

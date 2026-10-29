@@ -1,0 +1,23 @@
+{
+  "source_commit": "0246f6a",
+  "model_seed": 0,
+  "width": 8,
+  "correct_temperature": false,
+  "shared_adam_lr": 0.003,
+  "clip": 1,
+  "arms": {
+    "A": "fixedH8 Adam60s",
+    "B": "fixedH8 Adam45s thenfullH8 L-BFGS remaining15s",
+    "C": "H2 first11.25s,H4 next11.25s,H8 next22.5s Adam thenfullH8 L-BFGS remaining15s"
+  },
+  "primary_contrasts": [
+    "C vs B curriculum at identical refinement",
+    "B vs A L-BFGS refinement"
+  ],
+  "lbfgs_batch": "16fixed windows: all4cases\u00d7starts0,24,48,72, eachH8",
+  "lbfgs": "unclipped truegrad,reset history,maxls10,max128calls,hard60s time guard before newquery; retainlastaccepted only",
+  "time": "Active elapsed includes Python/optimizer/line-search and synchronized JAX; measured validation includinglogging excluded; compile+prep separately",
+  "validation": "same full100frame validation at active3.75s milestones; firstacceptediterateaftercrossing; variable stamps explicit; finalaccepted; testonlyafterselection",
+  "gates": "Original reference+recurrentFD .003/5% unchanged, additional H2/H4 checks forcurriculum; queryCFL<=.5; alltrials preserved",
+  "scope": "seed0feasibility; no publicrecipechange; confirmadditionalinitializations only after validation win"
+}

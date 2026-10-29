@@ -1,0 +1,15 @@
+{
+  "source_commit": "0246f6a",
+  "seed": 0,
+  "arms": [
+    "fixed H8",
+    "H2 first25%,H4 next25%,H8 final50%"
+  ],
+  "active_training_budget_seconds": 60,
+  "optimizer": "Adam .001 clip1 width8 velocity only",
+  "window_stream": "same balanced_windows seed0 over all H8-eligible starts, prefixes shared",
+  "loss": "mean over H intermediate normalized errors unchanged",
+  "validation": "unchanged full100-frame trajectory at0 then16 active-time milestones; accepted parameter after crossing, final; selection validation only",
+  "cost": "precompile all used gradient horizons + optimizer outside active budget and report separately; native forward steps counted, gradient work not equated across H",
+  "scope": "seed0 pilot; no public changes, confirm seeds1/2 only if favorable"
+}

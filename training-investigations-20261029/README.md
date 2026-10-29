@@ -10,7 +10,7 @@ All formal screen/followup/confirmation fits used RTX 5090. The separate initial
 
 ## Findings and limits
 
-- Width-8 AdamW at LR .001 improved held-out error over the original Adam .003 baseline in all three observed model seeds. Seed 0 Adam .001 and AdamW .001 were almost identical; this does not establish a benefit from weight decay. Matched Adam .001 controls now confirm nearly identical validation and held-out losses to AdamW .001 across all three seeds (held-out differences 0.8e-9 to 1.6e-8). This supports the lower learning rate, without attributing the improvement to weight decay. Other-backend transfer checks are running before changing the default recipe.
+- Width-8 AdamW at LR .001 improved held-out error over the original Adam .003 baseline in all three observed model seeds. Seed 0 Adam .001 and AdamW .001 were almost identical; this does not establish a benefit from weight decay. Matched Adam .001 controls now confirm nearly identical validation and held-out losses to AdamW .001 across all three seeds (held-out differences 0.8e-9 to 1.6e-8). This supports the lower learning rate, without attributing the improvement to weight decay. Completed all-five-backend transfer now retains the shared LR .003: the validation geometric-mean ratio for .001/.003 is 1.11557. The JAX-specific result does not justify a universal lower learning rate. See [completed follow-ups](recent/README.md).
 - Wider Muon results were mixed across seeds. No universal width/optimizer winner is established.
 - Joint velocity/temperature correction reduced error in some runs but introduced heat-integral drift and undershoot. Two seed-1 configurations failed the fixed-epsilon neural gradient check before training. Their failed cells remain explicit; incomplete families have no three-seed aggregate.
 - The width-32 failed finite-difference check was reproduced. Error decreased approximately quadratically with epsilon, and higher-precision loss accumulation barely changed it: finite-step truncation is supported, rather than a demonstrated AD defect. This diagnostic does not retroactively override admission.
@@ -22,3 +22,7 @@ Plots compare solver, corrector and chain-rule-composed state adjoints under mat
 `final-report-v3` retains successful and rejected confirmation cells. `gradient-paths-report-v2` contains local, recurrent and scale-resolved operator plots. Full parameters and field arrays remain in external campaign artifacts; they are omitted here to keep this publication compact.
 
 Muon applies orthogonalized updates to explicitly reshaped convolution weights. Biases use Adam at fixed LR .001; the cosine arm decays only Muon weight LR. AdamW decay is 1e-4 on convolution weights only. The supplemental FD plot retains the original failed points and subsequent epsilon profiles; original admission failures are not overwritten.
+
+## Completed follow-ups
+
+[Recent reports, plots and provenance](recent/README.md) cover all-five learning-rate transfer, H16 initialization confirmation, architectures, curriculum/L-BFGS trials (including failures), and N64 physical-subspace conditioning. They remain separate from the bounded benchmark and its canonical CI gallery.

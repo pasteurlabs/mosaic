@@ -1,0 +1,22 @@
+{
+  "source": "0246f6a",
+  "model_seed": 0,
+  "width": 8,
+  "velocity_only": true,
+  "shared_adam_lr": 0.003,
+  "clip_global_norm": 1,
+  "arms": [
+    8,
+    16,
+    32
+  ],
+  "active_training_seconds_per_arm": 60,
+  "common_starts": "0..68 inclusive, balanced four-case seeded stream shared across all horizons",
+  "native_steps_per_interval": 8,
+  "dt": 0.005,
+  "loss": "Mean intermediate normalized errors over H, unchanged",
+  "validation": "Full100-frame validation at3.75s active-time milestones, final accepted; validation-only selection",
+  "gates": "Original H-specific zero/nonzero-model FD epsilon.003 tolerance.05, reference refinement and restart gates unchanged. Failure in one horizon does not skip others.",
+  "resources": "RTX5090 pilot only. Per-process CPUticks/RSS and GPUmemory/utilization observations; whole-job resource costs, per-arm preparation/reference/training/validation separately. Not evidence of T4 CI fit.",
+  "cost_limits": "60s active training \u00d73,1h allocation for references/compilation/admission/validation. No publicconfig/CI changes."
+}

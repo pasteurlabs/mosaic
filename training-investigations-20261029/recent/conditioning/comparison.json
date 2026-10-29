@@ -1,0 +1,275 @@
+{
+  "interpretation": "Input-subspace-restricted conditioning, not full Jacobian condition numbers",
+  "rows": [
+    {
+      "recipe": "baseline",
+      "frame": 25,
+      "map": "Solver S",
+      "restricted_condition": 1.3482780175616569
+    },
+    {
+      "recipe": "baseline",
+      "frame": 25,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.027192762502331
+    },
+    {
+      "recipe": "baseline",
+      "frame": 25,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.336315056253374
+    },
+    {
+      "recipe": "baseline",
+      "frame": 25,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "baseline",
+      "frame": 25,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3482780234321652
+    },
+    {
+      "recipe": "baseline",
+      "frame": 50,
+      "map": "Solver S",
+      "restricted_condition": 1.3965411885497503
+    },
+    {
+      "recipe": "baseline",
+      "frame": 50,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0235664134952591
+    },
+    {
+      "recipe": "baseline",
+      "frame": 50,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.3857870789242746
+    },
+    {
+      "recipe": "baseline",
+      "frame": 50,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "baseline",
+      "frame": 50,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3965411950352897
+    },
+    {
+      "recipe": "baseline",
+      "frame": 75,
+      "map": "Solver S",
+      "restricted_condition": 1.40888650706446
+    },
+    {
+      "recipe": "baseline",
+      "frame": 75,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0211603213859461
+    },
+    {
+      "recipe": "baseline",
+      "frame": 75,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.3986816618587246
+    },
+    {
+      "recipe": "baseline",
+      "frame": 75,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "baseline",
+      "frame": 75,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.40888651430459
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 25,
+      "map": "Solver S",
+      "restricted_condition": 1.3482780175616569
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 25,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0305501584629324
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 25,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.3530874896946663
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 25,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 25,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3482780234321652
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 50,
+      "map": "Solver S",
+      "restricted_condition": 1.3965411885497503
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 50,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0285053840483616
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 50,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.4019756372579733
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 50,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 50,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3965411950352897
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 75,
+      "map": "Solver S",
+      "restricted_condition": 1.40888650706446
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 75,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0272786719966989
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 75,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.415133896702297
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 75,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "lower_lr",
+      "frame": 75,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.40888651430459
+    },
+    {
+      "recipe": "batch4",
+      "frame": 25,
+      "map": "Solver S",
+      "restricted_condition": 1.3482780175616569
+    },
+    {
+      "recipe": "batch4",
+      "frame": 25,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0147292626527205
+    },
+    {
+      "recipe": "batch4",
+      "frame": 25,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.333152141264742
+    },
+    {
+      "recipe": "batch4",
+      "frame": 25,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "batch4",
+      "frame": 25,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3482780234321652
+    },
+    {
+      "recipe": "batch4",
+      "frame": 50,
+      "map": "Solver S",
+      "restricted_condition": 1.3965411885497503
+    },
+    {
+      "recipe": "batch4",
+      "frame": 50,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0124899543560586
+    },
+    {
+      "recipe": "batch4",
+      "frame": 50,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.3825241586374672
+    },
+    {
+      "recipe": "batch4",
+      "frame": 50,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "batch4",
+      "frame": 50,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.3965411950352897
+    },
+    {
+      "recipe": "batch4",
+      "frame": 75,
+      "map": "Solver S",
+      "restricted_condition": 1.40888650706446
+    },
+    {
+      "recipe": "batch4",
+      "frame": 75,
+      "map": "Selected corrector C",
+      "restricted_condition": 1.0116224572594916
+    },
+    {
+      "recipe": "batch4",
+      "frame": 75,
+      "map": "Selected C\u2218S",
+      "restricted_condition": 1.3954059093611542
+    },
+    {
+      "recipe": "batch4",
+      "frame": 75,
+      "map": "Initial C (identity)",
+      "restricted_condition": 1.0000001212089697
+    },
+    {
+      "recipe": "batch4",
+      "frame": 75,
+      "map": "Initial C\u2218S",
+      "restricted_condition": 1.40888651430459
+    }
+  ]
+}

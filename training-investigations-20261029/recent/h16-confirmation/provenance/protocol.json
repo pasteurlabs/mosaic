@@ -1,0 +1,16 @@
+{
+  "source": "0246f6a",
+  "selection": "H16 chosen on seed0 validation among H8/H16/H32; heldout not used",
+  "model_seeds": [
+    1,
+    2
+  ],
+  "arms": [
+    8,
+    16
+  ],
+  "common_starts": "0..68 as seed0 matchedH32-eligible experiment, even thoughH32 not rerun",
+  "recipe": "width8 velocity only Adam .003 clip1, fourtrainingcases, full100-frame validation,60s active each, sameoriginalH-specificFD/reference/restart gates",
+  "cost": "Perseed singleRTX5090 allocation, bothhorizons sequential, sharedrefcache; compilation/prep/validation/wholejobresource separatelyreported; noT4CI fitclaim",
+  "no_public_changes": true
+}

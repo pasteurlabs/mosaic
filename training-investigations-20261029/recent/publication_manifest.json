@@ -1,0 +1,317 @@
+{
+  "conditioning/input_comparison.json": {
+    "sha256": "9dcdfa2f522abe8c6c02e52229afcb32abbd605676e9ba872e01e9a5cc8217f3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/input_comparison.json",
+    "bytes": 586
+  },
+  "conditioning/restricted_conditioning.png": {
+    "sha256": "fbaa5c1b33f48293a462d72bab3bb2ac38ad9279f2456d038298af44c622cb92",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/restricted_conditioning.png",
+    "bytes": 352033
+  },
+  "conditioning/restricted_spectra.vl.json": {
+    "sha256": "5ccd6eae5e852bc9e9551ad8d899b0a9387972b79f017edbca0e409b41a7c73c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/restricted_spectra.vl.json",
+    "bytes": 513355
+  },
+  "conditioning/restricted_conditioning.vl.json": {
+    "sha256": "00a4b3e990dfb0226fda45c74b352ad5531d1b93fc74bd5734654a7230c6ef6c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/restricted_conditioning.vl.json",
+    "bytes": 8470
+  },
+  "conditioning/comparison.json": {
+    "sha256": "936bbf6ee259807df7ff959dcbc5780d009940afe9cb4a44f7ccd27c6164c510",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/comparison.json",
+    "bytes": 6471
+  },
+  "conditioning/restricted_spectra.png": {
+    "sha256": "dc55084b4a6295d52bccc5d67ac76fe6295f2e9bf2a5c743bc4bfdd840ec978f",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/restricted_spectra.png",
+    "bytes": 322332
+  },
+  "conditioning/baseline/report.json": {
+    "sha256": "2f19421ff26286e0c468fed34e462d5a955ec633494dd9d159195ba2cd64e34f",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/baseline/report.json",
+    "bytes": 43668
+  },
+  "conditioning/batch4/report.json": {
+    "sha256": "14bb5978d89a13668ca4d89088d7c4c96ae9451f81161613048f8691d364b437",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/batch4/report.json",
+    "bytes": 43680
+  },
+  "conditioning/lower_lr/report.json": {
+    "sha256": "08897c2b16813408741c897ab4ce0299ca3676f55fd212407f64c8a3031112d6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/comparison-v2/results/lower_lr/report.json",
+    "bytes": 43658
+  },
+  "conditioning/provenance/source-commit.txt": {
+    "sha256": "b3e6ca79140e220ba5b5595fb246af605de43c0338ae7b7dcea4fc23974e5130",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/source-commit.txt",
+    "bytes": 41
+  },
+  "conditioning/provenance/environment.txt": {
+    "sha256": "02461c6bc26f7a7093a0831cbb829190176e15bb665fb8d4d7b58b8dc5729079",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/environment.txt",
+    "bytes": 2590
+  },
+  "conditioning/provenance/scripts.sha256": {
+    "sha256": "4b443fb73c1055ab9f974a8bb6a1d2551219488f4435642c147babef0e581845",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/scripts.sha256",
+    "bytes": 156
+  },
+  "conditioning/provenance/source.sha256": {
+    "sha256": "8f2db9192faf66ad170a50839af27803a215d044017fe83a3190b2f2ecc70ca3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/source.sha256",
+    "bytes": 77
+  },
+  "conditioning/provenance/gpu.txt": {
+    "sha256": "28948dcd85654b3d6f30ba70d0749e35530fdc26e8e42bdab656a4e59abad3eb",
+    "source": "/home/andrinr/solver-investigations/buoyancy-conditioning-20261029/gpu.txt",
+    "bytes": 1689
+  },
+  "long-horizons/validation.vl.json": {
+    "sha256": "7f48f327700ef69a972d04b45f9ec40f3cb31e56b76fe476ee35a045294b9d87",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/validation.vl.json",
+    "bytes": 6632
+  },
+  "long-horizons/resources-summary.json": {
+    "sha256": "f9cf7a5b4a0216c506fee3aa04982137d13e8722df65f9b940fe4106cbaa2afd",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/resources-summary.json",
+    "bytes": 813
+  },
+  "long-horizons/RESOURCE_LIMITS.txt": {
+    "sha256": "d8d85d3ed1942e86c1e55f6dcbf0398854da9ec9f4e82d153b894bface3cb2e1",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/RESOURCE_LIMITS.txt",
+    "bytes": 639
+  },
+  "long-horizons/report.json": {
+    "sha256": "2fbca2e6035706637d06a5794152b432fd1f6ecea10dae3952df3e50d8c86225",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/report.json",
+    "bytes": 120234
+  },
+  "long-horizons/validation.png": {
+    "sha256": "0b20998d3d39d06b16d0fcae75415bb8823c187326864da9288afee9e9e4835c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/validation.png",
+    "bytes": 243859
+  },
+  "long-horizons/sacct.txt": {
+    "sha256": "c84399bf5020907bc616e88b556d29568bd171d7c74cedbedef69f2a021fb1e3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/sacct.txt",
+    "bytes": 283
+  },
+  "long-horizons/accounting-config.txt": {
+    "sha256": "cd18d7198e6212b50758a8525aba70b017bc0f083ca3fb59fb4ffd1b8603571c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/report/accounting-config.txt",
+    "bytes": 77
+  },
+  "long-horizons/provenance/scripts.sha256": {
+    "sha256": "66e92bf9b07751432a237cc8a418b2a0427ebdb7071f63eed80cc4feebd44425",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/scripts.sha256",
+    "bytes": 227
+  },
+  "long-horizons/provenance/protocol.json": {
+    "sha256": "8332fabcbd2c5beeef6d8e65b9da2a89e6cebda710edbf390c018a220011c875",
+    "source": "/home/andrinr/solver-investigations/buoyancy-long-horizons-20261029/protocol.json",
+    "bytes": 1083
+  },
+  "h16-confirmation/confirmation.json": {
+    "sha256": "67b7289206450e40914e9098aba42e53024da600331064d0e47bfc19763a3c44",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/confirmation.json",
+    "bytes": 301465
+  },
+  "h16-confirmation/validation.vl.json": {
+    "sha256": "6776711d7154b9d7a70bb866032ef9db68377251ff85c1a993f780b9e801e823",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/validation.vl.json",
+    "bytes": 13794
+  },
+  "h16-confirmation/paired_ratios.vl.json": {
+    "sha256": "cd813305d9ebf007b209ad23e3bef9836515dfcc65efe0087da8e328edaa2ec7",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/paired_ratios.vl.json",
+    "bytes": 1333
+  },
+  "h16-confirmation/README.txt": {
+    "sha256": "dd6a38937c6828c26814aba8c10b94911cfb1eb4d415f64250cec2e77e03c626",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/README.txt",
+    "bytes": 462
+  },
+  "h16-confirmation/validation.png": {
+    "sha256": "83b485fd08feae43dd35172f683b91195a41604b9fe488783a126120275e8aae",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/validation.png",
+    "bytes": 372342
+  },
+  "h16-confirmation/sacct.txt": {
+    "sha256": "f93967c9f40c0fde716e41d28a39db738e5e8bf30b00a5bf7d4497dbc7ad99da",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/sacct.txt",
+    "bytes": 373
+  },
+  "h16-confirmation/paired_ratios.png": {
+    "sha256": "4a1e59b99c8a517b566b98c49fa700a7dec1c158c48bf4884e95d69a4ef8a8b6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/plots/paired_ratios.png",
+    "bytes": 91588
+  },
+  "h16-confirmation/provenance/confirmation.json": {
+    "sha256": "67b7289206450e40914e9098aba42e53024da600331064d0e47bfc19763a3c44",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/confirmation.json",
+    "bytes": 301465
+  },
+  "h16-confirmation/provenance/scripts.sha256": {
+    "sha256": "78a13a806c7d3e6c3d6af902fe714f170208384a57037f8f17984bfd542bffed",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/scripts.sha256",
+    "bytes": 313
+  },
+  "h16-confirmation/provenance/protocol.json": {
+    "sha256": "d10f7232538479b92a02d33d6704b07d4df41fdadfee86520f7e72b7094a5865",
+    "source": "/home/andrinr/solver-investigations/buoyancy-h16-confirmation-20261029/protocol.json",
+    "bytes": 633
+  },
+  "architectures/validation.vl.json": {
+    "sha256": "9dc9be96400193193a20c20b7f0afd000d23360a0b2ea1a38223dce1e19f1329",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/report/validation.vl.json",
+    "bytes": 8792
+  },
+  "architectures/resources-summary.json": {
+    "sha256": "fecb9a41937efdc0d3a2cbbff57d3045108057cb2f65133be893d587dfeed1e4",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/report/resources-summary.json",
+    "bytes": 800
+  },
+  "architectures/report.json": {
+    "sha256": "a47e65dec893025d60a3c95d77ee7bb0e42e6fa018e5f0683831139d5d6eca8a",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/report/report.json",
+    "bytes": 198598
+  },
+  "architectures/validation.png": {
+    "sha256": "d7ec1ce38643bca9fc39baae0cc0951f694256244909787258a0e558b1ea3da8",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/report/validation.png",
+    "bytes": 256903
+  },
+  "architectures/sacct.txt": {
+    "sha256": "92aa2a50d08e652a1f6e1a95a4c8b3c1c026fbab7c8722dc6c09fb3d20a012d9",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/report/sacct.txt",
+    "bytes": 214
+  },
+  "architectures/provenance/scripts.sha256": {
+    "sha256": "b92014ea5cc358d0e66c50a3db37712a0031e9d76858aa2dd4e01860568c6e1b",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/scripts.sha256",
+    "bytes": 310
+  },
+  "architectures/provenance/protocol.json": {
+    "sha256": "edfcfa3000ab92c89b92b14683dea2eec91ac8aa1b6a32a41f9ac011a6cae7c3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-architectures-20261029/protocol.json",
+    "bytes": 1742
+  },
+  "lr-transfer/validation.vl.json": {
+    "sha256": "ebc51e55f11f685547fe98c1ec0c5eaccd7231cb8ce687546b9d572b71a5a63f",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/final-comparison/validation.vl.json",
+    "bytes": 21692
+  },
+  "lr-transfer/report.json": {
+    "sha256": "8afdff61da7eb7541fb0fd9e1556d83a640039c92bc1c4138b50be469e2b03c7",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/final-comparison/report.json",
+    "bytes": 223198
+  },
+  "lr-transfer/validation.png": {
+    "sha256": "039316520a12701a91ddd2f310c14443420fbf3745b840c252f1587c9db6953c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/final-comparison/validation.png",
+    "bytes": 709069
+  },
+  "lr-transfer/provenance/universal-lr-selection.json": {
+    "sha256": "c2766800f43a7b0117406882e52c4e4e0d88dee87ff673b63650481a8cba0d23",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/universal-lr-selection.json",
+    "bytes": 906
+  },
+  "lr-transfer/provenance/scripts.sha256": {
+    "sha256": "2102c791081dda9bfc92483c7aaa26abec0427ee489d3e0b00a391d48944a3eb",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/scripts.sha256",
+    "bytes": 410
+  },
+  "lr-transfer/provenance/source.sha256": {
+    "sha256": "548575d778cd263444c5cb04b0a785870bf8348cef249add87f3fe53646ec2e6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/source.sha256",
+    "bytes": 77
+  },
+  "lr-transfer/provenance/protocol.json": {
+    "sha256": "611c36ba7a441fc4c1e953a166698e6820e408a06114f97aec40ebca54c39bc6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lr-transfer-20261029/protocol.json",
+    "bytes": 1287
+  },
+  "curriculum/validation.vl.json": {
+    "sha256": "d594880cf578c7c351b8d216a1cbd98122a80222215da2c58aee3ee8fe127c7a",
+    "source": "/home/andrinr/solver-investigations/buoyancy-curriculum-20261029/report/validation.vl.json",
+    "bytes": 4906
+  },
+  "curriculum/report.json": {
+    "sha256": "f08d5f6f089365665b912739eaf842028a5ac8c6c62ec257e7bfb32407c3a178",
+    "source": "/home/andrinr/solver-investigations/buoyancy-curriculum-20261029/report/report.json",
+    "bytes": 119563
+  },
+  "curriculum/validation.png": {
+    "sha256": "967f85acec574c0fa12b3755f7bd2858a4cf3c396ee716735b0b8ac0baaa38cd",
+    "source": "/home/andrinr/solver-investigations/buoyancy-curriculum-20261029/report/validation.png",
+    "bytes": 191208
+  },
+  "curriculum/provenance/scripts.sha256": {
+    "sha256": "c1ad6487753d76858e789d4b0b980450d1813a5a37bb1c5bb7032310145e99e3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-curriculum-20261029/scripts.sha256",
+    "bytes": 150
+  },
+  "curriculum/provenance/protocol.json": {
+    "sha256": "1592cb6482735f5ed6405a547c5dc7cbac0fdde605e05f5b3e22e96789d66459",
+    "source": "/home/andrinr/solver-investigations/buoyancy-curriculum-20261029/protocol.json",
+    "bytes": 787
+  },
+  "lbfgs/validation.vl.json": {
+    "sha256": "42a8ae4054609a8b7a66f9cd4b5dd9b57785e3bfe2fe854b3aa7e5ef7ab7da22",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lbfgs-20261029/report/validation.vl.json",
+    "bytes": 4431
+  },
+  "lbfgs/report.json": {
+    "sha256": "52e92d9a93f59bc7b11c9e3f49e7c76147204fe9315621687d42fbf55ffa9091",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lbfgs-20261029/report/report.json",
+    "bytes": 38739
+  },
+  "lbfgs/validation.png": {
+    "sha256": "a94c3320dc8cc382af56804fba2b22158818520780aca4182d4c390dcd7bfc90",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lbfgs-20261029/report/validation.png",
+    "bytes": 211282
+  },
+  "lbfgs/provenance/scripts.sha256": {
+    "sha256": "b859a559c41fa5db7626d4e662030ba92f2934d92cc03b2765e77fd8bb8f3197",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lbfgs-20261029/scripts.sha256",
+    "bytes": 150
+  },
+  "lbfgs/provenance/protocol.json": {
+    "sha256": "e483f8b308914b9376180d21ddfdfb9c3ab2da870644ab92b1caa4c1921aaeaf",
+    "source": "/home/andrinr/solver-investigations/buoyancy-lbfgs-20261029/protocol.json",
+    "bytes": 1078
+  },
+  "hybrid/validation.vl.json": {
+    "sha256": "b5173df30ae839ed8b94af81af65901e27aa70aed38291e262042a0630c36615",
+    "source": "/home/andrinr/solver-investigations/buoyancy-hybrid-20261029/report-v2/validation.vl.json",
+    "bytes": 7055
+  },
+  "hybrid/report.json": {
+    "sha256": "92e37fe61350b77a88e106bfe212d4b7ae191301a102a0b94b184aa5b42bf7fe",
+    "source": "/home/andrinr/solver-investigations/buoyancy-hybrid-20261029/report-v2/report.json",
+    "bytes": 120435
+  },
+  "hybrid/validation.png": {
+    "sha256": "0e264133ed6197a4c45611110ff1ee4307955b70993d6486433717606d4a78e6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-hybrid-20261029/report-v2/validation.png",
+    "bytes": 268294
+  },
+  "hybrid/provenance/scripts.sha256": {
+    "sha256": "ab34b8878424c4be8dcc85333421434c80e28d3203f854742f157182f21b3401",
+    "source": "/home/andrinr/solver-investigations/buoyancy-hybrid-20261029/scripts.sha256",
+    "bytes": 150
+  },
+  "hybrid/provenance/protocol.json": {
+    "sha256": "20ac1777809f7109f0eea6e1c7e3f71779553c937cc99e78e2f1cb7f94ce9668",
+    "source": "/home/andrinr/solver-investigations/buoyancy-hybrid-20261029/protocol.json",
+    "bytes": 1229
+  },
+  "README.md": {
+    "sha256": "c82137a884dc074d08667b23f9295128df33852287fa0efe5e01b4a2926c791e",
+    "source": "Publication summary of retained reports",
+    "bytes": 4040
+  }
+}

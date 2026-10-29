@@ -1,0 +1,12 @@
+{
+  "recorded_utc": "2026-10-29T15:48:27.395294+00:00",
+  "scope": "One universal Adam learning rate for all five solvers; no per-solver winners",
+  "criterion": "exp(mean(log(selected_validation_loss_lr001 / selected_validation_loss_lr003))) equal weight across all five backend seed0 pairs",
+  "decision": "Score<1 favors shared .001; score>=1 retains shared .003; parent reviews result, no automatic source changes",
+  "required": "All five pairs complete and admitted, exact within-pair initial/data/scales/window schedule; no failed/missing solver omission",
+  "model_seed": "seed0 common to all backends; JAX seeds1/2 supplementary only",
+  "heldout": "Reporting only, excluded from selection",
+  "timing_of_declaration": "After JAX and Phi results observed, before INS/Ocean/Water numerical training outcomes; not claimed blind preregistration",
+  "source": "0246f6a",
+  "validation_interval": 16
+}
