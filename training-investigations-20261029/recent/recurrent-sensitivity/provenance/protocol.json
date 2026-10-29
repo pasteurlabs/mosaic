@@ -1,0 +1,23 @@
+{
+  "scope": "diagnostics2 long recurrent sensitivities,3 physical-scale growth and forecast errors,4 robustness",
+  "backend": "JAX-CFD N64 only",
+  "checkpoints": "matched60s seed0 H8/H16 selected",
+  "states": "test100 frames25,50; validation1 frame50",
+  "core_horizons": [
+    1,
+    4,
+    8,
+    16,
+    32
+  ],
+  "robustness_horizons": [
+    1,
+    8,
+    32
+  ],
+  "basis": "24D:4 low/mid/high curl modes and4 low/mid/high scalar modes;3 independently sampled subsets with same band coverage; actual leakage and overlap quantified",
+  "metric": "Original shared RMS normalization; exactfull-output restrictedJacobian singularvalues; absolute gains+mean+rawratio+rankflag",
+  "checks": "CanonicalAPI/data hashes, physicalbasis constraints, chainrule, JVPlinearity, initialidentity; finite-amplitude central probes epsilon.003,.001 at horizons; finite/CFL",
+  "cost_cap": "OneRTX5090;4CPU16GB;30minutes; noDGX; no localnumerics",
+  "public_changes": false
+}

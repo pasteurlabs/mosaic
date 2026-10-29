@@ -310,8 +310,103 @@
     "bytes": 1229
   },
   "README.md": {
-    "sha256": "c82137a884dc074d08667b23f9295128df33852287fa0efe5e01b4a2926c791e",
+    "sha256": "d59a8e1cb35aaede775346a6fc2728a225fec83c2a2db38cfd5b86bdf14db0f5",
     "source": "Publication summary of retained reports",
-    "bytes": 4040
+    "bytes": 6045
+  },
+  "recurrent-sensitivity/long_rollout_sensitivity.png": {
+    "sha256": "d04d50139642f36787cc9a75e415f2e3f30dca226853d8f598ca92d96d0b0ab3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/long_rollout_sensitivity.png",
+    "bytes": 470762
+  },
+  "recurrent-sensitivity/state_basis_robustness.png": {
+    "sha256": "8b23e96accc3e10b4b71ccaf283f493c3ec7862ba77e2019ae79077730f10b0a",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/state_basis_robustness.png",
+    "bytes": 413361
+  },
+  "recurrent-sensitivity/summary.json": {
+    "sha256": "f19aeb311a604c72d7d386a3dc162845203fa15cec7c33ea273045ea3163102e",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/summary.json",
+    "bytes": 4372
+  },
+  "recurrent-sensitivity/spectral_prediction_error.vl.json": {
+    "sha256": "25a353fc5da4c812da84bd3be485387ace03809b5284233001d5277c49f433fd",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/spectral_prediction_error.vl.json",
+    "bytes": 12099
+  },
+  "recurrent-sensitivity/state_basis_robustness.vl.json": {
+    "sha256": "57deb674f975c125343698681147d0f3631c4e8df8c039262b41445621c1a02a",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/state_basis_robustness.vl.json",
+    "bytes": 5721
+  },
+  "recurrent-sensitivity/long_rollout_sensitivity.vl.json": {
+    "sha256": "8ea1bfc352bda087cf4b83103529b4ebecb0f100a01cbb551117fa6008d18b07",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/long_rollout_sensitivity.vl.json",
+    "bytes": 8249
+  },
+  "recurrent-sensitivity/README.md": {
+    "sha256": "d7e4a8fc074d49d38a81c03cef4a12659700700050b2df43c5959d235688e9e6",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/README.md",
+    "bytes": 1659
+  },
+  "recurrent-sensitivity/physical_mode_growth.png": {
+    "sha256": "d343fd96288c4cf348bf1f4c06590cf98f02c77930b04a8bd0540ecb3126e01c",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/physical_mode_growth.png",
+    "bytes": 518351
+  },
+  "recurrent-sensitivity/physical_mode_growth.vl.json": {
+    "sha256": "d93b7519e6739d1c8da5cac747cfc6640f82963380c8b00279c756f9aad574e3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/physical_mode_growth.vl.json",
+    "bytes": 11426
+  },
+  "recurrent-sensitivity/spectral_prediction_error.png": {
+    "sha256": "4bfd537c5ab94ff2701e04cf6bcc7060653a1073eab949062daab4d48bf2bd1e",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plots/spectral_prediction_error.png",
+    "bytes": 620743
+  },
+  "recurrent-sensitivity/report.json": {
+    "sha256": "51a195bcbde58fb4d8379677cf908e66a26723238e7d5422e94c7541ca85ae5e",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/results/report.json",
+    "bytes": 387593
+  },
+  "recurrent-sensitivity/provenance/protocol.json": {
+    "sha256": "f3b18628237cf0509ea4787e7ae8d854c09f79496b59769b8398eba7b1c01804",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/protocol.json",
+    "bytes": 965
+  },
+  "recurrent-sensitivity/provenance/source-commit.txt": {
+    "sha256": "b3e6ca79140e220ba5b5595fb246af605de43c0338ae7b7dcea4fc23974e5130",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/source-commit.txt",
+    "bytes": 41
+  },
+  "recurrent-sensitivity/provenance/source.sha256": {
+    "sha256": "8f2db9192faf66ad170a50839af27803a215d044017fe83a3190b2f2ecc70ca3",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/source.sha256",
+    "bytes": 77
+  },
+  "recurrent-sensitivity/provenance/scripts.sha256": {
+    "sha256": "e73273d84d9684838739c4d1da661cf2e6bb59abd01307345bf5f9f7bf02d155",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/scripts.sha256",
+    "bytes": 234
+  },
+  "recurrent-sensitivity/provenance/plot.sha256": {
+    "sha256": "1a4e31e485a24a8d130e8270730a2619567b0ea5551c1c40bdb4cc682d93a59d",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/plot.sha256",
+    "bytes": 153
+  },
+  "recurrent-sensitivity/provenance/environment.txt": {
+    "sha256": "6d7c102fafe399d18efa2b87a0536238f8ee4547c23e80ab29271ef0d43f5814",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/environment.txt",
+    "bytes": 2590
+  },
+  "recurrent-sensitivity/provenance/gpu.txt": {
+    "sha256": "ef4d20119e0df1b76c91af16d9881519dc540d88a38480f48f65d25168f27bef",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/gpu.txt",
+    "bytes": 1689
+  },
+  "recurrent-sensitivity/provenance/sacct.txt": {
+    "sha256": "a557a49b1dac59f91ab72aae651e3496304d4b811239229efb54759008268fa5",
+    "source": "/home/andrinr/solver-investigations/buoyancy-sensitivity-20261029/sacct.txt",
+    "bytes": 603
   }
 }

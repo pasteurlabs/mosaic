@@ -1,0 +1,108 @@
+{
+  "checks": {
+    "finite_amplitude_direction": "First basis direction: low-band velocity; two epsilons .003,.001. Does not validate every tangent direction independently.",
+    "max_finite_amplitude_relative_error": 0.0066823925206056355,
+    "max_cfl": 0.23172405362129211,
+    "max_chainrule_error": 0.0,
+    "max_linearity_error": 8.740488510738942e-08,
+    "precision": "Native JAX-CFD usesFloat64 internally, public normalized states/JVP directions float32; SVD matrices float64 after transfer. 1e-8 rank reporting floor is descriptive, not certified float32 resolution. No ratio exceeds500 here.",
+    "no_fd_waiver": true
+  },
+  "robustness": [
+    {
+      "case": "test100 / frame50 / basis0",
+      "arm": "h8",
+      "condition_ratio": 0.840646435197628,
+      "sigma_max_ratio": 1.0074727035430675,
+      "sigma_min_ratio": 1.1984499801111035,
+      "forecast_error_energy_ratio": 0.4705228393381178
+    },
+    {
+      "case": "test100 / frame50 / basis0",
+      "arm": "h16",
+      "condition_ratio": 0.871459051901768,
+      "sigma_max_ratio": 1.01130377987514,
+      "sigma_min_ratio": 1.1604719437685473,
+      "forecast_error_energy_ratio": 0.4813541769637711
+    },
+    {
+      "case": "test100 / frame50 / basis1",
+      "arm": "h8",
+      "condition_ratio": 0.9130851198488588,
+      "sigma_max_ratio": 1.0085266765091345,
+      "sigma_min_ratio": 1.104526461537424,
+      "forecast_error_energy_ratio": 0.4705228393381178
+    },
+    {
+      "case": "test100 / frame50 / basis1",
+      "arm": "h16",
+      "condition_ratio": 0.9567438821573484,
+      "sigma_max_ratio": 1.0107680620214685,
+      "sigma_min_ratio": 1.0564667105498513,
+      "forecast_error_energy_ratio": 0.4813541769637711
+    },
+    {
+      "case": "test100 / frame50 / basis2",
+      "arm": "h8",
+      "condition_ratio": 0.8572440882097454,
+      "sigma_max_ratio": 1.0058746687471416,
+      "sigma_min_ratio": 1.1733818670570173,
+      "forecast_error_energy_ratio": 0.4705228393381178
+    },
+    {
+      "case": "test100 / frame50 / basis2",
+      "arm": "h16",
+      "condition_ratio": 0.9415796242279282,
+      "sigma_max_ratio": 1.00873650742553,
+      "sigma_min_ratio": 1.0713236368646661,
+      "forecast_error_energy_ratio": 0.4813541769637711
+    },
+    {
+      "case": "test100 / frame25 / basis0",
+      "arm": "h8",
+      "condition_ratio": 0.8066441518734913,
+      "sigma_max_ratio": 1.0107423207692698,
+      "sigma_min_ratio": 1.2530213210146575,
+      "forecast_error_energy_ratio": 0.38516613408606126
+    },
+    {
+      "case": "test100 / frame25 / basis0",
+      "arm": "h16",
+      "condition_ratio": 0.8692797851727536,
+      "sigma_max_ratio": 1.013133302942807,
+      "sigma_min_ratio": 1.1654858656830092,
+      "forecast_error_energy_ratio": 0.40675313851491113
+    },
+    {
+      "case": "validation1 / frame50 / basis0",
+      "arm": "h8",
+      "condition_ratio": 0.8342708781500182,
+      "sigma_max_ratio": 1.0063980929320713,
+      "sigma_min_ratio": 1.2063205360394962,
+      "forecast_error_energy_ratio": 0.4911807897908875
+    },
+    {
+      "case": "validation1 / frame50 / basis0",
+      "arm": "h16",
+      "condition_ratio": 0.8870809242078068,
+      "sigma_max_ratio": 1.0086457605943506,
+      "sigma_min_ratio": 1.1370391731680007,
+      "forecast_error_energy_ratio": 0.5194848632981497
+    }
+  ],
+  "restriction": "24 physical input modes; velocity curl satisfies discrete divergence/normal boundaries; scalar cosine Neumann modes. Full12288-dimensional output retained, no output projection. Three genuinely different mode subsets, not basis rotations.",
+  "provenance": {
+    "receipts": {
+      "h8": "90a83ee5214e0636ebd3fc75308946d51a721abbc7fa4d414cd20a905ec68d00",
+      "h16": "b50aeaa9d943f82fa2b1240bd96b4ca468332616883fcab348a0af3a032aa2b7"
+    },
+    "selected_checkpoints": {
+      "h8": "7b72e0e2a93042d7653d2338fd5078005b488785e00e999cd387a9c3d2a53358",
+      "h16": "06684e754ff7ab55fe67ba148914879b39c59bb44c9daa41331b64b5bd222aa6"
+    },
+    "scales_sha256": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab",
+    "validation_sha256": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "test_reference_sha256": "a14dea44e523acca6e0df74d1432173f42bcfb0a2c110d62bc702089cc61803d",
+    "native_api_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01"
+  }
+}

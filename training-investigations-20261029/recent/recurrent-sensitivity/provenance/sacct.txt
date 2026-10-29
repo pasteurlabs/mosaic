@@ -1,0 +1,7 @@
+JobID|JobName|Partition|State|Elapsed|MaxRSS|AllocTRES
+3620295|buoyancy-long-sensitivity|dev|COMPLETED|00:00:33||billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=16G,node=1
+3620295.batch|batch||COMPLETED|00:00:33|13632680K|cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=16G,node=1
+3620295.extern|extern||COMPLETED|00:00:33||billing=32,cpu=4,gres/gpu:5090=1,gres/gpu=1,mem=16G,node=1
+3620317|buoyancy-sensitivity-plots|dev|COMPLETED|00:00:09||billing=2,cpu=2,mem=8G,node=1
+3620317.batch|batch||COMPLETED|00:00:09|1283092K|cpu=2,mem=8G,node=1
+3620317.extern|extern||COMPLETED|00:00:09||billing=2,cpu=2,mem=8G,node=1
