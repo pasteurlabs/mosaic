@@ -742,12 +742,23 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
         _SVD_VARIANT_STYLES[i % len(_SVD_VARIANT_STYLES)] for i in range(len(variants))
     ]
     frames = []
+    diagnostics = {}
     for solver in solvers:
         for (_, data), label in zip(variants, labels, strict=True):
             spec = data["per_solver_spectra"].get(solver)
             if spec is None:
                 continue
             sv = np.asarray(spec, dtype=float)
+            if getattr(ctx, "problem", None) == "buoyancy-grid":
+                from mosaic.benchmarks.problems.buoyancy_grid.spectrum import (
+                    spectrum_diagnostics,
+                )
+
+                n = data.get("params", {}).get("physics", {}).get("N")
+                if isinstance(n, int) and len(sv) == 3 * n * n:
+                    diagnostics.setdefault(enc.label(solver), {})[label] = (
+                        spectrum_diagnostics(sv.tolist(), n)
+                    )
             idx = _thin(sv)
             frames.append(
                 pd.DataFrame(
@@ -804,16 +815,58 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
         if int(sub["mode"].max()) <= 32:  # markers only for ≤ 32 modes
             layers.append(base.mark_point(filled=True, size=20))
         color = enc.color.range[enc.labels.index(label)]
+        summaries = diagnostics.get(label, {})
+        subtitles = []
+        if summaries:
+            ranks = {d["expected_rank"] for d in summaries.values()}
+            if len(ranks) == 1:
+                rank = next(iter(ranks))
+                bounds = pd.DataFrame(
+                    {"start": [rank + 0.5], "end": [int(sub["mode"].max()) + 0.5]}
+                )
+                layers.insert(
+                    0,
+                    alt.Chart(bounds)
+                    .mark_rect(color="gray", opacity=0.10)
+                    .encode(x="start:Q", x2="end:Q"),
+                )
+                layers.append(
+                    alt.Chart(bounds)
+                    .mark_rule(color="gray", strokeDash=[4, 3])
+                    .encode(x="start:Q")
+                )
+            for d in summaries.values():
+                active = (
+                    f"{d['condition_non_null']:.3g}"
+                    if d["condition_non_null"] is not None
+                    else "undefined"
+                )
+                full = (
+                    f"{d['condition_full']:.2g}"
+                    if d["condition_full"] is not None
+                    else "infinite"
+                )
+                subtitles.extend(
+                    [
+                        f"Expected rank {d['expected_rank']}/{d['dimension']}; numerical rank {d['numerical_rank']}",
+                        f"Non-null ratio {active}; full ratio {full}",
+                    ]
+                )
         chart = alt.layer(*layers).properties(
-            width=260, height=170, title=alt.Title(label, color=color, anchor="middle")
+            width=260,
+            height=170,
+            title=alt.Title(label, color=color, anchor="middle", subtitle=subtitles),
         )
         chart = chart.add_params(zoom, pick) if i == 0 else chart.add_params(zoom)
         charts.append(chart)
     return alt.concat(*charts, columns=3, spacing=30).properties(
+        usermeta={"spectrum_diagnostics": diagnostics},
         title=alt.Title(
-            "Jacobian singular-value spectra (flatter = better-conditioned gradient)",
+            "Jacobian spectra: shaded structural nullspace; non-null cutoff 1e-6"
+            if diagnostics
+            else "Jacobian singular-value spectra",
             anchor="middle",
-        )
+        ),
     )
 
 
