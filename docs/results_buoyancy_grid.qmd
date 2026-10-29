@@ -110,8 +110,10 @@ It is a bounded benchmark, not a reproduction of their full training campaign.
 The Solver In Loop section shows one GIF comparing corrected and uncorrected
 spatial errors for every differentiable solver, one combined velocity/temperature-anomaly
 rollout-error figure, and one validation-loss figure containing every solver.
-The GIF uses fixed error scales across solvers, methods, and time, with separate
-scales for velocity and temperature anomaly. The combined curves use the shared Altair pipeline
+The GIF pairs each arm's actual grayscale field with a separate unblended error
+heatmap: red for temperature anomaly and blue for velocity. Scales are shared by
+corrected and uncorrected panels within each solver row and fixed over time.
+Each row prints its physical scale limits; colors should be compared within rows. The combined curves use the shared Altair pipeline
 with PNG previews and interactive tooltips. Training-cost and separate per-solver
 checkpoint plots are omitted. Backend-specific normalization means these losses
 measure correction within each backend and should not rank solver accuracy.

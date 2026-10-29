@@ -1,10 +1,7 @@
 {
   "reference_type": "independent numerical reference, not an exact solution",
   "physics_time": 0.3999999910593033,
-  "sweep_values": [
-    16,
-    32
-  ],
+  "sweep_values": [16, 32],
   "source_receipts": [
     {
       "solver": "OpenCFD v2412 buoyantBoussinesqPimpleFoam",
@@ -26,7 +23,7 @@
       "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
       "artifact_sha256": "633279bf57070a57e84b2235d544ac2136a39855b391569b622748d9f152bb88",
       "diagnostics": {
-        "divergence_rms": 7.055449164014153e-08,
+        "divergence_rms": 7.055449164014153e-8,
         "mass_relative_drift": 3.0883676746793074e-10,
         "scalar_min": -1.2812506611226127e-10,
         "scalar_max": 0.889311671257019,
@@ -54,7 +51,7 @@
       "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
       "artifact_sha256": "d72e4c3eb6033bca9d63903dae1618a64084dd2720eb7b9f37f704db0c4b0d0b",
       "diagnostics": {
-        "divergence_rms": 1.428950685667169e-07,
+        "divergence_rms": 1.428950685667169e-7,
         "mass_relative_drift": 4.185227809168719e-10,
         "scalar_min": -4.087041816092096e-11,
         "scalar_max": 0.9018444418907166,
@@ -82,7 +79,7 @@
       "ic_source_sha256": "88cc20c008ad68c8b09825bd0f0bda62fde79b709a3c782b927fb974f1d2467d",
       "artifact_sha256": "6b9169cc6e055186859f0fa9594c27bbac75795c30a7cd566291d6d7a5637a99",
       "diagnostics": {
-        "divergence_rms": 1.4511462741995572e-07,
+        "divergence_rms": 1.4511462741995572e-7,
         "mass_relative_drift": 3.363148093723996e-11,
         "scalar_min": -2.9672264645341784e-11,
         "scalar_max": 0.9019668102264404,
