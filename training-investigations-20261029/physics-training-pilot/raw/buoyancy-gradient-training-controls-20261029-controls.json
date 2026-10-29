@@ -1,0 +1,13 @@
+{
+  "completed": false,
+  "scope": "Pretraining gradient controls only; original forward objective unchanged. Full-state H1 is intentionally biased BPTT, not AD correction.",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "rows": [],
+  "devices": [
+    "cuda:0"
+  ],
+  "ell_cells": 1.0,
+  "placement": "After each corrected physical state, before intermediate loss and future recurrence; heat filtered by Neumann H1 preserving DC. Residual-branch P is separate exact-null control.",
+  "failure": "TypeError: lax.conv_general_dilated requires arguments to have the same dtypes, got float32, float64.",
+  "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-training-controls-20261029/driver.py\", line 61, in <module>\n    moved=jax.tree.map(lambda p,d:p-eta*d,pp,direction);actual=float(true_loss(moved,window));descent.append({'parameter_l2_step':eta,'true_objective':actual,'relative_change':(actual-bv)/max(abs(bv),1e-30)})\n                                                                     ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-training-controls-20261029/driver.py\", line 46, in loss\n    for t in range(h):x=C(pp,step(x));value=value+normalized_loss(x,window[t+1],D)\n                        ^^^^^^^^^^^^^\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-training-controls-20261029/driver.py\", line 40, in <lambda>\n    modes={'baseline':lambda p,x:apply_corrector(p,x,D),'residual_branch_p':branch,'whole_state_p':lambda p,x:whole_p(apply_corrector(p,x,D)),'whole_state_h1':lambda p,x:whole_h1(apply_corrector(p,x,D))}\n                                 ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/scratch/jobs/3623378/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/corrector.py\", line 45, in apply_corrector\n    jax.lax.conv_general_dilated(\nTypeError: lax.conv_general_dilated requires arguments to have the same dtypes, got float32, float64.\n--------------------\nFor simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.\n"
+}

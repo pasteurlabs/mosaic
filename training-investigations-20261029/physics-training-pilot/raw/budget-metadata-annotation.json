@@ -1,0 +1,19 @@
+{
+  "metadata_correction": "The inherited raw recipe.validation_interval=64 field is stale metadata and is not used by the budget driver. Execution uses elapsed-time validation below; raw source/outcomes are preserved unchanged.",
+  "fit_budget_seconds": 60,
+  "updates": "uncapped, infinite deterministic balanced stream; first256 equal original pilot stream",
+  "validation_elapsed_milestones_seconds": [
+    0,
+    7.5,
+    15,
+    22.5,
+    30,
+    37.5,
+    45,
+    52.5,
+    60
+  ],
+  "policy": "Coalesce expired milestones after indivisible calls; score only becomes available at actual completion time. Reserve initial measured validation duration for final attempt. Exclude any checkpoint completed after60s. Initial/final actual-score calls maycoalesce; raw counts retained.",
+  "cache": "JAX_ENABLE_COMPILATION_CACHE=false exported before all Python/JAX imports; native/reference/gate preparation common and outside fitclock, wholefit first compilation inside.",
+  "scope": "Annotation only, no source/runtime change or modification of raw outcomes; created after submission before outcome interpretation."
+}

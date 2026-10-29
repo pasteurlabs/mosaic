@@ -1,0 +1,229 @@
+{
+  "completed": true,
+  "protocol": {
+    "scope": "DIAGNOSTIC ONLY; no training or production gate change",
+    "original_gate": "eps.003,5%; centered failed and remains ineligible under original protocol",
+    "epsilons": [
+      0.003,
+      0.001,
+      0.0003
+    ],
+    "criterion": "At both initial and original nonzero parameter probes, two adjacent epsilon checks must each have AD/FD relative error <=.05 and their FD slopes must agree to relative<=.05. Report every pair, plus whether a common adjacent pair passes both probes. Applies identically to baseline and centered trueAD; never H1 surrogate.",
+    "reference_points": "traincase0,start0,H8; initialseed0 and original frozen selected checkpoint",
+    "decision": "Return raw results for root decision; never automatically train/readmit centered arm"
+  },
+  "rows": [
+    {
+      "arm": "baseline",
+      "checkpoint": "initial",
+      "checks": [
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0007011162815615535,
+          "relative_error": 0.01566788315168526,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006913662073202431,
+          "relative_error": 0.0017862222956004257,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006902465829625726,
+          "relative_error": 0.00016705533807159954,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.01390650095815007,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0016194374932067396,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "baseline",
+      "checkpoint": "selected",
+      "checks": [
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008494892972521484,
+          "relative_error": 0.0032087763927493127,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008519236580468714,
+          "relative_error": 0.00035229605435932215,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008522018324583769,
+          "relative_error": 2.5886041993443796e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0028574870197924465,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0003264184620478944,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "temperature_centered",
+      "checkpoint": "initial",
+      "checks": [
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007610575994476676,
+          "relative_error": 0.05507282290378413,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007238212856464088,
+          "relative_error": 0.006461921865871394,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007195664220489562,
+          "relative_error": 0.000587038225110918,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.04892706390197379,
+          "passes": false
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.00587833444778131,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": false
+    },
+    {
+      "arm": "temperature_centered",
+      "checkpoint": "selected",
+      "checks": [
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.0018471943913027644,
+          "relative_error": 0.00042899604903903185,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.001846475643105805,
+          "relative_error": 3.990894707525106e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.0018464280292391777,
+          "relative_error": 1.4122961564864492e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0003891026306400738,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 2.578634969001214e-05,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    }
+  ],
+  "criteria": {
+    "baseline": {
+      "both_points_pass": true,
+      "common_pair_passes_both": [
+        true,
+        true
+      ]
+    },
+    "temperature_centered": {
+      "both_points_pass": true,
+      "common_pair_passes_both": [
+        false,
+        true
+      ]
+    }
+  },
+  "analytical_controls": [
+    {
+      "arm": "baseline",
+      "residual_temperature_gradient_sum": -0.00054896529763937,
+      "residual_gradient_norm": 0.02770213969051838,
+      "full_temperature_gradient_sum": 0.9994510412216187,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 7.139146327972412e-05
+    },
+    {
+      "arm": "temperature_centered",
+      "residual_temperature_gradient_sum": 0.0,
+      "residual_gradient_norm": 0.029945161193609238,
+      "full_temperature_gradient_sum": 1.0,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 1.4901161193847656e-08
+    }
+  ]
+}

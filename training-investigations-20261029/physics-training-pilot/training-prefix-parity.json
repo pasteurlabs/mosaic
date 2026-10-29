@@ -1,0 +1,60 @@
+{
+  "rows": [
+    {
+      "arm": "baseline",
+      "initial_parameter_hashes_equal": true,
+      "first256_windows_equal": true,
+      "trace_parity": {
+        "loss": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "true_loss": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "candidate_gradient_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "true_gradient_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "parameter_step_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        }
+      },
+      "parameter_history_limit": "Only initial checkpoint is shared by both validation schedules; no budget checkpoint at update256 and no full per-update parameter history was saved, so parameter-path identity is not directly established. No validation replay performed."
+    },
+    {
+      "arm": "whole_state_h1",
+      "initial_parameter_hashes_equal": true,
+      "first256_windows_equal": true,
+      "trace_parity": {
+        "loss": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "true_loss": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "candidate_gradient_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "true_gradient_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        },
+        "parameter_step_norm": {
+          "max_absolute_difference": 0.0,
+          "relative_l2_difference": 0.0
+        }
+      },
+      "parameter_history_limit": "Only initial checkpoint is shared by both validation schedules; no budget checkpoint at update256 and no full per-update parameter history was saved, so parameter-path identity is not directly established. No validation replay performed."
+    }
+  ]
+}

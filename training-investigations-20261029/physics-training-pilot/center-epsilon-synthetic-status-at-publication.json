@@ -1,0 +1,7 @@
+{
+  "job_id": 3623885,
+  "state": "PENDING",
+  "checked_utc": "2026-10-29T22:07:11.815492+00:00",
+  "pid": 1698504,
+  "scope": "Metadata-only completion/combination; never launches training or changes admission"
+}

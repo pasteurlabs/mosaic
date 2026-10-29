@@ -1,0 +1,996 @@
+{
+  "complete": true,
+  "scope": "One model seed, JAX-CFD native RTX; H8/Adam.003. Fixed 256 updates and separately prespecified uncapped 60 s fit experiment. No public recipe/CI changes.",
+  "summaries": [
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "label": "Ordinary AD",
+      "completed_updates": 256,
+      "selected_update": 192,
+      "validation_loss": 0.0006556185544468462,
+      "heldout_loss": 0.0008612153469584882,
+      "training_seconds": 28.557333606411703,
+      "validation_seconds": 0.5656770510831848,
+      "first_update_seconds": 19.569389255950227,
+      "remaining_update_seconds": 8.987944350461476,
+      "driver_through_selection_seconds": 39.86851848696824,
+      "fit_elapsed_seconds": null,
+      "fit_overshoot_seconds": null,
+      "common_preparation_seconds": null,
+      "mean_candidate_true_gradient_cosine": 1.0000000323634595,
+      "mean_adam_descent_true_gradient_cosine": 0.070834468747762,
+      "max_endpoint_cfl": 0.2223089122772217,
+      "max_divergence_rms": 4.578132308930009e-07,
+      "max_heat_mean_drift": 7.802232332432268e-10,
+      "max_stored_wall_normal": 0.0,
+      "largest_sampled_temperature_variance_increment": -7.231579466511571e-05,
+      "temperature_range": [
+        0.0,
+        0.99381422996521
+      ]
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "label": "H1 filtered backward",
+      "completed_updates": 256,
+      "selected_update": 256,
+      "validation_loss": 0.0005628641229122877,
+      "heldout_loss": 0.0008011125610210001,
+      "training_seconds": 42.94410232943483,
+      "validation_seconds": 0.676858687074855,
+      "first_update_seconds": 34.091597301885486,
+      "remaining_update_seconds": 8.852505027549341,
+      "driver_through_selection_seconds": 56.427226703148335,
+      "fit_elapsed_seconds": null,
+      "fit_overshoot_seconds": null,
+      "common_preparation_seconds": null,
+      "mean_candidate_true_gradient_cosine": 0.9471136759966612,
+      "mean_adam_descent_true_gradient_cosine": 0.10516910792114231,
+      "max_endpoint_cfl": 0.2227601432800293,
+      "max_divergence_rms": 4.5131913746653255e-07,
+      "max_heat_mean_drift": 4.533981662335762e-10,
+      "max_stored_wall_normal": 0.0,
+      "largest_sampled_temperature_variance_increment": -7.258581977833203e-05,
+      "temperature_range": [
+        0.0,
+        0.99381422996521
+      ]
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "label": "Projection (null control)",
+      "completed_updates": 256,
+      "selected_update": 192,
+      "validation_loss": 0.0006556175067089498,
+      "heldout_loss": 0.0008612151723355055,
+      "training_seconds": 43.03295361320488,
+      "validation_seconds": 0.6655140060465783,
+      "first_update_seconds": 34.225065720966086,
+      "remaining_update_seconds": 8.807887892238796,
+      "driver_through_selection_seconds": 57.582921504974365,
+      "fit_elapsed_seconds": null,
+      "fit_overshoot_seconds": null,
+      "common_preparation_seconds": null,
+      "mean_candidate_true_gradient_cosine": 1.000000027474016,
+      "mean_adam_descent_true_gradient_cosine": 0.07083441561235304,
+      "max_endpoint_cfl": 0.2223089122772217,
+      "max_divergence_rms": 4.5042895670190445e-07,
+      "max_heat_mean_drift": 7.028961510058274e-10,
+      "max_stored_wall_normal": 0.0,
+      "largest_sampled_temperature_variance_increment": -7.231581611676693e-05,
+      "temperature_range": [
+        0.0,
+        0.99381422996521
+      ]
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "label": "Ordinary AD",
+      "completed_updates": 764,
+      "selected_update": 205,
+      "validation_loss": 0.00048010805039666593,
+      "heldout_loss": 0.0006745185819454491,
+      "training_seconds": 57.214646828360856,
+      "validation_seconds": 1.4783068089745939,
+      "first_update_seconds": 28.709700790932402,
+      "remaining_update_seconds": 28.504946037428454,
+      "driver_through_selection_seconds": 73.53352536004968,
+      "fit_elapsed_seconds": 59.74558646301739,
+      "fit_overshoot_seconds": 0.0,
+      "common_preparation_seconds": 13.787931747036055,
+      "mean_candidate_true_gradient_cosine": 1.0000000276958756,
+      "mean_adam_descent_true_gradient_cosine": 0.0775064844703631,
+      "max_endpoint_cfl": 0.2229524517059326,
+      "max_divergence_rms": 4.578987816115343e-07,
+      "max_heat_mean_drift": 1.740455612964098e-09,
+      "max_stored_wall_normal": 0.0,
+      "largest_sampled_temperature_variance_increment": -7.215787003259175e-05,
+      "temperature_range": [
+        0.0,
+        0.99381422996521
+      ]
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "label": "H1 filtered backward",
+      "completed_updates": 674,
+      "selected_update": 298,
+      "validation_loss": 0.0004547423159237951,
+      "heldout_loss": 0.0006820151465944946,
+      "training_seconds": 57.66184522677213,
+      "validation_seconds": 1.288624488050118,
+      "first_update_seconds": 32.998886976973154,
+      "remaining_update_seconds": 24.662958249798976,
+      "driver_through_selection_seconds": 73.42115046398249,
+      "fit_elapsed_seconds": 59.783533990965225,
+      "fit_overshoot_seconds": 0.0,
+      "common_preparation_seconds": 13.637608863064088,
+      "mean_candidate_true_gradient_cosine": 0.9379646761304193,
+      "mean_adam_descent_true_gradient_cosine": 0.09654197370819506,
+      "max_endpoint_cfl": 0.22141454696655274,
+      "max_divergence_rms": 4.5007892137555685e-07,
+      "max_heat_mean_drift": 9.282354884732058e-10,
+      "max_stored_wall_normal": 0.0,
+      "largest_sampled_temperature_variance_increment": -7.216693373821113e-05,
+      "temperature_range": [
+        0.0,
+        0.99381422996521
+      ]
+    }
+  ],
+  "failures": [
+    {
+      "scope": "fixed256",
+      "arm": "temperature_centered",
+      "failure": "AssertionError: ",
+      "completed_updates": 0,
+      "initial_trueAD_fd": {
+        "autodiff": 0.0007191440090537071,
+        "finite_difference": 0.0007610575994476676,
+        "relative_error": 0.05507282290378413,
+        "epsilon": 0.003
+      }
+    }
+  ],
+  "fixed_validation_curves": [
+    {
+      "arm": "Ordinary AD",
+      "update": 0,
+      "validation_loss": 0.001100789406336844,
+      "active_update_seconds": 0,
+      "actual_driver_completion_seconds": 8.741593132028356,
+      "selected": false
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 64,
+      "validation_loss": 0.0011775169987231493,
+      "active_update_seconds": 21.773263565963134,
+      "actual_driver_completion_seconds": 30.814022371079773,
+      "selected": false
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 128,
+      "validation_loss": 0.0006796692032366991,
+      "active_update_seconds": 24.006743540172465,
+      "actual_driver_completion_seconds": 33.87795645103324,
+      "selected": false
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 192,
+      "validation_loss": 0.0006556185544468462,
+      "active_update_seconds": 26.253075343673117,
+      "actual_driver_completion_seconds": 36.67037622607313,
+      "selected": true
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 256,
+      "validation_loss": 0.0006998744793236256,
+      "active_update_seconds": 28.557333606411703,
+      "actual_driver_completion_seconds": 39.56621531397104,
+      "selected": false
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 0,
+      "validation_loss": 0.001100789406336844,
+      "active_update_seconds": 0,
+      "actual_driver_completion_seconds": 10.654948986135423,
+      "selected": false
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 64,
+      "validation_loss": 0.001264377380721271,
+      "active_update_seconds": 36.26688686828129,
+      "actual_driver_completion_seconds": 47.41823937208392,
+      "selected": false
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 128,
+      "validation_loss": 0.0010042046196758747,
+      "active_update_seconds": 38.49560506595299,
+      "actual_driver_completion_seconds": 50.17421910306439,
+      "selected": false
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 192,
+      "validation_loss": 0.000763978052418679,
+      "active_update_seconds": 40.718219937058166,
+      "actual_driver_completion_seconds": 53.504821519134566,
+      "selected": false
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 256,
+      "validation_loss": 0.0005628641229122877,
+      "active_update_seconds": 42.94410232943483,
+      "actual_driver_completion_seconds": 56.17252460308373,
+      "selected": true
+    },
+    {
+      "arm": "Projection (null control)",
+      "update": 0,
+      "validation_loss": 0.001100789406336844,
+      "active_update_seconds": 0,
+      "actual_driver_completion_seconds": 11.805547339841723,
+      "selected": false
+    },
+    {
+      "arm": "Projection (null control)",
+      "update": 64,
+      "validation_loss": 0.0011775168823078275,
+      "active_update_seconds": 36.40482185664587,
+      "actual_driver_completion_seconds": 48.712870698887855,
+      "selected": false
+    },
+    {
+      "arm": "Projection (null control)",
+      "update": 128,
+      "validation_loss": 0.0006796701345592737,
+      "active_update_seconds": 38.60817082901485,
+      "actual_driver_completion_seconds": 51.589152990840375,
+      "selected": false
+    },
+    {
+      "arm": "Projection (null control)",
+      "update": 192,
+      "validation_loss": 0.0006556175067089498,
+      "active_update_seconds": 40.816493392921984,
+      "actual_driver_completion_seconds": 54.660554899834096,
+      "selected": true
+    },
+    {
+      "arm": "Projection (null control)",
+      "update": 256,
+      "validation_loss": 0.0006998755852691829,
+      "active_update_seconds": 43.03295361320488,
+      "actual_driver_completion_seconds": 57.30785324587487,
+      "selected": false
+    }
+  ],
+  "budget_actual_validation": [
+    {
+      "arm": "Ordinary AD",
+      "update": 0,
+      "actual_fit_completion_seconds": 0.492913929047063,
+      "validation_loss": 0.001100789406336844,
+      "eligible": true,
+      "best_available_loss": 0.001100789406336844,
+      "coalesced_requested_milestones": [
+        0.0
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 1,
+      "actual_fit_completion_seconds": 29.443381847115234,
+      "validation_loss": 0.010320693254470825,
+      "eligible": true,
+      "best_available_loss": 0.001100789406336844,
+      "coalesced_requested_milestones": [
+        7.5,
+        15.0,
+        22.5
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 14,
+      "actual_fit_completion_seconds": 30.212967412080616,
+      "validation_loss": 0.003511932212859392,
+      "eligible": true,
+      "best_available_loss": 0.001100789406336844,
+      "coalesced_requested_milestones": [
+        30.0
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 205,
+      "actual_fit_completion_seconds": 37.70018871710636,
+      "validation_loss": 0.00048010805039666593,
+      "eligible": true,
+      "best_available_loss": 0.00048010805039666593,
+      "coalesced_requested_milestones": [
+        37.5
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 395,
+      "actual_fit_completion_seconds": 45.18061313498765,
+      "validation_loss": 0.0009368008468300104,
+      "eligible": true,
+      "best_available_loss": 0.00048010805039666593,
+      "coalesced_requested_milestones": [
+        45.0
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 587,
+      "actual_fit_completion_seconds": 52.68565700901672,
+      "validation_loss": 0.000789700890891254,
+      "eligible": true,
+      "best_available_loss": 0.00048010805039666593,
+      "coalesced_requested_milestones": [
+        52.5
+      ]
+    },
+    {
+      "arm": "Ordinary AD",
+      "update": 764,
+      "actual_fit_completion_seconds": 59.65639921789989,
+      "validation_loss": 0.0006446141633205116,
+      "eligible": true,
+      "best_available_loss": 0.00048010805039666593,
+      "coalesced_requested_milestones": [
+        60.0
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 0,
+      "actual_fit_completion_seconds": 0.45466940896585584,
+      "validation_loss": 0.001100789406336844,
+      "eligible": true,
+      "best_available_loss": 0.001100789406336844,
+      "coalesced_requested_milestones": [
+        0.0
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 1,
+      "actual_fit_completion_seconds": 33.69178191898391,
+      "validation_loss": 0.06564971059560776,
+      "eligible": true,
+      "best_available_loss": 0.001100789406336844,
+      "coalesced_requested_milestones": [
+        7.5,
+        15.0,
+        22.5,
+        30.0
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 102,
+      "actual_fit_completion_seconds": 37.64243033796083,
+      "validation_loss": 0.0010338802821934223,
+      "eligible": true,
+      "best_available_loss": 0.0010338802821934223,
+      "coalesced_requested_milestones": [
+        37.5
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 298,
+      "actual_fit_completion_seconds": 45.23453417397104,
+      "validation_loss": 0.0004547423159237951,
+      "eligible": true,
+      "best_available_loss": 0.0004547423159237951,
+      "coalesced_requested_milestones": [
+        45.0
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 491,
+      "actual_fit_completion_seconds": 52.67837573797442,
+      "validation_loss": 0.0004994079936295748,
+      "eligible": true,
+      "best_available_loss": 0.0004547423159237951,
+      "coalesced_requested_milestones": [
+        52.5
+      ]
+    },
+    {
+      "arm": "H1 filtered backward",
+      "update": 674,
+      "actual_fit_completion_seconds": 59.70531219197437,
+      "validation_loss": 0.0005858346703462303,
+      "eligible": true,
+      "best_available_loss": 0.0004547423159237951,
+      "coalesced_requested_milestones": [
+        60.0
+      ]
+    }
+  ],
+  "realized_window_prefix_equal": true,
+  "matched_prefix_updates": 674,
+  "provenance": [
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/outcome.json",
+      "sha256": "27174f763c34e33e43ab3e37f374a03597c06de61762c114456e8466999b8603",
+      "job": {
+        "slurm_id": 3623608
+      },
+      "job_outcome": {
+        "script_completed": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "scope": "fixed256",
+      "arm": "temperature_centered",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/temperature_centered/outcome.json",
+      "sha256": "6cdcf4452817826ffe021a2e9363d512629322589c69e47f627dcf0f5a7be6d7",
+      "job": {
+        "slurm_id": 3623615
+      },
+      "job_outcome": {
+        "script_completed": false,
+        "exit_code": 1
+      }
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/outcome.json",
+      "sha256": "18760a5c2c80ba70210ecfd4c564a204cf90f13242a57a216ebf19bcbf8549dd",
+      "job": {
+        "slurm_id": 3623611
+      },
+      "job_outcome": {
+        "script_completed": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/outcome.json",
+      "sha256": "e31d44b0e36228e09420f4fbc6512ab12e3abad72b2f8efc8830434b53f52c26",
+      "job": {
+        "slurm_id": 3623610
+      },
+      "job_outcome": {
+        "script_completed": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/outcome.json",
+      "sha256": "4fe22ff9f590f89076ff749253981af81ba5c2229d145568b767350a6d781e0e",
+      "job": {
+        "slurm_id": 3623815
+      },
+      "job_outcome": {
+        "script_completed": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/outcome.json",
+      "sha256": "98546ff77d0a7d7a0cde0fe6013a7a0770fba33b420f370d976324243c48fb07",
+      "job": {
+        "slurm_id": 3623816
+      },
+      "job_outcome": {
+        "script_completed": true,
+        "exit_code": 0
+      }
+    },
+    {
+      "attempt": "buoyancy-physics-training-pilot-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-20261029/jax-cfd/baseline/job.json",
+      "job": {
+        "slurm_id": 3623540
+      }
+    },
+    {
+      "attempt": "buoyancy-physics-training-pilot-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-20261029/jax-cfd/whole_state_h1/job.json",
+      "job": {
+        "slurm_id": 3623542
+      }
+    },
+    {
+      "attempt": "buoyancy-physics-training-pilot-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-20261029/jax-cfd/temperature_centered/job.json",
+      "job": {
+        "slurm_id": 3623543
+      }
+    },
+    {
+      "attempt": "buoyancy-physics-training-pilot-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-20261029/jax-cfd/whole_state_p/job.json",
+      "job": {
+        "slurm_id": 3623541
+      }
+    },
+    {
+      "attempt": "buoyancy-gradient-training-controls-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-training-controls-20261029/jax-cfd/profile/job.json",
+      "job": {
+        "slurm_id": 3623378
+      }
+    },
+    {
+      "attempt": "buoyancy-gradient-training-controls-v2-20261029",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gradient-training-controls-v2-20261029/jax-cfd/profile/job.json",
+      "job": {
+        "slurm_id": 3623398
+      }
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "driver.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/driver.py",
+      "sha256": "50d7ae433d08af7fe3b2469785c7d9e5df7a23474a6e1ab610f0681040721e22"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "node.sh",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/node.sh",
+      "sha256": "a96ab92ca0cabbd1caf3514e71e21629dedc5bdb27a62219e814f4b890c40fbf"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "submit.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/submit.py",
+      "sha256": "df6ff5399ed17521185b93ce15444776faf876dfba383528498ff4bed99cb30d"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "scripts.sha256",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/scripts.sha256",
+      "sha256": "471a99200c79e90dfd572dbb3f03ae9c2222624d4ea8b42ab7acd7fb276fac2b"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "source.sha256",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/source.sha256",
+      "sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "closed_mac.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/closed_mac.py",
+      "sha256": "77f4fd0b8bc5a58aecbdd886759ea9b3dc54b530df346e53173faffbba614e7d"
+    },
+    {
+      "scope": "fixed256",
+      "source_file": "gradient_filters.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/gradient_filters.py",
+      "sha256": "acc74a3b5153d8d0711a4bf1fdc800728cac3b2f68c2a6274e329759d6e51abe"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "driver.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/driver.py",
+      "sha256": "3035a368132820c6f143c9d962b1969935249767cbcbfa760d13a26e949ea168"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "node.sh",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/node.sh",
+      "sha256": "2b56efd155210321ac728907422f1ea249dbc3c8dbb28815985b91050b3a55bb"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "submit.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/submit.py",
+      "sha256": "df6ff5399ed17521185b93ce15444776faf876dfba383528498ff4bed99cb30d"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "scripts.sha256",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/scripts.sha256",
+      "sha256": "0054e172d53109337bd7f1e45f5ead6e025090677a4889b6b3893138d079412e"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "source.sha256",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/source.sha256",
+      "sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "closed_mac.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/closed_mac.py",
+      "sha256": "77f4fd0b8bc5a58aecbdd886759ea9b3dc54b530df346e53173faffbba614e7d"
+    },
+    {
+      "scope": "fit60",
+      "source_file": "gradient_filters.py",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/gradient_filters.py",
+      "sha256": "acc74a3b5153d8d0711a4bf1fdc800728cac3b2f68c2a6274e329759d6e51abe"
+    }
+  ],
+  "retained_array_archives": [
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/selected_params.npz",
+      "bytes": 5010,
+      "sha256": "4c277c9fafffd4b0301802679865747fa4f0ad8307966ece37514a78da1eb4f9"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/checkpoint_64.npz",
+      "bytes": 5010,
+      "sha256": "533c95980d5eb55d1088975c8452b739ab76e19c81dd233623c23fe9e18c48c5"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/final_params.npz",
+      "bytes": 5010,
+      "sha256": "a37010bcd667eb2ed16dc0214c63b943326d295b14ba7d96cc959252bb67c858"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/checkpoint_256.npz",
+      "bytes": 5010,
+      "sha256": "a37010bcd667eb2ed16dc0214c63b943326d295b14ba7d96cc959252bb67c858"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/checkpoint_128.npz",
+      "bytes": 5010,
+      "sha256": "26449c9e527ee425ffa7e034784ca976737d51bfa472f08c0255d4269c582e25"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/fields.npz",
+      "bytes": 27490223,
+      "sha256": "66d3bb7a8e9ad1954d0be5a4701546e95895bf6041bf7b30abd5c4a5791152b2"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/checkpoint_0.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/baseline/checkpoint_192.npz",
+      "bytes": 5010,
+      "sha256": "4c277c9fafffd4b0301802679865747fa4f0ad8307966ece37514a78da1eb4f9"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "temperature_centered",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/temperature_centered/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/final_params.npz",
+      "bytes": 5010,
+      "sha256": "9003ec7e843afe2882659aec5538317e0dd7e1568d077676db0c568054404590"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/checkpoint_256.npz",
+      "bytes": 5010,
+      "sha256": "9003ec7e843afe2882659aec5538317e0dd7e1568d077676db0c568054404590"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/checkpoint_64.npz",
+      "bytes": 5010,
+      "sha256": "f325032528fd8af1c51d5c8c3cba0415c9d2bebefa9a6e4042eec10ec407e898"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/checkpoint_192.npz",
+      "bytes": 5010,
+      "sha256": "790f66e5e85f5646e424964679fff588c6479428ffc2c6d28d7afcf4451df9b9"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/selected_params.npz",
+      "bytes": 5010,
+      "sha256": "9003ec7e843afe2882659aec5538317e0dd7e1568d077676db0c568054404590"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/checkpoint_0.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/fields.npz",
+      "bytes": 27490252,
+      "sha256": "5810003c5d504ae693a82fd2a129453e082689632c2351166a1b325e453e6e95"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/checkpoint_128.npz",
+      "bytes": 5010,
+      "sha256": "473570735970c688492912fe30dc1af2911784c2b393eee410bd0f48ed74e851"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_h1/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/checkpoint_128.npz",
+      "bytes": 5010,
+      "sha256": "7824550472a8cf31169ea1924ff5a08807dd8f150226e03d671d6cf0e9407792"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/final_params.npz",
+      "bytes": 5010,
+      "sha256": "83b6dc3ba4dd48fae57ae90cc6625512ef8bb67bb8e331798a21a678701c02f8"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/checkpoint_192.npz",
+      "bytes": 5010,
+      "sha256": "7ef719008a0a5cce4df77a38addfc35d22c27cf6c52e65133833ce96231d70a6"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/checkpoint_0.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/checkpoint_256.npz",
+      "bytes": 5010,
+      "sha256": "83b6dc3ba4dd48fae57ae90cc6625512ef8bb67bb8e331798a21a678701c02f8"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/fields.npz",
+      "bytes": 27490268,
+      "sha256": "27e79eb30775836e4da975587cf5bbf542111ee444b3034a7a42301163aca8ac"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/checkpoint_64.npz",
+      "bytes": 5010,
+      "sha256": "ec5719427d05230cf7df2056c946fa7864b21ab441679c7f016d99504e6f1e0b"
+    },
+    {
+      "scope": "fixed256",
+      "arm": "whole_state_p",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-pilot-v2-20261029/jax-cfd/whole_state_p/selected_params.npz",
+      "bytes": 5010,
+      "sha256": "7ef719008a0a5cce4df77a38addfc35d22c27cf6c52e65133833ce96231d70a6"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_395.npz",
+      "bytes": 5010,
+      "sha256": "78f51ec8cce99b5a5af72324d7befde6b7abd3de986b0b25050589bf59b498e8"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_1.npz",
+      "bytes": 5010,
+      "sha256": "6ce775d0ad810f1c9e6b0c9479e6f4df89581cc47b0ca102f916838d05d43e4a"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_587.npz",
+      "bytes": 5010,
+      "sha256": "6fa1fcdb6ea5262916b162cc4188898d0eb46874fced7bc19fe4c151b5f5797d"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/selected_params.npz",
+      "bytes": 5010,
+      "sha256": "b12a905fa945f8297d93923f3132181cd3b092157ecb0d6537e5dae9e0f91c33"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_764.npz",
+      "bytes": 5010,
+      "sha256": "3a14481bdacef2aeb7f58eadb4630c708ebde5b612445bfd002d5cd346f524bb"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_0.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/fields.npz",
+      "bytes": 27491458,
+      "sha256": "0a3e2891e146b762a139c105bf60d843f182298923ebe2076d9ee27cfb8bad6a"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_205.npz",
+      "bytes": 5010,
+      "sha256": "b12a905fa945f8297d93923f3132181cd3b092157ecb0d6537e5dae9e0f91c33"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/final_params.npz",
+      "bytes": 5010,
+      "sha256": "3a14481bdacef2aeb7f58eadb4630c708ebde5b612445bfd002d5cd346f524bb"
+    },
+    {
+      "scope": "fit60",
+      "arm": "baseline",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/baseline/checkpoint_14.npz",
+      "bytes": 5010,
+      "sha256": "ecd6c4adb975dd44b5d9ebc9fbb886ff5e0ee8fdf846f292c6f325c9b2bedee4"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_1.npz",
+      "bytes": 5010,
+      "sha256": "05ec60f1cbdccd457be8b4ef7f1be0302c1e9adccb53dba5a4ce550350a49119"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/fields.npz",
+      "bytes": 27491291,
+      "sha256": "f945539828f15080509ff280e3cadf0c9e32fa92c711bacdb3df8f4803b46138"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_298.npz",
+      "bytes": 5010,
+      "sha256": "4cad696519700a6eb5721c3ce4a3d9f3c580e2cc7ba455de2d62bdf92bb87ad3"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_0.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/selected_params.npz",
+      "bytes": 5010,
+      "sha256": "4cad696519700a6eb5721c3ce4a3d9f3c580e2cc7ba455de2d62bdf92bb87ad3"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_491.npz",
+      "bytes": 5010,
+      "sha256": "6f04a5cdbbd26955cdb9f8f5867b02e1b1b38ac68c1997befe1b93f5956965c4"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_102.npz",
+      "bytes": 5010,
+      "sha256": "c77d88c44de88c8b2bb951c5984b092e0a5a2adb433f48a9d66042abbf7e341b"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/checkpoint_674.npz",
+      "bytes": 5010,
+      "sha256": "f60dd8365922aa00015eae1cb5f46017220e17e396ac29fd7a0caa56780c809c"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/initial_params.npz",
+      "bytes": 5010,
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    {
+      "scope": "fit60",
+      "arm": "whole_state_h1",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-physics-training-budget60-20261029/jax-cfd/whole_state_h1/final_params.npz",
+      "bytes": 5010,
+      "sha256": "f60dd8365922aa00015eae1cb5f46017220e17e396ac29fd7a0caa56780c809c"
+    }
+  ],
+  "caveats": [
+    "Centered input rejected before training by unchanged originaleps.003FD gate:5.507%>5%. Separate epsilon diagnostic does not readmit it.",
+    "Projection is a numerical null control for the curl-head network. H1 modifies backward direction intentionally; it is not a more accurate derivative of the unchanged objective.",
+    "First-update timings include compilation; fixed pilot may use persistent cache. Budget followup disables JAX persistent cache before import; common native/reference/gate preparation remains separate.",
+    "Actual60svalidation completion controls eligibility, not requested milestone time. Late updates/checkpoints cannot be credited.",
+    "Fixed256 validates every64updates; budget experiment uses elapsed7.5s milestones with coalescing. Baseline budget optimum205 was not sampled by fixed-grid validation, so changed result is not solely extra-update headroom.",
+    "All arms include candidate AND trueAD gradient calls for diagnostics; these instrumented native GPU timings do not forecast CPU-host/T4-container CI.",
+    "Physical metrics sample interval/provisional endpoints, not every native microstep or all training states. KE/enstrophy are measured, not required to decay.",
+    "Single seed and one heldoutIC: exploratory comparison, no robust superiority claim."
+  ],
+  "analysis_sha256": "5aa43b40da1862c392443b2c8955c6bf636f7be414661805dd7a6fed91103829"
+}

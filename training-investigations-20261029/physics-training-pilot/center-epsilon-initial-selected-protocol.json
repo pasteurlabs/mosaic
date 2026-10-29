@@ -1,0 +1,12 @@
+{
+  "scope": "DIAGNOSTIC ONLY; no training or production gate change",
+  "original_gate": "eps.003,5%; centered failed and remains ineligible under original protocol",
+  "epsilons": [
+    0.003,
+    0.001,
+    0.0003
+  ],
+  "criterion": "At both initial and original nonzero parameter probes, two adjacent epsilon checks must each have AD/FD relative error <=.05 and their FD slopes must agree to relative<=.05. Report every pair, plus whether a common adjacent pair passes both probes. Applies identically to baseline and centered trueAD; never H1 surrogate.",
+  "reference_points": "traincase0,start0,H8; initialseed0 and original frozen selected checkpoint",
+  "decision": "Return raw results for root decision; never automatically train/readmit centered arm"
+}

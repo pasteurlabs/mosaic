@@ -1,0 +1,14 @@
+{
+  "scope": "DIAGNOSTIC ONLY; no readmission/training/gatechanges",
+  "parent_diagnostic_job": 3623833,
+  "original_gate": "Centered initial eps.003 rejection5.507% permanently preserved",
+  "epsilons": [
+    0.003,
+    0.001,
+    0.0003
+  ],
+  "threshold": 0.05,
+  "parameter_probe": "EXACT production synthetic nonzero: initial saved params with lastlayer w=.01*jax.random.normal(PRNGKey17,shape,dtypefloat32); allotherleaves unchanged. The earlier selected-checkpoint profile is supplementary, not a substitute.",
+  "objective": "Same traincase0/start0/H8, mean intermediate normalized loss, baseline and centered trueAD",
+  "criterion": "Combine initial profile from3623833 and this synthetic profile: at bothpoints require twoadjacent eps eachADFDrelativeerror<=.05 and pairFDslopesmutualrelativeagreement<=.05; reportallpairs and whether SAMEpairpassesbothpoints for eacharm. Diagnostic only."
+}
