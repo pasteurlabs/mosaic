@@ -120,7 +120,10 @@
     "diffusivity": 0.0005,
     "buoyancy": 1.0,
     "dt": 0.005,
-    "steps": 80
+    "steps": 80,
+    "position_jitter": 0.015,
+    "width_jitter": 0.05,
+    "amplitude_jitter": 0.0
   },
   "container_digest": "sha256:adbf625ac47ed81b34018602a6caeb4076bfacc2046b2f8cd36f82adb376946b"
 }

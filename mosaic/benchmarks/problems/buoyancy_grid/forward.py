@@ -4,6 +4,7 @@
 """Coupled-flow refinement and diagnostics on the closed staggered grid."""
 
 import hashlib
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -168,12 +169,20 @@ def require_openfoam_reference(n: int, physics: dict, ic: dict) -> np.ndarray:
     """Reject absent, altered, or mismatched independent references, never use consensus."""
     manifest = json.loads((_REFERENCE_DIR / "forward_agreement.json").read_text())
     expected = manifest["benchmark"]
+    from .physics import interacting_plumes
+
+    ic_defaults = inspect.signature(interacting_plumes).parameters
     if ic.get("name") != expected["ic"] or ic.get("seed", 0) != expected["seed"]:
         raise ValueError("OpenFOAM reference initial condition does not match this run")
     for key, value in expected.items():
         if key in {"ic", "seed"}:
             continue
-        if not np.isclose(physics.get(key, np.nan), value, rtol=1e-7, atol=0):
+        default = (
+            ic_defaults[key].default
+            if key in {"position_jitter", "width_jitter", "amplitude_jitter"}
+            else np.nan
+        )
+        if not np.isclose(physics.get(key, default), value, rtol=1e-7, atol=0):
             raise ValueError(f"OpenFOAM reference physics mismatch: {key}")
     archive = _REFERENCE_DIR / "forward_agreement.npz"
     if hashlib.sha256(archive.read_bytes()).hexdigest() != manifest["reference_sha256"]:

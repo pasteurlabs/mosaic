@@ -14,10 +14,14 @@ All backends use no-slip velocity walls and zero normal scalar derivative.
 | INS.jl | Native Boussinesq model, centered transport, RK4, and closed-wall transform pressure projection. | State |
 | WaterLily | Native momentum and pressure routines, with conservative upwind scalar transport and two-stage coupling added by the adapter. | State and physics parameters |
 | Oceananigans | Native nonhydrostatic buoyancy model, third-order upwind advection, RK3, and spectral pressure projection. | State |
+| OpenFOAM | Native OpenCFD v2412 laminar Boussinesq PIMPLE, with pressure-corrected face-flux output. | None; forward-only |
 
-The Julia backends initially run on CPU. Each backend generates its own
-fine-resolution reference; the physical problem and training recipe are shared,
-but the numerical discretizations differ.
+The Julia backends initially run on CPU. Each differentiable backend generates
+its own fine-resolution reference for training; the physical problem and
+training recipe are shared, but the numerical discretizations differ.
+OpenFOAM provides an independent forward comparison. It does not participate in
+neural training or gradient tests, and its adapter does not claim exact restart
+equivalence across separate calls.
 
 JAX-CFD uses Float64 internally to avoid reverse-mode underflow in the native
 Van Leer limiter at the plume's small tails; its public state remains Float32.
@@ -33,10 +37,19 @@ The domain runs the same four benchmark suites as the other Mosaic domains:
 
 | Suite | Measurements |
 | --- | --- |
-| Forward | Analytic scalar diffusion; coupled-flow spatial/time refinement; closed-wall divergence, scalar mass drift and extrema, and kinetic energy across rollout horizons. |
+| Forward | Independent OpenFOAM agreement; analytic scalar diffusion; coupled-flow spatial/time refinement; closed-wall divergence, scalar mass drift and extrema, and kinetic energy across rollout horizons. |
 | Cost | Forward and state-VJP wall time versus grid resolution and step count, with warmup, repeated trials and resource measurements. |
 | Gradient | Directional finite differences, horizon sweeps, and small-grid state-Jacobian spectra. |
 | Optimization | Recurrent neural corrector training and held-out evaluation. |
+
+The independent forward agreement test uses a shipped OpenFOAM 128² numerical
+reference at time 0.4, restricted by face and volume averages to 16² and 32².
+This is separate from the same-backend training targets and is not exact ground
+truth. Comparing 64² and 128² changes restricted velocity by at most 1.39% and
+scalar by 0.39%; halving the fine timestep changes them by at most 0.032% and
+0.022%. These are sensitivity measurements, not error bounds, and rankings
+within these differences are unresolved. Missing or mismatched reference data
+fail explicitly instead of falling back to solver consensus.
 
 The coupled refinement comparison uses the same solver at twice the resolution
 and half the timestep, with identical physical time and seeded plume geometry.

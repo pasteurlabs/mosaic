@@ -63,3 +63,20 @@ def test_aggregate_cannot_fall_back_to_consensus(monkeypatch):
             run={"physics": {**PHYSICS, "N": [16, 32]}, "ic": IC},
             sweep_values=[16, 32],
         )
+
+
+@pytest.mark.parametrize("key", ["position_jitter", "width_jitter", "amplitude_jitter"])
+def test_changed_plume_jitter_cannot_use_reference(key):
+    with pytest.raises(ValueError, match=key):
+        forward.require_openfoam_reference(16, {**PHYSICS, key: 0.2}, IC)
+
+
+def test_changed_factory_default_invalidates_omitted_jitter(monkeypatch):
+    from mosaic.benchmarks.problems.buoyancy_grid import physics
+
+    def changed_factory(position_jitter=0.2, width_jitter=0.05, amplitude_jitter=0):
+        raise AssertionError("Guard should inspect defaults, not generate an IC")
+
+    monkeypatch.setattr(physics, "interacting_plumes", changed_factory)
+    with pytest.raises(ValueError, match="position_jitter"):
+        forward.require_openfoam_reference(16, PHYSICS, IC)
