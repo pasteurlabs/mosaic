@@ -131,7 +131,8 @@ class Elasticity(Problem):
 
 # Module-level cache for the compiled elasticity solver, keyed on everything
 # `setup` depends on (mesh and BCs), to avoid re-compilation on every
-# forward/VJP call.
+# forward/VJP call. It holds the current setup only, so memory does not grow
+# with every mesh a sweep visits.
 _setup_cache: dict = {}
 
 
@@ -261,6 +262,7 @@ def setup(
         adjoint_solver_options={"umfpack_solver": {}},
     )
     result = (problem, fwd_pred)
+    _setup_cache.clear()
     _setup_cache[cache_key] = result
     return result
 
