@@ -25,3 +25,173 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://tum-pbs.github.io/PhiFlow/"
+    # What it took to run PhiFlow here, beyond expressing the setup with
+    # PhiFlow's fields and solvers. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: int64-sparse-indices
+        level: L3
+        necessity: required
+        what: >
+          Monkeypatches phiml's private NumPyBackend.ravel_multi_index to
+          widen flat indices to int64 when the index space exceeds int32.
+        why:
+          ns-2d-periodic: &int64-reason
+            consequences: [crash]
+            symptom: >
+              phiml casts sparse-matrix flat indices back to int32; they wrap
+              at 2-D N >= 216 and 3-D N >= 36, and building the pressure
+              matrix fails. In the benchmark that failed 12 cost cells
+              (ns-grid N = 256, ns-3d-grid N >= 48). With the patch they
+              complete and other results are bitwise identical.
+            evidence: >
+              https://github.com/pasteurlabs/mosaic/issues/155; #232, table;
+              docstring of _ravel_multi_index_int64.
+          ns-3d: *int64-reason
+        upstream: https://github.com/tum-pbs/PhiML/pull/16 (open)
+        provenance: mosaic-team
+      - id: explicit-cg-solve
+        level: L0
+        necessity: unknown
+        what: >
+          Passes an explicit math.Solve("CG", ...) to the pressure solves
+          instead of phiml's default Solve() ("auto").
+        why:
+          ns-2d-periodic: &cg-reason
+            consequences: [non-finite]
+            symptom: >
+              The code comment says the default solver produces NaN in 3-D at
+              20 or more steps, 2-D unaffected. No run is recorded, and the
+              comment predates the switch to incompressible_rk4 (#288).
+            evidence: Comment above _cg_solve in tesseract_api.py.
+          ns-3d: *cg-reason
+          ns-2d-cylinder:
+            consequences: []
+            symptom: No reason recorded for the channel.
+        provenance: mosaic-team
+      - id: periodic-cg-tolerance
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          The periodic pressure CG stops at a relative and absolute residual
+          of 1e-7 instead of phiml's float32 default of 1e-5.
+        why:
+          ns-3d:
+            consequences: []
+            symptom: >
+              Tuned on the earlier forward-Euler step, where 1e-5 stalled the
+              recovery at an IC error of 0.009 against 0.0032 (#234). Under the
+              RK4 step on main, forward errors and gradient checks move by
+              under 0.15% at 1e-5 and the recovery's final IC error is 0.00301
+              against 0.00308.
+            evidence: "#234; #296 (open), notes."
+          ns-2d-periodic:
+            consequences: []
+            symptom: >
+              At 1e-5, forward errors and gradient checks move by under 0.15%
+              under the RK4 step; ns-grid divergence_rms rises by up to 65%,
+              which no check uses. One projection at 256^2 takes 95 ms at 1e-7
+              against 54 ms at 1e-5.
+            evidence: "#296 (open), notes."
+        provenance: mosaic-team
+      - id: rk4-central-differences
+        level: L0
+        necessity: choice
+        what: >
+          Periodic boxes advect and diffuse with 2nd-order central differences
+          under fluid.incompressible_rk4 (pressure_order=2, four pressure
+          projections per step) instead of the default semi-Lagrangian
+          advection with operator splitting. The channel keeps the default,
+          since incompressible_rk4 takes no obstacles.
+        why:
+          ns-2d-periodic: &rk4-reason
+            consequences: [inaccurate-forward]
+            symptom: >
+              PhiFlow's docs point users who want accurate periodic flow to
+              this pairing and label semi-Lagrangian advection first order.
+              Against the previous central-difference Euler step it changes
+              errors by a few percent and costs 2.4 to 4.4x more, but stays
+              stable where that step went NaN (2-D, N = 32, nu = 0, 800
+              steps). The semi-Lagrangian default was measured about 10x less
+              accurate on the periodic box in the cleanup notes; that table is
+              not published. pressure_order=2 follows the comparison
+              notebook; the function default (4) was not measured.
+            evidence: >
+              #288; https://tum-pbs.github.io/PhiFlow/Fluid_Simulation.html
+              ("Higher-Order Simulations").
+          ns-3d: *rk4-reason
+        provenance: mosaic-team
+      - id: jax-memory-fraction
+        level: L0
+        necessity: unknown
+        what: >
+          Sets XLA_PYTHON_CLIENT_MEM_FRACTION=0.5 next to
+          XLA_PYTHON_CLIENT_PREALLOCATE=false.
+        why:
+          ns-2d-periodic: &mem-reason
+            consequences: []
+            symptom: >
+              No reason recorded; present since the initial commit. Whether it
+              limits PhiFlow to half the GPU memory with preallocation off has
+              not been checked.
+          ns-2d-cylinder: *mem-reason
+          ns-3d: *mem-reason
+        provenance: mosaic-team
+      - id: inlined-obstacle-projection
+        level: L2
+        necessity: unknown
+        what: >
+          Writes the channel's obstacle projection out instead of calling
+          fluid.make_incompressible with an obstacle: face masks from the
+          shared staircase solid_cells, solid faces zeroed after advection and
+          after diffusion, a masked_laplace CG solve over the fluid cells and
+          a masked green-gauss pressure gradient.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: >
+              No reason recorded. A plausible one, not checked:
+              make_incompressible rasterises its own obstacle geometry, so it
+              cannot take the staircase mask the other grid solvers share, and
+              it does not return the momentum removed at solid faces, which
+              body_force needs.
+        provenance: mosaic-team
+      - id: channel-pressure-warm-start
+        level: L2
+        necessity: unknown
+        what: >
+          Solves each step's channel pressure as a correction to the previous
+          step's pressure, from a zero initial guess, instead of passing the
+          previous pressure as the solve's x0.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              Per the code comment, it keeps the CG iterations low in the
+              near-steady flow; not measured for PhiFlow. Passing the previous
+              pressure as x0 fails under reverse mode with an
+              UnexpectedTracerError inside lax.scan.
+            evidence: Comment in channel_fwd.step (#239).
+        upstream: >
+          Not filed yet: an issue for the x0 tracer error in phiml's
+          solve_linear under lax.scan is drafted and approved.
+        provenance: mosaic-team
+      - id: body-force-output
+        level: L2
+        necessity: required
+        what: >
+          Computes the per-step force on the cylinder as the momentum the
+          solid faces remove in a step (advection and diffusion) plus the
+          pressure on the faces between fluid and solid cells.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: >
+              PhiFlow has no force-on-obstacle routine (checked for 3.2.0,
+              not re-checked for the pinned 3.4.0), so without this there is
+              no body_force output for forward/cylinder and drag_opt to score.
+            evidence: >
+              #239 makes body_force a required output.
+        provenance: mosaic-team
+    deviations: []

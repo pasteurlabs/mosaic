@@ -27,3 +27,8 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.firedrakeproject.org/"
+    # What it took to run Firedrake here, beyond expressing the setup in UFL.
+    # Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions: []
+    deviations: []

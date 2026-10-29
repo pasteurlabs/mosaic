@@ -30,3 +30,60 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/meyer-nils/torch-fem"
+    # What it took to run torch-fem here, beyond expressing the setup with
+    # torch-fem's model API. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: global-default-device
+        level: L0
+        necessity: required
+        what: >
+          Sets torch's default device (and dtype, float64) process-wide, so
+          the tensors torch-fem allocates internally land on the GPU with the
+          mesh, material and load tensors.
+        why:
+          structural:
+            consequences: [crash]
+            symptom: >
+              torch-fem allocates auxiliary tensors without device=, so they
+              land on the CPU and collide with the CUDA tensors. No error log
+              is recorded.
+            evidence: >
+              Code comment; torch-fem's benchmarks/utils.py at v0.12.1 and its
+              current installation docs set the default device the same way.
+        provenance: maintainer-authored
+      - id: gpu-cg-jacobi
+        level: L0
+        necessity: choice
+        what: >
+          On the GPU, passes method="cg" and preconditioner="jacobi" to
+          model.solve for the forward and adjoint solves. On the CPU torch-fem
+          chooses.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              torch-fem 0.12.1 solves systems below 10,000 DOFs directly with
+              SciPy on the CPU, even when the matrix is on the GPU; larger ones
+              already get CG with Jacobi without AmgX. So the setting keeps the
+              smaller meshes on the device. No isolated measurement.
+            evidence: >
+              #188; resolve_method and resolve_library in torch-fem v0.12.1
+              src/torchfem/sparse.py.
+        provenance: maintainer-authored
+      - id: deterministic-kernels
+        level: L0
+        necessity: choice
+        what: >
+          Enables torch.use_deterministic_algorithms(True, warn_only=True), so
+          torch-fem's CUDA scatter-adds in assembly sum in a fixed order.
+        why:
+          structural:
+            consequences: [non-reproducible]
+            symptom: >
+              Run-to-run differences were shown on the heat setup only; on
+              this setup the setting is kept for consistency, with no
+              measurable cost.
+            evidence: "#200, notes."
+        provenance: maintainer-authored
+    deviations: []

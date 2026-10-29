@@ -1,6 +1,7 @@
 using TopOpt
 using Zygote
 
+# mosaic-intervention: inp-parser-hex-patch
 # ---------------------------------------------------------------------------
 # Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
 #
@@ -36,6 +37,7 @@ Core.eval(
         end
     end,
 )
+# mosaic-intervention-end: inp-parser-hex-patch
 
 # ---------------------------------------------------------------------------
 # INP file generation from raw mesh arrays

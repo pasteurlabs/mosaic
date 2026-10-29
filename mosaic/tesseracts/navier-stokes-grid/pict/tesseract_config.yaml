@@ -80,3 +80,185 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/tum-pbs/PICT"
+    # What it took to run PICT here, beyond building the setup from PICT's
+    # blocks and Simulation. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: periodic-solve-tolerance
+        level: L0
+        necessity: required
+        tuned: true
+        what: >
+          The periodic runs pass 1e-6 as the advection and pressure solve
+          tolerance instead of PICT's float32 default of 1e-5. The 3-D box uses
+          the same code path.
+        why:
+          ns-2d-periodic:
+            consequences: [incorrect-gradient]
+            symptom: >
+              At 1e-5 the residual error of the forward and adjoint solves caps
+              fd_check at about 1e-3 for every step size: the reported error is
+              8.8e-4 against 5.7e-5 at 1e-6, which becomes an anomaly against
+              the peer median after #282.
+            evidence: "#287, before/after table (ns-3d-grid not checked there)."
+        provenance: mosaic-team
+      - id: cotangent-scaling
+        level: L2
+        necessity: choice
+        what: >
+          The VJP scales the cotangents to a largest entry of 1 before PICT's
+          backward pass and scales the gradients back, so that the absolute
+          tolerance of PICT's adjoint solves acts relative to the cotangent.
+        why:
+          ns-2d-periodic:
+            consequences: [incorrect-gradient]
+            symptom: >
+              PICT's adjoint solves stop at an absolute residual, so its VJP is
+              not linear in the cotangent; single calls with O(1) cotangents,
+              which the gradient suite checks, are barely affected. ns-grid
+              fd_check at eps = 1 goes from 1.1e-3 to 2.7e-4 with it; every
+              status stays the same.
+            evidence: "#294, A/B table; tests/test_pict_vjp.py."
+          ns-3d:
+            consequences: [incorrect-gradient]
+            symptom: >
+              Statuses unchanged. The recovery's final IC error is 0.0022 to
+              0.0040 with it against 0.0013 to 0.0021 without, both far below
+              the failure threshold; #294 has no verified explanation.
+            evidence: "#294, A/B table."
+        upstream: >
+          None filed. A relative convergence criterion would need a change to
+          PISOtorch, whose criteria are all absolute.
+        provenance: mosaic-team
+      - id: warm-start-pressure
+        level: L3
+        necessity: choice
+        what: >
+          Subclasses PISOtorch_simulation.Simulation and overrides linear_solve
+          so that each channel pressure CG solve starts from the same
+          corrector's pressure one step earlier and stops at 1e-8. In
+          differentiable mode the solve is a torch.autograd.Function on the
+          private PISOtorch_diff._linear_solve_wrapper, with a warm-started
+          adjoint.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              Without it the channel forward is 2.5x (10 cells per diameter) to
+              4.8x (20 cells per diameter) slower; with it Cd stays within
+              0.05%. The code comment gives 2e-5 against a solve from zero at
+              1e-8. No running experiment exercises the differentiable half:
+              PICT is excluded from drag_opt.
+            evidence: "#239, summary and notes; comment above pressure_tol in _run_channel."
+        upstream: None filed.
+        provenance: mosaic-team
+      - id: pressure-tol-flux-gate
+        level: L1
+        necessity: unknown
+        what: >
+          Sets the channel's pressure_tol to max(1e-6, 2 x the boundary flux
+          imbalance). With the warm start active it only feeds the check at the
+          start of Simulation.run(), which refuses to run when the imbalance
+          exceeds it.
+        why:
+          ns-2d-cylinder:
+            consequences: [crash]
+            symptom: >
+              Per the code comment, the float32 imbalance after balancing is
+              about 4e-8 of the flux (1.4e-6 at 40 cells per diameter), which a
+              fixed 1e-6 would fail. PICT's float32 default of 1e-5 may already
+              be above it at the benchmark's 10 and 20 cells per diameter; not
+              checked.
+            evidence: Comment above pressure_tol in _run_channel.
+        provenance: mosaic-team
+      - id: orthogonal-scheme-on-o-grid
+        level: L0
+        necessity: required
+        what: >
+          Runs the channel with non_orthogonal=False, which drops PICT's skew
+          correction although the O-grid cells near the box corners are
+          skewed.
+        why:
+          ns-2d-cylinder:
+            consequences: [crash]
+            symptom: >
+              With the default non_orthogonal=True, CG and BiCGStab break down
+              in the first pressure solve. Whether dropping the correction
+              contributes to PICT's Cd sitting about 3% high has not been
+              tested.
+            evidence: "#239, notes; comment at the _simulate call in _run_channel."
+        upstream: >
+          Not filed yet: an issue on the indefinite pressure matrix with
+          non_orthogonal=True on a multi-block O-grid is drafted and approved.
+        provenance: mosaic-team
+      - id: channel-in-cell-units
+        level: L1
+        necessity: unknown
+        what: >
+          Builds the channel blocks in units of the canonical cell size dx
+          (vertices, viscosity and dt divided by dx), so that PICT's absolute
+          solver residual is measured on unit cells.
+        why:
+          ns-2d-cylinder:
+            consequences: [inaccurate-forward]
+            symptom: >
+              Not measured. In physical units the same absolute tolerance would
+              mean a different relative accuracy.
+            evidence: Header comment of the channel section in tesseract_api.py.
+        provenance: mosaic-team
+      - id: inflow-in-autograd-graph
+        level: L1
+        necessity: unknown
+        what: >
+          Re-applies the inflow profile to the inlet faces in a PRE callback
+          every step instead of once before the run.
+        why:
+          ns-2d-cylinder:
+            consequences: [incorrect-gradient]
+            symptom: >
+              Per the code comment, a profile set once is not in the autograd
+              graph that PISOtorch_diff records, so the inflow_profile gradient
+              would come back as zeros. Not reproduced; only drag_opt uses this
+              gradient, and PICT is excluded from it.
+            evidence: Comment in _pre_step in _run_channel.
+        provenance: mosaic-team
+      - id: body-force-integration
+        level: L2
+        necessity: required
+        what: >
+          Computes the force on the cylinder from the cells next to the wall:
+          wall pressure and shear from second-order one-sided fits to the first
+          two cells, integrated over the arc faces in a POST callback every
+          step.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: >
+              PICT has no force or drag output, so body_force, which
+              forward/cylinder scores, could not be returned. #239 reports
+              PICT's control-volume Cd 7 to 11% off this surface Cd (about 1%
+              for the other solvers); not investigated.
+            evidence: >
+              #239; PISOtorch_simulation.py at PICT 72a6e86 has no force
+              routine.
+        provenance: mosaic-team
+    deviations:
+      - id: advective-outflow
+        setups: [ns-2d-cylinder]
+        what: >
+          PICT's advective outflow replaces the prescribed p = 0 outlet: outlet
+          faces start from the inlet profile, boundary fluxes are balanced,
+          the outlet velocity is advected with the mean inflow speed every
+          step, pressure is Neumann there, and the returned pressure is shifted
+          to zero on the outlet face.
+        consequences: [cannot-express]
+        effect: >
+          Partly measured. In OpenFOAM, an advective velocity outlet with p = 0
+          leaves Cd, Cl and pressure drop unchanged to six digits, as expected
+          for a steady flow; the missing pressure outlet could not be
+          reproduced there. Its share of PICT's 3% Cd excess (#239) is
+          unmeasured.
+        evidence: >
+          PICT has no pressure outlet (comment in _run_channel); OpenFOAM A/B
+          of 2026-10-29 in the intervention cleanup notes (policy 3), not yet
+          published.

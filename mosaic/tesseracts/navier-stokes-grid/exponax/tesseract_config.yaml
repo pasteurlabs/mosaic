@@ -24,3 +24,29 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://fkoehler.site/exponax/"
+    # What it took to run Exponax here, beyond expressing the setup with
+    # Exponax's steppers. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: vorticity-velocity-conversion
+        level: L2
+        necessity: required
+        active: false
+        what: >
+          The 2-D path converts the velocity to vorticity with a spectral
+          curl, runs Exponax's vorticity stepper, and converts back with a
+          spectral Biot-Savart inversion, restoring the mean velocity that the
+          vorticity form drops. No experiment on main runs Exponax in 2-D.
+        why:
+          ns-2d-periodic:
+            consequences: [cannot-express]
+            symptom: >
+              The benchmark's state is velocity, and Exponax 0.2.0's velocity
+              steppers (NavierStokesVelocity, KolmogorovFlowVelocity) accept
+              only three spatial dimensions; in 2-D it offers the vorticity
+              form only.
+            evidence: >
+              https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/stepper/_navier_stokes.py
+              (num_spatial_dims checks).
+        provenance: mosaic-team
+    deviations: []

@@ -160,6 +160,7 @@ function initial_state(v0::AbstractArray, setup, psolver, n::Int)
     return apply_bc_u(u, zero(eltype(u)), setup)
 end
 
+# mosaic-intervention: hand-written-rk4-rollout
 """2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
 function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
@@ -198,6 +199,7 @@ function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
 
     return stag_to_coloc_3d(strip_ghosts_3d(u, n), n)
 end
+# mosaic-intervention-end: hand-written-rk4-rollout
 
 
 # ---------------------------------------------------------------------------

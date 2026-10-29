@@ -53,3 +53,45 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://github.com/JuliaTopOpt/TopOpt.jl"
+    # What it took to run TopOpt.jl here, beyond loading the setup as an INP
+    # problem. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: inp-parser-hex-patch
+        level: L3
+        necessity: required
+        what: >
+          Redefines extract_boundary_matrix inside TopOpt.jl's internal INP
+          parser module with Core.eval, with a Dict{Any,Bool} face table and
+          plain sorting instead of Ferrite.sortface, so that hexahedral (C3D8)
+          meshes load.
+        why:
+          structural:
+            consequences: [crash]
+            symptom: >
+              With TopOpt.jl 0.11.0 and Ferrite 0.3.0, InpStiffness fails on
+              the hex mesh: the face table is typed for 3-tuples, which cannot
+              hold the 4-node faces of a hexahedron, and Ferrite.sortface has
+              no method for 4-tuples (MethodError).
+            evidence: >
+              Comment above the patch in solver.jl; reproduced without the
+              patch on 2026-10-26 in the intervention cleanup notes, not yet
+              published.
+        upstream: >
+          Not filed: TopOpt.jl 0.14.0 loads hexahedral INP files (re-tested
+          in the cleanup notes); #299 moves to it and drops this patch.
+        provenance: mosaic-team
+      - id: julia-cpu-target-generic
+        level: L0
+        necessity: unknown
+        what: >
+          The image sets JULIA_CPU_TARGET=generic, so Julia precompiles for a
+          generic x86-64 CPU rather than the build machine's.
+        why:
+          structural:
+            consequences: []
+            symptom: >
+              No reason recorded. Whether it slows the compiled solver has not
+              been measured.
+        provenance: mosaic-team
+    deviations: []
