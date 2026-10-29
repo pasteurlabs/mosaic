@@ -1,0 +1,111 @@
+{
+  "study": "Output-restricted normalized adjoint spectra and independent finite-amplitude input perturbations",
+  "engine_sha256": "ac46ab510bb2981ed4433b638a0228aadd41d058916bb668601454dc9b3c3cf7",
+  "basis_sha256": "418f33914dd7da6134f20123322ad6724764326524c2531eaf20583e69955a63",
+  "cases": [
+    {
+      "dataset": "test100",
+      "frame": 50,
+      "basis": 0,
+      "horizons": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ]
+    },
+    {
+      "dataset": "test100",
+      "frame": 50,
+      "basis": 1,
+      "horizons": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ]
+    },
+    {
+      "dataset": "test100",
+      "frame": 50,
+      "basis": 2,
+      "horizons": [
+        1,
+        4,
+        8,
+        16,
+        32
+      ]
+    },
+    {
+      "dataset": "test100",
+      "frame": 25,
+      "basis": 0,
+      "horizons": [
+        1,
+        8,
+        32
+      ]
+    },
+    {
+      "dataset": "validation1",
+      "frame": 50,
+      "basis": 0,
+      "horizons": [
+        1,
+        8,
+        32
+      ]
+    }
+  ],
+  "arms": [
+    "solver",
+    "selected",
+    "final"
+  ],
+  "cotangents": 24,
+  "full_canonical_input_dimension": 12288,
+  "physical_output_degrees_of_freedom": 8065,
+  "normalization": "Backend-own original RMS D; pullback D * nativeVJP(Dz,q/D). Full input covectors retained.",
+  "interpretation": "J^TQ output restriction, distinct from prior JQ input restriction; not complete physical phase-space condition number. Float32 sensitive small gains/ratios descriptive. Damping does not imply accuracy.",
+  "forward_probes": {
+    "indices": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20
+    ],
+    "epsilons": [
+      0.003,
+      0.001
+    ],
+    "method": "Central finite amplitude forward differences, not JVP; retain vector disagreement and paired adjoint dot checks."
+  },
+  "checkpoint_recipe": "H8/Adam.003/256updates/seed0/width8/velocity-only/denseval16; own saved checkpoints and data hashes, no training",
+  "budget": "2h CPU allocation per Julia backend after measured pilot; RTX node CPU, no DGX",
+  "INS_job": 3620918,
+  "jobs": {
+    "ins-jl": 3620918,
+    "oceananigans": 3620930,
+    "waterlily": 3620954
+  },
+  "native_pilots": {
+    "ins-jl": 3620741,
+    "oceananigans": 3620742,
+    "waterlily": 3620923
+  },
+  "bootstrap_failures_preserved": {
+    "profile-v1": "Expired node-local Julia executable cache.",
+    "profile-v2": "Driver profile.py shadowed Python standard library profile on PythonCall initialization; renamed native_timing.py.",
+    "profile-v3/waterlily": "Copied Project/Manifest omitted original LocalPreferences selecting SIMD; wrong KernelAbstractions backend failed Enzyme. v4 copies exact original preference, native source unchanged."
+  },
+  "node_script_sha256": {
+    "ins-jl": "f43f3bf05235d16b354dd3618a91cc40438274cc0363f67c4080b63de5c34962",
+    "oceananigans": "0bc12efc5df367916b3de3991b54825272cdff27d6d45566339c23e5d0b69088",
+    "waterlily": "961ecb1b88c9f54f7ff5ee823b28b03298f99629a0e6434d377068998a10ed82"
+  }
+}

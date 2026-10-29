@@ -1,0 +1,22 @@
+{
+  "study": "All-five common256 diagnostics",
+  "final_report_job": 3622069,
+  "initial_report_job": 3621127,
+  "plot_only_polish_jobs": [
+    3621961,
+    3622069
+  ],
+  "scientific_results_unchanged_by_polish": true,
+  "analysis_files": {
+    "consolidate.py": "495c6d60b02608629454f5319c809c3a071577aa2ddb3a506bb5cfcbe400937a",
+    "local_decomposition.py": "1cd3f9cf37896a653e39c66d013e52902650a7624631a25a278fce97fd5558e8",
+    "report-node.sh": "0855c49d09054ceef8317e0a80c59246e5e4d3635301d0cd08f4bb4d7b58c4c8"
+  },
+  "report_sha256": "88cc53750f8166c81bcd10b1e36239607f5484dcd21d3382408de1c09cdb1f77",
+  "publication_scope": "Scalar JSON reports, figures, metadata and provenance. Large arrays/checkpoints remain in hash-identified external archives; no new benchmark source or scientific runs.",
+  "figure_count": 10,
+  "parameter_contexts": 30,
+  "operator_records": 2430,
+  "retained_array_archives": 125,
+  "all_scientific_runs_completed": true
+}

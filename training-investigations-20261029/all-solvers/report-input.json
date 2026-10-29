@@ -1,0 +1,79 @@
+{
+  "solvers": {
+    "jax-cfd": {
+      "parameter": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/alignment.json",
+        "job_id": 3620642
+      },
+      "operator": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-adjoints-full-20261029/jax-cfd/full/full/outcome.json",
+        "job_id": 3620861
+      }
+    },
+    "phiflow": {
+      "parameter": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/alignment.json",
+        "job_id": 3620829
+      },
+      "operator": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-adjoints-full-20261029/phiflow/full/full/outcome.json",
+        "job_id": 3620870
+      }
+    },
+    "ins-jl": {
+      "parameter": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/alignment.json",
+        "job_id": 3620744
+      },
+      "operator": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/ins-jl/results/outcome.json",
+        "job_id": 3620918
+      }
+    },
+    "oceananigans": {
+      "parameter": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/alignment.json",
+        "job_id": 3620745
+      },
+      "operator": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/oceananigans/results/outcome.json",
+        "job_id": 3620930
+      }
+    },
+    "waterlily": {
+      "parameter": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/alignment.json",
+        "job_id": 3620924
+      },
+      "operator": {
+        "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/waterlily/results/outcome.json",
+        "job_id": 3620954
+      }
+    }
+  },
+  "preserved_failed_attempts": [
+    {
+      "job_id": 3620643,
+      "solver": "phiflow",
+      "kind": "parameter",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/phiflow/results/alignment.json",
+      "reason": "Unsupported nested PhiML tracer/cache in direct outer differentiation; repeated with unchanged public forward/VJP through opaque isolated worker."
+    },
+    {
+      "job_id": 3620746,
+      "solver": "waterlily",
+      "kind": "parameter",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/waterlily/results/alignment.json",
+      "reason": "Bootstrap omitted original WaterLily SIMD LocalPreferences; wrong KernelAbstractions backend caused Enzyme compilation assertion. Exact original preferences restored in retry."
+    },
+    {
+      "job_id": 3620800,
+      "solver": "phiflow",
+      "kind": "operator_preflight",
+      "reason": "Unsupported nested PhiML composition; separate public native VJP and HTTP-composite parity verified in3620832.",
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-adjoints-20261029/phiflow/profile/preflight.json"
+    }
+  ],
+  "operator_engine_sha256": "ac46ab510bb2981ed4433b638a0228aadd41d058916bb668601454dc9b3c3cf7",
+  "basis_sha256": "418f33914dd7da6134f20123322ad6724764326524c2531eaf20583e69955a63"
+}

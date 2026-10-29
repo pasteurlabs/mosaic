@@ -1,0 +1,138 @@
+{
+  "scope": "Repeat four diagnostic questions across five backend-own maps; no new training",
+  "common_models": {
+    "updates": 256,
+    "training_horizon": 8,
+    "optimizer": "Adam",
+    "learning_rate": 0.003,
+    "clip_global_norm": 1,
+    "width": 8,
+    "velocity_only": true,
+    "model_seed": 0,
+    "window_seed": 0,
+    "validation_interval": 16,
+    "checkpoints": [
+      "initial",
+      "selected",
+      "final"
+    ],
+    "not_public_exact": "Densevalidation16 vs public64; earlier JAX60s/H16trainedmodels remain separate"
+  },
+  "parameter_alignment": {
+    "cases": [
+      "training0",
+      "heldout100"
+    ],
+    "start": 0,
+    "horizons": [
+      8,
+      16,
+      32,
+      100
+    ],
+    "step_parameter_l2": [
+      0.0001,
+      0.0003,
+      0.001
+    ],
+    "fd_epsilons": [
+      0.003,
+      0.001,
+      0.0003
+    ],
+    "FD": "Diagnostic original5%flags retained, no newadmissionoverride",
+    "loss": "Mean all intermediate states, same normalization and checkpoint per comparison",
+    "scan_parity": "H8/H16 originalunrolled objective relative<1e-6 and gradientrelativeL2<1e-5",
+    "scope_limit": "Controlledprefix gradients, not actualshuffledtrainingwindowgradient distribution; raw gradients not Adamupdates"
+  },
+  "data": "Eachbackend owns reference/cache/RMS. Rawfiles and loadedarrays hashverified against immutabletrainingreceipts. No crossbackendreference substitutions. Same geometryseeds, differentnumerical maps.",
+  "initialization": "Same nominal PRNGseed; GPUvsCPU hiddenweightdifferences measured onSlurm, no replacement of trainedmodels",
+  "operators": "Shared developed-state identifiers, frequency selections and 24D basis construction; each backend uses its own reference state and RMS-normalized coordinates. Actual basis array hashes may differ. Probes are fixed independently of gradients; this is not full conditioning.",
+  "failures": "All missing/failedcases retained; no perbackendhorizon/LRselection",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "operator_contract": {
+    "cases": [
+      {
+        "dataset": "test100",
+        "frame": 50,
+        "basis": 0,
+        "horizons": [
+          1,
+          4,
+          8,
+          16,
+          32
+        ]
+      },
+      {
+        "dataset": "test100",
+        "frame": 50,
+        "basis": 1,
+        "horizons": [
+          1,
+          4,
+          8,
+          16,
+          32
+        ]
+      },
+      {
+        "dataset": "test100",
+        "frame": 50,
+        "basis": 2,
+        "horizons": [
+          1,
+          4,
+          8,
+          16,
+          32
+        ]
+      },
+      {
+        "dataset": "test100",
+        "frame": 25,
+        "basis": 0,
+        "horizons": [
+          1,
+          8,
+          32
+        ]
+      },
+      {
+        "dataset": "validation1",
+        "frame": 50,
+        "basis": 0,
+        "horizons": [
+          1,
+          8,
+          32
+        ]
+      }
+    ],
+    "arms": [
+      "solver",
+      "selected",
+      "final"
+    ],
+    "local": [
+      "S",
+      "C at S(x)",
+      "C after S"
+    ],
+    "output_cotangents": 24,
+    "input_forward_directions": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20
+    ],
+    "forward_fd_epsilons": [
+      0.003,
+      0.001
+    ],
+    "input_space": "Full canonical coordinates, retain/report padding components; same declared normalized coordinates across paths within backend.",
+    "limitations": "24D output-cotangent restriction, not full condition number; forward growth uses actual centered FD vectors, not inferred JVP. Preserve all FD discrepancies/absolute dots/denominators, no additional epsilon selection. CFL sampled endpoints not every internal microstep."
+  }
+}

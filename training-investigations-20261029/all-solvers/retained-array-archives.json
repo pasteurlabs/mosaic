@@ -1,0 +1,877 @@
+[
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-heldout100-h100.npz",
+    "bytes": 4363,
+    "sha256": "acb6be29c2f9e0fae0d974066612da447f95e3b8377932ced48966ae264078e5"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-heldout100-h16.npz",
+    "bytes": 650,
+    "sha256": "b3a4ba971a97695d8ba25ba542776a133cd87da5f07a7aeb3419c1daca1dbe3a"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-heldout100-h32.npz",
+    "bytes": 4365,
+    "sha256": "59386fc816be67ccce90465fcb047c1086e523267779f72358219b5bbd0512d7"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-heldout100-h32.npz",
+    "bytes": 641,
+    "sha256": "1223261123a5fbb7a1aa822e08103330fe1c83e4d5fdafebc8e663dff1e1085f"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-train0-h100.npz",
+    "bytes": 4378,
+    "sha256": "01d29b18756afea8afad5f67f5d7530d14f85d5277f6cf983c851ce773af8d07"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-train0-h8.npz",
+    "bytes": 4313,
+    "sha256": "00cc793acf30cbe5ac672e846d803750652041c7845b06eddfdd41ed3de89b79"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-heldout100-h100.npz",
+    "bytes": 4372,
+    "sha256": "457255609e1f6ebf50e48a76566c910c03afd4c9cae38760a4004bfc5419cc68"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-heldout100-h16.npz",
+    "bytes": 4311,
+    "sha256": "55d143b39a69c9e347e0f6b82bb06b44ad9a7fd874b031c8cc3514e3ff8d5d29"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-heldout100-h16.npz",
+    "bytes": 4333,
+    "sha256": "5fbc5e46a3991cf511843c4f5076a38c0503db2ef3a8df86308baeaf87e3a192"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-heldout100-h100.npz",
+    "bytes": 645,
+    "sha256": "89510b13fc54fa4b1cf45e2d9968a1623b9d284fc6d049756b96b00a5e4d6c77"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-train0-h32.npz",
+    "bytes": 4362,
+    "sha256": "44bc9ec225c8a1d88830e5e741c66c3180db26d5ffb4227fe48d1af21986dd1d"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-heldout100-h8.npz",
+    "bytes": 4321,
+    "sha256": "cc5cad0d3a3f74d291de0ad271a31a07f1ed5919f24867dfa613bafe7e878e3f"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-heldout100-h32.npz",
+    "bytes": 4310,
+    "sha256": "b4d1d4cfd010ca188e91d84fbda6de40ceaded782d02bdb3709a21e57ac8a92d"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-train0-h16.npz",
+    "bytes": 4308,
+    "sha256": "1c9164493d41ff44fd18507b063059cdd78857006b855749801f875771734530"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-train0-h8.npz",
+    "bytes": 647,
+    "sha256": "ef60c71571658aaaa4b421a707b7cd53c26462e8528f0b28ff9488ef91b3b802"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-train0-h100.npz",
+    "bytes": 639,
+    "sha256": "de1377c4993ad801f1001111cec0ed291ef4a28c83088092b3190acb82beced0"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-heldout100-h8.npz",
+    "bytes": 645,
+    "sha256": "04cdb66b6de9cec4727f52a85055d6ad667e4aa4eb01b3565be190427f6fa4ae"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-train0-h8.npz",
+    "bytes": 4336,
+    "sha256": "81879969bbdf90c3d60bc68ccaf6bb42dfcecd196b9c1c46a3d396c9b835b9f6"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-final-train0-h100.npz",
+    "bytes": 4351,
+    "sha256": "61c775fb2480b028c4a7c44b7de96fa34415ad9dd95b4f61a64a50494ec2e250"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-heldout100-h8.npz",
+    "bytes": 4330,
+    "sha256": "21d319d44c296bd5ef3ed4fb570f2838ecde243e98a3fd65aaa6aaa674509906"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-train0-h32.npz",
+    "bytes": 645,
+    "sha256": "0652a8ea160b6bcfbcf61d586f6ac5763a9b8aba4396ae293baef3f573d926fb"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-train0-h16.npz",
+    "bytes": 4329,
+    "sha256": "544ff486cf61763c324338617ae03a8cf9551f4ca9d5088d7c992b25edc80a3a"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-initial-train0-h16.npz",
+    "bytes": 651,
+    "sha256": "23337144c43fdf3c69c68c9f64fc45741dff2f146a5cb6d94d4377c6694be987"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/jax-cfd/results/gradient-selected-train0-h32.npz",
+    "bytes": 4321,
+    "sha256": "3464bf01a4e581c8628d4b4d9263e6792b21511b49bcdfde793a644bdb27e846"
+  },
+  {
+    "solver": "jax-cfd",
+    "kind": "operator",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-adjoints-full-20261029/jax-cfd/full/full/diagnostics.npz",
+    "bytes": 187427624,
+    "sha256": "6840c41c196056343b180706d1b64b79244b2937a756da5425eeecf2c440bb16"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-heldout100-h32.npz",
+    "bytes": 644,
+    "sha256": "50a6d32adda8dbf191297f53a9445ea64b1a4cf873af787faca0102f5e9cd661"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-train0-h32.npz",
+    "bytes": 4366,
+    "sha256": "a8ba8cec0f69ae23ed3c0850397e08c982f74fe6e85173953cb7d6a0b756e462"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-heldout100-h16.npz",
+    "bytes": 640,
+    "sha256": "040eb6381c4d3965edae5cbdb5664e88b47cd3898c712ac4afc140d7aef4e619"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-train0-h16.npz",
+    "bytes": 4355,
+    "sha256": "b75d418660a240d063ea3daf47128d2d3ce2930396a184a81ec7e22bb5f7b1f1"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-heldout100-h8.npz",
+    "bytes": 651,
+    "sha256": "c89bc30b42d93e632bf90c81443e809e2934e57f5b63d5c039af6bff87ec0ea2"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-heldout100-h8.npz",
+    "bytes": 4368,
+    "sha256": "5d2dfbf46a651d82f07c62263d83547e13321773746d6a1cea4e437af093009a"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-train0-h100.npz",
+    "bytes": 645,
+    "sha256": "dbe22c136a01d138d056f3b8efef6061a019caea4b5125f265f781908aff6c12"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-train0-h8.npz",
+    "bytes": 649,
+    "sha256": "3af3e75807d88fa929c430bf050eb571d674be86bd4e893b07fd3d98ff3aae5a"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-heldout100-h32.npz",
+    "bytes": 4357,
+    "sha256": "7e79d1a10186a55501140b784da2f76e93b35eee16c1de8e5d8e0856e826c901"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-train0-h8.npz",
+    "bytes": 4363,
+    "sha256": "a7b466f7958f1c95178392a475163359153c08859775e848b8ccae76f6f3deab"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-heldout100-h16.npz",
+    "bytes": 4367,
+    "sha256": "e0245b084f7ce9b253c7f528fc051eda3ed6d4c229a5c9aaff32342a14cbceba"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-train0-h100.npz",
+    "bytes": 4376,
+    "sha256": "185c57d04aa8295d2f42f6127945634fa5f0cb85b3505c82445969c80e3e60cb"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-train0-h100.npz",
+    "bytes": 4345,
+    "sha256": "2d4a9b391ff8494a27275095bd4bf6f36d867c88fccad61b6877334aedf0870a"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-heldout100-h32.npz",
+    "bytes": 4373,
+    "sha256": "0501c93ee1aef99ebee5d996f7684e30cbb16bbee814a8a24a11aef9fda1d534"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-train0-h16.npz",
+    "bytes": 642,
+    "sha256": "14a5a93e67b395f7b6d5ef64271f29bf52e0f1be66cf826da25da462b73539e4"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-train0-h16.npz",
+    "bytes": 4380,
+    "sha256": "f3994a40972ab9ed6da384304423222fb1fd86b64d7574e494d6a61887c7c2c5"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-heldout100-h100.npz",
+    "bytes": 4377,
+    "sha256": "03e6aca8b42b7eb8d9eb8aaa2b65c4bd741c2e822ab3f3788df3bebb4fadcc3f"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-heldout100-h8.npz",
+    "bytes": 4368,
+    "sha256": "6ae7651c088c325fa21dee2889662e9cc7229b8c703b29bc52be19bb08fad209"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-heldout100-h100.npz",
+    "bytes": 641,
+    "sha256": "1ea898118d3f411fa2fda686b0f1d450064a5695df8d50830593f9dc383aef29"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-heldout100-h16.npz",
+    "bytes": 4381,
+    "sha256": "6a7c216a7f30eef5ffdd8632b2ba68f1e1d1eab1d08adac26a9ae60a12ec4c1b"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-initial-train0-h32.npz",
+    "bytes": 643,
+    "sha256": "5f34813470cbad31e3dc49f431cbabd2ea2db50fe1fb25ce190dfba831944974"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-train0-h8.npz",
+    "bytes": 4347,
+    "sha256": "bfef2ff6ae15ced3ce93155f97e3f8f2cada0d5c870eb60bc1594f347fa4de4d"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-final-heldout100-h100.npz",
+    "bytes": 4335,
+    "sha256": "ec522f5df78c74fbe9e9ebdf04bcab74772e7f6a1966e83910b64535d552fc9c"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-phi-v2-20261029/phiflow/results/gradient-selected-train0-h32.npz",
+    "bytes": 4388,
+    "sha256": "967eefed4c74b2909bc9c4c388cc2875ffa27cb015d4278cf5e9e131b0081cd3"
+  },
+  {
+    "solver": "phiflow",
+    "kind": "operator",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-gpu-adjoints-full-20261029/phiflow/full/full/diagnostics.npz",
+    "bytes": 186923781,
+    "sha256": "d51606772584c617a9e1dc90740a065df81bebb338abaa01c7fc4f71815d54a8"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-heldout100-h16.npz",
+    "bytes": 4315,
+    "sha256": "acf9f838240620d6d9756bf57c9789be8c1897693bb25fd8eb6668320691deb8"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-train0-h16.npz",
+    "bytes": 4310,
+    "sha256": "2d705fa689e189caa05ae657b1b36c877b3eca317a81dce8b59705961aa1b48e"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-train0-h100.npz",
+    "bytes": 4358,
+    "sha256": "66cd23dce791c024437929735e24f7ff73292311f261b78dd4829c7f009ac6be"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-train0-h32.npz",
+    "bytes": 4342,
+    "sha256": "1cc6e75b884dcb2564f65372ecd46828a39205a411db209ac6304a0abdcd33d6"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-train0-h8.npz",
+    "bytes": 4328,
+    "sha256": "5801abc11250b7cf7eecf2f9ae05f98888aa74319e61deb73c5bf8a6cc238cc8"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-heldout100-h8.npz",
+    "bytes": 4334,
+    "sha256": "e1e8c81e005d4c5ab524186a1fe4b813b2627c8278e2c833c6c506aca15b92c6"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-heldout100-h32.npz",
+    "bytes": 4331,
+    "sha256": "f5a95079ad80c556fbb3ca556a9115814b6edbe2987b13f76e6463992fe21e3d"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-train0-h32.npz",
+    "bytes": 4314,
+    "sha256": "59b7f6be1a9ed926cafec60796ce6cb41eabf35a496841e8582edd01a4ff846c"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-train0-h16.npz",
+    "bytes": 4325,
+    "sha256": "78ab6c31a0989d38a724d03c62da5fc64f8ddc22dff75ddd2b4ebc6532a2779d"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-train0-h100.npz",
+    "bytes": 4342,
+    "sha256": "f7de56bdaeb1f7174b2948dad4808332959cccfed0d86f2e6eeaed607a8cdaed"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-heldout100-h100.npz",
+    "bytes": 4336,
+    "sha256": "3b757a33d0a087ad0f8b37b6a1dece9906e43f4a95ad4b6c7cbf8134aff9abbf"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-train0-h32.npz",
+    "bytes": 644,
+    "sha256": "3e6349ffb9f099a85a3463c3c8d8b65724f9b0475c208edd7641e5f2a08da548"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-final-heldout100-h8.npz",
+    "bytes": 4327,
+    "sha256": "0d9d38d35369362b85bb1730e5c1160ddf19bba2229007a4ec6c9dab362f1405"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-train0-h8.npz",
+    "bytes": 649,
+    "sha256": "9a7c3b57acda0c530e766ee766f7fdd0f98a248ab973394771017105cb37f8ed"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-train0-h16.npz",
+    "bytes": 646,
+    "sha256": "ed91d23fcf974038e2cc235918d278653be296c4002f3dad8ef6869b44f096e6"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-train0-h100.npz",
+    "bytes": 644,
+    "sha256": "dc4b7d33edff8f30434ca5a605176d723c5e5dff40bd5fc3c2d7d832eeda89a4"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-heldout100-h32.npz",
+    "bytes": 642,
+    "sha256": "4e0c5f61aae30c8b44b767c86a1c0719df1df8b1f95a5304511ecff1da88c9af"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-heldout100-h100.npz",
+    "bytes": 4374,
+    "sha256": "f4de2174d7d9f791bd8e56013d6ddfe7ade69a88c58ec373fc61e366c2bcfb32"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-heldout100-h8.npz",
+    "bytes": 647,
+    "sha256": "576b9615e7ab6a524901ff8d86cea751d19d9ad958b0fb61a9d5143fccdf6583"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-heldout100-h32.npz",
+    "bytes": 4317,
+    "sha256": "c79236328ca7ba7c7098648656ba465cc4132c238b1f39bd775bf6841b97de53"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-heldout100-h16.npz",
+    "bytes": 651,
+    "sha256": "97a0616b7dc06d77d081b2d3ea8ad8dbedd6fee0784f2baf7d5541d77980271d"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-train0-h8.npz",
+    "bytes": 4349,
+    "sha256": "1a565da5776172b4bc3739e8a890fac5ee74f8ef80f19025a0a3392ab2b8e942"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-selected-heldout100-h16.npz",
+    "bytes": 4320,
+    "sha256": "e45237a2c24422437eb9a945e411b185a72f31cdead9e701b5b3fe322ab877d0"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/ins-jl/results/gradient-initial-heldout100-h100.npz",
+    "bytes": 644,
+    "sha256": "6e12468e92524ac0c6b1e9a45065f3dc1fc915b441b66f9ef999d3a293525be7"
+  },
+  {
+    "solver": "ins-jl",
+    "kind": "operator",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/ins-jl/results/diagnostics.npz",
+    "bytes": 187641956,
+    "sha256": "158a32133bab8562bb50efbe1fab24e344a196cf5f6491ad750803c64668c1e8"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-train0-h32.npz",
+    "bytes": 4329,
+    "sha256": "c7eed066e076cd14b2669da0db1e41f07938cde4d683eb52c9f6c6d4509ff064"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-train0-h100.npz",
+    "bytes": 4358,
+    "sha256": "f142b01a5d836e177030f5c09fb1632b7bd67fa6536f3371c629d81a7fec5240"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-train0-h16.npz",
+    "bytes": 4321,
+    "sha256": "15b8160b19e308148e1e0e0b24379f0003c1099715432d21796b468db0665236"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-heldout100-h8.npz",
+    "bytes": 4328,
+    "sha256": "1160c2ff72569ab228395acea308d410a30a2b0e17a43ac546eebaa851f5bcde"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-heldout100-h32.npz",
+    "bytes": 4341,
+    "sha256": "a46e066a0987ff3852355994ae04c4bc863748141e0d022d16c0e88e8940ca1e"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-heldout100-h100.npz",
+    "bytes": 4339,
+    "sha256": "1b978660a566d768ab0a117435ee2ad54fa77afea167d6d7ab4b0dc1a79b7aa7"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-train0-h16.npz",
+    "bytes": 4323,
+    "sha256": "a8a7eb2a1b4b3364e797f78accef7f2fcf7f2920dffdfdd61960fc131c86ee50"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-heldout100-h100.npz",
+    "bytes": 4355,
+    "sha256": "cb1f1717581b41ac360bec88e487146a3117425b9d80673a4035c2545262619e"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-train0-h100.npz",
+    "bytes": 4345,
+    "sha256": "a607a696dbcb57e311dc8d74bcd536ee39c2870360dbb77a1325ff70f6cfb924"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-heldout100-h16.npz",
+    "bytes": 4320,
+    "sha256": "9c4c90821aaa451c258df5a597fc2032efb533909ce2d1c93b4ccbda8d1d774e"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-train0-h8.npz",
+    "bytes": 4323,
+    "sha256": "0956115182f13486296a1cd8b6ffdef8749f16a901a012513512dce43fbe9acd"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-train0-h32.npz",
+    "bytes": 4339,
+    "sha256": "114baadf069cf309b28774bc2d5d208132139572911987f02132ec2e4a493326"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-train0-h100.npz",
+    "bytes": 644,
+    "sha256": "b8798460a19eb0e5d3b893da2872bc76e724af543907c5c973fad3f362bfa239"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-final-heldout100-h8.npz",
+    "bytes": 4342,
+    "sha256": "db2f257edbabbe8b8b7c5ed0f0f53bb29b6dabaa0ed8517c609793178444b49b"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-train0-h8.npz",
+    "bytes": 4334,
+    "sha256": "9017f08e78d4180d2ff7320ec00d250131c020d2a5d62ead76789d01aa9243ce"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-heldout100-h32.npz",
+    "bytes": 4328,
+    "sha256": "625f0ef50328bbc11dcbb90591fe0e629eadc0cb68a80c8caa22225f6e554886"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-heldout100-h32.npz",
+    "bytes": 646,
+    "sha256": "1d70e6c14730d9a62fb94a6b907d0f298e96881669210a4a7d127c9acdf21ede"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-train0-h32.npz",
+    "bytes": 637,
+    "sha256": "1398f7dc9db736d29070d844386be374f2dbacb9791c4e358dd2d5059da5985a"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-heldout100-h16.npz",
+    "bytes": 646,
+    "sha256": "409d9e248beea0947f9ef128adf01c7e9c1a2e9744c58302bf9b5de074eb1717"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-heldout100-h100.npz",
+    "bytes": 638,
+    "sha256": "62eceb8f438a432b877741f2f0fde4066676b440e2a6d9d91edb104ed1c0ba8a"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-selected-heldout100-h16.npz",
+    "bytes": 4342,
+    "sha256": "f537157211a6a2895fa29b0d893bf28e6f0c4afa53201522ac18868fd1baab85"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-train0-h8.npz",
+    "bytes": 648,
+    "sha256": "234e8b238b32cc9c43dac610ef1580c12624dd282c835f08bd16d21919717068"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-heldout100-h8.npz",
+    "bytes": 647,
+    "sha256": "fcbe14596739579d818578e129e0f2319886186aa272fd36870415c7ef27a0c3"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/oceananigans/results/gradient-initial-train0-h16.npz",
+    "bytes": 654,
+    "sha256": "dbeec0d7bfa38a44cbafdec9b467a14ab3125b34acee646937f1d5add422d53f"
+  },
+  {
+    "solver": "oceananigans",
+    "kind": "operator",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/oceananigans/results/diagnostics.npz",
+    "bytes": 187535815,
+    "sha256": "033e18319d977c43d9410c17468e58520dd66b88c92116949842c35db7067d03"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-train0-h100.npz",
+    "bytes": 649,
+    "sha256": "e91a5ca3c36d72cf346a223ba6a9dc7ce0ffc0265615a809ae2dae10bcc6d872"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-train0-h100.npz",
+    "bytes": 4372,
+    "sha256": "f5954706b336039bbc93f357562a58141312caf2e70f8001d7b6fedcd32bdaf8"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-heldout100-h16.npz",
+    "bytes": 4337,
+    "sha256": "f34bf799c3c71cbdcacb5d1707404a719672570966a7b43deadf5a76fa581b6c"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-train0-h8.npz",
+    "bytes": 4333,
+    "sha256": "b1829111cf8cb1a87e2b903f3c681d1575709a2d241dccdec6012e3849bfea6a"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-heldout100-h8.npz",
+    "bytes": 4333,
+    "sha256": "6df590aa2988c38abcc4179650a99714ba8a8fb8a75352bc59a894539e305f62"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-heldout100-h32.npz",
+    "bytes": 4350,
+    "sha256": "0b6d516ac1fb116e5708d9ba0b065350dbc81d3dc9865c3bff261abda6a83981"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-train0-h100.npz",
+    "bytes": 4360,
+    "sha256": "8f1bb9b86a497c1b0315c5707cefa549a98b224f3e94fee77a5559f851be66a5"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-heldout100-h8.npz",
+    "bytes": 652,
+    "sha256": "967a55ef887bde630f1ed6419ab38d4d09a80fdf6d233febee0f9b6f8477c652"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-heldout100-h8.npz",
+    "bytes": 4338,
+    "sha256": "2650aa400e83369abc478b0f5102db4f3161d6b18c61155e63be20042ed13fc0"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-train0-h32.npz",
+    "bytes": 4357,
+    "sha256": "23496f92f3f379f0ad94fadc9f95353c93603fe713989979323436b88771905a"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-heldout100-h100.npz",
+    "bytes": 4370,
+    "sha256": "6ec28789a671c176cd574e7d828674e75239a343261a4be3f1c917e7de182c8f"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-train0-h8.npz",
+    "bytes": 648,
+    "sha256": "443112c7c7c14dd75156715312528c3067d6ef88546fb75537723dbbd098cbb2"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-train0-h32.npz",
+    "bytes": 4350,
+    "sha256": "4f6fe1ad7a2ef79f8c89d52ca7e71e6d95c33f2d74ea65502777325ddf5fc07e"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-train0-h32.npz",
+    "bytes": 642,
+    "sha256": "086e2aeac7620718d24198c81aee288759923754612df2e455ced38c6408f7d8"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-heldout100-h32.npz",
+    "bytes": 4347,
+    "sha256": "74a920f2238d883f2041ca46720d50427691d5a20655c8a720c30242febe4277"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-heldout100-h32.npz",
+    "bytes": 641,
+    "sha256": "89ce907d1c0b97f0aa980165d94fd9530617afa05b4bc012278a775607908691"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-train0-h16.npz",
+    "bytes": 4362,
+    "sha256": "967450bd199fd1476a2be4b476600b7ac9dbf4dcb688cd7cb6591dd255024d63"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-train0-h16.npz",
+    "bytes": 4297,
+    "sha256": "105e07a6f66b513a6caab5b7b412ac85ce198d7e5d9d46fd554ca9b0523d275c"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-train0-h16.npz",
+    "bytes": 635,
+    "sha256": "c1961d31a6f193bf8ffb390eac0d8c0520082dd88a2efc1c2af7fde961cc0a8e"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-heldout100-h16.npz",
+    "bytes": 4345,
+    "sha256": "45f70e426f42c5a4ea0629494a41ee6aa7d98ca30b000e367dc104e7ba991a2d"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-heldout100-h100.npz",
+    "bytes": 640,
+    "sha256": "81196dc8d4bb1b9ab4d7315f044deaef06720bdb169314880982759f7806bdf3"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-initial-heldout100-h16.npz",
+    "bytes": 644,
+    "sha256": "1a24b77b9f105257b015b4e5b03fa5828699c104ad0a0377f1b61c429e2f3c62"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-final-heldout100-h100.npz",
+    "bytes": 4361,
+    "sha256": "12cfc02f5bf32e92c2dd035a682c54e43db38782512ac32f3ef6030f269e35aa"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "parameter",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-parameter-water-v2-20261029/waterlily/results/gradient-selected-train0-h8.npz",
+    "bytes": 4351,
+    "sha256": "ac91d0fec58b00336849c77c2b497b6eceaa9ed67614c9032cbeda593607357b"
+  },
+  {
+    "solver": "waterlily",
+    "kind": "operator",
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-allsolver-adjoints-20261029/full-v1/waterlily/results/diagnostics.npz",
+    "bytes": 187036195,
+    "sha256": "ee000baa34f1effb04d296d3ed9c284641ed0b541d01da0d17e556fd6cd8d3fa"
+  }
+]

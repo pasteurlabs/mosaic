@@ -1,0 +1,2765 @@
+{
+  "complete": true,
+  "solver": "jax-cfd",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "training_checkpoint_scope": "Existing common256-update,H8,Adam.003,seed0,width8velocity-only,densevalidation16; NOT publicvalidation64 or H16trainedpilot",
+  "scope": "Controlled start0 prefix parameter gradients; NOT shuffled-window training-gradient distribution; heldout descriptive only. Loss averages all intermediate states. Raw gradients are not clipped Adam directions.",
+  "source_sha256": {
+    "/scratch/jobs/3620642/work/source/mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+    "/scratch/jobs/3620642/work/python-env/lib/python3.12/site-packages/mosaic/benchmarks/problems/buoyancy_grid/training.py": "27ea1abedfa44062edbf60585513f537db492167540ee3b84231a715ae5e0eb6",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-all-solver-diagnostics-20261029/parameter.py": "f5fdd7c09ebe987a90a51a4a4a0c36ea6904adf597078146315269460ff48b2c"
+  },
+  "devices": [
+    "cuda:0"
+  ],
+  "checkpoints": {
+    "initial": {
+      "key": "initial_params",
+      "selected_update": 0,
+      "leaf_hashes": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+        "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+      ],
+      "parameter_norm": 6.071120501315503
+    },
+    "selected": {
+      "key": "selected_params",
+      "selected_update": 176,
+      "leaf_hashes": [
+        "931d66ece54a8cc9435216b54c238325c3d351bee9f22934c367bb308a45cbfd",
+        "21a1e404b782fa825c21fa32239b7e534859feb5111fdd60ab6eeb24f73aa86e",
+        "4411ec8defaa12ba9e41cce5e1b8d5583e8269f8c72d040a6ec53bccb7761a3a",
+        "28c129efdce1ca101cdc44f5ed503948ce7861ab70f50c0697191e95108f64fd",
+        "50c608b579108cb2f27442ad7cab1289f7af94f833832aab8d2dcc9ee83cd0ae",
+        "0bdb5130886eceebbefde45cd2f93ccbb013878516bb80711b8b7e84d66dc8ac"
+      ],
+      "parameter_norm": 5.915261348987473
+    },
+    "final": {
+      "key": "final_params",
+      "selected_update": 256,
+      "leaf_hashes": [
+        "f30a6a6d56070db325054b3e84454a67319ed642d405bf2efd56668e6a243a7e",
+        "cdd8da8d2f9930fb03960f249214001a763b62e5a121caf8324408f6e114bea0",
+        "8963a7c6fb0780502a9e7e8ab0476ee047e6bfd21148c52094968231ecea8a5a",
+        "03b1771306a7254f09a465eabbe2546ff4e02a9b9d7e80316053db14f059b1a4",
+        "f1dac44e756bd166e476cd14352db0801696d49c45de727abdc243694b212952",
+        "29a640101b780cfa1733f4acb83d49f372aaa714597bc2caad874e72be68622b"
+      ],
+      "parameter_norm": 5.88710688737429
+    }
+  },
+  "rows": [
+    {
+      "checkpoint": "initial",
+      "case": "train0",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 4.990818524674978e-06,
+          "norm": 0.0006901312801031035,
+          "seconds_including_first_compile": 0.029882684000767767,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.056337445974349976,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": -0.7129285388566334,
+          "norm_ratio_to_h100": 0.001240816363076361
+        },
+        "16": {
+          "loss": 1.7272799595957622e-05,
+          "norm": 0.0019204955597418093,
+          "seconds_including_first_compile": 0.050409508985467255,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.0996868908405304,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": -0.7105563098030477,
+          "norm_ratio_to_h100": 0.0034529405990511275
+        },
+        "32": {
+          "loss": 8.34385136840865e-05,
+          "norm": 0.010109707523704587,
+          "seconds_including_first_compile": 6.832907994976267,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.15248917043209076,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.00024783354158147594,
+          "norm_ratio_to_h100": 0.01817667287802803
+        },
+        "100": {
+          "loss": 0.001422322471626103,
+          "norm": 0.5561913113331761,
+          "seconds_including_first_compile": 7.315446796012111,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2352667599916458,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 1.0000000000000002,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999807898375e-05,
+          "h100_loss": 0.0014663493493571877,
+          "change": 4.4026877731084824e-05,
+          "relative_change": 0.030954216508124268,
+          "ad_predicted_change": 3.9652465318046985e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23530623316764832,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.000300000015204509,
+          "h100_loss": 0.0015807258896529675,
+          "change": 0.00015840341802686453,
+          "relative_change": 0.11136955309843778,
+          "ad_predicted_change": 0.00011895740448474009,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23537978529930115,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000512276094,
+          "h100_loss": 0.0022558860946446657,
+          "change": 0.0008335636230185628,
+          "relative_change": 0.5860581124515117,
+          "ad_predicted_change": 0.0003965246805994623,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23558108508586884,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.99999981775657e-05,
+          "h100_loss": 0.0014659932348877192,
+          "change": 4.367076326161623e-05,
+          "relative_change": 0.030703841170201456,
+          "ad_predicted_change": 3.952052365218127e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23531650006771088,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000147115918,
+          "h100_loss": 0.001578339608386159,
+          "change": 0.00015601713676005602,
+          "relative_change": 0.10969181734271964,
+          "ad_predicted_change": 0.0001185615797964781,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23541079461574554,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.001000000049598549,
+          "h100_loss": 0.0022323434241116047,
+          "change": 0.0008100209524855018,
+          "relative_change": 0.5695058389673241,
+          "ad_predicted_change": 0.00039520526461011196,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23568564653396606,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999693018766e-05,
+          "h100_loss": 0.001422986388206482,
+          "change": 6.639165803790092e-07,
+          "relative_change": 0.0004667834430120276,
+          "ad_predicted_change": -1.3784281723240167e-08,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23532691597938538,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000146386518,
+          "h100_loss": 0.0014283779310062528,
+          "change": 6.055459380149841e-06,
+          "relative_change": 0.004257444778487398,
+          "ad_predicted_change": -4.1352566306780326e-08,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2354457825422287,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614100605249405
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.001000000051338508,
+          "h100_loss": 0.0014894995838403702,
+          "change": 6.717711221426725e-05,
+          "relative_change": 0.047230577843198576,
+          "ad_predicted_change": -1.3783989879495172e-07,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2358470857143402,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999807461288e-05,
+          "h100_loss": 0.0013705099700018764,
+          "change": -5.181250162422657e-05,
+          "relative_change": -0.03642809746582344,
+          "ad_predicted_change": -5.5619130062434005e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2352021038532257,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.000300000012100201,
+          "h100_loss": 0.001289748470298946,
+          "change": -0.00013257400132715702,
+          "relative_change": -0.09320952454304454,
+          "ad_predicted_change": -0.0001668574001299794,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23506788909435272,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000521984934,
+          "h100_loss": 0.0012488059001043439,
+          "change": -0.00017351657152175903,
+          "relative_change": -0.12199524016757059,
+          "ad_predicted_change": -0.0005561913403655242,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2345435619354248,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.5561913113331761,
+          "fd": 0.5274658712248007,
+          "relative_error": 0.05164668976852817,
+          "diagnostic_original_5percent_pass": false,
+          "plus_loss": 0.006392013281583786,
+          "minus_loss": 0.0032272180542349815,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2361978143453598,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23313212394714355,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.5561913113331761,
+          "fd": 0.5527716712094843,
+          "relative_error": 0.006148316332908891,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0023543492425233126,
+          "minus_loss": 0.0012488059001043439,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23581752181053162,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2345435619354248,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.5561913113331761,
+          "fd": 0.5558193273221453,
+          "relative_error": 0.000668805864908503,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.001623240066692233,
+          "minus_loss": 0.001289748470298946,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2354513704776764,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23506788909435272,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 26.96805405698251
+        },
+        "16": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 45.23654478706885
+        }
+      }
+    },
+    {
+      "checkpoint": "initial",
+      "case": "heldout100",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 5.02147577208234e-06,
+          "norm": 0.0006223550647923488,
+          "seconds_including_first_compile": 0.02378222404513508,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.05619371309876442,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": -0.39432769963550324,
+          "norm_ratio_to_h100": 0.0014362915334818738
+        },
+        "16": {
+          "loss": 1.6785415937192738e-05,
+          "norm": 0.0017874605242730426,
+          "seconds_including_first_compile": 0.04719250893685967,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.09905547648668289,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "cosine_to_h100": -0.3541564398831722,
+          "norm_ratio_to_h100": 0.004125160318737081
+        },
+        "32": {
+          "loss": 8.203729521483183e-05,
+          "norm": 0.010699520696239705,
+          "seconds_including_first_compile": 0.09650337300263345,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.14708976447582245,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "cosine_to_h100": 0.14651659733835184,
+          "norm_ratio_to_h100": 0.024692706555622942
+        },
+        "100": {
+          "loss": 0.0016806775238364935,
+          "norm": 0.4333069229222766,
+          "seconds_including_first_compile": 0.28566784609574825,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2166898250579834,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "cosine_to_h100": 0.9999999999999999,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999709870146e-05,
+          "h100_loss": 0.001702427281998098,
+          "change": 2.1749758161604404e-05,
+          "relative_change": 0.012941065643548378,
+          "ad_predicted_change": 1.708649173499454e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21664783358573914,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000001414926106,
+          "h100_loss": 0.00177378102671355,
+          "change": 9.31035028770566e-05,
+          "relative_change": 0.05539641100484799,
+          "ad_predicted_change": 5.1259479186024985e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2165592759847641,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.001000000045344163,
+          "h100_loss": 0.002315397607162595,
+          "change": 0.0006347200833261013,
+          "relative_change": 0.37765726876457634,
+          "ad_predicted_change": 0.0001708649316504084,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2162030190229416,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999683915646e-05,
+          "h100_loss": 0.0017003386747092009,
+          "change": 1.9661150872707367e-05,
+          "relative_change": 0.011698348192237813,
+          "ad_predicted_change": 1.5345843072033822e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21665453910827637,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000129071686,
+          "h100_loss": 0.001765460823662579,
+          "change": 8.478329982608557e-05,
+          "relative_change": 0.050445905668179684,
+          "ad_predicted_change": 4.603753348133621e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21657980978488922,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000468972379,
+          "h100_loss": 0.002263336908072233,
+          "change": 0.0005826593842357397,
+          "relative_change": 0.3466812496579947,
+          "ad_predicted_change": 0.00015345844505918052,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21627654135227203,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999621659713e-05,
+          "h100_loss": 0.0016751750372350216,
+          "change": -5.502486601471901e-06,
+          "relative_change": -0.0032739692912125934,
+          "ad_predicted_change": -6.348665092143472e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21672366559505463,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000001058732017,
+          "h100_loss": 0.0016692493809387088,
+          "change": -1.142814289778471e-05,
+          "relative_change": -0.0067997237636031535,
+          "ad_predicted_change": -1.904599633509441e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21678966283798218,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000398320552,
+          "h100_loss": 0.0017014446202665567,
+          "change": 2.0767096430063248e-05,
+          "relative_change": 0.012356383741396186,
+          "ad_predicted_change": -6.348665853283748e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21700549125671387,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999999746876458e-05,
+          "h100_loss": 0.0016393648693338037,
+          "change": -4.131265450268984e-05,
+          "relative_change": -0.02458095257226096,
+          "ad_predicted_change": -4.333069119542579e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21677085757255554,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000001251544406,
+          "h100_loss": 0.0015689156716689467,
+          "change": -0.00011176185216754675,
+          "relative_change": -0.06649809412124894,
+          "ad_predicted_change": -0.00012999208229971145,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.21693231165409088,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000489835874,
+          "h100_loss": 0.0014519215328618884,
+          "change": -0.00022875599097460508,
+          "relative_change": -0.1361093890590161,
+          "ad_predicted_change": -0.0004333069441472039,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2174919843673706,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.4333069229222766,
+          "fd": 0.40499225724488497,
+          "relative_error": 0.06534551879862426,
+          "diagnostic_original_5percent_pass": false,
+          "plus_loss": 0.004702812060713768,
+          "minus_loss": 0.002272858517244458,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.21421612799167633,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.21903571486473083,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.4333069229222766,
+          "fd": 0.4301696899347007,
+          "relative_error": 0.007240209702669886,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.00231226091273129,
+          "minus_loss": 0.0014519215328618884,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.215872660279274,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2174919843673706,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.4333069229222766,
+          "fd": 0.4330153266588847,
+          "relative_error": 0.0006729554686672496,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0018287248676642776,
+          "minus_loss": 0.0015689156716689467,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.21644586324691772,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.21693231165409088,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.056509034940972924
+        },
+        "16": {
+          "objective_relative_difference": 2.1673445759276073e-07,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.10250032704789191
+        }
+      }
+    },
+    {
+      "checkpoint": "selected",
+      "case": "train0",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 5.553892151510809e-06,
+          "norm": 0.0008522239461609543,
+          "seconds_including_first_compile": 0.023750354070216417,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.05691700428724289,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.4225438225038424,
+          "norm_ratio_to_h100": 0.005484944653474019
+        },
+        "16": {
+          "loss": 1.8082042515743524e-05,
+          "norm": 0.0028089914931131404,
+          "seconds_including_first_compile": 0.04701933800242841,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.10050296783447266,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.3061207806808693,
+          "norm_ratio_to_h100": 0.01807877253532966
+        },
+        "32": {
+          "loss": 7.418815221171826e-05,
+          "norm": 0.008500413683539315,
+          "seconds_including_first_compile": 0.09161192004103214,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.1533743292093277,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.21669558314702766,
+          "norm_ratio_to_h100": 0.05470897502455384
+        },
+        "100": {
+          "loss": 0.0006348583847284317,
+          "norm": 0.15537512226694541,
+          "seconds_including_first_compile": 0.28025875403545797,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23928941786289215,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.9999999999999999,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000011851953477,
+          "h100_loss": 0.0006287521100603044,
+          "change": -6.106274668127298e-06,
+          "relative_change": -0.009618325621924849,
+          "ad_predicted_change": -6.565273775091757e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23921407759189606,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0002999999062607312,
+          "h100_loss": 0.0006192970322445035,
+          "change": -1.5561352483928204e-05,
+          "relative_change": -0.02451153337225712,
+          "ad_predicted_change": -1.969591185457425e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23906204104423523,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000840477562,
+          "h100_loss": 0.0006152755813673139,
+          "change": -1.958280336111784e-05,
+          "relative_change": -0.030845939554684496,
+          "ad_predicted_change": -6.56527888769732e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23851653933525085,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000004646625011,
+          "h100_loss": 0.0006307421717792749,
+          "change": -4.116212949156761e-06,
+          "relative_change": -0.006483671080311116,
+          "ad_predicted_change": -4.756302887915783e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2392084002494812,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000011733673356,
+          "h100_loss": 0.0006263504619710147,
+          "change": -8.507922757416964e-06,
+          "relative_change": -0.013401292259936567,
+          "ad_predicted_change": -1.4269024242623796e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23904463648796082,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000001281902262,
+          "h100_loss": 0.0006515004206448793,
+          "change": 1.664203591644764e-05,
+          "relative_change": 0.026213776673307182,
+          "ad_predicted_change": -4.756355635899298e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23845174908638,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000007906388472,
+          "h100_loss": 0.0006322483532130718,
+          "change": -2.6100315153598785e-06,
+          "relative_change": -0.004111202715667606,
+          "ad_predicted_change": -3.366845483067498e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23920470476150513,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000002028402176,
+          "h100_loss": 0.0006315626087598503,
+          "change": -3.295775968581438e-06,
+          "relative_change": -0.0051913561321100705,
+          "ad_predicted_change": -1.0100670054125549e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23903338611125946,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0009999999861168055,
+          "h100_loss": 0.0006769426981918514,
+          "change": 4.2084313463419676e-05,
+          "relative_change": 0.06628929297582128,
+          "ad_predicted_change": -3.366913759950765e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2384122759103775,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000019516272023,
+          "h100_loss": 0.0006199516938067973,
+          "change": -1.4906690921634436e-05,
+          "relative_change": -0.023480340309297406,
+          "ad_predicted_change": -1.5537526615158575e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23925118148326874,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000001738636315,
+          "h100_loss": 0.0005939421826042235,
+          "change": -4.091620212420821e-05,
+          "relative_change": -0.06444933721984408,
+          "ad_predicted_change": -4.661255810001376e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23917274177074432,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000003381999342,
+          "h100_loss": 0.0005431267782114446,
+          "change": -9.173160651698709e-05,
+          "relative_change": -0.14449144679128145,
+          "ad_predicted_change": -0.00015537517288373762,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23887614905834198,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.15537512226694541,
+          "fd": 0.15184675188114247,
+          "relative_error": 0.022708721539996337,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0016588616417720914,
+          "minus_loss": 0.0007477811304852366,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.24053891003131866,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23785747587680817,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.15537512226694541,
+          "fd": 0.1549806329421699,
+          "relative_error": 0.0025389477994923115,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0008530880440957844,
+          "minus_loss": 0.0005431267782114446,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23963645100593567,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23887614905834198,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.15537512226694541,
+          "fd": 0.1553545007482171,
+          "relative_error": 0.0001327208527815639,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0006871548830531538,
+          "minus_loss": 0.0005939421826042235,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23940055072307587,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23917274177074432,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.04142580705229193
+        },
+        "16": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.08109588595107198
+        }
+      }
+    },
+    {
+      "checkpoint": "selected",
+      "case": "heldout100",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 5.64681067771744e-06,
+          "norm": 0.0008216436790992549,
+          "seconds_including_first_compile": 0.02413130400236696,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.0567300021648407,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "cosine_to_h100": 0.3154299415856066,
+          "norm_ratio_to_h100": 0.006323617932840786
+        },
+        "16": {
+          "loss": 1.7838445273810066e-05,
+          "norm": 0.002746136469875416,
+          "seconds_including_first_compile": 0.04659776599146426,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.09974992275238037,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.17042812759209708,
+          "norm_ratio_to_h100": 0.021135095746089846
+        },
+        "32": {
+          "loss": 7.416434527840465e-05,
+          "norm": 0.008607864902150906,
+          "seconds_including_first_compile": 0.09157768893055618,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.14798031747341156,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.05819398464018682,
+          "norm_ratio_to_h100": 0.06624872830322931
+        },
+        "100": {
+          "loss": 0.0006950178649276495,
+          "norm": 0.1299325303687575,
+          "seconds_including_first_compile": 0.2803972540423274,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22281627357006073,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.9999999999999998,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000015444480107,
+          "h100_loss": 0.0006913328543305397,
+          "change": -3.6850105971097946e-06,
+          "relative_change": -0.005302037232515455,
+          "ad_predicted_change": -4.098397260012108e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22277945280075073,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000004827691185,
+          "h100_loss": 0.0006864554015919566,
+          "change": -8.562463335692883e-06,
+          "relative_change": -0.012319774451530428,
+          "ad_predicted_change": -1.2295403848710986e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22270467877388,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000002699361095,
+          "h100_loss": 0.0006956192664802074,
+          "change": 6.014015525579453e-07,
+          "relative_change": 0.0008653037323300321,
+          "ad_predicted_change": -4.098463869735438e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2224317491054535,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000011934333428,
+          "h100_loss": 0.0006934278062544763,
+          "change": -1.5900586731731892e-06,
+          "relative_change": -0.0022877953983797415,
+          "ad_predicted_change": -2.2143484328546804e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2227804958820343,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000153922916,
+          "h100_loss": 0.0006939982413314283,
+          "change": -1.0196235962212086e-06,
+          "relative_change": -0.0014670466007767299,
+          "ad_predicted_change": -6.643210415507591e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22270743548870087,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000001378673161,
+          "h100_loss": 0.000735509442165494,
+          "change": 4.049157723784447e-05,
+          "relative_change": 0.05825976464944479,
+          "ad_predicted_change": -2.2144138918860956e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22243574261665344,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999994947178219e-05,
+          "h100_loss": 0.0006950313691049814,
+          "change": 1.3504177331924438e-08,
+          "relative_change": 1.94299715350917e-05,
+          "ad_predicted_change": -7.561468247006939e-07,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22277763485908508,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000013396987174,
+          "h100_loss": 0.0006996862939558923,
+          "change": 4.6684290282428265e-06,
+          "relative_change": 0.006716991409607585,
+          "ad_predicted_change": -2.2684286229701115e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22269843518733978,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000003865889822,
+          "h100_loss": 0.0007646575686521828,
+          "change": 6.963970372453332e-05,
+          "relative_change": 0.10019843695928986,
+          "ad_predicted_change": -7.561185875956407e-06,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22240161895751953,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.99998171586731e-05,
+          "h100_loss": 0.0006825945456512272,
+          "change": -1.2423319276422262e-05,
+          "relative_change": -0.017874820063388606,
+          "ad_predicted_change": -1.2993216732572807e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2228384166955948,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0002999998863086407,
+          "h100_loss": 0.0006611768039874732,
+          "change": -3.384106094017625e-05,
+          "relative_change": -0.04869092241779866,
+          "ad_predicted_change": -3.897973974288851e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2228812724351883,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0009999999690577842,
+          "h100_loss": 0.0006223631789907813,
+          "change": -7.265468593686819e-05,
+          "relative_change": -0.104536429354131,
+          "ad_predicted_change": -0.00012993252490681764,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22307433187961578,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.1299325303687575,
+          "fd": 0.1268108026124537,
+          "relative_error": 0.024025759734256767,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0015869747148826718,
+          "minus_loss": 0.0008261098992079496,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22193774580955505,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22352465987205505,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.1299325303687575,
+          "fd": 0.12955567217431962,
+          "relative_error": 0.0029004144948790948,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0008814745233394206,
+          "minus_loss": 0.0006223631789907813,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22256790101528168,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22307433187961578,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.1299325303687575,
+          "fd": 0.12988864909857512,
+          "relative_error": 0.0003377235097156502,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0007391099934466183,
+          "minus_loss": 0.0006611768039874732,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22274650633335114,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2228812724351883,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.041236403048969805
+        },
+        "16": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.08117280795704573
+        }
+      }
+    },
+    {
+      "checkpoint": "final",
+      "case": "train0",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 5.644445536745479e-06,
+          "norm": 0.0010551135511367865,
+          "seconds_including_first_compile": 0.02386759698856622,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.056825265288352966,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.8807159071393368,
+          "norm_ratio_to_h100": 0.004383423034195069
+        },
+        "16": {
+          "loss": 1.9019593310076743e-05,
+          "norm": 0.0037970960539922896,
+          "seconds_including_first_compile": 0.047288328991271555,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.1003485769033432,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.9373987990997231,
+          "norm_ratio_to_h100": 0.015774869243398822
+        },
+        "32": {
+          "loss": 8.803691162029281e-05,
+          "norm": 0.020660688283507648,
+          "seconds_including_first_compile": 0.09165853809099644,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.15321005880832672,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 0.9678338709342752,
+          "norm_ratio_to_h100": 0.0858339245351145
+        },
+        "100": {
+          "loss": 0.0007578394142910838,
+          "norm": 0.24070539003556105,
+          "seconds_including_first_compile": 0.2806687409756705,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2380450814962387,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "cosine_to_h100": 1.0,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000055374832555,
+          "h100_loss": 0.0007378502050414681,
+          "change": -1.998920924961567e-05,
+          "relative_change": -0.02637657645230085,
+          "ad_predicted_change": -2.119944509325198e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23811183869838715,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000002827172462,
+          "h100_loss": 0.0007051241700537503,
+          "change": -5.2715244237333536e-05,
+          "relative_change": -0.06955991367464792,
+          "ad_predicted_change": -6.359799057420667e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23824256658554077,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000001788357782,
+          "h100_loss": 0.0006665391265414655,
+          "change": -9.130028774961829e-05,
+          "relative_change": -0.12047445148392628,
+          "ad_predicted_change": -0.00021199304656114155,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23867057263851166,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999995257848026e-05,
+          "h100_loss": 0.0007364487973973155,
+          "change": -2.139061689376831e-05,
+          "relative_change": -0.028225790966253755,
+          "ad_predicted_change": -2.2563688827509708e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2381182610988617,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000050556311,
+          "h100_loss": 0.0007006893283687532,
+          "change": -5.715008592233062e-05,
+          "relative_change": -0.0754118680615092,
+          "ad_predicted_change": -6.769106386575092e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23826228082180023,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0009999999895984445,
+          "h100_loss": 0.0006491149542853236,
+          "change": -0.00010872446000576019,
+          "relative_change": -0.14346635706123284,
+          "ad_predicted_change": -0.00022563692190478442,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23874197900295258,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999983679658198e-05,
+          "h100_loss": 0.0007355455891229212,
+          "change": -2.2293825168162584e-05,
+          "relative_change": -0.02941761110302927,
+          "ad_predicted_change": -2.3296250847452804e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23812922835350037,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000002402772045,
+          "h100_loss": 0.0006969632231630385,
+          "change": -6.087619112804532e-05,
+          "relative_change": -0.08032861577276444,
+          "ad_predicted_change": -6.988890900151862e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2382960468530655,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000760371005,
+          "h100_loss": 0.0006247512064874172,
+          "change": -0.0001330882078036666,
+          "relative_change": -0.17561531545329181,
+          "ad_predicted_change": -0.00023296281411971066,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23886333405971527,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000018046078315,
+          "h100_loss": 0.0007347635691985488,
+          "change": -2.307584509253502e-05,
+          "relative_change": -0.030449518271784763,
+          "ad_predicted_change": -2.4070555768207082e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23811930418014526,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.00030000037243896457,
+          "h100_loss": 0.0006945700151845813,
+          "change": -6.326939910650253e-05,
+          "relative_change": -0.08348655125794362,
+          "ad_predicted_change": -7.221169796817287e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.238266259431839,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.000999999651090323,
+          "h100_loss": 0.0006162705249153078,
+          "change": -0.00014156888937577605,
+          "relative_change": -0.186805920497294,
+          "ad_predicted_change": -0.00024070530352047697,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.23876506090164185,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.24070539003556105,
+          "fd": 0.24233220998818675,
+          "relative_error": 0.006713180854930538,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.002377189928665757,
+          "minus_loss": 0.0009231966687366366,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23561225831508636,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.24004702270030975,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.24070539003556105,
+          "fd": 0.24088987265713513,
+          "relative_error": 0.0007658380136082455,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.001098050270229578,
+          "minus_loss": 0.0006162705249153078,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2372780293226242,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23876506090164185,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.24070539003556105,
+          "fd": 0.2407230203971267,
+          "relative_error": 7.323920054081974e-05,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0008390038274228573,
+          "minus_loss": 0.0006945700151845813,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.23781956732273102,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.238266259431839,
+            "temperature_min": 2.850241076436678e-42,
+            "temperature_max": 0.980598509311676,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.054614096879959106,
+              0.054614096879959106
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 8.056545346910009e-08,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.04149356996640563
+        },
+        "16": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.08134162705391645
+        }
+      }
+    },
+    {
+      "checkpoint": "final",
+      "case": "heldout100",
+      "start": 0,
+      "complete": true,
+      "gradients": {
+        "8": {
+          "loss": 5.744897862314247e-06,
+          "norm": 0.001031995265877345,
+          "seconds_including_first_compile": 0.023826146963983774,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.05665110424160957,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.9631754868651159,
+          "norm_ratio_to_h100": 0.0030874381442010696
+        },
+        "16": {
+          "loss": 1.8767899746308103e-05,
+          "norm": 0.003791607258361633,
+          "seconds_including_first_compile": 0.047441676957532763,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.099593885242939,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.9726441426959638,
+          "norm_ratio_to_h100": 0.01134341722715487
+        },
+        "32": {
+          "loss": 8.75434052431956e-05,
+          "norm": 0.02056969000879931,
+          "seconds_including_first_compile": 0.09175705607049167,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.1479298621416092,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "cosine_to_h100": 0.8830846374149643,
+          "norm_ratio_to_h100": 0.06153869852645879
+        },
+        "100": {
+          "loss": 0.0009306972497142851,
+          "norm": 0.33425617540408814,
+          "seconds_including_first_compile": 0.28052973200101405,
+          "finite": true,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22230994701385498,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "cosine_to_h100": 0.9999999999999999,
+          "norm_ratio_to_h100": 1.0
+        }
+      },
+      "descent_steps": [
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000020454935959,
+          "h100_loss": 0.00090003915829584,
+          "change": -3.065809141844511e-05,
+          "relative_change": -0.032940992817865146,
+          "ad_predicted_change": -3.219477675784316e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22234612703323364,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000496311732,
+          "h100_loss": 0.0008479555253870785,
+          "change": -8.274172432720661e-05,
+          "relative_change": -0.08890294276963588,
+          "ad_predicted_change": -9.658421241651393e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.222415953874588,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 8,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0009999997039460218,
+          "h100_loss": 0.000762284966185689,
+          "change": -0.00016841228352859616,
+          "relative_change": -0.18095281100303784,
+          "ad_predicted_change": -0.00032194737073267714,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2226899266242981,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 9.999981633703104e-05,
+          "h100_loss": 0.0008996186079457402,
+          "change": -3.107864176854491e-05,
+          "relative_change": -0.033392858717575184,
+          "ad_predicted_change": -3.251116360215302e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2223486304283142,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0002999999948945537,
+          "h100_loss": 0.0008460679673589766,
+          "change": -8.462928235530853e-05,
+          "relative_change": -0.09093105451991922,
+          "ad_predicted_change": -9.753368378751027e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22242391109466553,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 16,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000002646275584,
+          "h100_loss": 0.0007487853290513158,
+          "change": -0.00018191192066296935,
+          "relative_change": -0.19545767511273351,
+          "ad_predicted_change": -0.0003251124481615477,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22269050776958466,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000010521771302,
+          "h100_loss": 0.0009022288722917438,
+          "change": -2.846837742254138e-05,
+          "relative_change": -0.03058822558171402,
+          "ad_predicted_change": -2.9517621746262665e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22235114872455597,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0003000000940923215,
+          "h100_loss": 0.0008515898953191936,
+          "change": -7.910735439509153e-05,
+          "relative_change": -0.08499794580823862,
+          "ad_predicted_change": -8.855297782984577e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22243209183216095,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 32,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000000378689907,
+          "h100_loss": 0.0007402945193462074,
+          "change": -0.00019040273036807775,
+          "relative_change": -0.20458073817939132,
+          "ad_predicted_change": -0.00029517652515108437,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2226988971233368,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0001,
+          "realized_parameter_l2": 0.00010000002282263794,
+          "h100_loss": 0.0008987333276309073,
+          "change": -3.196392208337784e-05,
+          "relative_change": -0.034344059889712196,
+          "ad_predicted_change": -3.342559112504637e-05,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.2223547250032425,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.0003,
+          "realized_parameter_l2": 0.0002999997413778958,
+          "h100_loss": 0.0008435913478024304,
+          "change": -8.710590191185474e-05,
+          "relative_change": -0.0935920912397618,
+          "ad_predicted_change": -0.00010027675311426084,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22244201600551605,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        },
+        {
+          "horizon": 100,
+          "requested_parameter_l2": 0.001,
+          "realized_parameter_l2": 0.0010000001659007393,
+          "h100_loss": 0.0007425991934724152,
+          "change": -0.00018809805624186993,
+          "relative_change": -0.20210445050698728,
+          "ad_predicted_change": -0.0003342562276024985,
+          "forward_invariants": {
+            "finite": true,
+            "max_cfl": 0.22277723252773285,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        }
+      ],
+      "h100_fd": [
+        {
+          "epsilon": 0.003,
+          "ad": 0.33425617540408814,
+          "fd": 0.3376387952206035,
+          "relative_error": 0.010018457192708793,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.003260043216869235,
+          "minus_loss": 0.0012342104455456138,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.2204897254705429,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22355270385742188,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "epsilon": 0.001,
+          "ad": 0.33425617540408814,
+          "fd": 0.3346408193465322,
+          "relative_error": 0.0011494232628141304,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0014118808321654797,
+          "minus_loss": 0.0007425991934724152,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22180640697479248,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22277723252773285,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          }
+        },
+        {
+          "epsilon": 0.0003,
+          "ad": 0.33425617540408814,
+          "fd": 0.3343220062864324,
+          "relative_error": 0.00019690861237486464,
+          "diagnostic_original_5percent_pass": true,
+          "plus_loss": 0.0010441845515742898,
+          "minus_loss": 0.0008435913478024304,
+          "plus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22216928005218506,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.05356465280056
+            ]
+          },
+          "minus_invariants": {
+            "finite": true,
+            "max_cfl": 0.22244201600551605,
+            "temperature_min": 0.0,
+            "temperature_max": 0.9838657975196838,
+            "max_normal_padding": 0.0,
+            "temperature_mean_first_last": [
+              0.0535646490752697,
+              0.0535646490752697
+            ]
+          }
+        }
+      ],
+      "scan_vs_original": {
+        "8": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.04156465898267925
+        },
+        "16": {
+          "objective_relative_difference": 0.0,
+          "gradient_relative_l2": 0.0,
+          "seconds": 0.08125629799906164
+        }
+      }
+    }
+  ],
+  "failures": [],
+  "data_hashes": {
+    "train": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+    "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+  },
+  "input_files": {
+    "receipt.json": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/receipt.json",
+      "sha256": "eec384cfef7cd5d39dc966cd0a00b234f7b99e1ed107e1f4c31a8a078fb1d73c"
+    },
+    "training_data.npz": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/training_data.npz",
+      "sha256": "c88d2af0f358bdbc954f4c90dad055284c351262a6dd1dc1ef3bedd6901cfa61"
+    },
+    "heldout_fields.npz": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/heldout_fields.npz",
+      "sha256": "2c0032fb391cdb90d45c3013b3e7529945b5bd660693ad54625abbd13564fe20"
+    },
+    "initial_params.npz": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/initial_params.npz",
+      "sha256": "54a9d6d7071c391c7caeb328700772e6ea8d09b8fe6ce34aa3080d5fccf9e14c"
+    },
+    "selected_params.npz": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/selected_params.npz",
+      "sha256": "c1b8f5b2311b520db107738bbc237ac6ad81c9813cc83b67ca1b7546b60ee099"
+    },
+    "final_params.npz": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-training-stability-20261029/baseline/results/final_params.npz",
+      "sha256": "a2b1af9491efde0ac042cbc952769b33f2e5a410461af2e360f53e816ddc69fb"
+    }
+  },
+  "original_reference_admission": {
+    "spatial_factor": 2,
+    "time_refinement_error": 0.003415039039139105,
+    "audit_gap_ratio": 0.09055170237321285,
+    "splits": {
+      "train": {
+        "time_refinement_error": 0.003415039039139105,
+        "coarse_gap": 0.03771369228447932,
+        "audit_gap_ratio": 0.09055170237321285
+      },
+      "train_1": {
+        "time_refinement_error": 0.0022986273498842177,
+        "coarse_gap": 0.026469543413438185,
+        "audit_gap_ratio": 0.08684046090183933
+      },
+      "train_2": {
+        "time_refinement_error": 0.0020299109241774804,
+        "coarse_gap": 0.022777920807854606,
+        "audit_gap_ratio": 0.08911748097207792
+      },
+      "train_3": {
+        "time_refinement_error": 0.002676041875668916,
+        "coarse_gap": 0.03127811869347029,
+        "audit_gap_ratio": 0.08555635656653397
+      },
+      "validation": {
+        "time_refinement_error": 0.002896539461005629,
+        "coarse_gap": 0.033178146664438364,
+        "audit_gap_ratio": 0.08730262996004697
+      },
+      "test": {
+        "time_refinement_error": 0.0032999815304407512,
+        "coarse_gap": 0.0409960663584836,
+        "audit_gap_ratio": 0.0804950772980165
+      }
+    }
+  },
+  "original_gradient_checks": {
+    "gradient_check": {
+      "autodiff": 0.000690131273586303,
+      "finite_difference": 0.0007011162815615535,
+      "relative_error": 0.01566788315168526,
+      "epsilon": 0.003
+    },
+    "gradient_check_nonzero": {
+      "autodiff": 0.008464829064905643,
+      "finite_difference": 0.008471510373055935,
+      "relative_error": 0.0007886796871006237,
+      "epsilon": 0.003
+    }
+  },
+  "reference_sha256": {
+    "train0": "e1bc19affd3217f43bb34e1a680e7eea7e8d4b471260e54d1b3276c121d5e1d7",
+    "heldout100": "a14dea44e523acca6e0df74d1432173f42bcfb0a2c110d62bc702089cc61803d"
+  },
+  "cached_uncorrected_first_step_relative_gap": 0.0,
+  "initial_vs_jax_saved_initial": {
+    "leaf_hashes_equal": true,
+    "max_absolute_difference": 0.0,
+    "relative_l2": 0.0,
+    "scope": "Same nominal seed; CPU/GPU initialization differences measured, never silently replaced"
+  },
+  "total_seconds": 114.63486297999043,
+  "gpu_memory_after": [
+    {
+      "num_allocs": 3921,
+      "bytes_in_use": 16835328,
+      "peak_bytes_in_use": 2251156992,
+      "largest_alloc_size": 2234309376,
+      "bytes_limit": 25251643392,
+      "bytes_reserved": 0,
+      "peak_bytes_reserved": 0,
+      "largest_free_block_bytes": 0,
+      "pool_bytes": 6327107584,
+      "peak_pool_bytes": 6327107584
+    }
+  ]
+}

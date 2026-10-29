@@ -26,3 +26,5 @@ Muon applies orthogonalized updates to explicitly reshaped convolution weights. 
 ## Completed follow-ups
 
 [Recent reports, plots and provenance](recent/README.md) cover all-five learning-rate transfer, H16 initialization confirmation, architectures, curriculum/L-BFGS trials (including failures), and N64 physical-subspace conditioning. They remain separate from the bounded benchmark and its canonical CI gallery.
+
+[The all-five gradient diagnostic repeat](all-solvers/README.md) uses common 256-update H8 Adam .003 checkpoints with dense validation every 16 updates. It includes parameter-gradient alignment, same-probe solver/corrector/composed derivatives, physical perturbations and scale errors, and robustness across three developed states. All 30 parameter contexts and 2,430 operator rows completed; unresolved FD responses and original environment failures remain explicit. The earlier JAX-only 60-second models are not pooled with this repeat.
