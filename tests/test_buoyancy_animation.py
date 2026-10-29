@@ -10,6 +10,8 @@ from PIL import Image
 
 from mosaic.benchmarks.problems.buoyancy_grid.animation import (
     _center_velocity,
+    _field_indices,
+    _palette,
     _reduce,
     write_error_gif,
 )
@@ -44,6 +46,7 @@ def test_animation_all_solvers_frames_and_global_scales(tmp_path):
         reference = np.zeros((3, 4, 4, 3), dtype=np.float32)
         baseline = reference.copy()
         baseline[1:, ..., 2] = index + 1
+        baseline[1:, :-1, :, 0] = index + 1
         corrected = baseline / 2
         for key, array in (
             ("reference", reference),
@@ -62,11 +65,18 @@ def test_animation_all_solvers_frames_and_global_scales(tmp_path):
         assert animation.n_frames == 3
         assert animation.info["duration"] == 100
         assert animation.info["loop"] == 0
+        zero = animation.convert("RGB")
+        assert zero.getpixel((197, 188)) == zero.getpixel((509, 188)) == (0, 0, 0)
+        animation.seek(2)
+        frame = animation.convert("RGB")
+        temperature, velocity = frame.getpixel((197, 188)), frame.getpixel((509, 188))
+        assert temperature[0] > temperature[2]
+        assert velocity[2] > velocity[0]
     assert path.with_suffix(".png").exists()
     receipt = json.loads(path.with_suffix(".json").read_text())
     assert receipt["solvers"] == names
     assert receipt["scalar_max"] == 5
-    assert receipt["velocity_max"] == 0
+    assert receipt["velocity_max"] == 5
     assert receipt["frames"] == 3 and receipt["frame_interval"] == 0.04
 
 
@@ -81,3 +91,20 @@ def test_docs_prefer_animation_over_poster_and_interactive_chart(tmp_path):
         "buoyancy-grid", "optimization", "solver_in_loop", png
     )
     assert _chart_block("buoyancy-grid", "optimization", "solver_in_loop", png) is None
+
+
+def test_field_palettes_distinguish_equal_errors_and_preserve_zero():
+    palette = np.asarray(_palette(), dtype=np.uint8).reshape(256, 3)
+    normalized = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    red_indices = _field_indices(normalized, 0)
+    blue_indices = _field_indices(normalized, 1)
+    assert red_indices.min() == 0 and red_indices.max() == 119
+    assert blue_indices.min() == 120 and blue_indices.max() == 239
+    red, blue = palette[red_indices], palette[blue_indices]
+    np.testing.assert_array_equal(red[0], [0, 0, 0])
+    np.testing.assert_array_equal(blue[0], red[0])
+    assert np.all(red[1:, 0] > red[1:, 2])
+    assert np.all(blue[1:, 2] > blue[1:, 0])
+    assert np.all(np.diff(red.astype(int).sum(axis=1)) > 0)
+    assert np.all(np.diff(blue.astype(int).sum(axis=1)) > 0)
+    np.testing.assert_array_equal(palette[255], [255, 255, 255])

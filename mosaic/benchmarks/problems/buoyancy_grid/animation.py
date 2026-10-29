@@ -34,19 +34,39 @@ def _reduce(fields: np.ndarray, maximum: int = 32) -> np.ndarray:
     )
 
 
+_COLORS_PER_FIELD = 120
+
+
+def _field_indices(normalized: np.ndarray, group: int) -> np.ndarray:
+    """Map a fixed [0,1] scale into its field's disjoint palette block."""
+    return (
+        np.rint(np.clip(normalized, 0, 1) * (_COLORS_PER_FIELD - 1))
+        + group * _COLORS_PER_FIELD
+    ).astype(np.uint8)
+
+
 def _palette() -> list[int]:
-    anchors = np.array(
-        [[0, 0, 4], [87, 15, 109], [188, 55, 84], [249, 142, 9], [252, 255, 164]]
-    )
-    colors = np.stack(
-        [
-            np.interp(np.linspace(0, 4, 240), np.arange(5), anchors[:, c])
-            for c in range(3)
-        ],
-        axis=1,
+    # Both zero-error colors are black; positive errors use separate warm/cool
+    # sequential ramps. Indices 240..255 remain reserved for labels/background.
+    anchors = (
+        [[0, 0, 0], [55, 0, 8], [145, 15, 35], [225, 60, 55], [255, 180, 150]],
+        [[0, 0, 0], [0, 18, 65], [0, 75, 155], [20, 155, 220], [165, 225, 255]],
     )
     palette = np.zeros((256, 3), dtype=np.uint8)
-    palette[:240] = colors.astype(np.uint8)
+    for group, ramp in enumerate(anchors):
+        colors = np.stack(
+            [
+                np.interp(
+                    np.linspace(0, 4, _COLORS_PER_FIELD),
+                    np.arange(5),
+                    np.asarray(ramp)[:, c],
+                )
+                for c in range(3)
+            ],
+            axis=1,
+        )
+        start = group * _COLORS_PER_FIELD
+        palette[start : start + _COLORS_PER_FIELD] = colors.astype(np.uint8)
     palette[253] = [100, 100, 100]
     palette[255] = [255, 255, 255]
     return palette.ravel().tolist()
@@ -137,7 +157,8 @@ def write_error_gif(
             for pixel in range(2 * panel + gap):
                 draw.line(
                     (x + pixel, 72, x + pixel, 80),
-                    fill=round(239 * pixel / (2 * panel + gap - 1)),
+                    fill=group * _COLORS_PER_FIELD
+                    + round((_COLORS_PER_FIELD - 1) * pixel / (2 * panel + gap - 1)),
                 )
             draw.text((x, 82), "0", fill=254, font=small)
             draw.text(
@@ -151,9 +172,9 @@ def write_error_gif(
             draw.text((8, y + panel // 2), name, fill=254, font=font)
             for column, error in enumerate(errors):
                 x = left + column * (panel + gap)
-                indices = np.rint(
-                    np.clip(error[frame].T[::-1] / scales[column // 2], 0, 1) * 239
-                ).astype(np.uint8)
+                indices = _field_indices(
+                    error[frame].T[::-1] / scales[column // 2], column // 2
+                )
                 tile = Image.frombytes(
                     "P", (indices.shape[1], indices.shape[0]), indices.tobytes()
                 )
@@ -196,6 +217,11 @@ def write_error_gif(
                 "scalar_max": maxima[0],
                 "velocity_max": maxima[1],
                 "normalization": "None; physical-state error units",
+                "palettes": {
+                    "temperature": "sequential red",
+                    "velocity": "sequential blue",
+                    "zero": "black",
+                },
                 "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
                 "selected_updates": {
                     name: metrics[name]["solver_in_loop"]["selected_update"]
