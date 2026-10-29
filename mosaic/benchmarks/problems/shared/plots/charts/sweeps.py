@@ -268,8 +268,8 @@ def horizon_sweep(ctx: Ctx) -> alt.TopLevelMixin | None:
     """
     from mosaic.benchmarks.core.io import legacy_by_solver
     from mosaic.benchmarks.problems.shared.plots.style import (
-        NS_ORDER,
         resolve_solver_alias,
+        solver_order_for_problem,
     )
 
     data = ctx.legacy()
@@ -282,7 +282,9 @@ def horizon_sweep(ctx: Ctx) -> alt.TopLevelMixin | None:
         if a is not None:
             alias_to_display[a] = name
     ordered = [
-        a for a in NS_ORDER if a in alias_to_display and a not in _HORIZON_EXCLUDED
+        a
+        for a in solver_order_for_problem(ctx.config.name)
+        if a in alias_to_display and a not in _HORIZON_EXCLUDED
     ]
 
     fail_at_step: dict[int, list[str]] = defaultdict(list)

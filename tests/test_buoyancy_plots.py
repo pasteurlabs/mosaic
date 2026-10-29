@@ -153,3 +153,34 @@ def test_spectrum_label_uses_actual_buoyancy_horizon(tmp_path):
     spec = chart.to_dict()
     assert "T=0.04s" in json.dumps(spec)
     assert "T=0.5s" not in json.dumps(spec)
+
+
+def test_horizon_sweep_includes_all_buoyancy_solvers():
+    from mosaic.benchmarks.problems.shared.plots.charts.sweeps import horizon_sweep
+
+    names = ["PhiFlow", "JAX-CFD", "INS.jl", "WaterLily", "Oceananigans"]
+    data = {
+        "by_solver": {
+            name: {
+                str(step): {
+                    "grad_norm": 1.0,
+                    "eps_sweep": {
+                        "0.01": {"rel_error_mean": 0.001, "cosine_mean": 0.999}
+                    },
+                }
+                for step in [1, 4, 16]
+            }
+            for name in names
+        }
+    }
+    chart = horizon_sweep(
+        SimpleNamespace(
+            config=SimpleNamespace(name="buoyancy-grid"),
+            legacy=lambda: data,
+        )
+    )
+    spec = chart.to_dict()
+    rows = [row for dataset in spec["datasets"].values() for row in dataset]
+    assert {row["solver"] for row in rows} == set(names)
+    for name in names:
+        assert len([row for row in rows if row["solver"] == name]) == 3
