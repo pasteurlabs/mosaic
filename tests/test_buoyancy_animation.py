@@ -11,8 +11,8 @@ from PIL import Image
 from mosaic.benchmarks.problems.buoyancy_grid.animation import (
     _center_velocity,
     _field_indices,
-    _overlay_indices,
     _palette,
+    _panel_indices,
     _reduce,
     write_error_gif,
 )
@@ -36,7 +36,7 @@ def test_spatial_mean_preserves_positive_error_without_cancellation():
     assert reduced.mean() == fields.mean()
 
 
-def test_animation_all_solvers_frames_and_global_scales(tmp_path):
+def test_animation_all_solvers_frames_and_fixed_paired_row_scales(tmp_path):
     names = ["PhiFlow", "JAX-CFD", "INS.jl", "WaterLily", "Oceananigans"]
     cfg = SimpleNamespace(
         solvers=[SimpleNamespace(name=n) for n in names], domain_extent=1.0
@@ -67,22 +67,25 @@ def test_animation_all_solvers_frames_and_global_scales(tmp_path):
         assert animation.info["duration"] == 100
         assert animation.info["loop"] == 0
         zero = animation.convert("RGB")
-        assert zero.getpixel((197, 188)) == zero.getpixel((509, 188)) == (0, 0, 0)
+        assert zero.getpixel((181, 175)) == zero.getpixel((296, 175)) == (0, 0, 0)
         animation.seek(2)
         frame = animation.convert("RGB")
         assert animation.width <= 1100
         for row in range(5):
-            # Constant scalar errors have no interior contours: each arm shows
-            # its own actual scalar, with a shared row range.
-            baseline = frame.getpixel((197, 172 + row * 221))
-            corrected = frame.getpixel((353, 172 + row * 221))
+            baseline = frame.getpixel((181, 175 + row * 174))
+            corrected = frame.getpixel((418, 175 + row * 174))
             assert baseline[0] == baseline[1] == baseline[2] == 255
             assert corrected[0] == corrected[1] == corrected[2]
             assert 0 < corrected[0] < baseline[0]
+            red = frame.getpixel((296, 175 + row * 174))
+            corrected_red = frame.getpixel((533, 175 + row * 174))
+            blue = frame.getpixel((780, 175 + row * 174))
+            assert red[0] > red[2] and blue[2] > blue[0]
+            assert sum(red) > sum(corrected_red) > 0
     assert path.with_suffix(".png").exists()
     receipt = json.loads(path.with_suffix(".json").read_text())
     assert receipt["solvers"] == names
-    assert len(receipt["columns"]) == 4
+    assert len(receipt["columns"]) == 8
     for index, name in enumerate(names):
         scale = receipt["row_scales"][name]
         assert scale["temperature_range"] == [0, index + 1]
@@ -143,31 +146,31 @@ def test_corrected_fields_remain_visible_when_errors_are_zero(tmp_path):
     path = write_error_gif(cfg, tmp_path, result, snapshots)
     with Image.open(path) as animation:
         frame = animation.convert("RGB")
-        for x in (197, 353, 509, 665):
-            gray = frame.getpixel((x, 188))
+        for x in (181, 418, 665, 902):
+            gray = frame.getpixel((x, 175))
             assert gray[0] == gray[1] == gray[2] and gray[0] > 0
+        for x in (296, 533, 780, 1017):
+            assert frame.getpixel((x, 175)) == (0, 0, 0)
     receipt = json.loads(path.with_suffix(".json").read_text())
     scale = receipt["row_scales"]["PhiFlow"]
     assert scale["temperature_range"] == [-1, 1]
     assert scale["temperature_error_max"] == scale["velocity_error_max"] == 0
 
 
-def test_contours_preserve_underlay_and_do_not_fill_constant_errors():
+def test_separate_panels_keep_uniform_errors_visible_and_independent():
     actual = np.full((32, 32), 0.6)
-    constant_error = np.ones_like(actual)
+    error = np.full_like(actual, 0.5)
+    baseline_field = _panel_indices(actual, (0, 1), 2)
+    corrected_field = _panel_indices(actual / 2, (0, 1), 2)
+    baseline_error = _panel_indices(error, (0, 1), 0)
+    corrected_error = _panel_indices(error, (0, 1), 0)
+    assert np.all(baseline_field > corrected_field)
+    np.testing.assert_array_equal(baseline_error, corrected_error)
+    palette = np.asarray(_palette()).reshape(256, 3)
+    assert np.all(palette[baseline_error][..., 0] > palette[baseline_error][..., 2])
+    # Tiny errors are legible under their own paired row scale, without blending.
     np.testing.assert_array_equal(
-        _overlay_indices(actual, constant_error, 0), _field_indices(actual, 2)
+        _panel_indices(error * 0.001, (0, 0.001), 0), baseline_error
     )
-    error = np.broadcast_to(np.linspace(0, 1, 32), (32, 32))
-    baseline = _overlay_indices(actual, error, 0)
-    corrected = _overlay_indices(actual / 2, error, 0)
-    colored = baseline < 192
-    assert colored.any() and (~colored).any()
-    np.testing.assert_array_equal(baseline[colored], corrected[colored])
-    assert np.all(baseline[~colored] > corrected[~colored])
-    # A thousandfold smaller row remains legible with its own fixed paired scale.
-    np.testing.assert_array_equal(
-        _overlay_indices(actual, (error * 0.001) / 0.001, 0), baseline
-    )
-    blue = _overlay_indices(actual, error, 1)
-    assert np.all((blue[colored] >= 96) & (blue[colored] < 192))
+    blue = palette[_panel_indices(error, (0, 1), 1)]
+    assert np.all(blue[..., 2] > blue[..., 0])
