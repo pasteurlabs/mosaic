@@ -70,7 +70,7 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import cylinder, kolmogorov
+from . import chain, cylinder, kolmogorov
 from .exclusions import register as _register_exclusions
 from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
@@ -417,6 +417,43 @@ problem.add_experiment(
     status_check=[
         min_cosine(0.99),
         max_rel_err(1e-3),
+        rel_err_peer_outlier(50.0),
+    ],
+)
+problem.add_experiment(
+    "gradient/chain_fd_check",
+    chain.chain_fd_check,
+    plot_description=(
+        "Finite-difference check of the gradient of a loss on 16 chained solver"
+        " calls of 0.1 time units each, on the Kolmogorov flow at 64² and"
+        " dt = 0.01, from a turbulent state of its ground truth plus a 1%"
+        " divergence-free offset. The loss is the mean relative squared"
+        " distance to the solver's chain from that state, as in training"
+        " through a solver, so its cotangents are far smaller than those of"
+        " the single-call checks. Error and 1 − cos against ε, over 8"
+        " divergence-free directions."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "dt": kolmogorov.COARSE_DT,
+        "steps": 10,
+        "intervals": 16,
+        "offset": 0.01,
+        "nu": kolmogorov.VISCOSITY,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2], "n_dirs": 8},
+    plot=plot_fd_check,
+    # The finite differences run the solver in float32, so even an exact VJP
+    # meets them only to the rounding and truncation error of the difference
+    # quotient: on the A100 the best ε gives median errors of order 1e-4 to
+    # 1e-3 for the solvers whose VJP is linear in the cotangent, with cosines
+    # above 0.9999. A VJP whose adjoint solves stop at an absolute tolerance
+    # is off by tens of percent with a cosine near 0.5. Both bounds sit at
+    # least a factor of five from either side.
+    status_check=[
+        min_cosine(0.99),
+        max_rel_err(1e-2),
         rel_err_peer_outlier(50.0),
     ],
 )
