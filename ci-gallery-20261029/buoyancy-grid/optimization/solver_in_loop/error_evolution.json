@@ -11,9 +11,13 @@
   "fps": 10,
   "columns": [
     "uncorrected_temperature",
+    "uncorrected_temperature_error",
     "corrected_temperature",
+    "corrected_temperature_error",
     "uncorrected_speed",
-    "corrected_speed"
+    "uncorrected_velocity_error",
+    "corrected_speed",
+    "corrected_velocity_error"
   ],
   "row_scales": {
     "INS.jl": {
@@ -77,18 +81,27 @@
       ]
     }
   },
-  "contour_levels": [
-    0.1,
-    0.25,
-    0.5,
-    0.75,
-    0.9
-  ],
+  "layout": {
+    "panel_size": 112,
+    "column_offsets": [
+      0,
+      115,
+      237,
+      352,
+      484,
+      599,
+      721,
+      836
+    ],
+    "left": 125,
+    "top": 119,
+    "row_height": 174
+  },
   "normalization": "Per solver and physical field, shared across both arms and all frames; not comparable across rows",
   "palettes": {
     "temperature": "sequential red",
     "velocity": "sequential blue",
-    "zero_error": "no contour; actual grayscale field remains visible",
+    "zero_error": "black",
     "actual_fields": "sequential grayscale"
   },
   "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",

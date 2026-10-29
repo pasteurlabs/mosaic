@@ -1,0 +1,87 @@
+{
+  "source_commit": "13eae826676b8d363fb9a7c82710fd1cbe88115f",
+  "slurm_job": 3616605,
+  "numeric_source": "Existing CI38577109543 saved velocity-only corrector rollout; no numerical rerun",
+  "frames": 101,
+  "dimensions": [
+    1085,
+    1027
+  ],
+  "row_scales_unchanged": true,
+  "row_scales": {
+    "INS.jl": {
+      "temperature_error_max": 0.05716056376695633,
+      "velocity_error_max": 0.07980818301439285,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3690947890281677
+      ]
+    },
+    "JAX-CFD": {
+      "temperature_error_max": 0.05104445293545723,
+      "velocity_error_max": 0.04885348305106163,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.35698944330215454
+      ]
+    },
+    "Oceananigans": {
+      "temperature_error_max": 0.02551414631307125,
+      "velocity_error_max": 0.030357591807842255,
+      "temperature_range": [
+        -0.00043204709072597325,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3686273992061615
+      ]
+    },
+    "PhiFlow": {
+      "temperature_error_max": 0.10983312129974365,
+      "velocity_error_max": 0.06452363729476929,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.30305153131484985
+      ]
+    },
+    "WaterLily": {
+      "temperature_error_max": 0.07424889504909515,
+      "velocity_error_max": 0.04762910678982735,
+      "temperature_range": [
+        0.0,
+        0.9523515701293945
+      ],
+      "speed_range": [
+        0.0,
+        0.3490312993526459
+      ]
+    }
+  },
+  "artifacts": {
+    "preview_middle.png": "27e9b99b95ebecba2dfdec14c488315f2f9829716b88facec121bcd069c4399f",
+    "preview_start.png": "ee564ecc284ef4ea6c4c0dec217a6929b9609a352533e812f7a8517575bb74b8",
+    "error_evolution.png": "a902e255312d46ad32090103fc87422a4276b422ef157c1833114ccd278aab63",
+    "error_evolution.json": "b2a9193e56003a56b2a4f6b36e34f9e8446fbe6133430ed943eb4d5cbc823bfa",
+    "preview_end.png": "a902e255312d46ad32090103fc87422a4276b422ef157c1833114ccd278aab63",
+    "error_evolution.gif": "d2770a74da8ce8b0d13ba23c02c60337505d93861edca11d50f529b6efd700af"
+  },
+  "job_id_correction": "External renderer placeholder3610 corrected from submission receipt; scientific outputs unchanged.",
+  "tests": {
+    "passed": 7,
+    "seconds": 6.53
+  },
+  "render_script_sha256": "5e5f2a61cc6c96105a6c9f20651b3ebf83499cfbb0dba115ca6198bb83585d5c"
+}
