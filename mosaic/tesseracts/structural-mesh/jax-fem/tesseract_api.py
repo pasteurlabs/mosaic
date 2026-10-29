@@ -1,13 +1,18 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import hashlib
 import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import meshio
+import numpy as np
+import scipy.sparse
+from jax.experimental.sparse import BCOO
 from jax_fem.generate_mesh import Mesh
 
 # Import JAX-FEM specific modules
@@ -127,10 +132,68 @@ class Elasticity(Problem):
         return val
 
 
-# Module-level cache for the compiled elasticity solver.
-# Keyed by (n_nodes, n_cells, n_dirichlet_nodes, n_neumann_nodes) to detect
-# mesh/BC changes while avoiding re-compilation on every forward/VJP call.
+# JAX-FEM's default `jax_solver` (Jacobi-preconditioned BiCGSTAB) runs
+# `jax.scipy.sparse.linalg.bicgstab` eagerly, so every linear solve is traced
+# and compiled anew: 2 XLA compilations per forward call and 4 per VJP. This is
+# the same solve, compiled once per matrix size and number of nonzeros, and
+# passed to `ad_wrapper` through JAX-FEM's `custom_solver` option.
+@partial(jax.jit, static_argnames=("shape",))
+def _bicgstab(
+    data: jnp.ndarray,
+    indices: jnp.ndarray,
+    b: jnp.ndarray,
+    x0: jnp.ndarray,
+    inv_diag: jnp.ndarray,
+    shape: tuple[int, int],
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    A = BCOO((data, indices), shape=shape)
+    x, _ = jax.scipy.sparse.linalg.bicgstab(
+        A, b, x0=x0, M=lambda r: r * inv_diag, tol=1e-10, atol=1e-10, maxiter=10000
+    )
+    return x, jnp.linalg.norm(A @ x - b)
+
+
+def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> Any:
+    """`jax_fem.solver.jax_solve` with the BiCGSTAB iteration compiled once."""
+    indptr, indices, data = A.getValuesCSR()
+    A_csr = scipy.sparse.csr_array((data, indices, indptr), shape=A.getSize())
+    A_bcoo = BCOO.from_scipy_sparse(A_csr).sort_indices()
+    x0 = np.zeros_like(b) if x0 is None else x0
+    x, err = _bicgstab(
+        A_bcoo.data, A_bcoo.indices, b, x0, 1.0 / A_csr.diagonal(), A_bcoo.shape
+    )
+    assert err < 0.1, f"JAX linear solver failed to converge with err = {err}"
+    return x
+
+
+_SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
+
+
+# Module-level cache for the compiled elasticity solver, keyed on everything
+# `setup` depends on (mesh and BCs), to avoid re-compilation on every
+# forward/VJP call. It holds the current setup only, so memory does not grow
+# with every mesh a sweep visits.
 _setup_cache: dict = {}
+
+
+def _setup_cache_key(
+    pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
+) -> str:
+    """Hash the mesh and boundary conditions that `setup` depends on."""
+    bc = boundary_conditions or {}
+    arrays = [pts, cells]
+    for kind in ("dirichlet", "neumann"):
+        group = bc.get(kind) or {}
+        arrays += [group.get("mask"), group.get("values")]
+    h = hashlib.sha256()
+    for arr in arrays:
+        if arr is None:
+            h.update(b"none")
+            continue
+        arr = np.ascontiguousarray(arr)
+        h.update(f"{arr.dtype}{arr.shape}".encode())
+        h.update(arr.tobytes())
+    return h.hexdigest()
 
 
 def setup(
@@ -151,35 +214,10 @@ def setup(
         Tuple of (problem, fwd_pred) where problem is the configured Elasticity
         problem instance and fwd_pred is the differentiable forward solver.
     """
-    # Cache key: mesh shape + BC structure + BC values.
-    # Must include Neumann values so that F_total sweeps compile a fresh graph
-    # for each force magnitude rather than reusing the first cached value.
-    # The Dirichlet values are always zero for this cantilever problem, but we
-    # include them for correctness.
     bc = boundary_conditions or {}
     d_bc = bc.get("dirichlet") or {}
     n_bc = bc.get("neumann") or {}
-    d_mask_raw = d_bc.get("mask", [])
-    n_mask_raw = n_bc.get("mask", [])
-    _d_values_raw = d_bc.get("values")
-    _n_values_raw = n_bc.get("values")
-    import numpy as _np
-
-    d_values_raw = (
-        _np.asarray(_d_values_raw).ravel().tolist() if _d_values_raw is not None else []
-    )
-    n_values_raw = (
-        _np.asarray(_n_values_raw).ravel().tolist() if _n_values_raw is not None else []
-    )
-    cache_key = (
-        pts.shape,
-        cells.shape,
-        tuple(d_mask_raw) if len(d_mask_raw) < 1000 else hash(bytes(d_mask_raw)),
-        tuple(n_mask_raw) if len(n_mask_raw) < 1000 else hash(bytes(n_mask_raw)),
-        # Include BC values so F_total changes invalidate the cache.
-        tuple(float(v) for v in d_values_raw),
-        tuple(float(v) for v in n_values_raw),
-    )
+    cache_key = _setup_cache_key(pts, cells, boundary_conditions)
     if cache_key in _setup_cache:
         return _setup_cache[cache_key]
 
@@ -260,10 +298,11 @@ def setup(
     # This is a critical step that makes the problem solver differentiable
     fwd_pred = ad_wrapper(
         problem,
-        solver_options={"umfpack_solver": {}},
-        adjoint_solver_options={"umfpack_solver": {}},
+        solver_options=_SOLVER_OPTIONS,
+        adjoint_solver_options=_SOLVER_OPTIONS,
     )
     result = (problem, fwd_pred)
+    _setup_cache.clear()
     _setup_cache[cache_key] = result
     return result
 

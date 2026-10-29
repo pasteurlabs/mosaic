@@ -528,6 +528,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Decide status
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "plan: ${{ needs.plan.result }}"
           echo "build: ${{ needs.build.result }}"
@@ -535,6 +537,22 @@ jobs:
           echo "report: ${{ needs.report.result }}"
           echo "label: ${{ needs.plan.outputs.label }}"
           echo "mosaic_touched: ${{ needs.plan.outputs.mosaic_touched }}"
+
+          # A pull request opened with a label fires both `opened` and
+          # `labeled`; the concurrency group cancels the first run. When a
+          # newer run exists for the same commit, that run decides, so this
+          # one passes instead of leaving a failed check next to it. A run
+          # cancelled by hand, with no newer run, still fails below.
+          if [[ "${{ needs.plan.result }}" == "cancelled" \
+             && "${{ github.event_name }}" == "pull_request" ]]; then
+            newer=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/benchmark.yml/runs?head_sha=${{ github.event.pull_request.head.sha }}" \
+              --jq '[.workflow_runs[] | select(.id > ${{ github.run_id }})] | length')
+            if [[ "$newer" -gt 0 ]]; then
+              echo "Superseded by a newer run for this commit, which decides the status."
+              exit 0
+            fi
+          fi
 
           # plan must always succeed
           if [[ "${{ needs.plan.result }}" != "success" ]]; then
