@@ -55,5 +55,18 @@ Every domain page scores its solvers on four axes:
 - **Optimization** — can you optimize through it? End-to-end convergence using
   each solver's own gradients.
 
+Each page also shows, per setup, what it took to run every solver:
+
+- **Effort** — the highest level among the interventions a solver needs on
+  that setup, from L0 (documented options) and L1 (undocumented configuration)
+  to L2 (user code on the library's public primitives) and L3 (changes to the
+  solver itself). A filter hides solvers above the level you are willing to
+  work at yourself.
+- **Deviations** — where a solver runs a substitute for the prescribed setup,
+  such as a different outflow condition, with its effect on the results.
+
+The [Solver Reference](solvers.qmd) lists every intervention with its reason,
+evidence and upstream issue, including those nobody has a reason for yet.
+
 See the [Overview](index.qmd#evaluation-protocol) for the full evaluation
 protocol.

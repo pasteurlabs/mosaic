@@ -84,3 +84,5 @@ format:
       - docs/sortable-tables.html
       # Interactive Vega-Lite charts on the results pages.
       - docs/charts.html
+      # Effort filter for the setup and ranking tables on the results pages.
+      - docs/effort-filter.html
