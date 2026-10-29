@@ -1,6 +1,6 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Small wall-aware velocity corrector; scalar evolves only through the solver."""
+"""Wall-aware velocity correction with optional temperature correction."""
 
 import math
 from typing import Any
@@ -12,11 +12,11 @@ from mosaic.mosaic_shared.problems.buoyancy_grid import restrict_state  # noqa: 
 
 
 def init_corrector(
-    seed: int = 0, hidden_channels: int = 8
+    seed: int = 0, hidden_channels: int = 8, correct_temperature: bool = False
 ) -> tuple[dict[str, jax.Array], ...]:
     """Zero readout makes all training arms start from the uncorrected solver."""
     keys = jax.random.split(jax.random.PRNGKey(seed), 3)
-    channels = (3, hidden_channels, hidden_channels, 1)
+    channels = (3, hidden_channels, hidden_channels, 2 if correct_temperature else 1)
     return tuple(
         {
             "w": (
@@ -59,7 +59,10 @@ def apply_corrector(params: Any, state: jax.Array, scales: jax.Array) -> jax.Arr
     delta = jnp.stack(
         (jnp.diff(psi, axis=1)[1:], -jnp.diff(psi, axis=0)[:, 1:]), axis=-1
     )
-    return state.at[..., :2].add(delta)
+    corrected = state.at[..., :2].add(delta)
+    if x.shape[-1] == 2:
+        corrected = corrected.at[..., 2].add(x[0, ..., 1] * scales[2])
+    return corrected
 
 
 def normalized_loss(

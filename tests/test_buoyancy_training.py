@@ -237,3 +237,48 @@ def test_training_case_jitter_is_never_forwarded_to_heldout_initials(monkeypatch
     assert calls == [
         {"N": 48, "L": 1.0, **case} for case in [*cases, {"seed": 1}, {"seed": 100}]
     ]
+
+
+@pytest.mark.parametrize("joint", [False, True])
+def test_optional_temperature_head_starts_at_identity(joint):
+    params = init_corrector(0, 8, correct_temperature=joint)
+    count = sum(p.size for p in jax.tree.leaves(params))
+    assert count == (954 if joint else 881)
+    state = jnp.zeros((6, 6, 3)).at[..., 2].set(0.25)
+    np.testing.assert_array_equal(apply_corrector(params, state, jnp.ones(3)), state)
+
+
+def test_temperature_head_can_change_heat_without_changing_velocity():
+    params = init_corrector(0, 2, correct_temperature=True)
+    params[-1]["b"] = jnp.array([0.0, 0.5])
+    state = jnp.zeros((6, 6, 3))
+    corrected = np.asarray(apply_corrector(params, state, jnp.array([2.0, 2.0, 4.0])))
+    np.testing.assert_array_equal(corrected[..., :2], 0)
+    np.testing.assert_array_equal(corrected[..., 2], 2)
+    diagnostics = training.temperature_diagnostics(np.stack([state, corrected]))
+    assert diagnostics["overshoot"] == [0, 2]
+    assert diagnostics["maximum"] == [0, 2]
+
+
+def test_joint_temperature_correction_receives_recurrent_gradient():
+    params = init_corrector(0, 2, correct_temperature=True)
+    targets = jnp.zeros((3, 4, 4, 3))
+    targets = targets.at[1:, ..., 2].set(1)
+
+    def loss(bias):
+        changed = (*params[:-1], {**params[-1], "b": jnp.array([0.0, bias])})
+        return training.window_loss(changed, targets, lambda state: state, jnp.ones(3))
+
+    # Temperature predictions are b and 2b, so mean loss derivative at b=0 is -1.5.
+    np.testing.assert_allclose(jax.grad(loss)(0.0), -1.5, rtol=1e-6)
+
+
+def test_temperature_diagnostics_report_signed_heat_loss_and_extrema():
+    states = np.zeros((2, 2, 2, 3))
+    states[0, ..., 2] = 1
+    states[1, ..., 2] = [[-0.5, 1.5], [0, 0]]
+    d = training.temperature_diagnostics(states)
+    assert d["relative_integral_drift"] == [0, -0.75]
+    assert d["minimum"] == [1, -0.5]
+    assert d["undershoot"] == [0, 1.5]
+    assert d["overshoot"] == [0, 0.5]

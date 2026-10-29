@@ -210,6 +210,22 @@ def rollout_errors(states: np.ndarray, targets: np.ndarray, scales: Any) -> dict
     }
 
 
+def temperature_diagnostics(states: np.ndarray) -> dict:
+    """Measure heat-integral drift and maximum-principle violations, without clipping."""
+    theta = np.asarray(states)[..., 2]
+    mean = theta.mean(axis=(1, 2))
+    minimum, maximum = theta.min(axis=(1, 2)), theta.max(axis=(1, 2))
+    return {
+        "relative_integral_drift": (
+            (mean - mean[0]) / max(abs(float(mean[0])), 1e-12)
+        ).tolist(),
+        "minimum": minimum.tolist(),
+        "maximum": maximum.tolist(),
+        "undershoot": np.maximum(minimum[0] - minimum, 0).tolist(),
+        "overshoot": np.maximum(maximum - maximum[0], 0).tolist(),
+    }
+
+
 def divergence_rms(states: np.ndarray, domain_extent: float) -> list[float]:
     """Cell divergence from packed face velocities and implicit zero walls."""
     ux = np.pad(states[..., 0], ((0, 0), (1, 0), (0, 0)))
@@ -356,6 +372,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     params0 = init_corrector(
         int(cfg.get("model_seed", 0)),
         int(cfg.get("hidden_channels", 8)),
+        correct_temperature=bool(cfg.get("correct_temperature", False)),
     )
     train_jax = jnp.asarray(train)
     check_loss = lambda p: window_loss(p, train_jax[: horizon + 1], step, scales)
@@ -404,6 +421,10 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     snapshots = {"reference": test, "uncorrected": baseline}
     metrics = {
         "status": "ok",
+        "corrector_fields": "velocity+temperature"
+        if cfg.get("correct_temperature", False)
+        else "velocity",
+        "corrector_parameters": sum(int(p.size) for p in jax.tree.leaves(params0)),
         "reference": {
             "spatial_factor": factor,
             "time_refinement_error": max(
@@ -466,5 +487,8 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     metrics["divergence_rms"] = {
         arm: divergence_rms(rollout, ctx.domain_extent)
         for arm, rollout in snapshots.items()
+    }
+    metrics["temperature_diagnostics"] = {
+        arm: temperature_diagnostics(rollout) for arm, rollout in snapshots.items()
     }
     return {"metrics": metrics, "snapshots": snapshots}
