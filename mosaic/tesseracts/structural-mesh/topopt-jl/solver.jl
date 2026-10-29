@@ -1,4 +1,5 @@
 using TopOpt
+using Zygote
 
 # ---------------------------------------------------------------------------
 # Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
@@ -136,7 +137,8 @@ function write_inp_hex(
 end
 
 # ---------------------------------------------------------------------------
-# Solver cache (keyed by a hash of the structural problem parameters)
+# Solver cache (keyed by a hash of the structural problem parameters); holds
+# the current setup only
 # ---------------------------------------------------------------------------
 
 const _CACHE = Dict{UInt64, Tuple}()
@@ -171,6 +173,7 @@ function get_solver_mesh(
         finally
             isfile(tmpfile) && rm(tmpfile)
         end
+        empty!(_CACHE)
         _CACHE[key] = (problem, solver, comp)
     end
     return _CACHE[key]
@@ -183,9 +186,9 @@ end
 """
     topopt_forward(rho_in, pts_in, cells_in, dirichlet_mask_in,
                    cload_mask_in, cload_values_in, E, nu, xmin)
-        -> (compliance::Float64, grad_rho::Vector{Float64}, u::Vector{Float64})
+        -> compliance::Float64
 
-Forward pass + analytical SIMP gradient + nodal displacements.
+Forward pass: structural compliance of the density field.
 
 - `rho_in`           : (n_cells,) density field in [0,1]
 - `pts_in`           : (n_nodes, 3) node coordinates
@@ -194,11 +197,6 @@ Forward pass + analytical SIMP gradient + nodal displacements.
 - `cload_mask_in`    : (n_nodes,) 0=no load, k>0=load group k
 - `cload_values_in`  : (n_groups, 3) concentrated force vector per load group
 - `E`, `nu`, `xmin`  : scalar material / regularisation parameters
-
-Returns:
-- `compliance` : scalar compliance value
-- `grad_rho`   : (n_cells,) analytical SIMP gradient ∂C/∂ρ
-- `u`          : (n_nodes*3,) nodal displacement DOF vector (interleaved x/y/z per node)
 """
 function topopt_forward(
     rho_in,
@@ -212,14 +210,10 @@ function topopt_forward(
     cload_mask     = Int32.(vec(cload_mask_in))
     cload_values   = Float64.(Matrix(cload_values_in))
 
-    _, solver, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
+    _, _, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
 
-    rho  = Float64.(vec(rho_in))
-    x    = PseudoDensities(rho)
-    c    = comp(x)
-    grad = copy(comp.grad)
-    u    = copy(vec(solver.u))
-    return Float64(c), Float64.(grad), Float64.(u)
+    rho = Float64.(vec(rho_in))
+    return Float64(comp(PseudoDensities(rho)))
 end
 
 """
@@ -227,7 +221,8 @@ end
                cload_mask_in, cload_values_in, E, nu, xmin)
         -> grad_rho::Vector{Float64}
 
-VJP: returns  comp.grad * cotangent  (analytical SIMP adjoint scaled by cotangent).
+VJP: ∂C/∂ρ scaled by the cotangent, from TopOpt.jl's Zygote rule for
+`Compliance` (the analytical SIMP adjoint, no extra linear solve).
 """
 function topopt_vjp(
     rho_in,
@@ -244,8 +239,7 @@ function topopt_vjp(
 
     _, _, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
 
-    rho = Float64.(vec(rho_in))
-    x   = PseudoDensities(rho)
-    comp(x)  # populate comp.grad
-    return Float64.(comp.grad .* cotangent)
+    rho  = Float64.(vec(rho_in))
+    grad = Zygote.gradient(r -> comp(PseudoDensities(r)), rho)[1]
+    return Float64.(grad .* cotangent)
 end

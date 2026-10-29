@@ -314,7 +314,7 @@ static void run(const std::string& input_path) {
 
 
     // ---- Solve CG -----------------------------------------------------------
-    SolverControl solver_control(50000, 1e-12 * system_rhs.l2_norm());
+    SolverControl solver_control(50000, 1e-8 * system_rhs.l2_norm());
     SolverCG<Vector<double>> cg(solver_control);
     PreconditionSSOR<SparseMatrix<double>> precond;
     precond.initialize(system_matrix, 1.2);
@@ -363,10 +363,27 @@ static void run(const std::string& input_path) {
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
+// With --serve, the binary reads one input.json path per line from stdin and
+// answers each with a line "ok" or "error: <message>" on stdout, so one process
+// serves every request of a tesseract.
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: heat_solver <input.json>\n";
+        std::cerr << "Usage: heat_solver <input.json> | --serve\n";
         return 1;
+    }
+    if (std::string(argv[1]) == "--serve") {
+        std::string path;
+        while (std::getline(std::cin, path)) {
+            try {
+                run(path);
+                std::cout << "ok" << std::endl;
+            } catch (const std::exception& e) {
+                std::string msg = e.what();
+                std::replace(msg.begin(), msg.end(), '\n', ' ');
+                std::cout << "error: " << msg << std::endl;
+            }
+        }
+        return 0;
     }
     const std::string input_path = argv[1];
 
