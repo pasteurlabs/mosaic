@@ -2,7 +2,7 @@ using IncompressibleNavierStokes
 using Zygote
 
 # ---------------------------------------------------------------------------
-# Setup cache (indexed by (n, L, ndim))
+# Setup cache (indexed by (n, L, ndim)); holds the current setup only
 # ---------------------------------------------------------------------------
 
 const _SETUP_CACHE = Dict{Tuple{Int,Float64,Int}, Tuple}()
@@ -38,6 +38,7 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
             )
         end
         psolver = psolver_spectral(setup)
+        empty!(_SETUP_CACHE)
         _SETUP_CACHE[key] = (setup, psolver)
     end
     return _SETUP_CACHE[key]

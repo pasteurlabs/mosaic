@@ -136,7 +136,8 @@ function write_inp_hex(
 end
 
 # ---------------------------------------------------------------------------
-# Solver cache (keyed by a hash of the structural problem parameters)
+# Solver cache (keyed by a hash of the structural problem parameters); holds
+# the current setup only
 # ---------------------------------------------------------------------------
 
 const _CACHE = Dict{UInt64, Tuple}()
@@ -171,6 +172,7 @@ function get_solver_mesh(
         finally
             isfile(tmpfile) && rm(tmpfile)
         end
+        empty!(_CACHE)
         _CACHE[key] = (problem, solver, comp)
     end
     return _CACHE[key]
