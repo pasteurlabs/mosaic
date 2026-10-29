@@ -14,13 +14,14 @@ between grids therefore shifts phases by the offset between cell centres,
 since a coarse cell centre does not coincide with a fine one.
 
 This module also holds the ``forward/kolmogorov`` kernel, which runs each
-solver's coarse and reference configurations from the ground truth's initial
-states, and its status check.
+solver on a ladder of grids from the ground truth's initial states, and its
+status check.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -40,9 +41,9 @@ logger = logging.getLogger(__name__)
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 # Chosen in the calibration of the benchmark (PR #267): a chaotic, statistically
-# steady flow whose 64² run misses a 4× finer one by about 2% per correction
-# interval, while that finer run converges and stays predictable for twice
-# the evaluation horizon.
+# steady flow that a 64² grid resolves only roughly, missing a 4× finer run by
+# about 2% every 0.1 time units, while the converged truth stays predictable
+# for longer than the scored horizon.
 
 DOMAIN_EXTENT = 2 * np.pi
 WAVENUMBER = 4
@@ -50,12 +51,11 @@ AMPLITUDE = 1.0
 DRAG = 0.1
 VISCOSITY = 2e-3
 
-# Coarse configuration, the length of one correction interval, and the
-# refinement of the reference configuration in space and time.
+# The coarse configuration, on whose grid every run is scored, and the grids of
+# the forward check. Each grid runs at the coarse configuration's CFL number.
 COARSE_N = 64
 COARSE_DT = 0.01
-INTERVAL = 0.1
-REFERENCE_FACTOR = 4
+FORWARD_GRIDS = (32, 64, 128, 256)
 
 # Forward times scored against the ground truth, within the time over which
 # two converged runs from the same state stay correlated.
@@ -411,19 +411,26 @@ def _rollout_errors(
     times: tuple[float, ...],
     targets: list[np.ndarray],
     n_score: int,
-) -> tuple[list[float], list[float], np.ndarray | None, str | None]:
-    """Error and correlation against ``targets`` at ``times``, each from ``v0``.
+) -> dict[str, Any]:
+    """Error, correlation and wall time against ``targets`` at ``times``, each from ``v0``.
 
     Each time is its own call from the initial state, so solvers that keep
     their own staggered or lattice state never round-trip through the
     canonical grid. After a non-finite state the remaining times are scored
-    as diverged without running.
+    as diverged without running, and their wall time is NaN.
     """
     errors: list[float] = []
     correlations: list[float] = []
+    seconds: list[float] = []
     final, failure = None, None
     for t_end, target in zip(times, targets, strict=True):
-        state = None if failure else run(v0, round(t_end / dt))
+        state = None
+        if not failure:
+            started = time.perf_counter()
+            state = run(v0, round(t_end / dt))
+            seconds.append(time.perf_counter() - started)
+        else:
+            seconds.append(float("nan"))
         if state is None:
             failure = failure or (get_last_apply_error() or "non-finite state")
             errors.append(DIVERGED_ERROR)
@@ -433,7 +440,13 @@ def _rollout_errors(
         errors.append(capped_error(state, target))
         correlations.append(float(vorticity_correlation(state, target)))
         final = state
-    return errors, correlations, final, failure
+    return {
+        "errors": errors,
+        "correlations": correlations,
+        "seconds": seconds,
+        "final": final,
+        "failure": failure,
+    }
 
 
 def _check_ground_truth(truth: dict, seeds: tuple[int, ...]) -> None:
@@ -442,93 +455,118 @@ def _check_ground_truth(truth: dict, seeds: tuple[int, ...]) -> None:
         raise KeyError(f"ground truth lacks trajectories for seeds {missing}")
 
 
+def _seconds_per_time(per_seed: list[dict], horizon: float) -> float | None:
+    """Wall time of one time unit, from each seed's longest call.
+
+    The first seed's calls include compilation and warm-up, so it only counts
+    when it is the only seed.
+    """
+    warm = per_seed[1:] or per_seed
+    values = [s["seconds"][-1] / horizon for s in warm if not s["failure"]]
+    return float(np.median(values)) if values else None
+
+
 @kernel(sweep_mode="none", selector_fn=active_solvers)
 def forward(t: Any, ctx: KernelContext) -> dict:
-    """Coarse and reference configurations of one solver against the ground truth.
+    """One solver on each grid of the ladder against the ground truth.
 
-    Both start from each test seed's burned-in state, restricted to their grid,
-    and are scored on the coarse grid at :data:`HORIZON_TIMES`. ``error`` is
-    the reference configuration's median error over the seeds at the last
-    time, and ``ratio`` divides it by the coarse configuration's.
+    Every grid runs at the CFL number of the coarse configuration, from each
+    test seed's burned-in state restricted to that grid, and is scored on the
+    coarse grid at :data:`HORIZON_TIMES`. ``error`` is the finest grid's
+    median error over the seeds at the last time. ``order`` is the observed
+    order of convergence from the coarse grid to the finest at the first
+    time, see :func:`min_refinement_order`.
     """
     phys = dict(ctx.phys)
     n = int(phys.pop("N"))
-    factor = int(phys.pop("reference_factor"))
     dt = float(phys.pop("dt"))
+    grids = sorted(int(g) for g in phys.pop("grids"))
     seeds = tuple(int(s) for s in phys.pop("seeds", GROUND_TRUTH_SEEDS["test"]))
+    if n not in grids:
+        raise ValueError(f"the coarse grid {n} is not among the grids {grids}")
     truth = load_ground_truth(ctx.cfg.name)
     _check_ground_truth(truth, seeds)
     times = tuple(float(x) for x in truth["horizon_times"])
 
-    configs = {"coarse": (n, dt), "reference": (n * factor, dt / factor)}
-    metrics: dict[str, Any] = {"valid": True, "times": list(times), "seeds": seeds}
-    finals: dict[str, list] = {}
-    for name, (grid, step) in configs.items():
+    runs = []
+    for grid in grids:
+        step = dt * n / grid
 
         def run(v0: np.ndarray, steps: int, _step: float = step) -> np.ndarray | None:
             inputs = ctx.make_inputs(ctx.name, v0, dt=_step, steps=steps, **phys)
             return safe_apply(t, inputs, ctx.output_key)
 
-        per_seed = []
+        per_seed, finals = [], []
         for seed in seeds:
             targets = [np.asarray(resample(f, n)) for f in truth[f"truth_{seed}"]]
             v0 = initial_state(truth, seed, grid)
-            errors, correlations, final, failure = _rollout_errors(
-                run, v0, step, times, targets, n
-            )
-            per_seed.append(
-                {
-                    "seed": seed,
-                    "errors": errors,
-                    "correlations": correlations,
-                    "failure": failure,
-                }
-            )
-            finals.setdefault(name, []).append(final)
-        horizon_errors = [s["errors"][-1] for s in per_seed]
-        metrics[name] = {
-            "grid": grid,
-            "dt": step,
-            "per_seed": per_seed,
-            "median_error": float(np.median(horizon_errors)),
-            "median_errors": np.median(
-                [s["errors"] for s in per_seed], axis=0
-            ).tolist(),
-            "diverged": any(s["failure"] for s in per_seed),
-            "spectrum_error": [
-                spectrum_error([f], [resample(truth[f"truth_{s}"][-1], n)])
-                if f is not None
-                else float("inf")
-                for f, s in zip(finals[name], seeds, strict=True)
-            ],
+            record = _rollout_errors(run, v0, step, times, targets, n)
+            finals.append(record.pop("final"))
+            per_seed.append({"seed": seed, **record})
+        runs.append(
+            {
+                "grid": grid,
+                "dt": step,
+                "per_seed": per_seed,
+                "median_errors": np.median(
+                    [s["errors"] for s in per_seed], axis=0
+                ).tolist(),
+                "median_correlations": np.median(
+                    [s["correlations"] for s in per_seed], axis=0
+                ).tolist(),
+                "diverged": any(s["failure"] for s in per_seed),
+                "seconds_per_time": _seconds_per_time(per_seed, times[-1]),
+                "spectrum_error": [
+                    spectrum_error([f], [resample(truth[f"truth_{s}"][-1], n)])
+                    if f is not None
+                    else float("inf")
+                    for f, s in zip(finals, seeds, strict=True)
+                ],
+            }
+        )
+    coarse = next(r for r in runs if r["grid"] == n)
+    finest = runs[-1]
+    ratio = np.float64(finest["median_errors"][0]) / coarse["median_errors"][0]
+    return {
+        "metrics": {
+            "valid": True,
+            "times": list(times),
+            "seeds": seeds,
+            "coarse_grid": n,
+            "runs": runs,
+            "error": finest["median_errors"][-1],
+            "order": float(-np.log(ratio) / np.log(finest["grid"] / n)),
         }
-    metrics["error"] = metrics["reference"]["median_error"]
-    metrics["coarse_error"] = metrics["coarse"]["median_error"]
-    metrics["ratio"] = metrics["error"] / metrics["coarse_error"]
-    return {"metrics": metrics}
+    }
 
 
-def max_reference_ratio(threshold: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if the reference configuration's error exceeds ``threshold`` × the coarse one's.
+def min_refinement_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if a grid from the coarse one up diverged, or if refining it converges slower than ``order``.
 
-    Training against the solver's own reference can improve its accuracy by
-    at most the coarse error E minus the reference error τ. With τ ≤ E/4,
-    any improvement up to three quarters of E is a real gain rather than a
-    better imitation of the reference's own error.
+    The observed order comes from the median errors at the first time, while
+    both are small enough that the flow's chaos amplifies them alike. Grids
+    below the coarse one are reported but not checked: they may be too
+    coarse for the flow.
     """
 
     def _check(s: ForwardSummary) -> CheckOutcome:
         m = s.metrics_by_pval.get("")
         if m is None:
             return None
-        if m["ratio"] <= threshold:
+        diverged = [
+            r["grid"]
+            for r in m["runs"]
+            if r["grid"] >= m["coarse_grid"] and r["diverged"]
+        ]
+        if diverged:
+            grids = ", ".join(f"{g}²" for g in diverged)
+            return ("anomaly", f"diverged on {grids}")
+        if m["order"] >= order:
             return None
         reason = (
-            f"reference error {m['error']:.3g} is {m['ratio']:.2f}× the coarse "
-            f"error {m['coarse_error']:.3g}, above {threshold}"
+            f"observed order {m['order']:.2f} from {m['coarse_grid']}² to "
+            f"{m['runs'][-1]['grid']}², below {order}"
         )
-        if m["reference"]["diverged"]:
-            reason += "; the reference configuration diverged"
         return ("anomaly", reason)
 
     return _check

@@ -104,16 +104,20 @@ def _context(phys: dict) -> SimpleNamespace:
     )
 
 
-def test_forward_scores_both_configurations(monkeypatch):
+def test_forward_scores_every_grid(monkeypatch):
     """A solver that returns its input scores 0.1 at every time and grid."""
     monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
     monkeypatch.setattr(ko, "safe_apply", lambda t, inputs, key: inputs["v0"])
-    phys = {"N": 16, "dt": 0.01, "reference_factor": 2, "nu": 0.01}
+    phys = {"N": 16, "dt": 0.01, "grids": [64, 16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
-    for config in ("coarse", "reference"):
-        assert metrics[config]["median_error"] == pytest.approx(1 / 9, rel=1e-3)
-        assert not metrics[config]["diverged"]
-    assert metrics["ratio"] == pytest.approx(1.0, rel=1e-3)
+    assert [r["grid"] for r in metrics["runs"]] == [16, 32, 64]
+    for run in metrics["runs"]:
+        assert run["dt"] == pytest.approx(0.01 * 16 / run["grid"])
+        assert run["median_errors"] == pytest.approx([1 / 9] * 4, rel=1e-3)
+        assert not run["diverged"]
+        assert run["seconds_per_time"] >= 0
+    assert metrics["error"] == pytest.approx(1 / 9, rel=1e-3)
+    assert metrics["order"] == pytest.approx(0.0, abs=1e-3)
 
 
 def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
@@ -123,28 +127,40 @@ def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
         "safe_apply",
         lambda t, inputs, key: None if inputs["v0"].shape[0] == 32 else inputs["v0"],
     )
-    phys = {"N": 16, "dt": 0.01, "reference_factor": 2, "nu": 0.01}
+    phys = {"N": 16, "dt": 0.01, "grids": [16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
-    assert metrics["reference"]["diverged"]
+    finest = metrics["runs"][-1]
+    assert finest["diverged"] and finest["seconds_per_time"] is None
     assert metrics["error"] == ko.DIVERGED_ERROR
-    verdict = ko.max_reference_ratio(0.25)(
-        ForwardSummary(
-            errs_by_pval={"": metrics["error"]}, metrics_by_pval={"": metrics}
-        )
+    verdict = ko.min_refinement_order(0.8)(_summary(metrics))
+    assert verdict is not None and "diverged on 32²" in verdict[1]
+
+
+def _summary(metrics: dict) -> ForwardSummary:
+    return ForwardSummary(
+        errs_by_pval={"": metrics["error"]}, metrics_by_pval={"": metrics}
     )
-    assert verdict is not None and "diverged" in verdict[1]
 
 
-@pytest.mark.parametrize("ratio, fires", [(0.2, False), (0.3, True)])
-def test_max_reference_ratio(ratio, fires):
-    metrics = {
-        "error": ratio,
-        "coarse_error": 1.0,
-        "ratio": ratio,
-        "reference": {"diverged": False},
-    }
-    summary = ForwardSummary(errs_by_pval={"": ratio}, metrics_by_pval={"": metrics})
-    assert (ko.max_reference_ratio(0.25)(summary) is not None) == fires
+def _ladder(order: float, coarse_diverged: bool = False) -> dict:
+    runs = [
+        {"grid": g, "diverged": d}
+        for g, d in ((8, True), (16, coarse_diverged), (64, False))
+    ]
+    return {"coarse_grid": 16, "runs": runs, "order": order, "error": 0.1}
+
+
+@pytest.mark.parametrize(
+    "metrics, fires",
+    [
+        (_ladder(1.2), False),
+        (_ladder(0.5), True),
+        (_ladder(1.2, coarse_diverged=True), True),
+    ],
+)
+def test_min_refinement_order(metrics, fires):
+    """Grids below the coarse one may diverge; it and finer ones may not."""
+    assert (ko.min_refinement_order(0.8)(_summary(metrics)) is not None) == fires
 
 
 def test_max_error_at_one_sweep_value():

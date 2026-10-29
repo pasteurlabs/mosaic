@@ -340,25 +340,27 @@ problem.add_experiment(
     "forward/kolmogorov",
     kolmogorov.forward,
     plot_description=(
-        "Each solver's coarse configuration (64², dt = 0.01) and reference"
-        " configuration (256², dt = 0.0025) against a converged Exponax run at"
+        "Each solver on 32² to 256² grids against a converged Exponax run at"
         " 1024², from three turbulent states of the Kolmogorov flow at"
-        " ν = 2·10⁻³, scored on the 64² grid. Relative error and vorticity"
-        " correlation per time, median over the states."
+        " ν = 2·10⁻³. Every grid runs at the CFL number of 64² with dt = 0.01"
+        " and is scored on the 64² grid. Relative error at t = 4 against the"
+        " wall time of one time unit, and relative error per time on each"
+        " grid; medians over the states."
     ),
     physics={
         "N": kolmogorov.COARSE_N,
-        "nu": kolmogorov.VISCOSITY,
         "dt": kolmogorov.COARSE_DT,
-        "reference_factor": kolmogorov.REFERENCE_FACTOR,
+        "grids": list(kolmogorov.FORWARD_GRIDS),
+        "nu": kolmogorov.VISCOSITY,
         **kolmogorov.FORCING_PHYSICS,
     },
     reference=kolmogorov.generate_ground_truth,
     plot=plot_kolmogorov,
-    # Training against a solver's own reference is an accuracy claim only
-    # where that reference is accurate; see max_reference_ratio. The
-    # threshold follows from that, not from the peers.
-    status_check=[kolmogorov.max_reference_ratio(0.25)],
+    # Space and time are refined together, so a consistent scheme converges
+    # at order 1 or more, as on forward/baseline; 0.8 catches error floors and
+    # non-convergence. Not peer-relative: the bound comes from the scheme's
+    # consistency.
+    status_check=[kolmogorov.min_refinement_order(0.8)],
 )
 # Cost
 problem.add_experiment(

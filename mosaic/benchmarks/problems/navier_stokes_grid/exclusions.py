@@ -62,8 +62,8 @@ EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     "the solver advances with explicit Euler and central differences for "
     "advection, which is linearly unstable unless the timestep is below about "
     "4ν/u², a bound that does not shrink with the grid spacing. The turbulent "
-    "Kolmogorov flow's speeds put that bound far below the benchmark "
-    "timestep, so both configurations diverge",
+    "Kolmogorov flow's speeds put that bound far below the timestep of every "
+    "grid, so the solver diverges on all of them",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,

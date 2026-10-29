@@ -55,60 +55,80 @@ def plot_drag_opt(
 
 
 def _kolmogorov_forward(ctx: Ctx) -> alt.TopLevelMixin | None:
-    """Median error and correlation vs time, coarse and reference configurations."""
+    """Error at the last time against wall time, and error per time on each grid."""
     res = ctx.result()
     if res is None:
         return None
-    rows = []
+    frontier, history, last = [], [], None
     for entry in res.get("results", []):
         m = entry.get("metrics") or {}
         if not m.get("valid"):
             continue
-        for config in ("coarse", "reference"):
-            per_seed = (m.get(config) or {}).get("per_seed") or []
-            if not per_seed:
-                continue
+        last = m["times"][-1]
+        for run in m.get("runs") or []:
             # result.json stores NaN as null.
-            errors = np.median(
-                np.array([s["errors"] for s in per_seed], dtype=float), axis=0
-            )
-            corr = np.median(
-                np.array([s["correlations"] for s in per_seed], dtype=float), axis=0
-            )
-            for t, e, c in zip(m["times"], errors, corr, strict=True):
-                rows.append(
+            errors = np.array(run["median_errors"], dtype=float)
+            seconds = run.get("seconds_per_time")
+            if seconds is not None and not run["diverged"]:
+                frontier.append(
                     {
                         "solver": entry["solver"],
-                        "configuration": config,
-                        "time": t,
-                        "error": float(e),
-                        "correlation": float(c),
+                        "grid": run["grid"],
+                        "seconds": float(seconds),
+                        "error": float(errors[-1]),
                     }
                 )
-    if not rows:
+            for t, e in zip(m["times"], errors, strict=True):
+                history.append(
+                    {
+                        "solver": entry["solver"],
+                        "grid": f"{run['grid']}²",
+                        "order": run["grid"],
+                        "time": t,
+                        "error": float(e),
+                    }
+                )
+    if not history:
         return None
-    df = pd.DataFrame(rows)
-    enc = solver_encodings(df["solver"].unique())
-    df = enc.relabel(df)
+    enc = solver_encodings(pd.unique(pd.Series([r["solver"] for r in history])))
     pick = legend_pick()
-    x = alt.X("time:Q", title="time")
     panels = []
-    for col, title, scale in (
-        ("error", "relative error", log_scale()),
-        ("correlation", "vorticity correlation", alt.Scale()),
-    ):
+    if frontier:
+        df = enc.relabel(pd.DataFrame(frontier))
         panels.append(
             solver_lines(
-                None,
+                df,
                 enc,
-                x=x,
-                y=alt.Y(f"{col}:Q", title=title, scale=scale),
-                tooltip=["solver:N", "configuration:N", "time:Q", f"{col}:Q"],
+                x=alt.X(
+                    "seconds:Q",
+                    title="wall time per time unit (s)",
+                    scale=log_scale(),
+                ),
+                y=alt.Y(
+                    "error:Q",
+                    title=f"relative error at t = {last:g}",
+                    scale=log_scale(),
+                ),
+                tooltip=["solver:N", "grid:Q", "seconds:Q", "error:Q"],
                 pick=pick,
-            )
-            .properties(width=220, height=180)
-            .facet(column=alt.Column("configuration:N", title=None), data=df)
+            ).properties(width=360, height=240)
         )
+    df = enc.relabel(pd.DataFrame(history))
+    panels.append(
+        solver_lines(
+            None,
+            enc,
+            x=alt.X("time:Q", title="time"),
+            y=alt.Y("error:Q", title="relative error", scale=log_scale()),
+            tooltip=["solver:N", "grid:N", "time:Q", "error:Q"],
+            pick=pick,
+        )
+        .properties(width=160, height=160)
+        .facet(
+            column=alt.Column("grid:N", title=None, sort=alt.SortField("order")),
+            data=df,
+        )
+    )
     return alt.vconcat(*panels).add_params(pick)
 
 
@@ -120,7 +140,7 @@ def plot_kolmogorov(
     exp_key: str = "kolmogorov",
     **_kw: Any,
 ) -> list:
-    """Coarse and reference configurations against the Kolmogorov ground truth."""
+    """Each solver's grids against the Kolmogorov ground truth."""
     exp = f"{exp_key}{suffix}"
     out = render(
         cfg,
