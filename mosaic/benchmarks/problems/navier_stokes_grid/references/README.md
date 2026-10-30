@@ -11,7 +11,7 @@ The ground truth of the Kolmogorov-flow experiments: the flow on [0, 2π)² driv
 | `convergence_correlation_<seed>`, `convergence_error_<seed>` | 512² run against 1024², every 0.5 time units up to 12                          |
 | `horizon_times`, `convergence_times`                         | The times of the trajectories                                                  |
 
-Seeds 0–3 start the training trajectories of `optimization/kolmogorov_sil`, seed 4 its validation trajectory, and seeds 5–7 its test trajectories and those of `forward/kolmogorov`.
+`GROUND_TRUTH_SEEDS` splits the seeds into training (0–3), validation (4) and test (5–7) states. `forward/kolmogorov` scores the test states.
 
 Each seed starts from a random field and spins up for 100 time units at 512² before it is restricted to 128². That keeps the file small and drops only modes deep in the dissipation range, which the flow regenerates within a fraction of a time unit. Solvers start from the state spectrally prolonged to their grid, and the truth starts from exactly that field at 1024². All runs are Exponax as registered in ns-grid (ETDRK2 with 2/3-rule dealiasing) at a CFL number of about 0.1.
 

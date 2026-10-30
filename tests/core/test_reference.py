@@ -15,8 +15,8 @@ from mosaic.benchmarks.core.reference import (
     _domain_slug_to_package,
     _reference_dir,
     _reference_filename,
+    consensus_from_fields,
     converged_spec,
-    extract_references_from_fields,
     is_precomputed_experiment,
     load_reference,
     reference_exists,
@@ -40,15 +40,13 @@ class TestSlugToPackage:
     def test_default_hyphen_to_underscore(self):
         assert _domain_slug_to_package("structural-mesh") == "structural_mesh"
 
-    def test_ns_grid_alias(self):
-        # The 2D slug's package is navier_stokes_grid, where its references live.
-        assert _domain_slug_to_package("ns-grid") == "navier_stokes_grid"
-        assert _reference_dir("ns-grid").parent.name == "navier_stokes_grid"
-
     def test_ns_3d_grid_alias(self):
         # The 3D slug does not follow the ``-`` -> ``_`` convention; its
         # package (and reference dir) is navier_stokes_3d_grid.
         assert _domain_slug_to_package("ns-3d-grid") == "navier_stokes_3d_grid"
+
+    def test_ns_grid_alias(self):
+        assert _domain_slug_to_package("ns-grid") == "navier_stokes_grid"
 
 
 class TestIsPrecomputedExperiment:
@@ -165,44 +163,53 @@ class TestSaveAndLoadReference:
         np.testing.assert_array_equal(loaded, ref)
 
 
-class TestExtractReferencesFromFields:
-    def test_extract_consensus(self, tmp_path):
-        """Extracts consensus_* arrays from a fields.npz."""
+class TestConsensusFromFields:
+    def test_trimmed_mean_over_solver_arrays(self, tmp_path):
+        """Recomputes the consensus from per-solver arrays, not the stored one."""
         npz_path = tmp_path / "fields.npz"
-        arrays = {
-            "consensus_0": np.array(1.0),
-            "consensus_1": np.array(2.0),
-            "consensus_2": np.array(3.0),
-            "solver_A_0": np.array(1.1),
-            "solver_A_1": np.array(2.1),
-            "sweep_values": np.array([10.0, 20.0, 30.0]),
-        }
-        np.savez(npz_path, **arrays)
+        np.savez(
+            npz_path,
+            # A stale consensus written by a run that saw only solver A.
+            consensus_0=np.array(1.0),
+            consensus_1=np.array(1.0),
+            A_0=np.array(1.0),
+            B_0=np.array(2.0),
+            C_0=np.array(3.0),
+            A_1=np.array(5.0),
+            B_1=np.array(7.0),
+            sweep_values=np.array([10.0, 20.0]),
+        )
+        refs = consensus_from_fields(npz_path, ["A", "B", "C"], 2)
+        np.testing.assert_allclose(refs[0], 2.0)
+        np.testing.assert_allclose(refs[1], 6.0)
 
-        refs = extract_references_from_fields(npz_path, 3)
-        assert len(refs) == 3
-        np.testing.assert_allclose(refs[0], 1.0)
-        np.testing.assert_allclose(refs[1], 2.0)
-        np.testing.assert_allclose(refs[2], 3.0)
+    def test_ignores_solvers_not_in_the_problem(self, tmp_path):
+        npz_path = tmp_path / "fields.npz"
+        np.savez(npz_path, A_0=np.array(1.0), B_0=np.array(3.0), Z_0=np.array(99.0))
+        refs = consensus_from_fields(npz_path, ["A", "B"], 1)
+        np.testing.assert_allclose(refs[0], 2.0)
+
+    def test_single_solver_gets_no_reference(self, tmp_path):
+        npz_path = tmp_path / "fields.npz"
+        np.savez(npz_path, A_0=np.array(1.0), A_1=np.array(2.0), B_1=np.array(4.0))
+        refs = consensus_from_fields(npz_path, ["A", "B"], 2)
+        assert 0 not in refs
+        np.testing.assert_allclose(refs[1], 3.0)
 
     def test_missing_file(self, tmp_path):
-        refs = extract_references_from_fields(tmp_path / "nope.npz", 3)
-        assert refs == {}
-
-    def test_partial_consensus(self, tmp_path):
-        """Only consensus_0 present, consensus_1 missing."""
-        npz_path = tmp_path / "fields.npz"
-        np.savez(npz_path, consensus_0=np.array(42.0))
-        refs = extract_references_from_fields(npz_path, 2)
-        assert 0 in refs
-        assert 1 not in refs
+        assert consensus_from_fields(tmp_path / "nope.npz", ["A"], 3) == {}
 
 
 class TestPrecomputedExperiments:
-    def test_ns_grid_stores_only_the_kolmogorov_ground_truth(self):
-        # forward/cylinder is scored against the DFG 2D-1 literature values,
-        # the TGV experiments against the analytic decay.
-        assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == ["forward/kolmogorov"]
+    def test_ns_grid_multimode_agreement_and_kolmogorov(self):
+        # The Taylor–Green experiments use the analytic solution and
+        # forward/cylinder the DFG 2D-1 literature values; the multimode
+        # agreement needs a stored consensus and forward/kolmogorov its
+        # converged ground truth.
+        assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == [
+            "forward/agreement/multimode",
+            "forward/kolmogorov",
+        ]
 
     def test_structural_mesh_experiments(self):
         exps = PRECOMPUTED_EXPERIMENTS["structural-mesh"]
@@ -264,3 +271,50 @@ class TestCheckedInReferences:
             ref_keys = [k for k in data.files if k.startswith("reference_")]
             assert len(ref_keys) > 0, f"No reference_* arrays in {path}"
             assert "sweep_values" in data, f"No sweep_values in {path}"
+
+
+def _agreement_experiments():
+    """(domain, experiment key, IC names) for every experiment run by ``agreement``."""
+    import inspect
+
+    from mosaic.benchmarks.problems import PROBLEMS, get_config
+    from mosaic.benchmarks.problems.shared.forward import agreement
+
+    out = []
+    for domain in PROBLEMS:
+        cfg = get_config(domain)
+        for key, exp in cfg.experiments.items():
+            params = inspect.signature(exp.fn).parameters
+            if "_kernel" not in params or params["_kernel"].default is not agreement:
+                continue
+            kw = params["_kw"].default
+            runs = kw.get("runs") or []
+            out.append((domain, key, cfg, runs))
+    return out
+
+
+@pytest.mark.parametrize(
+    ("domain", "exp_key", "cfg", "runs"),
+    _agreement_experiments(),
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_consensus_scored_agreement_has_a_checked_in_reference(
+    domain, exp_key, cfg, runs
+):
+    """A run-time consensus only covers the solvers of one CI job.
+
+    Every agreement experiment without an analytic reference for its initial
+    condition therefore needs a precomputed reference.
+    """
+    from mosaic.benchmarks.problems.shared.forward import _analytic_for_ic
+
+    for run in runs:
+        ic_name = (run.get("ic") or {}).get("name", next(iter(cfg.make_ic)))
+        ref = run.get("reference")
+        analytic = _analytic_for_ic(ref if callable(ref) else cfg.reference, ic_name)
+        if analytic is None:
+            assert is_precomputed_experiment(domain, exp_key), (
+                f"{domain} {exp_key} ({ic_name}) is scored against a run-time "
+                "consensus; add it to PRECOMPUTED_EXPERIMENTS and check in a "
+                "reference with `mosaic reference`"
+            )
