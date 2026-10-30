@@ -1,0 +1,12 @@
+{
+  "id": "sgd-lr0.03-joint-s0",
+  "optimizer": "sgd",
+  "lr": 0.03,
+  "joint": true,
+  "seed": 0,
+  "head_scales": [
+    1.0,
+    1.0
+  ],
+  "phase": "screen"
+}

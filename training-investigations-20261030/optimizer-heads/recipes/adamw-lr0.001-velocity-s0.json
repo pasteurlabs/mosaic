@@ -1,0 +1,12 @@
+{
+  "id": "adamw-lr0.001-velocity-s0",
+  "optimizer": "adamw",
+  "lr": 0.001,
+  "joint": false,
+  "seed": 0,
+  "head_scales": [
+    1.0,
+    1.0
+  ],
+  "phase": "screen"
+}

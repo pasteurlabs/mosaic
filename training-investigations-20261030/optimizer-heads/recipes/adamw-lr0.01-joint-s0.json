@@ -1,0 +1,12 @@
+{
+  "id": "adamw-lr0.01-joint-s0",
+  "optimizer": "adamw",
+  "lr": 0.01,
+  "joint": true,
+  "seed": 0,
+  "head_scales": [
+    1.0,
+    1.0
+  ],
+  "phase": "screen"
+}

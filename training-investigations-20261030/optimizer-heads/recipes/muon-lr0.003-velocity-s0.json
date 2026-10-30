@@ -1,0 +1,12 @@
+{
+  "id": "muon-lr0.003-velocity-s0",
+  "optimizer": "muon",
+  "lr": 0.003,
+  "joint": false,
+  "seed": 0,
+  "head_scales": [
+    1.0,
+    1.0
+  ],
+  "phase": "screen"
+}

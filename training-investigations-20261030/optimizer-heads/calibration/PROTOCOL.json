@@ -1,0 +1,18 @@
+{
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "method": "Fixed scalar readout block sensitivity reparameterization; not HIG/SIP",
+  "model_seed": 0,
+  "width": 8,
+  "heads": [
+    "streamfunction_velocity",
+    "temperature"
+  ],
+  "calibration_data": "Training cases0/1/2/3 fixed H8 windows starts0/24/48/72 only; no validation/test input",
+  "directions": "6 matched random unit readout weight directions per head, PRNGKey7900..7905; biases excluded; all earlier parameters tangent0",
+  "response": "Full H8 recurrent normalized output residual, all states and fields; .5 squared Euclidean residual norm equals average public normalized_loss over4cases and8intervals",
+  "factor_selection": "thermal factor=RMS JVP norm of velocity-head directions / RMS JVP norm of thermal-head directions at initial zerohead; velocityfactor1; no clamps/adaptive tune",
+  "synthetic_nonzero": "initialpoint final-layerw replaced .01 normal(PRNGKey17), diagnostic only; never chooses factor",
+  "controls": "Full output vector JVP vs centeredFD eps.003/.001/.0003 for first matched direction/head at both points; >=2of3relativevectorerrors<5%; metric identity; zerohead identity; helper parameter-map parity",
+  "compute": "Single RTX5090 Slurm job, noDGX; source install/calibrationruntime recorded separately and must be accounted before equal-total-budget conclusions",
+  "limitations": "Scalar block scaling excludes fullJacobian directional anisotropy/sharedtrunk; no conservation/bounds guaranteed; same original normalized objective; no source/default/CI changes"
+}

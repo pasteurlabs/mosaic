@@ -1,0 +1,330 @@
+{
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "date": "2026-10-30",
+  "solver": "JAX-CFD native RTX5090, not T4/container CI",
+  "objective": "Same mean four fixed H8 windows cases0..3, starts0,24,48,72. Velocity/temperature RMS-normalized losses each weight .5, rawtemperature input. Width8CNN. Common seed0 hiddenweights; zerohead makes both modes initial identity.",
+  "budget": "Hard64 optimizer objective-gradient calls, each4windows =256window evaluations, including ALL L-BFGS line-search trials. Additional component-gradient diagnostics counted separately. First-order64updates, L-BFGS acceptediterations vary. No convergence-improvement admission.",
+  "validation": "IC1; initial and first accepted iterate crossing each4call milestone, finalaccepted. Full100interval loss. Lowest totalvalidation chooses checkpoint. Separatevelocity/temp losses. No trial-model selection.",
+  "gradient_diagnostics": "Full fixedbatch component gradients at validation checkpoints: norms, cosine, sharedtrunk and readoutblocks. Zero norms marked nullcosine. All diagnostic timing/work reported and included in fitclock.",
+  "fit_timing": "First optimizer compilation, diagnostics, validation, updates included. Common admitted reference/data/native/gate preparation excluded. Persistentcache disabled beforeimport. Setup not a CIforecast.",
+  "optimizers": "Adam/AdamW/Muon .001/.003/.01, SGD .3/3/30, L-BFGS-B SciPy initialsteplength line-search, history10 maxls10 ftol1e-12 gtol1e-8. First-orderclip1; L-BFGS trueunclippedgradient. AdamW decay1e-4 convweights only, Muon convmatrix HWIO reduction0,1,2 output3; biasesAdam .001. SGDnomomentum.",
+  "selection": "Stage0 seed0screen26cells, no seedconfirmationyet. LR comparisons sharedwithin velocity/joint. If laterconfirm, choose peroptimizer common LR using geometricmean validation of bothheads only; heldout neverchooses.",
+  "gate": "Research-only initial and exactproduction syntheticlastw .01normalkey17, eps .003,.001,.0003; sameadjacentpairmustpass5%AD/FD AND5%slope agreement atboth. Originalepsilonfailure preserved. Source/publicgate unchanged.",
+  "physics": "Training queryfinite/CFL\u2264.5; recordthetaextrema/heatdrift/wall. Selected/final fulltestrolloutphysics inclheatmeanvariance/KE/CFL/divergence/walls. Conservation/undershoot diagnostic, no silentposthocdataculling.",
+  "recipes": [
+    {
+      "id": "adam-lr0.001-velocity-s0",
+      "optimizer": "adam",
+      "lr": 0.001,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adam-lr0.001-joint-s0",
+      "optimizer": "adam",
+      "lr": 0.001,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adam-lr0.003-velocity-s0",
+      "optimizer": "adam",
+      "lr": 0.003,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adam-lr0.003-joint-s0",
+      "optimizer": "adam",
+      "lr": 0.003,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adam-lr0.01-velocity-s0",
+      "optimizer": "adam",
+      "lr": 0.01,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adam-lr0.01-joint-s0",
+      "optimizer": "adam",
+      "lr": 0.01,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.001-velocity-s0",
+      "optimizer": "adamw",
+      "lr": 0.001,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.001-joint-s0",
+      "optimizer": "adamw",
+      "lr": 0.001,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.003-velocity-s0",
+      "optimizer": "adamw",
+      "lr": 0.003,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.003-joint-s0",
+      "optimizer": "adamw",
+      "lr": 0.003,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.01-velocity-s0",
+      "optimizer": "adamw",
+      "lr": 0.01,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "adamw-lr0.01-joint-s0",
+      "optimizer": "adamw",
+      "lr": 0.01,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.001-velocity-s0",
+      "optimizer": "muon",
+      "lr": 0.001,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.001-joint-s0",
+      "optimizer": "muon",
+      "lr": 0.001,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.003-velocity-s0",
+      "optimizer": "muon",
+      "lr": 0.003,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.003-joint-s0",
+      "optimizer": "muon",
+      "lr": 0.003,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.01-velocity-s0",
+      "optimizer": "muon",
+      "lr": 0.01,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "muon-lr0.01-joint-s0",
+      "optimizer": "muon",
+      "lr": 0.01,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr0.3-velocity-s0",
+      "optimizer": "sgd",
+      "lr": 0.3,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr0.3-joint-s0",
+      "optimizer": "sgd",
+      "lr": 0.3,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr3-velocity-s0",
+      "optimizer": "sgd",
+      "lr": 3.0,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr3-joint-s0",
+      "optimizer": "sgd",
+      "lr": 3.0,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr30-velocity-s0",
+      "optimizer": "sgd",
+      "lr": 30.0,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "sgd-lr30-joint-s0",
+      "optimizer": "sgd",
+      "lr": 30.0,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "lbfgs-lr1-velocity-s0",
+      "optimizer": "lbfgs",
+      "lr": 1.0,
+      "joint": false,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    },
+    {
+      "id": "lbfgs-lr1-joint-s0",
+      "optimizer": "lbfgs",
+      "lr": 1.0,
+      "joint": true,
+      "seed": 0,
+      "head_scales": [
+        1.0,
+        1.0
+      ],
+      "phase": "screen"
+    }
+  ],
+  "version": 2,
+  "pre_SGD_launch_revision": "All SGD cells unlaunched. Grid revised using training-only initial gradientnorm~7e-4 from preceding FDgate, because .003\u2013.3 could trivially undershoot Adam parameterstep scale. CurrentSGDrates .3/3/30; samebothheads. Old unlaunchedrecipes retained but not active, no heldoutused."
+}

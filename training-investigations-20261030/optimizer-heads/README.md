@@ -67,3 +67,15 @@ These summarize nonzero checkpoints along the trained path, not only the selecte
 - sgd-lr30-joint-scaled-s0: {'type': 'ValueError', 'message': 'Native CFL admissibility rejected training query 1.1077946424484253', 'traceback': 'Traceback (most recent call last):\n  File "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py", line 179, in <module>\n    value,g=oracle(params);new,state,delta=first_order_update(params,state,g)\n            ^^^^^^^^^^^^^^\n  File "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py", line 152, in oracle\n    raise ValueError(f"Native CFL admissibility rejected training query {row[\'max_advective_cfl\']}")\nValueError: Native CFL admissibility rejected training query 1.1077946424484253\n'}
 
 One seed and one test IC support a pilot conclusion only; this is not an optimizer ranking across solvers.
+
+## Relation to gradient scaling literature
+
+The [Physics-based Deep Learning scale-invariance chapter](https://physicsbaseddeeplearning.org/physgrad.html) distinguishes gradient descent from inverse-sensitivity updates. Its [half-inverse-gradient chapter](https://physicsbaseddeeplearning.org/physgrad-hig.html) uses a truncated singular-value decomposition of the combined network–physics Jacobian. Our fixed two-block readout scaling is a cheaper, limited reparameterization: **not HIG or SIP**, not a change in native AD accuracy.
+
+[Calibration details and derivative controls](calibration/README.md) measure initial full-H8 response RMS0.3215 versus1.5025 for equal-norm random velocity/thermal readout perturbations. The selected fixed thermal factor0.21397 comes from training windows only; synthetic-nonzero calibration is diagnostic-only. Twelve JVP/FD controls pass (maximum discrepancy0.204%). Local sensitivity equalization does not account for every singular direction of the full learned model.
+
+The previous width32 Muon and width8 AdamW joint results differed in architecture as well as optimizer; those observations alone could not identify an optimizer-specific cause. This screen holds width8 fixed. Adam and AdamW agree closely here, while plain SGD does not resolve the joint-training problem.
+
+All six high-LR SGD rejections and all initial-identity selections remain explicit. Selected joint models can improve field error while introducing heat drift and undershoot. No production recommendation follows from one seed on four fixed training windows.
+
+[Protocol](PROTOCOL.json), [parity audit](parity-audit.json), [all LR results and raw outcomes](summary.json), [Slurm accounting](sacct.txt), [publication manifest](publication-manifest.json). Full model/field NPZs remain at the recorded remote campaign paths; no large arrays or experiment code were added to the benchmark source branch.

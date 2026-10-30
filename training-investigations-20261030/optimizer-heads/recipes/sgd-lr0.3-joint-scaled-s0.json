@@ -1,0 +1,14 @@
+{
+  "id": "sgd-lr0.3-joint-scaled-s0",
+  "optimizer": "sgd",
+  "lr": 0.3,
+  "joint": true,
+  "seed": 0,
+  "head_scales": [
+    1.0,
+    0.2139727633353161
+  ],
+  "calibration_seconds": 16.359189226990566,
+  "calibration_sha256": "ff3351b9fbcfd03f344b2c193ced663dbc19d8ec9c36e6a340c1ddab0e4b0df6",
+  "phase": "screen_scaled"
+}

@@ -1,0 +1,457 @@
+{
+  "completed": true,
+  "method": "fixed readout block-sensitivity reparameterization, not HIG/SIP",
+  "model_seed": 0,
+  "directions_per_head": 6,
+  "random_direction_seed_base": 7900,
+  "fixed_windows": {
+    "cases": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "starts": [
+      0,
+      24,
+      48,
+      72
+    ],
+    "horizon": 8
+  },
+  "rule": "head_scales=[1,sigma_velocity_readout/sigma_temperature_readout]; sigma is RMS of full normalized H8 recurrent output directional response over six unit readout weight directions and four training windows; factor selected at initial zero readout only. Synthetic nonzero point is diagnostic only.",
+  "sources": {
+    "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-head-scaling-20261030/driver.py": "0d2336a470766a9cb34310b71fdc687d6bf5e439688d8a451feb948bb2121ca7",
+    "/data/personal/andrinr/runner/results/mosaic/buoyancy-head-scaling-20261030/gpu_adapter.py": "2dbdba6672bd7c65de9b402468575d02d878e53f7d3b7d11205f465174fffe84"
+  },
+  "devices": [
+    "cuda:0"
+  ],
+  "data_sha256": {
+    "train": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+    "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+  },
+  "response_rows": [
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7900,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.3575513823869049,
+      "velocity_output_jvp_norm": 0.35581869469967964,
+      "temperature_output_jvp_norm": 0.035157467898056974,
+      "seconds_including_compile_if_first": 6.038036825018935
+    },
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7901,
+      "direction_norm": 0.9999999403953552,
+      "jvp_norm": 0.3661125720093195,
+      "velocity_output_jvp_norm": 0.3644167408855095,
+      "temperature_output_jvp_norm": 0.035197362765734284,
+      "seconds_including_compile_if_first": 0.03579773602541536
+    },
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7902,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.3239944715726365,
+      "velocity_output_jvp_norm": 0.31973658047299586,
+      "temperature_output_jvp_norm": 0.05235395607848054,
+      "seconds_including_compile_if_first": 0.03538083808962256
+    },
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7903,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.20694463702778643,
+      "velocity_output_jvp_norm": 0.205380754469967,
+      "temperature_output_jvp_norm": 0.025393473332913873,
+      "seconds_including_compile_if_first": 0.035588877042755485
+    },
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7904,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.36428373656528334,
+      "velocity_output_jvp_norm": 0.3616358882208941,
+      "temperature_output_jvp_norm": 0.04384204690305807,
+      "seconds_including_compile_if_first": 0.03556363703683019
+    },
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7905,
+      "direction_norm": 0.9999998807907104,
+      "jvp_norm": 0.278889861732012,
+      "velocity_output_jvp_norm": 0.2771979717720499,
+      "temperature_output_jvp_norm": 0.030673105848000235,
+      "seconds_including_compile_if_first": 0.03552156698424369
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7900,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.7879029677020153,
+      "velocity_output_jvp_norm": 0.15555237889692566,
+      "temperature_output_jvp_norm": 1.7811233756641272,
+      "seconds_including_compile_if_first": 0.03552012797445059
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7901,
+      "direction_norm": 0.9999999403953552,
+      "jvp_norm": 1.763454297879297,
+      "velocity_output_jvp_norm": 0.12601655465299938,
+      "temperature_output_jvp_norm": 1.7589459595628134,
+      "seconds_including_compile_if_first": 0.03565203701145947
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7902,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.2323036305420954,
+      "velocity_output_jvp_norm": 0.12340338273082473,
+      "temperature_output_jvp_norm": 1.2261092296275304,
+      "seconds_including_compile_if_first": 0.0355985970236361
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7903,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.5468983498455314,
+      "velocity_output_jvp_norm": 0.04609332680194135,
+      "temperature_output_jvp_norm": 0.5449524844315277,
+      "seconds_including_compile_if_first": 0.03529862896539271
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7904,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.7404358835192997,
+      "velocity_output_jvp_norm": 0.1316948919729834,
+      "temperature_output_jvp_norm": 1.7354462020096808,
+      "seconds_including_compile_if_first": 0.03527274902444333
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7905,
+      "direction_norm": 0.9999998807907104,
+      "jvp_norm": 1.546652020980099,
+      "velocity_output_jvp_norm": 0.1028720879689987,
+      "temperature_output_jvp_norm": 1.5432270758118256,
+      "seconds_including_compile_if_first": 0.03524782904423773
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7900,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.3737562311932741,
+      "velocity_output_jvp_norm": 0.366783584398771,
+      "temperature_output_jvp_norm": 0.07185765492548223,
+      "seconds_including_compile_if_first": 0.03249145299196243
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7901,
+      "direction_norm": 0.9999999403953552,
+      "jvp_norm": 0.36024549288204183,
+      "velocity_output_jvp_norm": 0.3533355499559503,
+      "temperature_output_jvp_norm": 0.07021968583774275,
+      "seconds_including_compile_if_first": 0.03589894494507462
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7902,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.3266982225923671,
+      "velocity_output_jvp_norm": 0.3175259902904118,
+      "temperature_output_jvp_norm": 0.07686985192586956,
+      "seconds_including_compile_if_first": 0.03564131597522646
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7903,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.21081874167801082,
+      "velocity_output_jvp_norm": 0.20664864612231668,
+      "temperature_output_jvp_norm": 0.041723840888793114,
+      "seconds_including_compile_if_first": 0.035210989066399634
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7904,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.35554558124750973,
+      "velocity_output_jvp_norm": 0.3461832079036012,
+      "temperature_output_jvp_norm": 0.08105459215986084,
+      "seconds_including_compile_if_first": 0.03541029791813344
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7905,
+      "direction_norm": 0.9999998807907104,
+      "jvp_norm": 0.27352680902764964,
+      "velocity_output_jvp_norm": 0.2669880393952368,
+      "temperature_output_jvp_norm": 0.05944999644016534,
+      "seconds_including_compile_if_first": 0.035388237913139164
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7900,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.6155204313366,
+      "velocity_output_jvp_norm": 0.15201517402276232,
+      "temperature_output_jvp_norm": 1.6083524647703373,
+      "seconds_including_compile_if_first": 0.03563492698594928
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7901,
+      "direction_norm": 0.9999999403953552,
+      "jvp_norm": 1.4738636630662858,
+      "velocity_output_jvp_norm": 0.11653519781026568,
+      "temperature_output_jvp_norm": 1.4692493474487198,
+      "seconds_including_compile_if_first": 0.035483238054439425
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7902,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.0573693202246515,
+      "velocity_output_jvp_norm": 0.11803228949879215,
+      "temperature_output_jvp_norm": 1.0507607996057011,
+      "seconds_including_compile_if_first": 0.035641156951896846
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7903,
+      "direction_norm": 1.0,
+      "jvp_norm": 0.4592071139046468,
+      "velocity_output_jvp_norm": 0.044248921205918765,
+      "temperature_output_jvp_norm": 0.4570702423400013,
+      "seconds_including_compile_if_first": 0.03543063800316304
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7904,
+      "direction_norm": 1.0,
+      "jvp_norm": 1.3625466402734872,
+      "velocity_output_jvp_norm": 0.11934057639693044,
+      "temperature_output_jvp_norm": 1.3573102717307546,
+      "seconds_including_compile_if_first": 0.033972526085563004
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7905,
+      "direction_norm": 0.9999998807907104,
+      "jvp_norm": 1.2237576048742496,
+      "velocity_output_jvp_norm": 0.0936144020159038,
+      "temperature_output_jvp_norm": 1.220171717104917,
+      "seconds_including_compile_if_first": 0.034521242952905595
+    }
+  ],
+  "finite_difference_rows": [
+    {
+      "point": "initial",
+      "head": "velocity",
+      "direction_seed": 7900,
+      "checks": [
+        {
+          "epsilon": 0.003,
+          "relative_vector_error": 0.000438010539350296,
+          "fd_norm": 0.35755063811999765,
+          "jvp_norm": 0.3575513823869049
+        },
+        {
+          "epsilon": 0.001,
+          "relative_vector_error": 0.00027710351427024787,
+          "fd_norm": 0.3575517939610459,
+          "jvp_norm": 0.3575513823869049
+        },
+        {
+          "epsilon": 0.0003,
+          "relative_vector_error": 0.00034114807092220755,
+          "fd_norm": 0.3575522671624401,
+          "jvp_norm": 0.3575513823869049
+        }
+      ],
+      "passes": true
+    },
+    {
+      "point": "initial",
+      "head": "temperature",
+      "direction_seed": 7900,
+      "checks": [
+        {
+          "epsilon": 0.003,
+          "relative_vector_error": 0.0020383961964709004,
+          "fd_norm": 1.7877280443043777,
+          "jvp_norm": 1.7879029677020153
+        },
+        {
+          "epsilon": 0.001,
+          "relative_vector_error": 0.0014445634443502303,
+          "fd_norm": 1.7877792988658616,
+          "jvp_norm": 1.7879029677020153
+        },
+        {
+          "epsilon": 0.0003,
+          "relative_vector_error": 0.001112598764258654,
+          "fd_norm": 1.7878063241204136,
+          "jvp_norm": 1.7879029677020153
+        }
+      ],
+      "passes": true
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "velocity",
+      "direction_seed": 7900,
+      "checks": [
+        {
+          "epsilon": 0.003,
+          "relative_vector_error": 0.000593159066812706,
+          "fd_norm": 0.37375461391693754,
+          "jvp_norm": 0.3737562311932741
+        },
+        {
+          "epsilon": 0.001,
+          "relative_vector_error": 0.000347870713078568,
+          "fd_norm": 0.3737546046696662,
+          "jvp_norm": 0.3737562311932741
+        },
+        {
+          "epsilon": 0.0003,
+          "relative_vector_error": 0.0003755062815354749,
+          "fd_norm": 0.373757140684016,
+          "jvp_norm": 0.3737562311932741
+        }
+      ],
+      "passes": true
+    },
+    {
+      "point": "synthetic_nonzero",
+      "head": "temperature",
+      "direction_seed": 7900,
+      "checks": [
+        {
+          "epsilon": 0.003,
+          "relative_vector_error": 0.0012849614944987562,
+          "fd_norm": 1.6155041726361494,
+          "jvp_norm": 1.6155204313366
+        },
+        {
+          "epsilon": 0.001,
+          "relative_vector_error": 0.0007582909302999607,
+          "fd_norm": 1.6155218438363677,
+          "jvp_norm": 1.6155204313366
+        },
+        {
+          "epsilon": 0.0003,
+          "relative_vector_error": 0.00027772346057275735,
+          "fd_norm": 1.615542974828876,
+          "jvp_norm": 1.6155204313366
+        }
+      ],
+      "passes": true
+    }
+  ],
+  "normalized_metric_checks": [
+    {
+      "point": "initial",
+      "public_normalized_loss": 4.575378625304438e-05,
+      "half_squared_residual_norm": 4.5753780568702496e-05,
+      "relative_disagreement": 1.2423762821820183e-07
+    },
+    {
+      "point": "synthetic_nonzero",
+      "public_normalized_loss": 0.02498747780919075,
+      "half_squared_residual_norm": 0.024987478274852037,
+      "relative_disagreement": 1.8635785926999898e-08
+    }
+  ],
+  "point_summaries": {
+    "initial": {
+      "velocity": {
+        "rms_response": 0.32149704574514254,
+        "minimum": 0.20694463702778643,
+        "maximum": 0.3661125720093195,
+        "std_over_mean": 0.18209030000128293
+      },
+      "temperature": {
+        "rms_response": 1.5025138748211868,
+        "minimum": 0.5468983498455314,
+        "maximum": 1.7879029677020153,
+        "std_over_mean": 0.307188342856992
+      },
+      "thermal_factor": 0.2139727633353161
+    },
+    "synthetic_nonzero": {
+      "velocity": {
+        "rms_response": 0.32194108715384945,
+        "minimum": 0.21081874167801082,
+        "maximum": 0.3737562311932741,
+        "std_over_mean": 0.18151244257688276
+      },
+      "temperature": {
+        "rms_response": 1.2559987683509268,
+        "minimum": 0.4592071139046468,
+        "maximum": 1.6155204313366,
+        "std_over_mean": 0.3128364635386194
+      },
+      "thermal_factor": 0.25632277297257583
+    }
+  },
+  "head_scales": [
+    1.0,
+    0.2139727633353161
+  ],
+  "controls": {
+    "zero_readout_exact_identity": true,
+    "helper_equals_explicit_parameter_map": true,
+    "normalized_residual_matches_public_objective": true
+  },
+  "synthetic_direct_correction_physics": {
+    "unscaled": {
+      "normalized_velocity_rms": 0.001750476541928947,
+      "normalized_temperature_rms": 0.039129696786403656,
+      "temperature_mean_change": -0.002188547281548381,
+      "temperature_min_after": -0.00023318332387134433,
+      "temperature_max_after": 0.9710140824317932
+    },
+    "scaled": {
+      "normalized_velocity_rms": 0.001750476541928947,
+      "normalized_temperature_rms": 0.008372689597308636,
+      "temperature_mean_change": -0.00046828953782096505,
+      "temperature_min_after": -3.731482502189465e-05,
+      "temperature_max_after": 0.9785476922988892
+    }
+  },
+  "cost_scope": "Calibration measured separately; its full compile and directional-evaluation cost must be charged to scaled methods if judging total runtime. Training-only cached references shared; no CI container claim.",
+  "elapsed_s": 16.359189226990566
+}

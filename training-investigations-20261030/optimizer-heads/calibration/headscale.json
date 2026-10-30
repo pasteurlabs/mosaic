@@ -1,0 +1,15 @@
+{
+  "completed": true,
+  "head_scales": [
+    1.0,
+    0.2139727633353161
+  ],
+  "calibration_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-head-scaling-20261030/results/calibration.json",
+  "calibration_sha256": "ff3351b9fbcfd03f344b2c193ced663dbc19d8ec9c36e6a340c1ddab0e4b0df6",
+  "selection_point": "initial_zero_readout",
+  "reference": "training-only full-H8 block JVP RMS, not HIG or full Jacobian whitening",
+  "calibration_elapsed_s": 16.359189226990566,
+  "helper_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-head-scaling-20261030/headscale.py",
+  "helper_sha256": "6e303b81abb49d0ccb4ffc8d4b5a5aae9e1dc501715eee230dd5357073158473",
+  "scope": "Experimental fixed head reparameterization only; no constraint preserving total heat or temperature bounds"
+}
