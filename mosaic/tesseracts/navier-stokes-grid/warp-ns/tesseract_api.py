@@ -348,6 +348,7 @@ def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
     return wp.vec2f(v[0] * s, v[1] * s)
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 ####################################################################
 # Non-power-of-two support via Bluestein's algorithm
 #
@@ -652,6 +653,7 @@ def _spectral_poisson_2d_bluestein(
     return out
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
 @functools.cache
 def _fft_kernels_2d(n: int):
     """Build (and cache) the tiled FFT/transpose kernels for an N×N grid."""
@@ -756,10 +758,12 @@ def _spectral_poisson_2d_core(
     for the taped path too.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path
         # (workspace fusion doesn't apply — always allocates fresh buffers).
         return _spectral_poisson_2d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_2d(n)
     inv_lambda = _inv_lambda_2d(n, domain_extent, device)
 
@@ -1058,6 +1062,7 @@ def _fft_3d(
     return x
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 @functools.cache
 def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
     """y[k, i, j] = x[i, j, k]: cyclic axis permutation, valid for any ``n``."""
@@ -1135,6 +1140,7 @@ def _spectral_poisson_3d_bluestein(
     return _bluestein_fft_3d(scaled, n, "bwd", device)
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
 def _spectral_poisson_3d_core(
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
@@ -1156,9 +1162,11 @@ def _spectral_poisson_3d_core(
     ones on every call — used by the forward-only (non-taped) path.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path.
         return _spectral_poisson_3d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_3d(n)
     inv_lambda_permuted = _inv_lambda_3d(n, domain_extent, device, permute=(1, 2, 0))
 
@@ -2122,6 +2130,7 @@ def channel_centers_kernel(
     uy[i, j] = 0.5 * (v[i, j] + v[i, j + 1]) * f
 
 
+# mosaic-intervention: channel-cg-preconditioner
 @wp.kernel
 def channel_basis_rows_kernel(
     a: wp.array2d(dtype=wp.float32),
@@ -2152,6 +2161,9 @@ def channel_basis_cols_kernel(
     for k in range(b.shape[0]):
         s += src[i, k] * b[k, j]
     dst[i, j] = alpha * scale[i, j] * s + beta * y[i, j]
+
+
+# mosaic-intervention-end: channel-cg-preconditioner
 
 
 @wp.kernel
@@ -2215,6 +2227,7 @@ def _channel_pressure_solver(
     nx, ny = fluid.shape
     n = nx * ny
 
+    # mosaic-intervention: channel-cg-preconditioner
     def second_difference(m: int, last: float) -> np.ndarray:
         t = 2.0 * np.eye(m) - np.eye(m, k=1) - np.eye(m, k=-1)
         t[0, 0], t[-1, -1] = 1.0, last
@@ -2229,6 +2242,7 @@ def _channel_pressure_solver(
     vx, vxt, vy, vyt = (to_wp(m) for m in (vec_x, vec_x.T, vec_y, vec_y.T))
     inv_lam, ones = to_wp(1.0 / np.add.outer(lam_x, lam_y)), to_wp(np.ones((nx, ny)))
     tmp_a, tmp_b = to_wp(np.zeros((nx, ny))), to_wp(np.zeros((nx, ny)))
+    # mosaic-intervention-end: channel-cg-preconditioner
 
     def matvec(x, y, z, alpha, beta):
         wp.launch(
@@ -2238,6 +2252,7 @@ def _channel_pressure_solver(
             device=device,
         )
 
+    # mosaic-intervention: channel-cg-preconditioner
     def precondition(x, y, z, alpha, beta):
         def launch(kernel, inputs):
             wp.launch(kernel, dim=(nx, ny), inputs=inputs, device=device)
@@ -2250,6 +2265,8 @@ def _channel_pressure_solver(
             channel_basis_cols_kernel,
             [tmp_a, vyt, ones, y, float(alpha), float(beta), z],
         )
+
+    # mosaic-intervention-end: channel-cg-preconditioner
 
     def operator(func):
         return warp.optim.linear.LinearOperator(
@@ -2392,6 +2409,7 @@ def channel_solve(
             )
         solve(rhs.flatten(), p_guess)
         wp.copy(p.flatten(), p_guess)
+        # mosaic-intervention: channel-cg-adjoint
         if grad:
 
             def adjoint(rhs=rhs, p=p) -> None:
@@ -2399,6 +2417,7 @@ def channel_solve(
                 wp.copy(rhs.grad.flatten(), adjoint_guess)
 
             tape.record_func(backward=adjoint, arrays=[rhs, p])
+        # mosaic-intervention-end: channel-cg-adjoint
         u_new, v_new = field(u.shape), field(v.shape)
         with recording:
             wp.launch(
