@@ -1,0 +1,100 @@
+{
+  "complete": true,
+  "rows": [
+    {
+      "recipe": {
+        "joint": false,
+        "center_temperature": false,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 1
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": 0.0,
+      "actual_thermal_mean": 0.0,
+      "heat_mean_pullback_relative_defect": 0.0,
+      "source_forward_bitwise_equal": true,
+      "source_parameter_gradient_max_difference": 0.0,
+      "source_H8_forward_equal": true,
+      "source_H8_gradient_max_difference": 0.0,
+      "source_H8_gradient_relative_difference": 0.0
+    },
+    {
+      "recipe": {
+        "joint": false,
+        "center_temperature": true,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 1
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": 0.0,
+      "actual_thermal_mean": 0.0,
+      "heat_mean_pullback_relative_defect": 0.0,
+      "offset_covariance_max_defect": 2.9802322387695312e-08,
+      "residual_temperature_covector_sum": 4.6566128730773926e-09
+    },
+    {
+      "recipe": {
+        "joint": true,
+        "center_temperature": false,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 0.2139727633353161
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": -0.0003667279980787974,
+      "actual_thermal_mean": -0.000366728061381813,
+      "heat_mean_pullback_relative_defect": 0.051853496581315994,
+      "source_forward_bitwise_equal": true,
+      "source_parameter_gradient_max_difference": 0.0,
+      "source_H8_forward_equal": true,
+      "source_H8_gradient_max_difference": 1.862645149230957e-09,
+      "source_H8_gradient_relative_difference": 6.820455666911585e-08
+    },
+    {
+      "recipe": {
+        "joint": true,
+        "center_temperature": false,
+        "zero_mean_temperature": true,
+        "temperature_head_scale": 0.2139727633353161
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": 4.725109192804666e-12,
+      "actual_thermal_mean": -4.5360160072505096e-11,
+      "heat_mean_pullback_relative_defect": 0.0,
+      "thermal_uniform_bias_gradient": -6.376885242076469e-09
+    },
+    {
+      "recipe": {
+        "joint": true,
+        "center_temperature": true,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 0.2139727633353161
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": 0.0008574910794732493,
+      "actual_thermal_mean": 0.000857491144504563,
+      "heat_mean_pullback_relative_defect": 0.04508916288614273,
+      "offset_covariance_max_defect": 2.9802322387695312e-08,
+      "residual_temperature_covector_sum": 2.2351741790771484e-08
+    },
+    {
+      "recipe": {
+        "joint": true,
+        "center_temperature": true,
+        "zero_mean_temperature": true,
+        "temperature_head_scale": 0.2139727633353161
+      },
+      "zero_head_exact_identity": true,
+      "predicted_thermal_mean": -1.1723955140041653e-12,
+      "actual_thermal_mean": -4.80854800422037e-11,
+      "heat_mean_pullback_relative_defect": 0.0,
+      "thermal_uniform_bias_gradient": -6.376885242076469e-09,
+      "offset_covariance_max_defect": 5.960464477539063e-08,
+      "residual_temperature_covector_sum": 2.60770320892334e-08
+    }
+  ],
+  "training_state_sha256": "dd571636196896391ed2a7ccf045071d83ae0417a584023cbb1fe607d1a6e1ce",
+  "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+  "devices": [
+    "cuda:0"
+  ]
+}

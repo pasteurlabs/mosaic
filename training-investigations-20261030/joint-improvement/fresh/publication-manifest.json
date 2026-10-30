@@ -1,0 +1,452 @@
+{
+  "complete": true,
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "selection_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/frozen-selection.json",
+  "selection_sha256": "af60c681c1517f82398588d19e106fa10eeaa4274d535c6ad8db50fa7c2886cd",
+  "reference_job": 3631916,
+  "evaluation_job": 3632164,
+  "plot_job": 3632176,
+  "plot_polish_and_reference_audit_job": 3632272,
+  "model_count": 9,
+  "fresh_corrected_rollouts": 45,
+  "test_seeds": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "network_seeds": [
+    0,
+    1,
+    2
+  ],
+  "fresh_model_selection_after_scoring": false,
+  "primary_summary_sha256": "ae45a768688e0ff2a1e44969c7120a04b2c095966403a405e0763776132d185b",
+  "primary_summary_unchanged_after_plot_polish_and_audit": true,
+  "files": {
+    "evaluation-node.sh": "b5e04d64262865f90df0787003b285c3c36c02d8416aeb6a00b03cfb0a5733a8",
+    "inventory.json": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+    "PROTOCOL.json": "4cab9456c66c185507df1ea4aa13f6a79121db6be591befa58d17a3dfc33c4b2",
+    "reference-sacct.txt": "fc788a82f4b8ab4fc62274ef3699c383ea11bfe47fcea34a104d1645dc674a5f",
+    "all-sacct.txt": "49ae202985bfd5b0ce3a9dd1d41a50a58e5e4ce2c7064c27c107b5f615df8b8a",
+    "job.json": "ec975ced08955b453347bfe55d1f82a0ff117e4d37e7527e8dc97814a1884623",
+    "evaluation-job.json": "661be35b8ab6a9bfa4bf655f45212f28ddd3e92081a57b351c512d7f82c06faf",
+    "PLOT_PROTOCOL.json": "4443d94e3045c5ae7dfac7e363d92c2eedfac260bc428a042842adf672c8e570",
+    "plot-audit-node.sh": "e61f44a9baabba1e1247d0164d974d131181ad21359e0f46758377b8304d0e0a",
+    "plot-audit-job.json": "80486171998fcf1728893c3eefe2869c688a33a407dcf9138b403105627b6f76",
+    "preparation-manifest.json": "22cf45925552166bbb98462dd0d3da56a375af371d9b88ca61dd2b67a74507dd",
+    "validation-manifest.json": "5345be2b742a65ec05e57b185f079e31dfe00a1db1c83f2ace15a0d273cb849a",
+    "plot_fresh.py": "393062f7df38e2d0ecd5be1c99e0cddc06e13983dd3d5c77a74ad82b87ed8d1a",
+    "plot-job.json": "6028b90f11ab50beccde1e1cc31c3222f06fe3027c17a68b95bbc86c7b338341",
+    "frozen-helper.py": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+    "prepare_references.py": "da1cc1fe087b1e9b2ac72c56cf5cbfbef9248da0891abc571e827da9ebd69d27",
+    "plot-scripts.sha256": "6de43f78bb43d9e46f6c9082d3a918536f7893b7c66ab95ab5c3701ccf6b43d9",
+    "primary-summary-before-polish.sha256": "e348f23cc730066676949af46c7ccac091654588ad7b414232756dc1e66e4d07",
+    "scripts.sha256": "a1a9630a8c7b750c161e0e2868a2c44abdbae546955039bd76fb39033dbac110",
+    "preparation-import-note.json": "e96febdcd60ed93017d726b2f832e663b642106e2184d982c4f4482683b6a702",
+    "PROTOCOL-v1-preserved.json": "60656543a35e9d49c95b35445d17ca09ba14701f151d96faa40569bcb3f07421",
+    "node.sh": "f99e872feb04830387d51b756d088a209c51fc0863b9e595d674ae2995c576b2",
+    "submit_evaluation.py": "2c9a0f9b998815044ce48460f83efe451dcf2c07fe21e52e9132d393f0fdb6a3",
+    "evaluation-scripts.sha256": "5f0e04c5711c517bf9d12a79d4643f208b6188309fec683563c42447a8574d3c",
+    "source.sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873",
+    "evaluate_frozen.py": "3c0c226c488ab0ccdfc58da53b8e9465a828a22a4f2da05e9674c5330a8d1a2f",
+    "plot-node.sh": "e29d59d6c1476671258f5f4d80a7ffb43120caa2dddab24fb066440dbd8988c4",
+    "audit_sensitivity.py": "1e09226882c20e6c9dbb22db3a6477f9fba962217986c680d20005e86c8505f5",
+    "submit_plots.py": "eee8234a442d8fef144fc1d56f7e6c2710927d1c59d16fa0fb6fdc135f10899e",
+    "evaluation-environment.txt": "8776c6f175177ccc3b082ad5b3a8a49b0eca90406b2421156762e0532c0d3c55",
+    "plot_fresh-v1-preserved.py": "954415cba2b5002a346d430e51634a1729e4696e6cd971ea99e26a26e2d7e8aa",
+    "reference-admission.json": "75f4a6d75e340c3cf5e2e4f6c2de0fb21cf3a371b8bf1f3f016ba7c653c9a5d6",
+    "plot-v2-scripts.sha256": "f7c94a259c575cfabfb5f3d9e96699a1f15e02c9d4e3640c9c23fab2c72738ed",
+    "frozen-selection.json": "af60c681c1517f82398588d19e106fa10eeaa4274d535c6ad8db50fa7c2886cd",
+    "environment.txt": "53a2f98c95b3aca15fb9979a5cec1c5a648b443b701978a36c6ed8aae72595e2",
+    "evaluation/outcome.json": "46010870f7bf03ed5049ce629921ce6dcc6866855ce4aebc4faa6e398b632ad5",
+    "report/reference_sensitivity.json": "6ee1a2e10120786d8b3795757eddbb706b5147a2913b40b7e977bc21d12348e7",
+    "report/fresh_heat_and_bounds.png": "3a7ac3773e21d6f6ab2dae9c90e13c077e9b4e4352e95c0d2c207fc2776b2185",
+    "report/reference_sensitivity.md": "c4154725304ae7207edc8d5c4f1f3b0a396e7de31e14b10035f8eca0175645df",
+    "report/fresh_fixed_example.png": "6a5a198bd64fd2da02fb32e4f802ccbabb6548b8d8dd9b98057a21b1fba2d676",
+    "report/summary.json": "ae45a768688e0ff2a1e44969c7120a04b2c095966403a405e0763776132d185b",
+    "report/reference_sensitivity.png": "5b7a8db59f48fdd66483b433c1cfead6e6c23f7066c54f9f32aacda26f10bc02",
+    "report/README.md": "1500e297565d8a838e56273e3f160df137fedd78a0da907a8aa90b1b1248f811",
+    "report/fresh_relative_errors.png": "3324231c10499e61934cc89c215db81769f5071ed53b5924bbef2910f73f15d0",
+    "report/fresh_error_rollouts.png": "10d3ff107185283d8cc1d52a6bcb5cbfa7683c3dd6204f89c60717f55cf4858a",
+    "references/outcome.json": "75f4a6d75e340c3cf5e2e4f6c2de0fb21cf3a371b8bf1f3f016ba7c653c9a5d6"
+  },
+  "remote_field_files": [
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic101.npz",
+      "sha256": "6b88ae18caf68436ca1b7c4e0cc6bc829a2ca36316fb03db6315e702705cc4d9"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic102.npz",
+      "sha256": "00170c4f133b932230150d5230678416477fbfe282fe783eccc051b4bd4901b9"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic103.npz",
+      "sha256": "f0667cc727c0a9f96bba5e7976f51c1989a56d9c8aa19bc23242213b1a9f93bd"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic104.npz",
+      "sha256": "5a1e214f3211c24c5793593040c2ef81966c6a2f3889adff926d3d60d4306eb5"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic105.npz",
+      "sha256": "e9e8cb19dc6a7253043afdc754a5c3dba2df1e2a14131ce4126d2379f3b172ac"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic101.npz",
+      "sha256": "9a43b0ee5d7362b780da372c6e7204b15b180153df4c5c47213200643eefb654"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic102.npz",
+      "sha256": "78abb0039c705d089124c62bec8c194473f0038ba21bcdce2829ec5d954b35ed"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic103.npz",
+      "sha256": "eb1c65b5a5fb4c66da60c142718102fdee17044dbcd068a2c478d1d56a620c20"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic104.npz",
+      "sha256": "ae1bd3bf0903c0e290ce2f2c09a1fcc3ccb7cf63f4d0dbfcbc2d56df3b96e97e"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic105.npz",
+      "sha256": "698a0983dca6091a22d4764af9e282d1ba82882424710ccc79dd1bcc79317fd0"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic101.npz",
+      "sha256": "2506568a36d10a16a04865fa2320009343ac11d004c4283b776ec2037a48016f"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic102.npz",
+      "sha256": "8b21c51ead7ddc0a5aa211dea02d0c93470c687598cfb0d6c9a19cab6ea468ec"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic103.npz",
+      "sha256": "b36d1689044f0f41ef8f274e267bef0156022e6bc73c25429a8d5a1c050e4d24"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic104.npz",
+      "sha256": "845bf32b58b67ab92cab3bdf095dae2df01ac929fbab3c8f500e555f9c3790c3"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic105.npz",
+      "sha256": "30fb0d542a5d333ee71795634c66f9baf8b7b1152ec9a36578620d140238d00f"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic101.npz",
+      "sha256": "3996a36f21c3f338387df8be550f10af018a54774d0e372af2d7f114753d8c1a"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic102.npz",
+      "sha256": "fd188b0e810870ea810d86d916add4dfae54ad47fead46b0ed05cf28896c2424"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic103.npz",
+      "sha256": "2e60b6f899834989848d9d49a1077a107065001876400767e5edf8b0ec68b011"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic104.npz",
+      "sha256": "4a446822459433d8ff579f2e9ad16523e013b2bf0fdb3cfc8ea5b270c57f392e"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic105.npz",
+      "sha256": "b81e74586bf87e3ad3e7c7e6eeae58f9e4cdea23709c9d87fc86bfa6d984dd8a"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic101.npz",
+      "sha256": "0cc123d1b7ecdbdcac9c34105b40cb8aa4e4829d6532fce7556c94359cca913b"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic102.npz",
+      "sha256": "ed7a4d4d18853d5cea3a37187b5d1b1c6fb0b2c1a1000d079e76fe3dfce42824"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic103.npz",
+      "sha256": "579acdeaa2e9db61df1f26708c446f010b8d992e507958adbdfb14659fc664b2"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic104.npz",
+      "sha256": "7b50afce565a4f60b076e5c48fc82ed7449ff6d95b80e420143b7d4193b633bb"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic105.npz",
+      "sha256": "9b4928722301139a985c3c79fa911b0ef4018dfea1b27fa565d618c898b12ba5"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic101.npz",
+      "sha256": "552d105642fe96692698b865f43a788ecaddbe7f8e3944b2dc588115795568e9"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic102.npz",
+      "sha256": "cacce262c0a9d78bd7253d3616015e680e6470d06d4915b40088b982ff05e2be"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic103.npz",
+      "sha256": "63b6a07c2a722b80f4e568668bc6b6d01aea8435855d7ea3de3b59cb04234f1e"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic104.npz",
+      "sha256": "669789d446219c3819d89b1e945f21666a5944393757ee8f869a6637c13b87db"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic105.npz",
+      "sha256": "8f95082c1e3ee0137c864067755eb8cdc46eed42d70d24ec90f3e418d4ca0454"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic101.npz",
+      "sha256": "dacfa4ef426a188da0ca6895fb3a78601410946c6c6c70335cade85c3625c3c7"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic102.npz",
+      "sha256": "0935727899c6894fdc8ad7401d6f9d568d9eab99f3aea0aa29d16aa39e3d694e"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic103.npz",
+      "sha256": "86bff5f2bf1d639356fcea81770090e5786f8e16f7a4cea4d7a7a7156ab37858"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic104.npz",
+      "sha256": "e3e0c25dd39fdc8778801e7abdd14a67fc056552435b108c98a62547a19ee8d5"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic105.npz",
+      "sha256": "7bff9efa1391e134c4b4c10fdf2e9b9cf9c309830f2b146865aedf170185b2bb"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic101.npz",
+      "sha256": "7f97a0ecdd50280fdb883debc17d5c7e0c3207ebc9f167e82ae4889aecf51ba2"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic102.npz",
+      "sha256": "dc0ba1bbfd3d23adadae146e2f2b9b6a062cacf60d1d5db5278a10e9259ce7af"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic103.npz",
+      "sha256": "ad806cffdc062cd16c6698e012868cc8283c2ee32eecfd62d6141ead16db3b99"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic104.npz",
+      "sha256": "a0ee66d34048bddb06de0de58a840ed9a99678ffe616abdf49c506a1f0570474"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic105.npz",
+      "sha256": "ca33958d0ad3c99f7b011832baf06c629e0f01eacc5901516eda22859228bc55"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic101.npz",
+      "sha256": "25a50fde7e57a091eaaaa5187a74374da4dc47bb21c0f23f9ad08b3810e0f2e6"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic102.npz",
+      "sha256": "ec7960872c7692ed0b5c6c1bbf88bcd5b4bfa91860a4cd4d503e8e5564681b5d"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic103.npz",
+      "sha256": "a90878895aee50b86c61155737e5dfb5c38b2e7ca8cf5d6eb5c2566ae1b0dfed"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic104.npz",
+      "sha256": "0af650eb17b1a88d5a9e08876b8c84b08da0965e24468d00f4494ad7b5348561"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic105.npz",
+      "sha256": "b2f200b0d987bcdf4c689ae35458227e51a214bb426faa2dca1cea5c836f1eef"
+    }
+  ],
+  "publication_files": {
+    "evaluation-node.sh": "b5e04d64262865f90df0787003b285c3c36c02d8416aeb6a00b03cfb0a5733a8",
+    "inventory.json": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+    "PROTOCOL.json": "4cab9456c66c185507df1ea4aa13f6a79121db6be591befa58d17a3dfc33c4b2",
+    "reference-sacct.txt": "fc788a82f4b8ab4fc62274ef3699c383ea11bfe47fcea34a104d1645dc674a5f",
+    "all-sacct.txt": "49ae202985bfd5b0ce3a9dd1d41a50a58e5e4ce2c7064c27c107b5f615df8b8a",
+    "job.json": "ec975ced08955b453347bfe55d1f82a0ff117e4d37e7527e8dc97814a1884623",
+    "evaluation-job.json": "661be35b8ab6a9bfa4bf655f45212f28ddd3e92081a57b351c512d7f82c06faf",
+    "PLOT_PROTOCOL.json": "4443d94e3045c5ae7dfac7e363d92c2eedfac260bc428a042842adf672c8e570",
+    "plot-audit-node.sh": "e61f44a9baabba1e1247d0164d974d131181ad21359e0f46758377b8304d0e0a",
+    "plot-audit-job.json": "80486171998fcf1728893c3eefe2869c688a33a407dcf9138b403105627b6f76",
+    "preparation-manifest.json": "22cf45925552166bbb98462dd0d3da56a375af371d9b88ca61dd2b67a74507dd",
+    "validation-manifest.json": "5345be2b742a65ec05e57b185f079e31dfe00a1db1c83f2ace15a0d273cb849a",
+    "plot_fresh.py": "393062f7df38e2d0ecd5be1c99e0cddc06e13983dd3d5c77a74ad82b87ed8d1a",
+    "plot-job.json": "6028b90f11ab50beccde1e1cc31c3222f06fe3027c17a68b95bbc86c7b338341",
+    "frozen-helper.py": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+    "prepare_references.py": "da1cc1fe087b1e9b2ac72c56cf5cbfbef9248da0891abc571e827da9ebd69d27",
+    "plot-scripts.sha256": "6de43f78bb43d9e46f6c9082d3a918536f7893b7c66ab95ab5c3701ccf6b43d9",
+    "primary-summary-before-polish.sha256": "e348f23cc730066676949af46c7ccac091654588ad7b414232756dc1e66e4d07",
+    "scripts.sha256": "a1a9630a8c7b750c161e0e2868a2c44abdbae546955039bd76fb39033dbac110",
+    "preparation-import-note.json": "e96febdcd60ed93017d726b2f832e663b642106e2184d982c4f4482683b6a702",
+    "PROTOCOL-v1-preserved.json": "60656543a35e9d49c95b35445d17ca09ba14701f151d96faa40569bcb3f07421",
+    "node.sh": "f99e872feb04830387d51b756d088a209c51fc0863b9e595d674ae2995c576b2",
+    "submit_evaluation.py": "2c9a0f9b998815044ce48460f83efe451dcf2c07fe21e52e9132d393f0fdb6a3",
+    "evaluation-scripts.sha256": "5f0e04c5711c517bf9d12a79d4643f208b6188309fec683563c42447a8574d3c",
+    "source.sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873",
+    "evaluate_frozen.py": "3c0c226c488ab0ccdfc58da53b8e9465a828a22a4f2da05e9674c5330a8d1a2f",
+    "plot-node.sh": "e29d59d6c1476671258f5f4d80a7ffb43120caa2dddab24fb066440dbd8988c4",
+    "audit_sensitivity.py": "1e09226882c20e6c9dbb22db3a6477f9fba962217986c680d20005e86c8505f5",
+    "submit_plots.py": "eee8234a442d8fef144fc1d56f7e6c2710927d1c59d16fa0fb6fdc135f10899e",
+    "evaluation-environment.txt": "8776c6f175177ccc3b082ad5b3a8a49b0eca90406b2421156762e0532c0d3c55",
+    "plot_fresh-v1-preserved.py": "954415cba2b5002a346d430e51634a1729e4696e6cd971ea99e26a26e2d7e8aa",
+    "reference-admission.json": "75f4a6d75e340c3cf5e2e4f6c2de0fb21cf3a371b8bf1f3f016ba7c653c9a5d6",
+    "plot-v2-scripts.sha256": "f7c94a259c575cfabfb5f3d9e96699a1f15e02c9d4e3640c9c23fab2c72738ed",
+    "frozen-selection.json": "af60c681c1517f82398588d19e106fa10eeaa4274d535c6ad8db50fa7c2886cd",
+    "environment.txt": "53a2f98c95b3aca15fb9979a5cec1c5a648b443b701978a36c6ed8aae72595e2",
+    "evaluation/outcome.json": "46010870f7bf03ed5049ce629921ce6dcc6866855ce4aebc4faa6e398b632ad5",
+    "report/reference_sensitivity.json": "6ee1a2e10120786d8b3795757eddbb706b5147a2913b40b7e977bc21d12348e7",
+    "report/fresh_heat_and_bounds.png": "3a7ac3773e21d6f6ab2dae9c90e13c077e9b4e4352e95c0d2c207fc2776b2185",
+    "report/reference_sensitivity.md": "c4154725304ae7207edc8d5c4f1f3b0a396e7de31e14b10035f8eca0175645df",
+    "report/fresh_fixed_example.png": "6a5a198bd64fd2da02fb32e4f802ccbabb6548b8d8dd9b98057a21b1fba2d676",
+    "report/summary.json": "ae45a768688e0ff2a1e44969c7120a04b2c095966403a405e0763776132d185b",
+    "report/reference_sensitivity.png": "5b7a8db59f48fdd66483b433c1cfead6e6c23f7066c54f9f32aacda26f10bc02",
+    "report/README.md": "1500e297565d8a838e56273e3f160df137fedd78a0da907a8aa90b1b1248f811",
+    "report/fresh_relative_errors.png": "3324231c10499e61934cc89c215db81769f5071ed53b5924bbef2910f73f15d0",
+    "report/fresh_error_rollouts.png": "10d3ff107185283d8cc1d52a6bcb5cbfa7683c3dd6204f89c60717f55cf4858a",
+    "references/outcome.json": "75f4a6d75e340c3cf5e2e4f6c2de0fb21cf3a371b8bf1f3f016ba7c653c9a5d6"
+  },
+  "source_files": {
+    "frozen_helper": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/helper.py",
+      "sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26"
+    },
+    "native": {
+      "repo_path": "mosaic/tesseracts/buoyancy-grid/jax-cfd/tesseract_api.py",
+      "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+      "sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01"
+    }
+  },
+  "array_exclusion": "All field/reference/model NPZs and source.tar remain on cluster. Only curated metadata/scripts/scalarresults/PNGs are publication inputs."
+}

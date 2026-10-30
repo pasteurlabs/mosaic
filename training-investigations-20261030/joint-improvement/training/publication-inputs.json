@@ -1,0 +1,314 @@
+{
+  "complete": true,
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "training_campaign": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030",
+  "screen_cells": 54,
+  "confirmation_cells": 6,
+  "all60_completed_256": true,
+  "no_heldout_access_by_training": true,
+  "source_and_scalar_files": {
+    "PROTOCOL.json": "9165e7334be0a1193ca994e438dd891794d3b09e1a8f9d1c86596f7f880f5db6",
+    "PROTOCOL-v1-unlaunched.json": "939f89941df2e3b6c3b0828f994de4d53c283eb50d6a416369a0b20e4c7f607e",
+    "validation-freeze.json": "58fd4b3b3e8c58c7606eb89b59192cfddf29d5f77bb8d7de9130384165b78dbd",
+    "screen-selection.json": "3467043ce95865613d03273d3fd0478ecfac317e51d8ad77e0575c1edd05b059",
+    "confirmation-plan.json": "271f84b4fb86ba821d0dca0fba62c0bcea160d23abc1ea3f0b478d69c0863c05",
+    "confirmation-summary.json": "082f768e40456b91a0b53f95ecd459412c49d868101fd1ee6be6f5dfd5a22d85",
+    "screen-parity-audit.json": "c3d0d7fd5034448ab19bc9850d011936522f579489f5c54b6fc9975327597fe1",
+    "screen-report-manifest.json": "27713a49906b6e15c69399cac27d9c5c1e3ae1d78f95f275a43cfe4f7d545ed1",
+    "independent-fresh-scalar-audit.json": "3943cbd68db72a85110316c958ba5e99282c5026b84da0fb491bb84cc32ad3ce",
+    "driver.py": "372c347e8fc151e48cc06c1fc2c625f174a043d6e36b0e985e91ac83a32e23c7",
+    "helper.py": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+    "gpu_adapter.py": "2dbdba6672bd7c65de9b402468575d02d878e53f7d3b7d11205f465174fffe84",
+    "controls.py": "4c7d5fa0e7ae705336d73da776cc80476da6ae23cde4ddcc820f671e1fc87451",
+    "controls-measured.py": "e93e7c8a029fdabc8588a55996d400cc30f331b8ba41135cc7f7d5b60aab4def",
+    "node.sh": "9e46cd47796e2875dde1062cee14aa6ed8136266fda09c2d70a5229e3ecf830b",
+    "node-controls-measured.sh": "c6b3a548541701f48256eaafcc82a10d5f2c210a65d96f9cef4b5c6a7e1933d3",
+    "submit.py": "8ac5b9d59753a8a08c35ae2cfb26dab24df9c75bf92412a7d46ee6f3ba6e49c0",
+    "submit-confirmation.py": "9ebaf4805eed2eaf1d64f3fc4fcbef513f45dda7cb4432027ef63fe64d5fcd07",
+    "summarize.py": "cefe20e930d9f1e8f394923a5ee82762f8f66b1f80d9fee8cb8f6841013ab44e",
+    "summary-node.sh": "23e8efce7e537017b33484e7259102a01be96cb55d70a14df86c17e3a90f3ce2",
+    "confirmation_report.py": "d10abec38781a6a6e35a12dc9a88a6ef24330761057a02e485898f176b9c947f",
+    "confirmation-report-node.sh": "f432514d4d93a2e060ac15900e526dab1b45839d46cebd7239d18b651a2edce2",
+    "scripts.sha256": "20b465a7fd3deb50ae9cf9d668a6da46098adb67594371c15014bd428272ddb9",
+    "scripts-v1-preserved.sha256": "411ae61f25ff23be85c4558608b1f28206079bef1a4511c9d68d03b9a1f8d654",
+    "summary.sha256": "42ca644a8ae43ddc4dc5e948a4b596d6a9ff536759d5ae20fffd1fbe8bec0828",
+    "confirmation-report.sha256": "64d09c0ac784e5d68500ed4a839d23ff6aa79d6414eae9cbd667424d33faf7bb",
+    "source.sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873",
+    "inventory.json": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+    "jobs.json": "bd1e627a274f8f763885b2e24f84615d39ae20b3e326f10a256b0e6be22fb6dd",
+    "confirmation-jobs.json": "d71a76c060260119b0824d15716ac2b3f4edecd07bfc36bcb64e1e723cea59a5",
+    "sacct.txt": "c972300bce9c762d6bd0a196bd5029a678e0218b982d085d9f2507eae5815b68",
+    "controls/controls-measured.json": "d8f8b6e6e05c1a1d6f8f981392bc72d127b5106514f9bb84cbc319f67a2b8360",
+    "controls/acceptance.json": "44b927f955ce02007e6fc9a2bc181b5e5958d02223b6129a86df37a4cf865227"
+  },
+  "report_files": {
+    "screen-report/README.md": "f9c9011a84821a53cde0767047923e731ce0f201457adfc8a3e52f3863cf4c5d",
+    "screen-report/validation_physics.png": "82c443ed7182545ceac899e09cb69cd845c4cf55890124d63aa7641130d6d02d",
+    "screen-report/joint_grid.png": "af84537a500610614e53773eb96e09bf5040a21f7821afc21c86701832e5d6de",
+    "screen-report/best_validation.png": "78fa723f24a06ded87976824dfd47c9a027f3d95e87e947175afc7d16ea39e5d",
+    "screen-report/grid.csv": "5f9d8edffe53dbde2c723f1d6774b659cf3396c453ccade6e6636232ce9c4ed3",
+    "screen-report/summary.json": "9cc019985e7915ba29d1a515c0162b4adc8534ad9c436dd19344ef3e3a6c0d8a",
+    "confirmation-report/fit_timing.png": "6116556218974f37a6c20c9278e16050a32f6dcf6ba239d2e4a5870ea53fb395",
+    "confirmation-report/manifest.json": "6caee565cc07b1c5bed475e66447fad611512377b9e971e6fc5099c3c687ffba",
+    "confirmation-report/README.md": "76c6f1211a0cb0e0cf2b21e7754b9708bc298ed9e92c3019b34dd8886bda13d9",
+    "confirmation-report/validation_confirmations.png": "a942c8de3db465b29118d48dcbd90ef4d46a3bc29ce475bc9accb62f7ba0a228",
+    "confirmation-report/component_validation.png": "989a1cd938fef70e82e7e9e946c6da7a21988b40b6958a48084adf092dba3d55",
+    "confirmation-report/summary.json": "7e3d94a76c041d2d0f283561d25b96db0a38a72fd419becc1ab151fce2c4a0f4",
+    "confirmation-report/validation_physics_confirmations.png": "2b120f1659801ea58f95917434149b520419962da6caf7aaf8e599cd455a171d",
+    "confirmation-report/raw/joint_zero_mean-seed-0.json": "00a863e1ef1319029f03d62e403b59ccecc9c8d3f89c7e3a913a41ad1abfeaac",
+    "confirmation-report/raw/velocity-seed-2.json": "abcefdd903619c21392922b763de93e35faff5850abb23f42e49a97d0591647c",
+    "confirmation-report/raw/joint_zero_mean-seed-1.json": "73369d39df78616d0d38cfcf7491673b2c5c8f79d8ceb2173b4bbfb6a9d75b75",
+    "confirmation-report/raw/joint-seed-2.json": "0281522044d27f37c25feb8cb1351bf017c8a4540833cfb462d8f22fafb32edc",
+    "confirmation-report/raw/velocity-seed-0.json": "4c9197d978c21f92e2d31739fc2f63da80caf15f86b5ca5afb5ad4b5f360bf72",
+    "confirmation-report/raw/joint-seed-0.json": "06d3a4b3ee0adf7b4c8a4a1af25dfde581d6d96440043696007d0e0cc3dd2070",
+    "confirmation-report/raw/velocity-seed-1.json": "b15bae627cbee7345610a29da175e7329648717458ef6d39b1de16e0a77189c8",
+    "confirmation-report/raw/joint-seed-1.json": "b12fc1f285ab639c8cdf8d86cbddebd089c71c7d70c307409691ae5afed2fd2b",
+    "confirmation-report/raw/joint_zero_mean-seed-2.json": "11c469eb5db96060ce057175df4365e8e406661821f88b19708999e5b6ea3a5c"
+  },
+  "raw_screen_outcomes": {
+    "velocity-c0-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c0-lr0.003-s0/outcome.json",
+      "sha256": "bb2564ec5091564debe7fed95bb811e4b6bb84ae4ef1a65949327f49e6d2f7bf"
+    },
+    "joint-c1-m1-t0.21397276-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.21397276-lr0.001-s0/outcome.json",
+      "sha256": "305314ef91ba901d1bfb8129f991de03f4e8b141e064ea8777d523b50f351cfa"
+    },
+    "velocity-c0-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c0-lr0.0003-s0/outcome.json",
+      "sha256": "4c9197d978c21f92e2d31739fc2f63da80caf15f86b5ca5afb5ad4b5f360bf72"
+    },
+    "velocity-c0-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c0-lr0.001-s0/outcome.json",
+      "sha256": "121db101b6bb901ce1d1a8677d5621a41e3876a212e603480f1ae3d65c12b2be"
+    },
+    "velocity-c1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c1-lr0.0003-s0/outcome.json",
+      "sha256": "9d6485413a62b242b502c3f72ce6f60038816fa38dcfcea5b53e46719dc75352"
+    },
+    "velocity-c1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c1-lr0.001-s0/outcome.json",
+      "sha256": "c745ae87e4f13b5b65b3ee91de935d37740ffb9878560b195296575bbdd33856"
+    },
+    "velocity-c1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c1-lr0.003-s0/outcome.json",
+      "sha256": "00d2b567834df60b971931656cdaafffcd30df0665337f717102d18a76f46ba3"
+    },
+    "joint-c0-m0-t0.1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.1-lr0.0003-s0/outcome.json",
+      "sha256": "3fc37c676c2b94b3d0d4e70cff7c8e1dc62ae8c815988c4346c4ee068d7a8fc2"
+    },
+    "joint-c0-m0-t0.1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.1-lr0.001-s0/outcome.json",
+      "sha256": "06d3a4b3ee0adf7b4c8a4a1af25dfde581d6d96440043696007d0e0cc3dd2070"
+    },
+    "joint-c0-m0-t0.1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.1-lr0.003-s0/outcome.json",
+      "sha256": "f83df81c290a7ca6336813bb227e685a2eeb5596f7226193bf8698d894520cdd"
+    },
+    "joint-c0-m0-t0.21397276-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.21397276-lr0.0003-s0/outcome.json",
+      "sha256": "ece141d52e51bd7c7dcaa4d3748d0abdb08539d8d28f3d264a5dd36bba60853e"
+    },
+    "joint-c0-m0-t0.21397276-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.21397276-lr0.001-s0/outcome.json",
+      "sha256": "66295b9cfa51909476bca9683f02331bf1fa6e31730041f4d5a698eabf1105ea"
+    },
+    "joint-c0-m0-t0.21397276-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.21397276-lr0.003-s0/outcome.json",
+      "sha256": "4dc8defb7fd513421451ec5fcb880cb669ddf0e0ab6543505132fd14b0bf6d59"
+    },
+    "joint-c0-m0-t0.5-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.5-lr0.0003-s0/outcome.json",
+      "sha256": "b6aff709b32d88b7e8e5d8a9ad9a09f0c2edbb06f8c01e9b0e08dd0219683464"
+    },
+    "joint-c0-m0-t0.5-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.5-lr0.001-s0/outcome.json",
+      "sha256": "8fa552814f989ebe3bbccd7233acfb360bb6518c51e05863782c8f4db0ac68ba"
+    },
+    "joint-c0-m0-t0.5-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.5-lr0.003-s0/outcome.json",
+      "sha256": "15973c8f4b40c981961c05d3230639a396e630b7c563c73b657e7cf01a6d6b89"
+    },
+    "joint-c0-m1-t0.1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.1-lr0.0003-s0/outcome.json",
+      "sha256": "8634b18d60d08f77d6e10a7245e75feba46487de3a030be7b9e9051ee56f9585"
+    },
+    "joint-c0-m1-t0.1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.1-lr0.001-s0/outcome.json",
+      "sha256": "9cac2b55e869ecf202f5b95b70cae6d30a9953cc7361af18ad4926aec17af84c"
+    },
+    "joint-c0-m1-t0.1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.1-lr0.003-s0/outcome.json",
+      "sha256": "01d884cf2b2706c27425d0a8f07d3c619ed6789279278cc977a4f53faf7631ec"
+    },
+    "joint-c0-m1-t0.21397276-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.21397276-lr0.0003-s0/outcome.json",
+      "sha256": "d7efa97857d7c963a83b2f08798b66e0ddc5140f6b958eeba14fa3d169232cd5"
+    },
+    "joint-c0-m1-t0.21397276-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.21397276-lr0.001-s0/outcome.json",
+      "sha256": "d2594cdcf5f6430eb0d1fe0f96db6b81353b247ef75f1ab7ddfe73a5c847dc6c"
+    },
+    "joint-c0-m1-t0.21397276-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.21397276-lr0.003-s0/outcome.json",
+      "sha256": "d821b6b655c3c4e97bf577fbed9666a12172425346f8fe31ce223c7fee38d51a"
+    },
+    "joint-c0-m1-t0.5-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.5-lr0.0003-s0/outcome.json",
+      "sha256": "00a863e1ef1319029f03d62e403b59ccecc9c8d3f89c7e3a913a41ad1abfeaac"
+    },
+    "joint-c0-m1-t0.5-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.5-lr0.001-s0/outcome.json",
+      "sha256": "bedc20b62208a9b0c7c387d2f13b2b25a773a6a836ec521ea589021dc89a608f"
+    },
+    "joint-c0-m1-t0.5-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.5-lr0.003-s0/outcome.json",
+      "sha256": "f195af338ec4a679672b8065cbe430c0513808b9ff26608a233f7c516595d0c7"
+    },
+    "joint-c1-m0-t0.1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.1-lr0.0003-s0/outcome.json",
+      "sha256": "4f16b3c9ab70fc3c1a913b77005bb3eef3ecb836913c5760d2efd9ee67029f0c"
+    },
+    "joint-c1-m0-t0.1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.1-lr0.001-s0/outcome.json",
+      "sha256": "8adea0d90f55f056244131d4fbd8eb69ea642a818629fcd4cb1736f0e248325b"
+    },
+    "joint-c1-m0-t0.1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.1-lr0.003-s0/outcome.json",
+      "sha256": "d20c4f638e2fb0b4501215aa83fc8d2840311f413a1d223af0086c68bba31054"
+    },
+    "joint-c1-m0-t0.21397276-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.21397276-lr0.0003-s0/outcome.json",
+      "sha256": "2214a053d936be46def90f6903a48bf25b0417b1b1969ca199d2886db1ff7293"
+    },
+    "joint-c1-m0-t0.21397276-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.21397276-lr0.001-s0/outcome.json",
+      "sha256": "dc263cae6ae2a79b1650b7835948a874cd240a0c21a555068c2db143d6579300"
+    },
+    "joint-c1-m0-t0.21397276-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.21397276-lr0.003-s0/outcome.json",
+      "sha256": "9b2c1296b9ebed2025f2f30d9f488024732fa11be26d13deb5552c19dde115de"
+    },
+    "joint-c1-m0-t0.5-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.5-lr0.0003-s0/outcome.json",
+      "sha256": "96da9571b2bf662cedf35d4333fe6008af4ad26aad04d9791c15f00154a8054c"
+    },
+    "joint-c1-m0-t0.5-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.5-lr0.001-s0/outcome.json",
+      "sha256": "9decfa714705da0d1b5cb9732ddbdedb19c52254aa026b6b25295ad49c175bfa"
+    },
+    "joint-c1-m0-t0.5-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t0.5-lr0.003-s0/outcome.json",
+      "sha256": "697e954f8e50af008188b7e55f6861339bed55f3cf3b150f7325f628ac30fd6c"
+    },
+    "joint-c1-m1-t0.1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.1-lr0.0003-s0/outcome.json",
+      "sha256": "f1499223224e82ca4fda9acab58605062fcc225cd021c33a95351891a7e4b407"
+    },
+    "joint-c1-m1-t0.1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.1-lr0.001-s0/outcome.json",
+      "sha256": "90f794e74ad0d35602ffe13bb46efe1fe3744bdca12485ce9d42c4dca8b7fb85"
+    },
+    "joint-c1-m1-t0.1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.1-lr0.003-s0/outcome.json",
+      "sha256": "31448e02944049cebe4b27d5974a5d66b74fa83a959bc2e972c62dc630f2612d"
+    },
+    "joint-c1-m1-t0.21397276-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.21397276-lr0.0003-s0/outcome.json",
+      "sha256": "ca792d1d76123567d20152a0b107070c89ad6cdbc0aa1d92c453fcc40303f4ad"
+    },
+    "joint-c1-m1-t0.21397276-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.21397276-lr0.003-s0/outcome.json",
+      "sha256": "607ce3e9541c828eb24b60fbfb58368a8b9bc4a62a573b07b0de144ca3b0e085"
+    },
+    "joint-c1-m1-t0.5-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.5-lr0.0003-s0/outcome.json",
+      "sha256": "4b91431e47d552263b420bc77c8ac45c1ee8b532ca9da5b6b6c80f1834e8ccee"
+    },
+    "joint-c1-m1-t0.5-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.5-lr0.001-s0/outcome.json",
+      "sha256": "159e45c4476a3d7d1e97af03465fe83536db5fd9e18668d8ebb8d9ce7f8915da"
+    },
+    "joint-c1-m1-t0.5-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t0.5-lr0.003-s0/outcome.json",
+      "sha256": "95ca69070c17308b51cf67f72d85b8efdf4d7b275c19dca91d37db6c76276366"
+    },
+    "joint-c0-m0-t1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t1-lr0.0003-s0/outcome.json",
+      "sha256": "51c629135f0dfc39aafcf34313934822a2240448d9bc91893f336313a5dd7556"
+    },
+    "joint-c0-m0-t1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t1-lr0.001-s0/outcome.json",
+      "sha256": "50da693a5c0ef97ba0471226dcb07432cabaec3a16cf557d6deee756b8b7a257"
+    },
+    "joint-c0-m0-t1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t1-lr0.003-s0/outcome.json",
+      "sha256": "19d5d4ece73213ca4255a6b028004784f1325acd34f5b01ed5422ca1eaeb9bcc"
+    },
+    "joint-c0-m1-t1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t1-lr0.0003-s0/outcome.json",
+      "sha256": "d335f560588376a72b813072d33a1a910141a63e81d663caea080b5dd057f8d5"
+    },
+    "joint-c0-m1-t1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t1-lr0.001-s0/outcome.json",
+      "sha256": "1d6422a95f1abc4e3c6738ed3f8141a8becb2b4b1b255ecc43bd997723ec9e57"
+    },
+    "joint-c0-m1-t1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t1-lr0.003-s0/outcome.json",
+      "sha256": "8449c1caaf10d00911dd6ddbdb997d0a916612b023583867b68993cfc8de76fe"
+    },
+    "joint-c1-m0-t1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t1-lr0.0003-s0/outcome.json",
+      "sha256": "c198cd49ca728b5ba16315e0571ac094bcfd45b8934f9fe5d7473d426913d410"
+    },
+    "joint-c1-m0-t1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t1-lr0.001-s0/outcome.json",
+      "sha256": "826d2322aebd41fa6b9b9474e1876b7443368b96b749244f85dc95bb0c1dac84"
+    },
+    "joint-c1-m0-t1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m0-t1-lr0.003-s0/outcome.json",
+      "sha256": "56577d1c884894ba3c4c8afc97c63ef579c5f378aff798206d5c1f43a43fa23f"
+    },
+    "joint-c1-m1-t1-lr0.0003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t1-lr0.0003-s0/outcome.json",
+      "sha256": "ca3fe14430d28e0e80dd36438e4d65726ab0fa77498d6d10c89ff11b031aa01f"
+    },
+    "joint-c1-m1-t1-lr0.001-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t1-lr0.001-s0/outcome.json",
+      "sha256": "d7f35c0c14097032ac25697e18b846ca74649d37f3d81ddfc0c25dffd2f639b1"
+    },
+    "joint-c1-m1-t1-lr0.003-s0": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c1-m1-t1-lr0.003-s0/outcome.json",
+      "sha256": "fc0af31dff8debcdac8f5a07054d8f2b119ef6f03d13fdbb3519f334177af572"
+    }
+  },
+  "raw_confirmation_outcomes": {
+    "velocity-c0-lr0.0003-s1": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/velocity-c0-lr0.0003-s1/outcome.json",
+      "sha256": "b15bae627cbee7345610a29da175e7329648717458ef6d39b1de16e0a77189c8"
+    },
+    "velocity-c0-lr0.0003-s2": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/velocity-c0-lr0.0003-s2/outcome.json",
+      "sha256": "abcefdd903619c21392922b763de93e35faff5850abb23f42e49a97d0591647c"
+    },
+    "joint-c0-m0-t0.1-lr0.001-s1": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m0-t0.1-lr0.001-s1/outcome.json",
+      "sha256": "b12fc1f285ab639c8cdf8d86cbddebd089c71c7d70c307409691ae5afed2fd2b"
+    },
+    "joint-c0-m0-t0.1-lr0.001-s2": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m0-t0.1-lr0.001-s2/outcome.json",
+      "sha256": "0281522044d27f37c25feb8cb1351bf017c8a4540833cfb462d8f22fafb32edc"
+    },
+    "joint-c0-m1-t0.5-lr0.0003-s1": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m1-t0.5-lr0.0003-s1/outcome.json",
+      "sha256": "73369d39df78616d0d38cfcf7491673b2c5c8f79d8ceb2173b4bbfb6a9d75b75"
+    },
+    "joint-c0-m1-t0.5-lr0.0003-s2": {
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m1-t0.5-lr0.0003-s2/outcome.json",
+      "sha256": "11c469eb5db96060ce057175df4365e8e406661821f88b19708999e5b6ea3a5c"
+    }
+  },
+  "large_arrays_omitted": "source.tar,model NPZs andfieldNPZs stayclusteronly; linkedbyhash/path",
+  "source_repository_unchanged": true
+}

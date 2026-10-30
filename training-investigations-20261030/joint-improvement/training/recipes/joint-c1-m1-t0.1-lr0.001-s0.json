@@ -1,0 +1,9 @@
+{
+  "id": "joint-c1-m1-t0.1-lr0.001-s0",
+  "joint": true,
+  "center_temperature": true,
+  "zero_mean_temperature": true,
+  "temperature_head_scale": 0.1,
+  "lr": 0.001,
+  "model_seed": 0
+}

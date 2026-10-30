@@ -1,0 +1,3 @@
+{
+  "clarification": "Preparation imports public diagnostic routines from training.py, which also defines uninstantiated corrector functions. No learned parameters are loaded and no learned model is constructed or evaluated. Inventory input SHA validation may read checkpoint bytes only as opaque provenance. The seal is about no learned-model scores before root selection freeze."
+}

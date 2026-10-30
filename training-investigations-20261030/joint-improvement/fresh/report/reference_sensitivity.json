@@ -1,0 +1,1105 @@
+{
+  "complete": true,
+  "scope": "Exact same frozen45predictions, no model/nativecalls orselection. Primary targetN128 dt.0025 vsstoredtemporal auditN128 dt.00125, bothrestrictedN64. Does not auditspatialrefinement.",
+  "selection_sha256": "af60c681c1517f82398588d19e106fa10eeaa4274d535c6ad8db50fa7c2886cd",
+  "evaluation_sha256": "46010870f7bf03ed5049ce629921ce6dcc6866855ce4aebc4faa6e398b632ad5",
+  "reference_outcome_sha256": "75f4a6d75e340c3cf5e2e4f6c2de0fb21cf3a371b8bf1f3f016ba7c653c9a5d6",
+  "primary_metrics_recomputed_equal": true,
+  "summary": [
+    {
+      "group": "joint",
+      "standard_mean_paired_ratio": 0.8664199179305531,
+      "audit_mean_paired_ratio": 0.8842729635169696,
+      "standard_seed_ratios": [
+        0.8002883412889925,
+        0.9169970671498765,
+        0.8819743453527903
+      ],
+      "audit_seed_ratios": [
+        0.8025348488295186,
+        0.9332595787809651,
+        0.9170244629404252
+      ],
+      "seed_mean_winner_flips": 0,
+      "case_winner_flips": 1,
+      "standard_case_wins": 13,
+      "audit_case_wins": 12
+    },
+    {
+      "group": "joint_zero_mean",
+      "standard_mean_paired_ratio": 0.926966596149045,
+      "audit_mean_paired_ratio": 0.9309519798015199,
+      "standard_seed_ratios": [
+        0.8688821705919432,
+        1.0508757536761604,
+        0.8611418641790316
+      ],
+      "audit_seed_ratios": [
+        0.8670592347365893,
+        1.058092505506874,
+        0.8677041991610965
+      ],
+      "seed_mean_winner_flips": 0,
+      "case_winner_flips": 0,
+      "standard_case_wins": 12,
+      "audit_case_wins": 12
+    }
+  ],
+  "paired": [
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 0.7768136671744353,
+            "finer_time_audit": 0.7864840507185574
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 0.78287111871268,
+            "finer_time_audit": 0.7859379953764286
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.7183916386863054,
+            "finer_time_audit": 0.7248600408112132
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 0.8963366361225926,
+            "finer_time_audit": 0.8876091512466445
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 0.8207646391655041,
+            "finer_time_audit": 0.8218248161165974
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 0.8002883412889925,
+      "finer_time_audit_ratio_mean_loss": 0.8025348488295186
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 0.8238267687217985,
+            "finer_time_audit": 0.8451480059030783
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 0.9124885310402705,
+            "finer_time_audit": 0.937904964608333
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.8318139690332024,
+            "finer_time_audit": 0.8546629365105071
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 0.9718009374064038,
+            "finer_time_audit": 0.9794038769245015
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 1.0026685948476706,
+            "finer_time_audit": 1.01071867658061
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 0.9169970671498765,
+      "finer_time_audit_ratio_mean_loss": 0.9332595787809651
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 1.0118899866192475,
+            "finer_time_audit": 1.0527818715834139
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 0.8704696297164476,
+            "finer_time_audit": 0.8928235478507649
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.9744780178224627,
+            "finer_time_audit": 1.016991725847097
+          },
+          "winner_flips": true
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 0.8536692505707824,
+            "finer_time_audit": 0.8943365522334494
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 0.8014358838253646,
+            "finer_time_audit": 0.8327830219416784
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 0.8819743453527903,
+      "finer_time_audit_ratio_mean_loss": 0.9170244629404252
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 0.7561929793333275,
+            "finer_time_audit": 0.7593922398231199
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 0.8802645383593924,
+            "finer_time_audit": 0.890292279064067
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.6973876057631782,
+            "finer_time_audit": 0.7054545615047162
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 0.989042616262906,
+            "finer_time_audit": 0.968765648636254
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 0.9917461653528038,
+            "finer_time_audit": 0.9809743097736827
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 0.8688821705919432,
+      "finer_time_audit_ratio_mean_loss": 0.8670592347365893
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 0.9347372361880328,
+            "finer_time_audit": 0.9523275779987925
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 1.0529113406212351,
+            "finer_time_audit": 1.062821146083378
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.930730693219501,
+            "finer_time_audit": 0.9456434187261497
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 1.1489190430020992,
+            "finer_time_audit": 1.14808111732543
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 1.134722019947294,
+            "finer_time_audit": 1.134835192868141
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 1.0508757536761604,
+      "finer_time_audit_ratio_mean_loss": 1.058092505506874
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "cases": [
+        {
+          "ic_seed": 101,
+          "ratios": {
+            "standard": 0.926606036606683,
+            "finer_time_audit": 0.9356065933553588
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 102,
+          "ratios": {
+            "standard": 0.7577503165692664,
+            "finer_time_audit": 0.7694581686375955
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 103,
+          "ratios": {
+            "standard": 0.8584191017881062,
+            "finer_time_audit": 0.8666550394499474
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 104,
+          "ratios": {
+            "standard": 0.9290615175494484,
+            "finer_time_audit": 0.9332100942289869
+          },
+          "winner_flips": false
+        },
+        {
+          "ic_seed": 105,
+          "ratios": {
+            "standard": 0.849031496789906,
+            "finer_time_audit": 0.8545160427441117
+          },
+          "winner_flips": false
+        }
+      ],
+      "standard_ratio_mean_loss": 0.8611418641790316,
+      "finer_time_audit_ratio_mean_loss": 0.8677041991610965
+    }
+  ],
+  "rows": [
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0004177495412330316,
+        "velocity_contribution": 0.0002126268083345077,
+        "temperature_contribution": 0.00020512273289852393
+      },
+      "finer_time_audit": {
+        "total": 0.0004652575611980627,
+        "velocity_contribution": 0.00024251620274408318,
+        "temperature_contribution": 0.00022274135845397954
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic101.npz",
+      "fields_sha256": "6b88ae18caf68436ca1b7c4e0cc6bc829a2ca36316fb03db6315e702705cc4d9"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0004752554689521249,
+        "velocity_contribution": 0.00025172807363268664,
+        "temperature_contribution": 0.00022352739531943827
+      },
+      "finer_time_audit": {
+        "total": 0.0005334959893629344,
+        "velocity_contribution": 0.00028294265574414134,
+        "temperature_contribution": 0.00025055333361879306
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic102.npz",
+      "fields_sha256": "00170c4f133b932230150d5230678416477fbfe282fe783eccc051b4bd4901b9"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.00037391582348979925,
+        "velocity_contribution": 0.00019295695219007179,
+        "temperature_contribution": 0.00018095887129972746
+      },
+      "finer_time_audit": {
+        "total": 0.00042068249803187574,
+        "velocity_contribution": 0.00021774312348215617,
+        "temperature_contribution": 0.0002029393745497196
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic103.npz",
+      "fields_sha256": "f0667cc727c0a9f96bba5e7976f51c1989a56d9c8aa19bc23242213b1a9f93bd"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0004951931138656083,
+        "velocity_contribution": 0.0002492558739459663,
+        "temperature_contribution": 0.00024593723991964204
+      },
+      "finer_time_audit": {
+        "total": 0.000547385218781099,
+        "velocity_contribution": 0.0002758482578536624,
+        "temperature_contribution": 0.0002715369609274366
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic104.npz",
+      "fields_sha256": "5a1e214f3211c24c5793593040c2ef81966c6a2f3889adff926d3d60d4306eb5"
+    },
+    {
+      "group": "joint",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0005114973363691264,
+        "velocity_contribution": 0.0002623024922003421,
+        "temperature_contribution": 0.00024919484416878435
+      },
+      "finer_time_audit": {
+        "total": 0.000569856009924293,
+        "velocity_contribution": 0.0002910301472299698,
+        "temperature_contribution": 0.0002788258626943233
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s0-ic105.npz",
+      "fields_sha256": "e9e8cb19dc6a7253043afdc754a5c3dba2df1e2a14131ce4126d2379f3b172ac"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0004590763746277908,
+        "velocity_contribution": 0.0002040593502367817,
+        "temperature_contribution": 0.00025501702439100914
+      },
+      "finer_time_audit": {
+        "total": 0.0005124177655844844,
+        "velocity_contribution": 0.00023363646986462758,
+        "temperature_contribution": 0.00027878129571985683
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic101.npz",
+      "fields_sha256": "9a43b0ee5d7362b780da372c6e7204b15b180153df4c5c47213200643eefb654"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.000644933263282857,
+        "velocity_contribution": 0.00031279378503089946,
+        "temperature_contribution": 0.0003321394782519575
+      },
+      "finer_time_audit": {
+        "total": 0.000726689439376618,
+        "velocity_contribution": 0.0003569456275692736,
+        "temperature_contribution": 0.0003697438118073444
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic102.npz",
+      "fields_sha256": "78abb0039c705d089124c62bec8c194473f0038ba21bcdce2829ec5d954b35ed"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0005010138966600201,
+        "velocity_contribution": 0.00023042211956999451,
+        "temperature_contribution": 0.0002705917770900256
+      },
+      "finer_time_audit": {
+        "total": 0.0005645978273815615,
+        "velocity_contribution": 0.000263134794911748,
+        "temperature_contribution": 0.00030146303246981343
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic103.npz",
+      "fields_sha256": "eb1c65b5a5fb4c66da60c142718102fdee17044dbcd068a2c478d1d56a620c20"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0006893220017167182,
+        "velocity_contribution": 0.00032761499342085816,
+        "temperature_contribution": 0.00036170700829586
+      },
+      "finer_time_audit": {
+        "total": 0.0007509181606079895,
+        "velocity_contribution": 0.00035566768379785986,
+        "temperature_contribution": 0.0003952504768101296
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic104.npz",
+      "fields_sha256": "ae1bd3bf0903c0e290ce2f2c09a1fcc3ccb7cf63f4d0dbfcbc2d56df3b96e97e"
+    },
+    {
+      "group": "joint",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0007904511007851722,
+        "velocity_contribution": 0.000408538921291692,
+        "temperature_contribution": 0.0003819121794934802
+      },
+      "finer_time_audit": {
+        "total": 0.0008659665277589006,
+        "velocity_contribution": 0.0004456285863391151,
+        "temperature_contribution": 0.0004203379414197855
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s1-ic105.npz",
+      "fields_sha256": "698a0983dca6091a22d4764af9e282d1ba82882424710ccc79dd1bcc79317fd0"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005513759576284051,
+        "velocity_contribution": 0.0002578904059500046,
+        "temperature_contribution": 0.00029348555167840046
+      },
+      "finer_time_audit": {
+        "total": 0.0006166389822045417,
+        "velocity_contribution": 0.00029344595553210074,
+        "temperature_contribution": 0.00032319302667244094
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic101.npz",
+      "fields_sha256": "2506568a36d10a16a04865fa2320009343ac11d004c4283b776ec2037a48016f"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0007153233055365039,
+        "velocity_contribution": 0.0003417171077318191,
+        "temperature_contribution": 0.0003736061978046848
+      },
+      "finer_time_audit": {
+        "total": 0.0008062972262318502,
+        "velocity_contribution": 0.00039037204871774533,
+        "temperature_contribution": 0.0004159251775141048
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic102.npz",
+      "fields_sha256": "8b21c51ead7ddc0a5aa211dea02d0c93470c687598cfb0d6c9a19cab6ea468ec"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0005350292368217306,
+        "velocity_contribution": 0.00023673103207859445,
+        "temperature_contribution": 0.0002982982047431362
+      },
+      "finer_time_audit": {
+        "total": 0.0006082905619548445,
+        "velocity_contribution": 0.0002730220523126509,
+        "temperature_contribution": 0.00033526850964219363
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic103.npz",
+      "fields_sha256": "b36d1689044f0f41ef8f274e267bef0156022e6bc73c25429a8d5a1c050e4d24"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0008001084849205017,
+        "velocity_contribution": 0.00038025302896544765,
+        "temperature_contribution": 0.00041985545595505394
+      },
+      "finer_time_audit": {
+        "total": 0.0008802218871190086,
+        "velocity_contribution": 0.00041884405573548267,
+        "temperature_contribution": 0.00046137783138352594
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic104.npz",
+      "fields_sha256": "845bf32b58b67ab92cab3bdf095dae2df01ac929fbab3c8f500e555f9c3790c3"
+    },
+    {
+      "group": "joint",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0008517600419744459,
+        "velocity_contribution": 0.00041892746664091583,
+        "temperature_contribution": 0.00043283257533352997
+      },
+      "finer_time_audit": {
+        "total": 0.0009403651188848131,
+        "velocity_contribution": 0.000462408396917958,
+        "temperature_contribution": 0.00047795672196685504
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint-s2-ic105.npz",
+      "fields_sha256": "30fb0d542a5d333ee71795634c66f9baf8b7b1152ec9a36578620d140238d00f"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.00040666028875261924,
+        "velocity_contribution": 0.00018298022497923846,
+        "temperature_contribution": 0.00022368006377338075
+      },
+      "finer_time_audit": {
+        "total": 0.0004492309553767058,
+        "velocity_contribution": 0.00020722740976520615,
+        "temperature_contribution": 0.00024200354561149966
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic101.npz",
+      "fields_sha256": "3996a36f21c3f338387df8be550f10af018a54774d0e372af2d7f114753d8c1a"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0005343798308306949,
+        "velocity_contribution": 0.0002677922996720159,
+        "temperature_contribution": 0.000266587531158679
+      },
+      "finer_time_audit": {
+        "total": 0.0006043318468322407,
+        "velocity_contribution": 0.00030539027150110166,
+        "temperature_contribution": 0.00029894157533113906
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic102.npz",
+      "fields_sha256": "fd188b0e810870ea810d86d916add4dfae54ad47fead46b0ed05cf28896c2424"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0003629834297311249,
+        "velocity_contribution": 0.00016072153735764081,
+        "temperature_contribution": 0.00020226189237348413
+      },
+      "finer_time_audit": {
+        "total": 0.00040942026111641963,
+        "velocity_contribution": 0.00018278974079157447,
+        "temperature_contribution": 0.00022663052032484516
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic103.npz",
+      "fields_sha256": "2e60b6f899834989848d9d49a1077a107065001876400767e5edf8b0ec68b011"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0005464097674414711,
+        "velocity_contribution": 0.00026991033394320593,
+        "temperature_contribution": 0.0002764994334982652
+      },
+      "finer_time_audit": {
+        "total": 0.0005974341248978576,
+        "velocity_contribution": 0.00029369043804597134,
+        "temperature_contribution": 0.0003037436868518862
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic104.npz",
+      "fields_sha256": "4a446822459433d8ff579f2e9ad16523e013b2bf0fdb3cfc8ea5b270c57f392e"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0006180523596240896,
+        "velocity_contribution": 0.00031341557314652275,
+        "temperature_contribution": 0.00030463678647756694
+      },
+      "finer_time_audit": {
+        "total": 0.0006802107882886776,
+        "velocity_contribution": 0.00034315599249943186,
+        "temperature_contribution": 0.00033705479578924574
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s0-ic105.npz",
+      "fields_sha256": "b81e74586bf87e3ad3e7c7e6eeae58f9e4cdea23709c9d87fc86bfa6d984dd8a"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005208810855765152,
+        "velocity_contribution": 0.00023676584001098723,
+        "temperature_contribution": 0.000284115245565528
+      },
+      "finer_time_audit": {
+        "total": 0.0005774013145794345,
+        "velocity_contribution": 0.00026932171678814755,
+        "temperature_contribution": 0.000308079597791287
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic101.npz",
+      "fields_sha256": "0cc123d1b7ecdbdcac9c34105b40cb8aa4e4829d6532fce7556c94359cca913b"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0007441820075045002,
+        "velocity_contribution": 0.0003366970437150287,
+        "temperature_contribution": 0.0004074849637894714
+      },
+      "finer_time_audit": {
+        "total": 0.0008234745863910343,
+        "velocity_contribution": 0.00037986254985640294,
+        "temperature_contribution": 0.00044361203653463135
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic102.npz",
+      "fields_sha256": "ed7a4d4d18853d5cea3a37187b5d1b1c6fb0b2c1a1000d079e76fe3dfce42824"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0005605929074417491,
+        "velocity_contribution": 0.00024674783034588847,
+        "temperature_contribution": 0.00031384507709586055
+      },
+      "finer_time_audit": {
+        "total": 0.000624700331419944,
+        "velocity_contribution": 0.00028038273529341277,
+        "temperature_contribution": 0.00034431759612653113
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic103.npz",
+      "fields_sha256": "579acdeaa2e9db61df1f26708c446f010b8d992e507958adbdfb14659fc664b2"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0008149561747144744,
+        "velocity_contribution": 0.00036283119630287525,
+        "temperature_contribution": 0.0004521249784115991
+      },
+      "finer_time_audit": {
+        "total": 0.0008802445866948865,
+        "velocity_contribution": 0.00039416573839810067,
+        "temperature_contribution": 0.0004860788482967858
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic104.npz",
+      "fields_sha256": "7b50afce565a4f60b076e5c48fc82ed7449ff6d95b80e420143b7d4193b633bb"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0008945550647158543,
+        "velocity_contribution": 0.0004252462728475832,
+        "temperature_contribution": 0.00046930879186827114
+      },
+      "finer_time_audit": {
+        "total": 0.000972307442533193,
+        "velocity_contribution": 0.0004645791074013144,
+        "temperature_contribution": 0.0005077283351318786
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s1-ic105.npz",
+      "fields_sha256": "9b4928722301139a985c3c79fa911b0ef4018dfea1b27fa565d618c898b12ba5"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005049049773535457,
+        "velocity_contribution": 0.0002503969219218763,
+        "temperature_contribution": 0.00025450805543166937
+      },
+      "finer_time_audit": {
+        "total": 0.0005480066792969997,
+        "velocity_contribution": 0.00027564695311929524,
+        "temperature_contribution": 0.0002723597261777045
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic101.npz",
+      "fields_sha256": "552d105642fe96692698b865f43a788ecaddbe7f8e3944b2dc588115795568e9"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0006226942821614883,
+        "velocity_contribution": 0.00032157608631595033,
+        "temperature_contribution": 0.000301118195845538
+      },
+      "finer_time_audit": {
+        "total": 0.0006948875716454939,
+        "velocity_contribution": 0.0003627668139264534,
+        "temperature_contribution": 0.00033212075771904044
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic102.npz",
+      "fields_sha256": "cacce262c0a9d78bd7253d3616015e680e6470d06d4915b40088b982ff05e2be"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0004713080320982271,
+        "velocity_contribution": 0.00022926221458749734,
+        "temperature_contribution": 0.0002420458175107298
+      },
+      "finer_time_audit": {
+        "total": 0.0005183700787033411,
+        "velocity_contribution": 0.0002532384523954774,
+        "temperature_contribution": 0.0002651316263078638
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic103.npz",
+      "fields_sha256": "63b6a07c2a722b80f4e568668bc6b6d01aea8435855d7ea3de3b59cb04234f1e"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0008707705035731471,
+        "velocity_contribution": 0.00047909780819977744,
+        "temperature_contribution": 0.0003916726953733697
+      },
+      "finer_time_audit": {
+        "total": 0.000918481916197391,
+        "velocity_contribution": 0.0005016824889530422,
+        "temperature_contribution": 0.0004167994272443489
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic104.npz",
+      "fields_sha256": "669789d446219c3819d89b1e945f21666a5944393757ee8f869a6637c13b87db"
+    },
+    {
+      "group": "joint_zero_mean",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0009023443021937088,
+        "velocity_contribution": 0.0005101618397280274,
+        "temperature_contribution": 0.00039218246246568134
+      },
+      "finer_time_audit": {
+        "total": 0.0009649056944634991,
+        "velocity_contribution": 0.0005428259580821953,
+        "temperature_contribution": 0.00042207973638130376
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/joint_zero_mean-s2-ic105.npz",
+      "fields_sha256": "8f95082c1e3ee0137c864067755eb8cdc46eed42d70d24ec90f3e418d4ca0454"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005377731609081293,
+        "velocity_contribution": 0.0002296662472794068,
+        "temperature_contribution": 0.00030810691362872253
+      },
+      "finer_time_audit": {
+        "total": 0.0005915664288080455,
+        "velocity_contribution": 0.0002613160701258039,
+        "temperature_contribution": 0.00033025035868224155
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic101.npz",
+      "fields_sha256": "dacfa4ef426a188da0ca6895fb3a78601410946c6c6c70335cade85c3625c3c7"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0006070673161804906,
+        "velocity_contribution": 0.00028321063105979507,
+        "temperature_contribution": 0.0003238566851206956
+      },
+      "finer_time_audit": {
+        "total": 0.0006788016262115105,
+        "velocity_contribution": 0.00032110278056198644,
+        "temperature_contribution": 0.0003576988456495241
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic102.npz",
+      "fields_sha256": "0935727899c6894fdc8ad7401d6f9d568d9eab99f3aea0aa29d16aa39e3d694e"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0005204902219819324,
+        "velocity_contribution": 0.00023019873461363583,
+        "temperature_contribution": 0.0002902914873682965
+      },
+      "finer_time_audit": {
+        "total": 0.0005803637589969464,
+        "velocity_contribution": 0.0002622853872649467,
+        "temperature_contribution": 0.00031807837173199974
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic103.npz",
+      "fields_sha256": "86bff5f2bf1d639356fcea81770090e5786f8e16f7a4cea4d7a7a7156ab37858"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0005524633200398164,
+        "velocity_contribution": 0.00023280970853632933,
+        "temperature_contribution": 0.00031965361150348704
+      },
+      "finer_time_audit": {
+        "total": 0.0006166962316829406,
+        "velocity_contribution": 0.0002636486648159325,
+        "temperature_contribution": 0.00035304756686700814
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic104.npz",
+      "fields_sha256": "e3e0c25dd39fdc8778801e7abdd14a67fc056552435b108c98a62547a19ee8d5"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 0,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0006231961173293004,
+        "velocity_contribution": 0.0002761935035919237,
+        "temperature_contribution": 0.0003470026137373767
+      },
+      "finer_time_audit": {
+        "total": 0.0006934032639912932,
+        "velocity_contribution": 0.0003104937803758973,
+        "temperature_contribution": 0.0003829094836153959
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s0-ic105.npz",
+      "fields_sha256": "7bff9efa1391e134c4b4c10fdf2e9b9cf9c309830f2b146865aedf170185b2bb"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005572486741843396,
+        "velocity_contribution": 0.00024357798192325357,
+        "temperature_contribution": 0.00031367069226108607
+      },
+      "finer_time_audit": {
+        "total": 0.0006063053595410702,
+        "velocity_contribution": 0.0002759372214289643,
+        "temperature_contribution": 0.00033036813811210595
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic101.npz",
+      "fields_sha256": "7f97a0ecdd50280fdb883debc17d5c7e0c3207ebc9f167e82ae4889aecf51ba2"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.00070678506232578,
+        "velocity_contribution": 0.0003249747954608713,
+        "temperature_contribution": 0.0003818102668649087
+      },
+      "finer_time_audit": {
+        "total": 0.0007748007173414227,
+        "velocity_contribution": 0.0003630893432701878,
+        "temperature_contribution": 0.00041171137407123486
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic102.npz",
+      "fields_sha256": "dc0ba1bbfd3d23adadae146e2f2b9b6a062cacf60d1d5db5278a10e9259ce7af"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0006023148387882169,
+        "velocity_contribution": 0.00027123481085084786,
+        "temperature_contribution": 0.000331080027937369
+      },
+      "finer_time_audit": {
+        "total": 0.0006606087654704568,
+        "velocity_contribution": 0.00030504641907995943,
+        "temperature_contribution": 0.0003555623463904973
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic103.npz",
+      "fields_sha256": "ad806cffdc062cd16c6698e012868cc8283c2ee32eecfd62d6141ead16db3b99"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0007093242815307617,
+        "velocity_contribution": 0.0003104953523420001,
+        "temperature_contribution": 0.0003988289291887616
+      },
+      "finer_time_audit": {
+        "total": 0.0007667094018108272,
+        "velocity_contribution": 0.0003400147008737099,
+        "temperature_contribution": 0.00042669470093711735
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic104.npz",
+      "fields_sha256": "a0ee66d34048bddb06de0de58a840ed9a99678ffe616abdf49c506a1f0570474"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 1,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.0007883473211856811,
+        "velocity_contribution": 0.0003614758105745095,
+        "temperature_contribution": 0.00042687151061117167
+      },
+      "finer_time_audit": {
+        "total": 0.000856782948434846,
+        "velocity_contribution": 0.0003973026042749251,
+        "temperature_contribution": 0.00045948034415992084
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s1-ic105.npz",
+      "fields_sha256": "ca33958d0ad3c99f7b011832baf06c629e0f01eacc5901516eda22859228bc55"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 101,
+      "standard": {
+        "total": 0.0005448971379493214,
+        "velocity_contribution": 0.00022965681856506977,
+        "temperature_contribution": 0.00031524031938425163
+      },
+      "finer_time_audit": {
+        "total": 0.0005857234046755565,
+        "velocity_contribution": 0.0002541058674544104,
+        "temperature_contribution": 0.00033161753722114613
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic101.npz",
+      "fields_sha256": "25a50fde7e57a091eaaaa5187a74374da4dc47bb21c0f23f9ad08b3810e0f2e6"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 102,
+      "standard": {
+        "total": 0.0008217671026265648,
+        "velocity_contribution": 0.0004399604532092994,
+        "temperature_contribution": 0.00038180664941726546
+      },
+      "finer_time_audit": {
+        "total": 0.0009030868732940525,
+        "velocity_contribution": 0.00048779281827397215,
+        "temperature_contribution": 0.00041529405502008037
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic102.npz",
+      "fields_sha256": "ec7960872c7692ed0b5c6c1bbf88bcd5b4bfa91860a4cd4d503e8e5564681b5d"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 103,
+      "standard": {
+        "total": 0.0005490418737379934,
+        "velocity_contribution": 0.00023079961978036856,
+        "temperature_contribution": 0.0003182422539576249
+      },
+      "finer_time_audit": {
+        "total": 0.0005981273460687918,
+        "velocity_contribution": 0.00025643000131449586,
+        "temperature_contribution": 0.00034169734475429593
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic103.npz",
+      "fields_sha256": "a90878895aee50b86c61155737e5dfb5c38b2e7ca8cf5d6eb5c2566ae1b0dfed"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 104,
+      "standard": {
+        "total": 0.0009372581762615102,
+        "velocity_contribution": 0.00048819013681768213,
+        "temperature_contribution": 0.0004490680394438281
+      },
+      "finer_time_audit": {
+        "total": 0.000984217725330367,
+        "velocity_contribution": 0.0005095647660644563,
+        "temperature_contribution": 0.0004746529592659107
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic104.npz",
+      "fields_sha256": "0af650eb17b1a88d5a9e08876b8c84b08da0965e24468d00f4494ad7b5348561"
+    },
+    {
+      "group": "velocity",
+      "model_seed": 2,
+      "ic_seed": 105,
+      "standard": {
+        "total": 0.001062792494277742,
+        "velocity_contribution": 0.00059909420428531,
+        "temperature_contribution": 0.0004636982899924319
+      },
+      "finer_time_audit": {
+        "total": 0.0011291838259289931,
+        "velocity_contribution": 0.0006334615894942545,
+        "temperature_contribution": 0.0004957222364347386
+      },
+      "fields_path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/evaluation/velocity-s2-ic105.npz",
+      "fields_sha256": "b2f200b0d987bcdf4c689ae35458227e51a214bb426faa2dca1cea5c836f1eef"
+    }
+  ]
+}

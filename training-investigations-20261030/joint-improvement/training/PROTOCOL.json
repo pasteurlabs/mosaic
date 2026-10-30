@@ -1,0 +1,503 @@
+{
+  "date": "2026-10-30",
+  "version": 2,
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "scope": "External native JAX-CFD RTX5090, source/defaults unchanged; exploratory joint-corrector improvement, not CI timing",
+  "training": "Same4frozen trajectories and256balancedshuffledH8windows/windowseed0; width8CNN, Adamclip1, modelseed0, LR .0003/.001/.003; singlefullyJITtrueAD+Adam perwindow, no modifiedgradients. Returnedscalar follows source float64sum of normalized_loss perstep; componentlosses float32auxiliary. No fulltrainingbitwiseparity claim.",
+  "variants": "Velocityraw/centered \u00d73LR (6); joint raw/centered \u00d7unconstrained/mean-zero thermalresidual \u00d7headfactor.1/.2139727633353161/.5/1 \u00d73LR (48)",
+  "validation": "Mean fullT4 normalizedtotal over threeICs1,5,6, sameRMSscales/frozen references; checkpointcadence0/64/128/192/256; finite/CFL\u2264.5 required, thetaextrema andheatareobservations",
+  "selection": "Checkpointlowest admittedaggregatevalidation thenearliestupdate; recipebestvalidation thenrecipeidlexicographic. Freeze bestvelocity, bestjointoverall, bestjointmean-zero (dedupifidentical). Noheldoutaccess orscoresduringsearch, includingold100. Rootreviewsbeforeconfirmationseeds1,2 max6newtrains; heldout101..105evaluatedafterfreeze byseparateworker. Joint48searchcells vsvelocity6 isasymmetric totalresearchbudget, notmatchedhyperparamcomputepromise.",
+  "gate": "Researchonly eps .003/.001/.0003, unchanged5% AD/FD and5%adjacentFDslopeagreement; samepassingpair atinitial+exactsource syntheticnonzero .01normalkey17; alloriginalfixed-epsilon outcomes preserved. No publicgatechange.",
+  "physics": "Curlvelocity; optionalmeanzerothermalresidual formedbeforeidentity addition, meancomputedfloat64casttofloat32; heatpreservedtoroundoffnotexactfluxconservation. Trainingfinite/CFL\u2264.5; recordthetaextrema andheatdrift/correctionmeans withoutposthocboundsfilter. Fullvalidationphysics retained.",
+  "cost": "Perarm256updates matches; source/reference/native/gateprep outsidefitclock; firstwholetrainingcompile+validationinside; scales .214 has prior16.36scalibrationnotrepeated acrossgrid, noCIperformanceclaim; no duplicategradient instrumentation vsolderpilot.",
+  "validation_freeze_sha256": "58fd4b3b3e8c58c7606eb89b59192cfddf29d5f77bb8d7de9130384165b78dbd",
+  "recipes": [
+    {
+      "id": "velocity-c0-lr0.0003-s0",
+      "joint": false,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "velocity-c0-lr0.001-s0",
+      "joint": false,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "velocity-c0-lr0.003-s0",
+      "joint": false,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "velocity-c1-lr0.0003-s0",
+      "joint": false,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "velocity-c1-lr0.001-s0",
+      "joint": false,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "velocity-c1-lr0.003-s0",
+      "joint": false,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.21397276-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.21397276-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.21397276-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.5-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.5-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t0.5-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.21397276-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.21397276-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.21397276-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.5-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.5-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t0.5-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.21397276-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.21397276-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.21397276-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.5-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.5-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t0.5-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.5,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.1,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.21397276-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.21397276-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.21397276-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.2139727633353161,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.5-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.5-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t0.5-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m0-t1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c0-m1-t1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m0-t1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t1-lr0.0003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t1-lr0.001-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.001,
+      "model_seed": 0
+    },
+    {
+      "id": "joint-c1-m1-t1-lr0.003-s0",
+      "joint": true,
+      "center_temperature": true,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 1.0,
+      "lr": 0.003,
+      "model_seed": 0
+    }
+  ],
+  "pre_training_revision": "Added factor1unscaledjointcontrol before any training result ormodelvalidationoutcome: needed currentmixedwindowbaseline andprojection removesDCsensitivity so .214rawcalibration maynottransfer toheatconstraint. No othergridexpansion."
+}

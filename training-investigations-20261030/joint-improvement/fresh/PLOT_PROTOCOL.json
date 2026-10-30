@@ -1,0 +1,28 @@
+{
+  "selection_scope": "No models or cases selected by plotting; input must be complete frozen fresh evaluation",
+  "model_seeds": [
+    0,
+    1,
+    2
+  ],
+  "test_ics": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "ratios": "For each network seed, mean loss across five fresh ICs / same mean for matched velocity-only. Three seed points and black arithmetic mean, not15 independentmodels.",
+  "example": {
+    "ic_seed": 101,
+    "model_seed": 0,
+    "frame": 100,
+    "chosen_before_fresh_model_scoring": true
+  },
+  "figures": [
+    "paired total/velocity/temp relativeerrors",
+    "meanfieldRMSrollouterrors withthree-networkseedrange",
+    "heatdrift and temperaturebounds",
+    "fixedIC101 terminalfields/errors"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "accepted": true,
+  "scope": "H8 source/reparameterization consistency only; no changes to finite difference admission",
+  "criterion": "Canonical unscaled velocity H8 value/parametergradient exact; singleC value/parametergradient exact; H8scaledjoint relativeparametergradient difference\u22641e-6 with maxabsretained. This allows float32 factor-before/after-sum association.",
+  "observed_scaled_relative": 6.820455666911585e-08,
+  "observed_scaled_max_absolute": 1.862645149230957e-09,
+  "original_failed_bitwise_assertion_job": 3631951,
+  "measured_controls_job": 3631976,
+  "controls_sha256": "d8f8b6e6e05c1a1d6f8f981392bc72d127b5106514f9bb84cbc319f67a2b8360",
+  "root_reviewed": true
+}

@@ -1,0 +1,33 @@
+{
+  "complete": true,
+  "confirmation_summary_sha256": "082f768e40456b91a0b53f95ecd459412c49d868101fd1ee6be6f5dfd5a22d85",
+  "script_sha256": "d10abec38781a6a6e35a12dc9a88a6ef24330761057a02e485898f176b9c947f",
+  "models_outcome_sha256": {
+    "velocity-seed-0": "4c9197d978c21f92e2d31739fc2f63da80caf15f86b5ca5afb5ad4b5f360bf72",
+    "velocity-seed-1": "b15bae627cbee7345610a29da175e7329648717458ef6d39b1de16e0a77189c8",
+    "velocity-seed-2": "abcefdd903619c21392922b763de93e35faff5850abb23f42e49a97d0591647c",
+    "joint-seed-0": "06d3a4b3ee0adf7b4c8a4a1af25dfde581d6d96440043696007d0e0cc3dd2070",
+    "joint-seed-1": "b12fc1f285ab639c8cdf8d86cbddebd089c71c7d70c307409691ae5afed2fd2b",
+    "joint-seed-2": "0281522044d27f37c25feb8cb1351bf017c8a4540833cfb462d8f22fafb32edc",
+    "joint_zero_mean-seed-0": "00a863e1ef1319029f03d62e403b59ccecc9c8d3f89c7e3a913a41ad1abfeaac",
+    "joint_zero_mean-seed-1": "73369d39df78616d0d38cfcf7491673b2c5c8f79d8ceb2173b4bbfb6a9d75b75",
+    "joint_zero_mean-seed-2": "11c469eb5db96060ce057175df4365e8e406661821f88b19708999e5b6ea3a5c"
+  },
+  "files": {
+    "fit_timing.png": "6116556218974f37a6c20c9278e16050a32f6dcf6ba239d2e4a5870ea53fb395",
+    "README.md": "76c6f1211a0cb0e0cf2b21e7754b9708bc298ed9e92c3019b34dd8886bda13d9",
+    "validation_confirmations.png": "a942c8de3db465b29118d48dcbd90ef4d46a3bc29ce475bc9accb62f7ba0a228",
+    "component_validation.png": "989a1cd938fef70e82e7e9e946c6da7a21988b40b6958a48084adf092dba3d55",
+    "summary.json": "7e3d94a76c041d2d0f283561d25b96db0a38a72fd419becc1ab151fce2c4a0f4",
+    "validation_physics_confirmations.png": "2b120f1659801ea58f95917434149b520419962da6caf7aaf8e599cd455a171d",
+    "raw/joint_zero_mean-seed-0.json": "00a863e1ef1319029f03d62e403b59ccecc9c8d3f89c7e3a913a41ad1abfeaac",
+    "raw/velocity-seed-2.json": "abcefdd903619c21392922b763de93e35faff5850abb23f42e49a97d0591647c",
+    "raw/joint_zero_mean-seed-1.json": "73369d39df78616d0d38cfcf7491673b2c5c8f79d8ceb2173b4bbfb6a9d75b75",
+    "raw/joint-seed-2.json": "0281522044d27f37c25feb8cb1351bf017c8a4540833cfb462d8f22fafb32edc",
+    "raw/velocity-seed-0.json": "4c9197d978c21f92e2d31739fc2f63da80caf15f86b5ca5afb5ad4b5f360bf72",
+    "raw/joint-seed-0.json": "06d3a4b3ee0adf7b4c8a4a1af25dfde581d6d96440043696007d0e0cc3dd2070",
+    "raw/velocity-seed-1.json": "b15bae627cbee7345610a29da175e7329648717458ef6d39b1de16e0a77189c8",
+    "raw/joint-seed-1.json": "b12fc1f285ab639c8cdf8d86cbddebd089c71c7d70c307409691ae5afed2fd2b",
+    "raw/joint_zero_mean-seed-2.json": "11c469eb5db96060ce057175df4365e8e406661821f88b19708999e5b6ea3a5c"
+  }
+}

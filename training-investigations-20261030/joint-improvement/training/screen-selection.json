@@ -1,0 +1,132 @@
+{
+  "complete": true,
+  "phase": "screen-seed0-only-root-review-before-confirmation",
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "protocol_sha256": "9165e7334be0a1193ca994e438dd891794d3b09e1a8f9d1c86596f7f880f5db6",
+  "validation_freeze_sha256": "58fd4b3b3e8c58c7606eb89b59192cfddf29d5f77bb8d7de9130384165b78dbd",
+  "validation_seeds": [
+    1,
+    5,
+    6
+  ],
+  "heldout_accessed": false,
+  "tie_break": "validationtotal thenrecipeid lexicographic; earliestupdate checkpoint tie",
+  "models": [
+    {
+      "roles": [
+        "velocity"
+      ],
+      "recipe": {
+        "id": "velocity-c0-lr0.0003-s0",
+        "joint": false,
+        "center_temperature": false,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 1.0,
+        "lr": 0.0003,
+        "model_seed": 0
+      },
+      "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/velocity-c0-lr0.0003-s0.json",
+      "recipe_sha256": "5ab3434046a1461f3c9c662a6cedf42d0037dd3dcc761b80e5289b4b35b87502",
+      "selected_params_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c0-lr0.0003-s0/selected_params.npz",
+      "selected_params_file_sha256": "577b16f1741713d0f2f991e2932af6e42e915e6a1c08a330915f6278ae1a16ce",
+      "selected_params_leaf_sha256": [
+        "bafc420f7af6d71a45cc26c109e053ac95a57b3907c1c3953b7abff282d9e32f",
+        "8afb26ec67a3b18fca12bb36b81729ceb6273693f35c9cb77fa6f1b382037ee2",
+        "f8e882c47bdae0ba64b10423ef0b23bbefd3eeb40f999e31b2e2d533484ac2af",
+        "a866bc2b2795ea6e0d3243edcde132f49ebf7419fdf87153ae0e140b452b871c",
+        "2b115c542c23dcb2b9406e357cb31bfc2888d17de1b78e03acabad7dcbfcabbb",
+        "aaefb6c3b4a9f053ce4b5f43a27898b5fafafc6a11431291faa2f1dc7d7567db"
+      ],
+      "selected_update": 256,
+      "validation_loss": 0.0005756653657263602,
+      "selected_validation_loss": {
+        "total": 0.0005756653657263602,
+        "velocity": 0.00024996394780655055,
+        "temperature": 0.00032570141791980956
+      },
+      "outcome_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/velocity-c0-lr0.0003-s0/outcome.json",
+      "outcome_sha256": "4c9197d978c21f92e2d31739fc2f63da80caf15f86b5ca5afb5ad4b5f360bf72",
+      "model_seed": 0
+    },
+    {
+      "roles": [
+        "joint"
+      ],
+      "recipe": {
+        "id": "joint-c0-m0-t0.1-lr0.001-s0",
+        "joint": true,
+        "center_temperature": false,
+        "zero_mean_temperature": false,
+        "temperature_head_scale": 0.1,
+        "lr": 0.001,
+        "model_seed": 0
+      },
+      "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m0-t0.1-lr0.001-s0.json",
+      "recipe_sha256": "500075f6e45180d8ddd3cfb4e9714dcf05e8dcf1872609d9241216b5c7558618",
+      "selected_params_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.1-lr0.001-s0/selected_params.npz",
+      "selected_params_file_sha256": "74e59e6d6f8b4413b0951b73591a12f0c5826139950b82831a18a3acb70d5628",
+      "selected_params_leaf_sha256": [
+        "9012b216cc40b8afadde8a17099d291576b08d13a3ab613158a2547935be173a",
+        "76ef2a580fee1033b85201418fd2a0fd72a9cffe1dba59c30fa071f8456cb00f",
+        "053e206aae862f67fbfd0ad642b1b5e4a2e826b219bf17be47cea24a4a704ca7",
+        "535972c341f230d5a99d284c30c1d0cf683005b670ffa1588a24ba3d32f09125",
+        "09e1602c43fbb4367efb1d0193f8420bb2aede71d7b3d7bfeffe039799b04f30",
+        "61d4bd9900962cf9d3ea9fe8b3642188424f3ae2bc3f874fd5ac2fe46970af13"
+      ],
+      "selected_update": 256,
+      "validation_loss": 0.0004440002769389815,
+      "selected_validation_loss": {
+        "total": 0.0004440002769389815,
+        "velocity": 0.00022543905827705565,
+        "temperature": 0.00021856121866192592
+      },
+      "outcome_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m0-t0.1-lr0.001-s0/outcome.json",
+      "outcome_sha256": "06d3a4b3ee0adf7b4c8a4a1af25dfde581d6d96440043696007d0e0cc3dd2070",
+      "model_seed": 0
+    },
+    {
+      "roles": [
+        "joint_zero_mean"
+      ],
+      "recipe": {
+        "id": "joint-c0-m1-t0.5-lr0.0003-s0",
+        "joint": true,
+        "center_temperature": false,
+        "zero_mean_temperature": true,
+        "temperature_head_scale": 0.5,
+        "lr": 0.0003,
+        "model_seed": 0
+      },
+      "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m1-t0.5-lr0.0003-s0.json",
+      "recipe_sha256": "6c5ad140bd71936f12233a698dff8363f418a0cbce260c6b2c8a12d32e9ac9d0",
+      "selected_params_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.5-lr0.0003-s0/selected_params.npz",
+      "selected_params_file_sha256": "7f2ad01d463742abc64693d5ca04507d923851832fb91eb0f7964874d79b010f",
+      "selected_params_leaf_sha256": [
+        "f9835f16bc86938502b9fdfef176d21c16e9186f653a741ee9e174a8d7434f7b",
+        "590df8ce624084a7451c10f4195f769526bb0f6206cf3c75871503b451f22563",
+        "ad0343d537e1c8926a87a888fd66e9c7431a0a5ce5a5404bf734f017f2a775f7",
+        "2a21b750781bbe88151adf7ae6d338618e5c2ab5b4c68c99af723cd70936acfa",
+        "1fd7d91340cf47c12ebf0129e7f2904a603c34a38c87a3a3270b63b205158d67",
+        "b262a9773cb295a642c4f4041b603df089a84fc7d7e8c63fa75ab06ab6f4a68d"
+      ],
+      "selected_update": 256,
+      "validation_loss": 0.0004771439241981843,
+      "selected_validation_loss": {
+        "total": 0.0004771439241981843,
+        "velocity": 0.00022560846881090676,
+        "temperature": 0.0002515354553872775
+      },
+      "outcome_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/train/joint-c0-m1-t0.5-lr0.0003-s0/outcome.json",
+      "outcome_sha256": "00a863e1ef1319029f03d62e403b59ccecc9c8d3f89c7e3a913a41ad1abfeaac",
+      "model_seed": 0
+    }
+  ],
+  "group_recipe_ids": {
+    "velocity": "velocity-c0-lr0.0003-s0",
+    "joint": "joint-c0-m0-t0.1-lr0.001-s0",
+    "joint_zero_mean": "joint-c0-m1-t0.5-lr0.0003-s0"
+  },
+  "completed_recipes": 54,
+  "failed_recipes": 0,
+  "active": []
+}

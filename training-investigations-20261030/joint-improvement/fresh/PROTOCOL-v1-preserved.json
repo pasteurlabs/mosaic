@@ -1,0 +1,37 @@
+{
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "ic_family": "Registered interacting_plumes defaults exactly as standard seed100 test: position_jitter .015,width_jitter .05,amplitude_jitter0; analyticcellaverages; L1",
+  "coarse": {
+    "N": 64,
+    "dt": 0.005,
+    "steps_per_interval": 8
+  },
+  "reference": {
+    "N": 128,
+    "dt": 0.0025,
+    "steps_per_interval": 16
+  },
+  "audit": {
+    "N": 128,
+    "dt": 0.00125,
+    "steps_per_interval": 32
+  },
+  "frames": 100,
+  "T": 4,
+  "physics": {
+    "nu": 0.0005,
+    "diffusivity": 0.0005,
+    "buoyancy": 1.0
+  },
+  "scales": "Unchanged first training-case RMS scales from frozen inventory, never recomputed on fresh tests",
+  "admission": "Exact source checks: sqrt(mean normalized rollout loss1:)) reference-vs-timeaudit <=.05 AND auditerror/coarsegap<=.25; finite trajectories. Failed seed retained,no substitution.",
+  "seal": "This preparation script NEVER imports or evaluates learned correctors. Model evaluation requires root choices frozen receipt and explicit followup. Referencephysics/refinementonly may be inspected before then.",
+  "hardware": "Slurm RTX5090 only, source andnumericsremote; native researchnotCIcost."
+}

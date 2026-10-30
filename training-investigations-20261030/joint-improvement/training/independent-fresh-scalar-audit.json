@@ -1,0 +1,72 @@
+{
+  "complete": true,
+  "scope": "Independent reduction of stored scalar outcomes only. No simulation, field-array loading, new test queries, model choices or training.",
+  "evaluation_sha256": "46010870f7bf03ed5049ce629921ce6dcc6866855ce4aebc4faa6e398b632ad5",
+  "published_summary_sha256": "ae45a768688e0ff2a1e44969c7120a04b2c095966403a405e0763776132d185b",
+  "confirmation_summary_sha256": "082f768e40456b91a0b53f95ecd459412c49d868101fd1ee6be6f5dfd5a22d85",
+  "locked_selection_sha256": "af60c681c1517f82398588d19e106fa10eeaa4274d535c6ad8db50fa7c2886cd",
+  "all9_model_recipe_params_checkpoint_match_frozen_confirmation": true,
+  "all45_fresh_case_ids_match": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "component_sum_max_absolute_defect": 2.710505431213761e-19,
+  "frame1_to100_mean_max_absolute_defect": 2.168404344971009e-19,
+  "groups": [
+    {
+      "group": "velocity",
+      "mean_fresh_loss": 0.0006747178066205053,
+      "paired_seed_ratios": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean_paired_ratio_to_velocity": 1.0,
+      "geometric_mean_paired_ratio": 1.0,
+      "case_wins_out_of_15": 0,
+      "max_abs_final_relative_heat_drift": 2.0654372317735443e-08,
+      "max_abs_heat_drift": 1.0687646809226514e-09,
+      "max_undershoot": 0.0,
+      "mean_velocity_loss_ratio": 1.0,
+      "mean_temperature_loss_ratio": 1.0
+    },
+    {
+      "group": "joint",
+      "mean_fresh_loss": 0.0005874669965242558,
+      "paired_seed_ratios": [
+        0.8002883412889923,
+        0.9169970671498766,
+        0.8819743453527903
+      ],
+      "mean_paired_ratio_to_velocity": 0.8664199179305531,
+      "geometric_mean_paired_ratio": 0.8650146506778359,
+      "case_wins_out_of_15": 13,
+      "max_abs_final_relative_heat_drift": 0.019731102977976044,
+      "max_abs_heat_drift": 0.0010332165083884043,
+      "max_undershoot": 0.004924369975924492,
+      "mean_velocity_loss_ratio": 0.9125411626448486,
+      "mean_temperature_loss_ratio": 0.834262778838077
+    },
+    {
+      "group": "joint_zero_mean",
+      "mean_fresh_loss": 0.000625045000914214,
+      "paired_seed_ratios": [
+        0.868882170591943,
+        1.0508757536761602,
+        0.8611418641790316
+      ],
+      "mean_paired_ratio_to_velocity": 0.9269665961490449,
+      "geometric_mean_paired_ratio": 0.9229871472736854,
+      "case_wins_out_of_15": 12,
+      "max_abs_final_relative_heat_drift": 1.6133734162818935e-08,
+      "max_abs_heat_drift": 9.965070019157807e-10,
+      "max_undershoot": 0.007155109196901321,
+      "mean_velocity_loss_ratio": 0.9729693640668075,
+      "mean_temperature_loss_ratio": 0.8873838853035115
+    }
+  ],
+  "interpretation": "13.36%/7.30% gains mean arithmetic average of three paired seed ratios; ratios of grand-mean losses differ. Three shared network seeds on same five ICs are not15independent experimental datasets. Rawjoint13/15 casewins; meanzero12/15. No change of recipes after freshscores."
+}

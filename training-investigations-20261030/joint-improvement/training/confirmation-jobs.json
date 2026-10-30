@@ -1,0 +1,116 @@
+[
+  {
+    "roles": [
+      "velocity"
+    ],
+    "recipe": {
+      "id": "velocity-c0-lr0.0003-s1",
+      "joint": false,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 1
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/velocity-c0-lr0.0003-s1.json",
+    "recipe_sha256": "ab4619a21b193c82f593ad1ff9390047164c82a331ca6452a9e3b77cfcbecb15",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/velocity-c0-lr0.0003-s1",
+    "id": "velocity-c0-lr0.0003-s1",
+    "slurm_id": 3632123
+  },
+  {
+    "roles": [
+      "velocity"
+    ],
+    "recipe": {
+      "id": "velocity-c0-lr0.0003-s2",
+      "joint": false,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 1.0,
+      "lr": 0.0003,
+      "model_seed": 2
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/velocity-c0-lr0.0003-s2.json",
+    "recipe_sha256": "c13e19166eeb29c60d61b985170000d340008f268c2f7d8a427b1d0d1dcebfe9",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/velocity-c0-lr0.0003-s2",
+    "id": "velocity-c0-lr0.0003-s2",
+    "slurm_id": 3632124
+  },
+  {
+    "roles": [
+      "joint"
+    ],
+    "recipe": {
+      "id": "joint-c0-m0-t0.1-lr0.001-s1",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 1
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m0-t0.1-lr0.001-s1.json",
+    "recipe_sha256": "f961fa2671b85ddd85dfac80901423fdbcb13f450d2bcb35649aa90b997d2643",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m0-t0.1-lr0.001-s1",
+    "id": "joint-c0-m0-t0.1-lr0.001-s1",
+    "slurm_id": 3632125
+  },
+  {
+    "roles": [
+      "joint"
+    ],
+    "recipe": {
+      "id": "joint-c0-m0-t0.1-lr0.001-s2",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": false,
+      "temperature_head_scale": 0.1,
+      "lr": 0.001,
+      "model_seed": 2
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m0-t0.1-lr0.001-s2.json",
+    "recipe_sha256": "313eee276eda4d9d9e095be5d1cc132230b38854cfb539f4491e9249469a3f61",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m0-t0.1-lr0.001-s2",
+    "id": "joint-c0-m0-t0.1-lr0.001-s2",
+    "slurm_id": 3632126
+  },
+  {
+    "roles": [
+      "joint_zero_mean"
+    ],
+    "recipe": {
+      "id": "joint-c0-m1-t0.5-lr0.0003-s1",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 1
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m1-t0.5-lr0.0003-s1.json",
+    "recipe_sha256": "7dd6479e940a1092a30268cbc8eeec942d0743b70cabaad5640d067fe40575e4",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m1-t0.5-lr0.0003-s1",
+    "id": "joint-c0-m1-t0.5-lr0.0003-s1",
+    "slurm_id": 3632127
+  },
+  {
+    "roles": [
+      "joint_zero_mean"
+    ],
+    "recipe": {
+      "id": "joint-c0-m1-t0.5-lr0.0003-s2",
+      "joint": true,
+      "center_temperature": false,
+      "zero_mean_temperature": true,
+      "temperature_head_scale": 0.5,
+      "lr": 0.0003,
+      "model_seed": 2
+    },
+    "recipe_file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/recipes/joint-c0-m1-t0.5-lr0.0003-s2.json",
+    "recipe_sha256": "b66b41173c705780ed92c56be85479bd14b56561e10962e48dec820b072fa8d1",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-improvement-20261030/confirmation/joint-c0-m1-t0.5-lr0.0003-s2",
+    "id": "joint-c0-m1-t0.5-lr0.0003-s2",
+    "slurm_id": 3632128
+  }
+]

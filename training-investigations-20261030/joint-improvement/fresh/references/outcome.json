@@ -1,0 +1,236 @@
+{
+  "complete": true,
+  "scope": "Fresh native solver reference/admission only. No corrector imports, no model evaluation. Models remain sealed until choice-freeze receipt.",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "rows": [
+    {
+      "seed": 5,
+      "role": "validation",
+      "initial_fine_sha256": "11dbd70585f3c98ca89ec6da61beb80a308bfffc968dd943abd18e6391bbc8e5",
+      "reference_sha256": "6d81992d1924773cf1f7099271b6df983360a7416328bffb229b25a9868f33d4",
+      "audit_sha256": "f621d0478d07574014b408e5bc883c04ba11f6e50c5bdc6bcde32c644d1e69cc",
+      "baseline_sha256": "3864bef8643db377b807dbb5e585aaf8fefa0e0ddb4c5e7ead11724ff5fb50ca",
+      "fine_sha256": "3daa4f681dc2b12e1c491d929f64c3dd19aa5bef21f4e3e1e6cf9f15a81d8de8",
+      "time_refinement_error": 0.0027453216574589907,
+      "coarse_gap": 0.03518884736455816,
+      "audit_gap_ratio": 0.07801681109407552,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.988470196723938,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 7.722223926975857e-08,
+        "max_divergence_rms": 4.387964622765139e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.988470196723938,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 7.722223926975857e-08,
+        "max_divergence_rms": 3.021098677891132e-07
+      },
+      "seconds": 3.552692557917908,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-5.npz",
+      "file_sha256": "8033ac9d601b1515539f9be6c4148b0b39ba03b6a5ce184f96030540cc2c9974"
+    },
+    {
+      "seed": 6,
+      "role": "validation",
+      "initial_fine_sha256": "cabb3e912b20affedef9a39b83e922b660ddba71432cc6f3bc19ccd8d5cd40ff",
+      "reference_sha256": "e9aa383fb8bd34cdcaf4a79472488806488c71c8b2b82158622287283ac17557",
+      "audit_sha256": "883153e36cb08693bdfe86c931ef32db241b0f23d0d8da5caf4c935380005f3c",
+      "baseline_sha256": "30f8acff9be7e75a5a902802e7f85a584e9a9a23a13c15deee40693d579bde04",
+      "fine_sha256": "b46b0dee8e010e419f64a29f22d56fce4c531290f6c13302ff47711785a7639c",
+      "time_refinement_error": 0.003110359791031934,
+      "coarse_gap": 0.036688034752869025,
+      "audit_gap_ratio": 0.08477858822319999,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9889964461326599,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 6.921164441564542e-08,
+        "max_divergence_rms": 4.5835673745386885e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9889964461326599,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 6.921164441564542e-08,
+        "max_divergence_rms": 3.193345321506058e-07
+      },
+      "seconds": 0.7967793069547042,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-6.npz",
+      "file_sha256": "8d1a8a79b921bffec95a03b53212bdd8a5676f00fbe1c9e371c516ceb9a27b96"
+    },
+    {
+      "seed": 101,
+      "role": "sealed_fresh_test",
+      "initial_fine_sha256": "b26b64cdb85360885ed78f17a5bc5847a488467ae2b705fa265ff2725fa38b1e",
+      "reference_sha256": "d9c5778f849380b7f5278e6d15e16589be61b4fbdf589103560f121322d02086",
+      "audit_sha256": "38d844bf4adbb656792e7ad5e5e94fd3369c6afb9e589180b7eaeb35e7a5ad9a",
+      "baseline_sha256": "0398ee53ee5d6bb8c8c4b8f6259a01268400944bd2134a84c22a302db5fa58a8",
+      "fine_sha256": "c67bebee3a871a70f97ed96585c9fb06da4bcdaa759e2c09c2070f91e9cd4d25",
+      "time_refinement_error": 0.00298150327307164,
+      "coarse_gap": 0.030970975522465857,
+      "audit_gap_ratio": 0.09626765779169288,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9874337911605835,
+        "final_heat_drift_relative": 7.114103084404633e-08,
+        "max_heat_drift_relative": 7.114103084404633e-08,
+        "max_divergence_rms": 4.525797123733355e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9874337911605835,
+        "final_heat_drift_relative": -7.114103084404633e-08,
+        "max_heat_drift_relative": 7.114103084404633e-08,
+        "max_divergence_rms": 3.180536793934152e-07
+      },
+      "seconds": 0.78712778899353,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-101.npz",
+      "file_sha256": "2ef7a08b17c4b6d89dae57b3f718e65d1b0bcc63ff6df5d43de6a999d81f18d2"
+    },
+    {
+      "seed": 102,
+      "role": "sealed_fresh_test",
+      "initial_fine_sha256": "db4406f81db406f6aa7fed0aeb348076aeb38ee743e37135205ebaec55512914",
+      "reference_sha256": "0a7462be045ae19fa9b42e7e24c4ae0d336dcede1f970eb62e66b855b3f9f14a",
+      "audit_sha256": "9021d75ada0ceadfa40e8fd956e5f2d799c9f8adfc57b39bd0444d98e46ae718",
+      "baseline_sha256": "457868a98e4a7843bae9a416bb32b89a9c1677b433a7bf49c21b034d7b131867",
+      "fine_sha256": "ee739f6d8dabe1391c8af3f17aa75e0abdae480c4330fc9e481aefbed3f7cd76",
+      "time_refinement_error": 0.0028120633406761943,
+      "coarse_gap": 0.0345821401465641,
+      "audit_gap_ratio": 0.08131548044043152,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9932538866996765,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 7.235581023223858e-08,
+        "max_divergence_rms": 4.304445440084237e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9932538866996765,
+        "final_heat_drift_relative": -7.235581023223858e-08,
+        "max_heat_drift_relative": 7.235581023223858e-08,
+        "max_divergence_rms": 3.098887191299582e-07
+      },
+      "seconds": 0.7871632189489901,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-102.npz",
+      "file_sha256": "4b599500dc7b130ff490fb861b9b309c7855322ddfa76703e187fec169eb9b01"
+    },
+    {
+      "seed": 103,
+      "role": "sealed_fresh_test",
+      "initial_fine_sha256": "e7f0a50d9316d09df4f1186bd407fe3add206b3ac34b8e38e974e3cdaed906c8",
+      "reference_sha256": "498537464e401c3a81a60ac8ae2704f627cb35c2e5062e3465f7ef98c15edd72",
+      "audit_sha256": "e7f58bdd592cacd0bdc02580d6cbb77721269afe0c0be99d62783a7838a91d0d",
+      "baseline_sha256": "81f0e6ee632fe132312cfdfe66fe6df73b5e9c92daaf793d04849ae1b0721377",
+      "fine_sha256": "8c00962751f59145d73629d16a7f8ad16c6c9890d8aceeb9c10a41b948a07f55",
+      "time_refinement_error": 0.0028840185746681437,
+      "coarse_gap": 0.03061961058299979,
+      "audit_gap_ratio": 0.09418861049360863,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9864253997802734,
+        "final_heat_drift_relative": -7.410623226178359e-08,
+        "max_heat_drift_relative": 1.4821246452356718e-07,
+        "max_divergence_rms": 4.36816605997592e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9864253997802734,
+        "final_heat_drift_relative": -7.410623226178359e-08,
+        "max_heat_drift_relative": 1.4821246452356718e-07,
+        "max_divergence_rms": 3.0919187565814354e-07
+      },
+      "seconds": 0.790653140982613,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-103.npz",
+      "file_sha256": "cea57b369e5a19487080a3dd9c8e095a29a9503ffa7199df5f80899b942c0c42"
+    },
+    {
+      "seed": 104,
+      "role": "sealed_fresh_test",
+      "initial_fine_sha256": "345f450ac303dc0c0e10913f580c554aed7b21e10aeb8a4462e3dd1397094ca9",
+      "reference_sha256": "7e780ebe0b2062754c3c3b71ff4a3723d999037e15a55b65390daec79079d216",
+      "audit_sha256": "9c1375ac16e9cbadfba79037afd3a06688779a4ec7f84b84da785c74fec1fc15",
+      "baseline_sha256": "60349c40b35ef4b5f1dffc827d85d89250dae573df91fccc684da775d141419f",
+      "fine_sha256": "94fc34e99fca3ab99da351f392aa55dce2beeedd089744a278b9a4336cfa6b02",
+      "time_refinement_error": 0.003161047187585364,
+      "coarse_gap": 0.03689904698365433,
+      "audit_gap_ratio": 0.08566744796920246,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9894604682922363,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 7.200185336841969e-08,
+        "max_divergence_rms": 4.4608336224882805e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9894604682922363,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 7.200185336841969e-08,
+        "max_divergence_rms": 3.1227531849253864e-07
+      },
+      "seconds": 0.7874811879592016,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-104.npz",
+      "file_sha256": "1da24c01c91db830447b4e046db5073355db9625d67c72a53540edc1a96a31e0"
+    },
+    {
+      "seed": 105,
+      "role": "sealed_fresh_test",
+      "initial_fine_sha256": "bcd6bfb5abc7b5e24daf12ff350ae897971dcc7ebca908e905d5c6805b209d68",
+      "reference_sha256": "50d18c3e891424e9b5c4b8a68e5d88c77c6ae7fbd30260737977d1f221330cd7",
+      "audit_sha256": "d77d0341511e7515e53c8aa2a87cd2ee5d3b2f445ac84946050d341697ed8919",
+      "baseline_sha256": "6e7600096ede358e9bc41508eff86a5a43fe84b57b146aded148a0dab22d9903",
+      "fine_sha256": "d1cce5deebe883047e609d5f942fe8a4dfea283176c77b6d4577ef0b1ad368d8",
+      "time_refinement_error": 0.0029150437614797473,
+      "coarse_gap": 0.03872760471287385,
+      "audit_gap_ratio": 0.07527043779474249,
+      "admitted": true,
+      "reference_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9939201474189758,
+        "final_heat_drift_relative": 0.0,
+        "max_heat_drift_relative": 1.5276857823209866e-07,
+        "max_divergence_rms": 4.247999356721266e-07
+      },
+      "baseline_physics": {
+        "temperature_min": 0.0,
+        "temperature_max": 0.9939201474189758,
+        "final_heat_drift_relative": 1.5276857823209866e-07,
+        "max_heat_drift_relative": 1.5276857823209866e-07,
+        "max_divergence_rms": 3.0252022042986937e-07
+      },
+      "seconds": 0.788089866982773,
+      "file": "/data/personal/andrinr/runner/results/mosaic/buoyancy-joint-fresh-evaluation-20261030/references/ic-105.npz",
+      "file_sha256": "a647098d5d269f47c7f40657c44531ec9de717ba8858e6803522544c881c4029"
+    }
+  ],
+  "devices": [
+    "cuda:0"
+  ],
+  "protocol_sha256": "4cab9456c66c185507df1ea4aa13f6a79121db6be591befa58d17a3dfc33c4b2",
+  "driver_sha256": "da1cc1fe087b1e9b2ac72c56cf5cbfbef9248da0891abc571e827da9ebd69d27",
+  "native_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+  "scales": [
+    0.07747627794742584,
+    0.07747627794742584,
+    0.12592172622680664
+  ],
+  "scales_sha256": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab",
+  "elapsed_s": 19.24341729306616
+}
