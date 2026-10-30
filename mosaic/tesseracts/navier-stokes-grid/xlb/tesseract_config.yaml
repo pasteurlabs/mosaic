@@ -23,3 +23,179 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/Autodesk/XLB"
+    # What it took to run XLB here, beyond expressing the setup with XLB's
+    # operators. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: float64-everywhere
+        level: L0
+        necessity: unknown
+        what: >
+          Enables jax_enable_x64 and runs apply() and the VJP with XLB's
+          FP64FP64 precision policy, casting outputs to float32.
+          XLB_VJP_FP32=1 switches everything to float32.
+        why:
+          ns-2d-periodic: &float64-reason
+            consequences: [incorrect-gradient]
+            symptom: >
+              The code comment says float32 cancellation near omega = 2
+              corrupts gradients and that float32 gradients fail
+              gradient/fd_check. No float32 fd_check result is recorded, and
+              the comment's reasoning predates the switch to BGK everywhere
+              (#282).
+            evidence: >
+              Comment above _USE_F64_DIFF;
+              https://github.com/pasteurlabs/mosaic/issues/125 (open) proposes
+              measuring float32 against fd_check.
+          ns-2d-cylinder: *float64-reason
+          ns-3d: *float64-reason
+        provenance: mosaic-team
+      - id: xlb-init-per-velocity-set
+        level: L1
+        necessity: unknown
+        what: >
+          Calls xlb.init() again with each operator bundle's velocity set and
+          precision policy before constructing its operators, because XLB
+          keeps both in global state.
+        why:
+          ns-2d-periodic: &init-reason
+            consequences: [crash]
+            symptom: >
+              The recorded failure, a D3Q27 bundle built after xlb.init() with
+              D2Q9 failing to compile, involved the KBC operator, which #282
+              removed. Whether the remaining operators need it has not been
+              checked.
+            evidence: Docstring of _make_ops at 6517f75.
+          ns-2d-cylinder: *init-reason
+          ns-3d: *init-reason
+        upstream: None filed.
+        provenance: mosaic-team
+      - id: sqrt-checkpointing
+        level: L0
+        necessity: required
+        what: >
+          Runs the time loop as nested jax.lax.scan blocks of about sqrt(steps)
+          steps with jax.checkpoint on the inner block, so reverse mode keeps
+          only the block-boundary populations.
+        why:
+          ns-3d:
+            consequences: [out-of-memory]
+            symptom: >
+              A plain scan stores every step's populations for the reverse
+              pass: 110 GB at N = 64 against a 0.3 GB forward.
+            evidence: "Docstring of _checkpointed_scan; #135."
+          ns-2d-periodic:
+            consequences: [too-slow]
+            symptom: >
+              #135 says it fixes some of XLB's VJP slowness in 2-D. No number
+              is recorded.
+            evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
+        provenance: mosaic-team
+      - id: consistent-initial-populations
+        level: L2
+        necessity: required
+        what: >
+          Periodic runs start from populations consistent with v0: density
+          from a spectral pressure-Poisson solve plus the first-order
+          Chapman-Enskog non-equilibrium part (Mei et al. 2006), instead of
+          the equilibrium at density 1.
+        why:
+          ns-2d-periodic:
+            consequences: [inaccurate-forward]
+            symptom: >
+              Equilibrium-only populations leave out pressure and viscous
+              stress, which appear as start-up transients. On an offline copy
+              of the solver with sub-stepping, the Taylor-Green error was
+              0.031 to 0.035 without them and 6e-4 to 8e-4 with them, against
+              a peer median of 2.4e-3.
+            evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
+          ns-3d:
+            consequences: [inaccurate-forward]
+            symptom: >
+              The transient made the N = 8 forward/baseline error 0.273, 80x
+              the peers. On the offline copy the 3-D baselines became 0.032,
+              0.0031 and 0.0025 at N = 8, 16 and 32.
+            evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
+        provenance: mosaic-team
+      - id: manual-lbm-loop
+        level: L2
+        necessity: unknown
+        what: >
+          The periodic time loop is assembled from XLB's Stream, Macroscopic,
+          QuadraticEquilibrium and BGK operators inside jax.lax.scan instead
+          of using XLB's stepper.
+        why:
+          ns-2d-periodic: &loop-reason
+            consequences: [too-slow]
+            symptom: >
+              The initial tesseract description gave "O(1) compile time" as
+              the reason. Nothing was measured, and whether XLB's stepper works
+              under scan and reverse mode was not recorded.
+            evidence: Initial commit (c47498a) description.
+          ns-3d: *loop-reason
+        provenance: mosaic-team
+      - id: channel-boundary-conditions
+        level: L2
+        necessity: choice
+        what: >
+          The channel is written by hand on XLB's operators: boundary link
+          masks for the staircase cylinder, halfway bounce-back on walls and
+          cylinder, velocity bounce-back at the inlet, an anti-bounce-back
+          outlet, the momentum-exchange force, and its own sub-stepped,
+          checkpointed time loop.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: >
+              No reason recorded. XLB 0.3.1 ships halfway bounce-back, Zou-He,
+              regularized and extrapolation-outflow boundary conditions and a
+              momentum-transfer force operator; whether they work under this
+              tesseract's scan and reverse mode was not checked.
+            evidence: >
+              https://github.com/Autodesk/XLB/tree/v0.3.1/xlb/operator/boundary_condition
+        provenance: mosaic-team
+      - id: channel-characteristic-outlet
+        level: L2
+        necessity: unknown
+        what: >
+          The outlet density follows the outgoing characteristic,
+          1 + (u_x - u_developed)/cs, relative to the fully developed profile
+          with the inlet's flux, so that p = 0 on the outlet face once the flow
+          is steady.
+        why:
+          ns-2d-cylinder:
+            consequences: [inaccurate-forward]
+            symptom: >
+              Per the docstring, a plain p = 0 face reflects the start-up
+              pressure waves, which then ring between inlet and outlet almost
+              undamped at nu = 1e-3. Not measured.
+            evidence: "Docstring of _channel_run (#239)."
+        provenance: mosaic-team
+    deviations:
+      - id: ma-targeted-substepping
+        setups: [ns-2d-periodic, ns-2d-cylinder, ns-3d]
+        what: >
+          Each prescribed step runs as k = ceil(Ma / Ma_target) LBM steps of
+          dt / k, never coarser than prescribed. Ma_target is 0.1, lowered in
+          proportion to 1/N above N = 64 on periodic boxes.
+        consequences: [cannot-express]
+        effect: >
+          LBM ties the time step to the grid through the lattice Mach number,
+          so XLB runs k times the prescribed number of steps (k = 9 at
+          N = 256 on the 2-D box), and its cost includes them. Without
+          sub-stepping the Taylor-Green case ran at Ma of about 0.88, with
+          errors 84 to 114x the peer median.
+        evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
+      - id: harness-dt-scaling
+        setups: [ns-3d]
+        what: >
+          In ns-3d-grid experiments that set lbm_N_base = 16 (agreement,
+          physical laws, cost), the harness gives XLB alone a time step of
+          dt * 16 / N and steps * N / 16, with no lower clamp, so XLB runs
+          twice the prescribed step at N = 8.
+        consequences: [cannot-express]
+        effect: >
+          Removing it leaves every status unchanged. The N = 8 analytic error
+          goes from 0.064 to 0.079 and the N = 32 divergence RMS from 3.0e-4
+          to 5.6e-4; cost at N = 32 to 64 is expected to drop.
+        evidence: "#284 (open), notes."

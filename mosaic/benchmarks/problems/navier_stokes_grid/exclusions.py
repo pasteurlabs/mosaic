@@ -93,6 +93,16 @@ PICT_DRAG_OPT_TOO_SLOW = Exclusion(
     "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
     "experiment takes hours on the benchmark GPU",
 )
+PICT_LATENCY_BOUND_SOLVES = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "PICT's linear solves are bound by synchronisation, not by grid size. "
+    "Each step runs three of them (the momentum predictor and two pressure "
+    "correctors). Every solve synchronises the whole device about 20 times "
+    "and frees device memory 10 times, and its CG copies scalars back to the "
+    "host about three times per iteration. A 64-times larger grid (N = 32 to "
+    "256) makes a solve only about 4 times slower, so at ns-grid's sizes the "
+    "GPU mostly waits",
+)
 PICT_PISO_SPLITTING_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "PICT runs PISO with its default two pressure correctors, and its "
@@ -127,6 +137,8 @@ def register(problem: Problem) -> None:
     )
 
     # Cost
+    for key in ("cost/spatial_cost", "cost/temporal_cost"):
+        problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below

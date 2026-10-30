@@ -2,8 +2,8 @@ name: ins_navier_stokes_grid
 version: "0.1.0"
 description: >
   Julia staggered finite-volume solver with spectral pressure projection and RK4 time
-  integration; run on CPU in this benchmark (the library itself also supports CUDA via
-  KernelAbstractions.jl). Differentiates through the time loop via Zygote.jl reverse-mode AD.
+  integration, on the GPU through its CUDA backend (KernelAbstractions.jl). Differentiates
+  through the time loop via Zygote.jl reverse-mode AD.
 build_config:
   package_data:
     - ["./solver.jl", "/tesseract/solver.jl"]
@@ -15,8 +15,17 @@ build_config:
     # one container across many calls, so a one-time JIT cost on first call
     # is a net win over paying the sysimage build cost every push. Removed
     # PackageCompiler from the package list — it's no longer imported.
-    - 'RUN mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="5.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10")]); Pkg.precompile()'''
-    # Warm up juliacall's Julia environment here, as root, mirroring the init
+    # The build has no GPU, so CUDA.jl cannot pick its toolkit from the driver.
+    # set_runtime_version! fixes it at 12.6, and the second Pkg call downloads
+    # that runtime and compiler.
+    # CUDA.jl waits for the GPU on Julia threads it adopts by default. Julia
+    # stops threads for GC through signals that juliacall leaves unhandled, so
+    # the server segfaults once a GC meets such a wait; blocking
+    # synchronization keeps the waits on the calling thread.
+    # Without a GPU, one precompile worker dumps a core even though
+    # precompilation succeeds; ulimit keeps it out of the image.
+    #
+    # Then warm up juliacall's Julia environment, as root, mirroring the init
     # that tesseract_api.py does at import time — then chmod in the same layer.
     # The first `import juliacall` is what resolves the environment: juliapkg
     # adds PythonCall to /app/julia_env, precompiles it into /app/julia_depot,
@@ -31,9 +40,9 @@ build_config:
     # and every call fails with "Tesseract container ... failed to start".
     # Doing it here leaves nothing under /app owned by 9999, and the build-time
     # check finds the environment resolved (juliapkg skips straight past it).
-    # Keep the chmod in this same RUN: as a separate layer it would copy up
-    # every file this step just created (+130 MB in the image).
-    - 'RUN python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote")'' && chmod -R 777 /app'
+    # Keep the install, the warm-up and the chmod in one RUN: as separate
+    # layers the chmod would copy up every file under /app (~3 GB with CUDA).
+    - 'RUN ulimit -c 0 && mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="5.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10"), Pkg.PackageSpec(name="CUDA", version="6.4.2")]); using CUDA; CUDA.set_runtime_version!(v"12.6"); CUDA.CUDACore.Preferences.set_preferences!(CUDA.CUDACore, "nonblocking_synchronization" => false; force = true)'' && julia --project=/app/julia_env -e ''using Pkg; Pkg.instantiate(); Pkg.precompile()'' && python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote, CUDA")'' && chmod -R 777 /app'
 env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
@@ -51,6 +60,6 @@ metadata:
     numerics: "Projection, RK4"
     ad_strategy: autodiff
     differentiable: true
-    uses_gpu: false
+    uses_gpu: true
     internal_dtype: float32
     doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"

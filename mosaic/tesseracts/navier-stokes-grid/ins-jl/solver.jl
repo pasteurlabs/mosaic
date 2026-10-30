@@ -1,5 +1,12 @@
 using IncompressibleNavierStokes
 using Zygote
+using CUDA
+
+# Run on the GPU when the container has one, otherwise on INS.jl's default CPU
+# backend. Inputs are copied to the device once per call and results back.
+const _ON_GPU = CUDA.functional()
+const _BACKEND_KW = _ON_GPU ? (; backend = CUDABackend()) : (;)
+to_device(a) = _ON_GPU ? CuArray(a) : a
 
 # ---------------------------------------------------------------------------
 # Setup cache (indexed by (n, L, ndim)); holds the current setup only
@@ -24,6 +31,7 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
                         (PeriodicBC(), PeriodicBC()),
                     ),
                 ),
+                _BACKEND_KW...,
             )
         else
             setup = Setup(;
@@ -35,6 +43,7 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
                         (PeriodicBC(), PeriodicBC()),
                     ),
                 ),
+                _BACKEND_KW...,
             )
         end
         psolver = psolver_spectral(setup)
@@ -212,7 +221,7 @@ adding it to the projected right-hand side keeps the stages divergence-free.
 """
 function staggered_force(force, setup, psolver, n::Int)
     isnothing(force) && return nothing
-    f = add_ghosts_2d(coloc_to_stag_2d(Float32.(force), n), n)
+    f = add_ghosts_2d(coloc_to_stag_2d(to_device(Float32.(force)), n), n)
     return project(f, setup; psolver)
 end
 
@@ -257,7 +266,7 @@ round-off.
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64;
                   force = nothing, drag::Float64 = 0.0)
     T = Float32
-    v0   = T.(v0_np)
+    v0   = to_device(T.(v0_np))
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
 
@@ -269,7 +278,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
             staggered_force(force, setup, psolver, n),
             drag,
         )
-        return T.(ns_forward_2d(v0, rhs, setup, psolver, T(nu), T(dt), steps, n))
+        return Array(T.(ns_forward_2d(v0, rhs, setup, psolver, T(nu), T(dt), steps, n)))
     end
 
     u = initial_state(v0, setup, psolver, n)
@@ -289,7 +298,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
     else
         stag_to_coloc_3d(strip_ghosts_3d(state.u, n), n)
     end
-    return T.(v_out)
+    return Array(T.(v_out))
 end
 
 """
@@ -307,8 +316,8 @@ two extra forward rollouts per VJP call) that earlier versions required.
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64;
                 force = nothing, drag::Float64 = 0.0)
-    v0   = Float32.(v0_np)
-    cot  = Float32.(cotangent_np)
+    v0   = to_device(Float32.(v0_np))
+    cot  = to_device(Float32.(cotangent_np))
     ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
@@ -326,7 +335,7 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
 
     _, back = Zygote.pullback(fwd, v0, Float32(dt), Float32(nu))
     grads = back(cot)
-    grad_v0  = Float32.(grads[1])
+    grad_v0  = Array(Float32.(grads[1]))
     grad_dt  = Float64(something(grads[2], 0.0))
     grad_nu  = Float64(something(grads[3], 0.0))
 
