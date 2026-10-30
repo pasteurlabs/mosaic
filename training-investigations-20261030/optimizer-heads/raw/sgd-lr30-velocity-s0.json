@@ -1,0 +1,372 @@
+{
+  "completed": false,
+  "recipe": {
+    "id": "sgd-lr30-velocity-s0",
+    "optimizer": "sgd",
+    "lr": 30.0,
+    "joint": false,
+    "seed": 0,
+    "head_scales": [
+      1.0,
+      1.0
+    ],
+    "phase": "screen"
+  },
+  "history": [
+    {
+      "oracle_call": 1,
+      "optimizer_window_evaluations": 4,
+      "loss": 4.5753780568702496e-05,
+      "velocity_loss": 1.8122276742360555e-05,
+      "temperature_loss": 2.7631502234726213e-05,
+      "gradient_norm": 0.00121520075481385,
+      "max_advective_cfl": 0.18548627197742462,
+      "temperature_min": 0.0,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 3.725290298461914e-09,
+      "seconds": 16.504723799880594,
+      "fit_elapsed_s": 38.1313940230757,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+        "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 0.036456022411584854,
+      "step_norms": {
+        "shared_trunk": 0.0,
+        "velocity_head": 0.036456022411584854,
+        "temperature_head": null,
+        "effective_velocity_head": 0.036456022411584854,
+        "effective_temperature_head": null
+      }
+    },
+    {
+      "oracle_call": 2,
+      "optimizer_window_evaluations": 8,
+      "loss": 0.0006526653887704015,
+      "velocity_loss": 0.000611885916441679,
+      "temperature_loss": 4.0779523260425776e-05,
+      "gradient_norm": 0.05166320130228996,
+      "max_advective_cfl": 0.18581725656986237,
+      "temperature_min": 0.0,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 3.725290298461914e-09,
+      "seconds": 0.08450269908644259,
+      "fit_elapsed_s": 38.4201677730307,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "6412ba9f2191c7f2df15db95c83a16447e7849495315ab7a54f78734a61b1e67",
+        "5a8427dae17f91305ab07a69f75196ca936938add02d59df931b3fbe2d98936c"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 1.5498961210250854,
+      "step_norms": {
+        "shared_trunk": 0.11453046649694443,
+        "velocity_head": 1.5456585884094238,
+        "temperature_head": null,
+        "effective_velocity_head": 1.5456585884094238,
+        "effective_temperature_head": null
+      }
+    },
+    {
+      "oracle_call": 3,
+      "optimizer_window_evaluations": 12,
+      "loss": 2.670742928981781,
+      "velocity_loss": 2.6423048973083496,
+      "temperature_loss": 0.02843821793794632,
+      "gradient_norm": 18.44367027282715,
+      "max_advective_cfl": 0.6917208433151245,
+      "temperature_min": 0.0,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 3.725290298461914e-09,
+      "seconds": 0.07547603989951313,
+      "fit_elapsed_s": 38.49840430705808,
+      "accepted": false,
+      "parameter_sha256": [
+        "c86003d4ffc982982d02d989c04684feb6a488514ded51afdb07fa9dbb8a19e2",
+        "b251ddb0ff6488989a07aa12619805838e2467adae5b440a4ccd7e9f6eb43b00",
+        "2947949eb702717a03407822a4ae2e635769d471e1aa320f22b64c0485814c31",
+        "658b487a0177a2ffb5430c1fe4d3138e1ec91736c6d860c3b29c0cfa6f89691a",
+        "64d6a07f046fa2adbb6172aa592ba20d893f805355d1d8eeca41909d4f700867",
+        "c8fa12e3c1ca95cad323299e7cf364dcb9fd445fb6a6d12e7d134a402b991588"
+      ],
+      "trial_admissible": false
+    }
+  ],
+  "checkpoints": [
+    {
+      "oracle_calls": 0,
+      "optimizer_window_evaluations": 0,
+      "accepted_iterations": 0,
+      "reason": "initial",
+      "loss": {
+        "total": 0.0011007894164878208,
+        "velocity": 0.000557757464584241,
+        "temperature": 0.0005430319519035799
+      },
+      "fit_elapsed_s": 0.4030000241473317,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+        "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+      ]
+    }
+  ],
+  "accepted": [
+    {
+      "iteration": 1,
+      "oracle_calls": 1,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "6412ba9f2191c7f2df15db95c83a16447e7849495315ab7a54f78734a61b1e67",
+        "5a8427dae17f91305ab07a69f75196ca936938add02d59df931b3fbe2d98936c"
+      ],
+      "fit_elapsed_s": 38.33559249504469
+    },
+    {
+      "iteration": 2,
+      "oracle_calls": 2,
+      "parameter_sha256": [
+        "c86003d4ffc982982d02d989c04684feb6a488514ded51afdb07fa9dbb8a19e2",
+        "b251ddb0ff6488989a07aa12619805838e2467adae5b440a4ccd7e9f6eb43b00",
+        "2947949eb702717a03407822a4ae2e635769d471e1aa320f22b64c0485814c31",
+        "658b487a0177a2ffb5430c1fe4d3138e1ec91736c6d860c3b29c0cfa6f89691a",
+        "64d6a07f046fa2adbb6172aa592ba20d893f805355d1d8eeca41909d4f700867",
+        "c8fa12e3c1ca95cad323299e7cf364dcb9fd445fb6a6d12e7d134a402b991588"
+      ],
+      "fit_elapsed_s": 38.422857728088275
+    }
+  ],
+  "gradient_diagnostics": [
+    {
+      "oracle_calls": 0,
+      "accepted_iterations": 0,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+        "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+      ],
+      "velocity_loss_gradient_norm": 0.0011846200795844197,
+      "temperature_loss_gradient_norm": 8.63075110828504e-05,
+      "cosine": 0.32246731131899337,
+      "blocks": {
+        "shared_trunk": {
+          "velocity_loss_gradient_norm": 0.0,
+          "temperature_loss_gradient_norm": 0.0,
+          "cosine": null
+        },
+        "velocity_head": {
+          "velocity_loss_gradient_norm": 0.0011846200795844197,
+          "temperature_loss_gradient_norm": 8.63075110828504e-05,
+          "cosine": 0.32246731131899337
+        },
+        "temperature_head": {
+          "velocity_loss_gradient_norm": 0.0,
+          "temperature_loss_gradient_norm": 0.0,
+          "cosine": null
+        }
+      },
+      "seconds": 21.1229624110274,
+      "fit_elapsed_s": 21.585647022118792
+    }
+  ],
+  "devices": [
+    "cuda:0"
+  ],
+  "data_hashes": {
+    "train": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+    "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+  },
+  "reference_admission": {
+    "spatial_factor": 2,
+    "time_refinement_error": 0.003415039039139105,
+    "audit_gap_ratio": 0.09055170237321285,
+    "splits": {
+      "train": {
+        "time_refinement_error": 0.003415039039139105,
+        "coarse_gap": 0.03771369228447932,
+        "audit_gap_ratio": 0.09055170237321285
+      },
+      "train_1": {
+        "time_refinement_error": 0.0022986273498842177,
+        "coarse_gap": 0.026469543413438185,
+        "audit_gap_ratio": 0.08684046090183933
+      },
+      "train_2": {
+        "time_refinement_error": 0.0020299109241774804,
+        "coarse_gap": 0.022777920807854606,
+        "audit_gap_ratio": 0.08911748097207792
+      },
+      "train_3": {
+        "time_refinement_error": 0.002676041875668916,
+        "coarse_gap": 0.03127811869347029,
+        "audit_gap_ratio": 0.08555635656653397
+      },
+      "validation": {
+        "time_refinement_error": 0.002896539461005629,
+        "coarse_gap": 0.033178146664438364,
+        "audit_gap_ratio": 0.08730262996004697
+      },
+      "test": {
+        "time_refinement_error": 0.0032999815304407512,
+        "coarse_gap": 0.0409960663584836,
+        "audit_gap_ratio": 0.0804950772980165
+      }
+    }
+  },
+  "native_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+  "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "initial_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+  ],
+  "objective": {
+    "cases": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "starts": [
+      0,
+      24,
+      48,
+      72
+    ],
+    "horizon": 8,
+    "batch_size": 4,
+    "description": "same deterministic mean of four H8 windows for every optimizer oracle; different from shuffled public training",
+    "raw_temperature_input": true
+  },
+  "gate": {
+    "initial": {
+      "checks": [
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0007011161651462317,
+          "relative_error": 0.01566771971038143,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006913659744895995,
+          "relative_error": 0.0017858861281219226,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006902473396621644,
+          "relative_error": 0.0001681514280348571,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.013906669310068738,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0016180067702360507,
+          "passes": true
+        }
+      ]
+    },
+    "synthetic_nonzero": {
+      "checks": [
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.00847150944173336,
+          "relative_error": 0.0007885698379567587,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.008465539664030075,
+          "relative_error": 8.394020377117043e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.008464891463518143,
+          "relative_error": 7.371460433741133e-06,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0007046887859058725,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 7.656930776505192e-05,
+          "passes": true
+        }
+      ]
+    },
+    "scope": "Research convergence criterion; original fixed-epsilon initial/synthetic results retained, no public gate change",
+    "same_pair_passes_both": [
+      true,
+      true
+    ]
+  },
+  "elapsed_s": 56.67121745599434,
+  "common_preparation_seconds": 18.17207637312822,
+  "compute_scope": "First optimizer objective compilation, all component-gradient diagnostics, validation and optimizer steps included in fit_elapsed_s. Native/JAX/reference/gate preparation outside. Optimizer oracles limited64; diagnostic gradient work reported separately. Persistent cache disabled.",
+  "charged_calibration_seconds": 0.0,
+  "selected_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+  ],
+  "failure": {
+    "type": "ValueError",
+    "message": "Native CFL admissibility rejected training query 0.6917208433151245",
+    "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 179, in <module>\n    value,g=oracle(params);new,state,delta=first_order_update(params,state,g)\n            ^^^^^^^^^^^^^^\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 152, in oracle\n    raise ValueError(f\"Native CFL admissibility rejected training query {row['max_advective_cfl']}\")\nValueError: Native CFL admissibility rejected training query 0.6917208433151245\n"
+  }
+}

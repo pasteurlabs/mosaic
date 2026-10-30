@@ -2722,6 +2722,7 @@
     "JAX-CFD native RTX only; 3 model seeds, same data, single heldout IC.",
     "Centered is velocity-only correction; does not correct temperature directly.",
     "DCT-II orthonormal bands are descriptive closed-box spatial scales, not hydrodynamic eigenmodes or turbulent cascade flux.",
+    "Heat-flux proxy uses cell-centered velocity times temperature, not the native finite-volume Van Leer face flux. Velocity band MSE sums the two components per cell, unlike the mean-over-components normalized training loss; ratios and change signs are unaffected.",
     "Reference physical fields are restricted N128 reference, not native fine-grid budgets.",
     "Direct pre/post C energy increment includes cross term and correction self energy; verified exact Parseval and sum identity.",
     "Offsets use symmetry-transformed reference, no new shifted fine simulation; native coarse covariance defect measured separately.",

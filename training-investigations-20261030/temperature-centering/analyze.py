@@ -53,7 +53,7 @@ for budget in ['fixed','budget']:
   if len(rr)==2:
    a=next(r for r in rr if r['arm']=='baseline');b=next(r for r in rr if r['arm']=='temperature_centered')
    pairs.append({'budget':budget,'seed':seed,'validation_ratio_centered_over_baseline':b['validation_loss']/a['validation_loss'],'heldout_ratio_centered_over_baseline':b['heldout_loss']/a['heldout_loss']})
-summary={'rows':rows,'paired_results':pairs,'failures':failures,'spectra':spectra,'notes':['JAX-CFD native RTX only; 3 model seeds, same data, single heldout IC.','Centered is velocity-only correction; does not correct temperature directly.','DCT-II orthonormal bands are descriptive closed-box spatial scales, not hydrodynamic eigenmodes or turbulent cascade flux.','Reference physical fields are restricted N128 reference, not native fine-grid budgets.','Direct pre/post C energy increment includes cross term and correction self energy; verified exact Parseval and sum identity.','Offsets use symmetry-transformed reference, no new shifted fine simulation; native coarse covariance defect measured separately.','Research FD criterion distinct from public fixed-epsilon gate; all original failures retained.']}
+summary={'rows':rows,'paired_results':pairs,'failures':failures,'spectra':spectra,'notes':['JAX-CFD native RTX only; 3 model seeds, same data, single heldout IC.','Centered is velocity-only correction; does not correct temperature directly.','DCT-II orthonormal bands are descriptive closed-box spatial scales, not hydrodynamic eigenmodes or turbulent cascade flux.','Heat-flux proxy uses cell-centered velocity times temperature, not the native finite-volume Van Leer face flux. Velocity band MSE sums the two components per cell, unlike the mean-over-components normalized training loss; ratios and change signs are unaffected.','Reference physical fields are restricted N128 reference, not native fine-grid budgets.','Direct pre/post C energy increment includes cross term and correction self energy; verified exact Parseval and sum identity.','Offsets use symmetry-transformed reference, no new shifted fine simulation; native coarse covariance defect measured separately.','Research FD criterion distinct from public fixed-epsilon gate; all original failures retained.']}
 (out/'summary.json').write_text(json.dumps(summary,indent=2,allow_nan=False))
 (out/'physical_time_series.json').write_text(json.dumps(metrics,allow_nan=False))
 plt.rcParams.update({'font.size':10,'axes.grid':True,'grid.alpha':.2,'figure.dpi':150})
@@ -77,7 +77,7 @@ for ax,budget in zip(axs,['fixed','budget']):
  ax.set_xlabel('Uniform temperature offset / training RMS');ax.set_ylabel('Held-out loss to symmetry-transformed reference');ax.set_title(budget);ax.legend()
 save(fig,'offset_generalization')
 fig,axs=plt.subplots(2,3,figsize=(14,7))
-for ax,key,title in zip(axs.flat,['kinetic_energy','temperature_variance','vertical_advective_heat_flux','thermal_centroid_y','heat_mean','unused'],['Kinetic energy','Temperature variance','Vertical advective heat flux <vθ>','Thermal centroid height','Mean temperature','']):
+for ax,key,title in zip(axs.flat,['kinetic_energy','temperature_variance','vertical_advective_heat_flux','thermal_centroid_y','heat_mean','unused'],['Kinetic energy','Temperature variance','Collocated heat-flux proxy <vθ>','Thermal centroid height','Mean temperature','']):
  if key=='unused':ax.axis('off');continue
  for arm in ['baseline','temperature_centered']:
   for seed in [0,1,2]:

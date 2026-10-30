@@ -1,0 +1,259 @@
+{
+  "all32_data_equal": true,
+  "all32_initial_hiddenweights_equal": true,
+  "all32_fixed_objective_schedule_equal": true,
+  "all32_native_api_equal": true,
+  "all32_research_gate_passed": true,
+  "all32_initial_validation_loss_identical": true,
+  "completed_oracle_counts": [
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64
+  ],
+  "slurm_jobs": [
+    {
+      "id": "adam-lr0.003-velocity-s0",
+      "slurm_id": 3631353,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.003-velocity-s0"
+    },
+    {
+      "id": "lbfgs-lr1-joint-s0",
+      "slurm_id": 3631354,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/lbfgs-lr1-joint-s0"
+    },
+    {
+      "id": "adam-lr0.001-velocity-s0",
+      "slurm_id": 3631362,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.001-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.001-joint-s0",
+      "slurm_id": 3631363,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.001-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.003-joint-s0",
+      "slurm_id": 3631364,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.003-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.01-velocity-s0",
+      "slurm_id": 3631365,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.01-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.01-joint-s0",
+      "slurm_id": 3631366,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.01-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.001-velocity-s0",
+      "slurm_id": 3631367,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.001-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.001-joint-s0",
+      "slurm_id": 3631368,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.001-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.003-velocity-s0",
+      "slurm_id": 3631369,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.003-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.003-joint-s0",
+      "slurm_id": 3631370,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.003-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.01-velocity-s0",
+      "slurm_id": 3631371,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.01-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adamw-lr0.01-joint-s0",
+      "slurm_id": 3631372,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adamw-lr0.01-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.001-velocity-s0",
+      "slurm_id": 3631373,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.001-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.001-joint-s0",
+      "slurm_id": 3631374,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.001-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.003-velocity-s0",
+      "slurm_id": 3631375,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.003-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.003-joint-s0",
+      "slurm_id": 3631376,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.003-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.01-velocity-s0",
+      "slurm_id": 3631377,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.01-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "muon-lr0.01-joint-s0",
+      "slurm_id": 3631378,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/muon-lr0.01-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr0.3-velocity-s0",
+      "slurm_id": 3631379,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr0.3-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr0.3-joint-s0",
+      "slurm_id": 3631380,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr0.3-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr3-velocity-s0",
+      "slurm_id": 3631381,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr3-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr3-joint-s0",
+      "slurm_id": 3631382,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr3-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr30-velocity-s0",
+      "slurm_id": 3631383,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr30-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr30-joint-s0",
+      "slurm_id": 3631384,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr30-joint-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "lbfgs-lr1-velocity-s0",
+      "slurm_id": 3631385,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/lbfgs-lr1-velocity-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.001-joint-scaled-s0",
+      "slurm_id": 3631386,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.001-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.003-joint-scaled-s0",
+      "slurm_id": 3631387,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.003-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "adam-lr0.01-joint-scaled-s0",
+      "slurm_id": 3631388,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/adam-lr0.01-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr0.3-joint-scaled-s0",
+      "slurm_id": 3631389,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr0.3-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr3-joint-scaled-s0",
+      "slurm_id": 3631390,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr3-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    },
+    {
+      "id": "sgd-lr30-joint-scaled-s0",
+      "slurm_id": 3631391,
+      "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/results/sgd-lr30-joint-scaled-s0",
+      "driver": "driver-v2.py",
+      "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d"
+    }
+  ],
+  "scope": "Metadata parity, no numerical reexecution. FailedSGD retained; no testselected configurations."
+}

@@ -1,0 +1,374 @@
+{
+  "completed": false,
+  "recipe": {
+    "id": "sgd-lr30-joint-scaled-s0",
+    "optimizer": "sgd",
+    "lr": 30.0,
+    "joint": true,
+    "seed": 0,
+    "head_scales": [
+      1.0,
+      0.2139727633353161
+    ],
+    "calibration_seconds": 16.359189226990566,
+    "calibration_sha256": "ff3351b9fbcfd03f344b2c193ced663dbc19d8ec9c36e6a340c1ddab0e4b0df6",
+    "phase": "screen_scaled"
+  },
+  "history": [
+    {
+      "oracle_call": 1,
+      "optimizer_window_evaluations": 4,
+      "loss": 4.5753780568702496e-05,
+      "velocity_loss": 1.8122276742360555e-05,
+      "temperature_loss": 2.7631502234726213e-05,
+      "gradient_norm": 0.0018915352411568165,
+      "max_advective_cfl": 0.18548627197742462,
+      "temperature_min": 0.0,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 3.725290298461914e-09,
+      "seconds": 15.510574023006484,
+      "fit_elapsed_s": 51.725222657900304,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 0.05674605444073677,
+      "step_norms": {
+        "shared_trunk": 0.0,
+        "velocity_head": 0.036456022411584854,
+        "temperature_head": 0.043486472219228745,
+        "effective_velocity_head": 0.036456022411584854,
+        "effective_temperature_head": 0.00930492062845283
+      }
+    },
+    {
+      "oracle_call": 2,
+      "optimizer_window_evaluations": 8,
+      "loss": 0.003907952515874058,
+      "velocity_loss": 0.0007162070833146572,
+      "temperature_loss": 0.0031917456071823835,
+      "gradient_norm": 0.18037189543247223,
+      "max_advective_cfl": 0.18581725656986237,
+      "temperature_min": -0.024923652410507202,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.0059210434556007385,
+      "seconds": 0.08245408406946808,
+      "fit_elapsed_s": 52.03393629495986,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "faa59c6e8fe1dc9d5ffe9734149147a9188e273bc06ab078c43abcee15c66c05",
+        "64227127f4a6a2c6e2792e261107b225a9b6b9f54ab04702da1629f83c46196a"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 5.411157131195068,
+      "step_norms": {
+        "shared_trunk": 0.5748568773269653,
+        "velocity_head": 1.670092225074768,
+        "temperature_head": 5.114777565002441,
+        "effective_velocity_head": 1.670092225074768,
+        "effective_temperature_head": 1.0944230894290516
+      }
+    },
+    {
+      "oracle_call": 3,
+      "optimizer_window_evaluations": 12,
+      "loss": 12.929666757583618,
+      "velocity_loss": 4.570163726806641,
+      "temperature_loss": 8.359503746032715,
+      "gradient_norm": 129.92626953125,
+      "max_advective_cfl": 1.1077946424484253,
+      "temperature_min": -2.174452543258667,
+      "temperature_max": 2.0154852867126465,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.14331333339214325,
+      "seconds": 0.07407773204613477,
+      "fit_elapsed_s": 52.11276925797574,
+      "accepted": false,
+      "parameter_sha256": [
+        "396729d3e4d0ba7749424050a85e740051bcb894569abeb44f6bc95e9d088c21",
+        "b3ed17339bd88541ddc59b005d7c9cae56a044c2526808790800ffedc08b0310",
+        "aa997419359f5f7a243cad3729e3c016ad986555401fc0f443625ea3bdb7a130",
+        "54ea1f0f617ca65b0f4064cdcbc9e126768a74c0903be5cb1ecce8398845b1c3",
+        "0914859466301d5b689aa24d2c341020ebeb9d62a11f6ec198a7a1bc6555074c",
+        "e8ca437215a2875f5689b6c30cfceed12bac3a3799fa75a04f3df40de1f8168e"
+      ],
+      "trial_admissible": false
+    }
+  ],
+  "checkpoints": [
+    {
+      "oracle_calls": 0,
+      "optimizer_window_evaluations": 0,
+      "accepted_iterations": 0,
+      "reason": "initial",
+      "loss": {
+        "total": 0.0011007894164878208,
+        "velocity": 0.000557757464584241,
+        "temperature": 0.0005430319519035799
+      },
+      "fit_elapsed_s": 16.781672070967034,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ]
+    }
+  ],
+  "accepted": [
+    {
+      "iteration": 1,
+      "oracle_calls": 1,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "faa59c6e8fe1dc9d5ffe9734149147a9188e273bc06ab078c43abcee15c66c05",
+        "64227127f4a6a2c6e2792e261107b225a9b6b9f54ab04702da1629f83c46196a"
+      ],
+      "fit_elapsed_s": 51.95140846190043
+    },
+    {
+      "iteration": 2,
+      "oracle_calls": 2,
+      "parameter_sha256": [
+        "396729d3e4d0ba7749424050a85e740051bcb894569abeb44f6bc95e9d088c21",
+        "b3ed17339bd88541ddc59b005d7c9cae56a044c2526808790800ffedc08b0310",
+        "aa997419359f5f7a243cad3729e3c016ad986555401fc0f443625ea3bdb7a130",
+        "54ea1f0f617ca65b0f4064cdcbc9e126768a74c0903be5cb1ecce8398845b1c3",
+        "0914859466301d5b689aa24d2c341020ebeb9d62a11f6ec198a7a1bc6555074c",
+        "e8ca437215a2875f5689b6c30cfceed12bac3a3799fa75a04f3df40de1f8168e"
+      ],
+      "fit_elapsed_s": 52.03862626699265
+    }
+  ],
+  "gradient_diagnostics": [
+    {
+      "oracle_calls": 0,
+      "accepted_iterations": 0,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ],
+      "velocity_loss_gradient_norm": 0.0011854589683935046,
+      "temperature_loss_gradient_norm": 0.00143057806417346,
+      "cosine": 0.0371601447020205,
+      "blocks": {
+        "shared_trunk": {
+          "velocity_loss_gradient_norm": 0.0,
+          "temperature_loss_gradient_norm": 0.0,
+          "cosine": null
+        },
+        "velocity_head": {
+          "velocity_loss_gradient_norm": 0.0011846200795844197,
+          "temperature_loss_gradient_norm": 8.63075110828504e-05,
+          "cosine": 0.32246731131899337
+        },
+        "temperature_head": {
+          "velocity_loss_gradient_norm": 4.4587406591745093e-05,
+          "temperature_loss_gradient_norm": 0.001427972223609686,
+          "cosine": 0.4719679987580836
+        }
+      },
+      "seconds": 19.289663488976657,
+      "fit_elapsed_s": 36.14999730500858
+    }
+  ],
+  "devices": [
+    "cuda:0"
+  ],
+  "data_hashes": {
+    "train": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+    "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+  },
+  "reference_admission": {
+    "spatial_factor": 2,
+    "time_refinement_error": 0.003415039039139105,
+    "audit_gap_ratio": 0.09055170237321285,
+    "splits": {
+      "train": {
+        "time_refinement_error": 0.003415039039139105,
+        "coarse_gap": 0.03771369228447932,
+        "audit_gap_ratio": 0.09055170237321285
+      },
+      "train_1": {
+        "time_refinement_error": 0.0022986273498842177,
+        "coarse_gap": 0.026469543413438185,
+        "audit_gap_ratio": 0.08684046090183933
+      },
+      "train_2": {
+        "time_refinement_error": 0.0020299109241774804,
+        "coarse_gap": 0.022777920807854606,
+        "audit_gap_ratio": 0.08911748097207792
+      },
+      "train_3": {
+        "time_refinement_error": 0.002676041875668916,
+        "coarse_gap": 0.03127811869347029,
+        "audit_gap_ratio": 0.08555635656653397
+      },
+      "validation": {
+        "time_refinement_error": 0.002896539461005629,
+        "coarse_gap": 0.033178146664438364,
+        "audit_gap_ratio": 0.08730262996004697
+      },
+      "test": {
+        "time_refinement_error": 0.0032999815304407512,
+        "coarse_gap": 0.0409960663584836,
+        "audit_gap_ratio": 0.0804950772980165
+      }
+    }
+  },
+  "native_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+  "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "initial_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+    "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+  ],
+  "objective": {
+    "cases": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "starts": [
+      0,
+      24,
+      48,
+      72
+    ],
+    "horizon": 8,
+    "batch_size": 4,
+    "description": "same deterministic mean of four H8 windows for every optimizer oracle; different from shuffled public training",
+    "raw_temperature_input": true
+  },
+  "gate": {
+    "initial": {
+      "checks": [
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007883968646638095,
+          "relative_error": 0.010563359224426347,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007810016977600753,
+          "relative_error": 0.0011945587209307958,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007801561732776463,
+          "relative_error": 0.0001120646220419174,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.009380005470833114,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0010826154217769366,
+          "passes": true
+        }
+      ]
+    },
+    "synthetic_nonzero": {
+      "checks": [
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08791383355855942,
+          "relative_error": 0.0003560718338284,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08794163912534714,
+          "relative_error": 3.990241107141956e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08794420957565308,
+          "relative_error": 1.0674530350316059e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.00031618203918268127,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 2.9228192718333752e-05,
+          "passes": true
+        }
+      ]
+    },
+    "scope": "Research convergence criterion; original fixed-epsilon initial/synthetic results retained, no public gate change",
+    "same_pair_passes_both": [
+      true,
+      true
+    ]
+  },
+  "elapsed_s": 54.145579874981195,
+  "common_preparation_seconds": 18.39125377999153,
+  "compute_scope": "First optimizer objective compilation, all component-gradient diagnostics, validation and optimizer steps included in fit_elapsed_s. Native/JAX/reference/gate preparation outside. Optimizer oracles limited64; diagnostic gradient work reported separately. Persistent cache disabled.",
+  "charged_calibration_seconds": 16.359189226990566,
+  "selected_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+    "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+  ],
+  "failure": {
+    "type": "ValueError",
+    "message": "Native CFL admissibility rejected training query 1.1077946424484253",
+    "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 179, in <module>\n    value,g=oracle(params);new,state,delta=first_order_update(params,state,g)\n            ^^^^^^^^^^^^^^\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 152, in oracle\n    raise ValueError(f\"Native CFL admissibility rejected training query {row['max_advective_cfl']}\")\nValueError: Native CFL admissibility rejected training query 1.1077946424484253\n"
+  }
+}

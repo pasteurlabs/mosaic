@@ -1,0 +1,612 @@
+{
+  "completed": false,
+  "recipe": {
+    "id": "sgd-lr3-joint-scaled-s0",
+    "optimizer": "sgd",
+    "lr": 3.0,
+    "joint": true,
+    "seed": 0,
+    "head_scales": [
+      1.0,
+      0.2139727633353161
+    ],
+    "calibration_seconds": 16.359189226990566,
+    "calibration_sha256": "ff3351b9fbcfd03f344b2c193ced663dbc19d8ec9c36e6a340c1ddab0e4b0df6",
+    "phase": "screen_scaled"
+  },
+  "history": [
+    {
+      "oracle_call": 1,
+      "optimizer_window_evaluations": 4,
+      "loss": 4.5753780568702496e-05,
+      "velocity_loss": 1.8122276742360555e-05,
+      "temperature_loss": 2.7631502234726213e-05,
+      "gradient_norm": 0.0018915352411568165,
+      "max_advective_cfl": 0.18548627197742462,
+      "temperature_min": 0.0,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 3.725290298461914e-09,
+      "seconds": 17.080263743991964,
+      "fit_elapsed_s": 55.095763684948906,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 0.0056746057234704494,
+      "step_norms": {
+        "shared_trunk": 0.0,
+        "velocity_head": 0.0036456023808568716,
+        "temperature_head": 0.004348647315055132,
+        "effective_velocity_head": 0.0036456023808568716,
+        "effective_temperature_head": 0.0009304920827730495
+      }
+    },
+    {
+      "oracle_call": 2,
+      "optimizer_window_evaluations": 8,
+      "loss": 7.244273547257762e-05,
+      "velocity_loss": 2.1078009012853727e-05,
+      "temperature_loss": 5.1364724640734494e-05,
+      "gradient_norm": 0.01502368226647377,
+      "max_advective_cfl": 0.18551936745643616,
+      "temperature_min": -0.0017851630691438913,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.0005557462573051453,
+      "seconds": 0.08394793199840933,
+      "fit_elapsed_s": 55.41562314098701,
+      "accepted": true,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "737cb2bd75b6b6d4bf0df4336c9eda2da87e2029101fba4c268e39ade4c48817",
+        "009f251aad11a31f4735dba3aab9bd2d727be20fc51fbe3c20b99090ba06a0ae"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 0.04507104679942131,
+      "step_norms": {
+        "shared_trunk": 0.0005066740559414029,
+        "velocity_head": 0.014435198158025742,
+        "temperature_head": 0.042693883180618286,
+        "effective_velocity_head": 0.014435198158025742,
+        "effective_temperature_head": 0.009135328161672068
+      }
+    },
+    {
+      "oracle_call": 3,
+      "optimizer_window_evaluations": 12,
+      "loss": 0.0032627786858938634,
+      "velocity_loss": 0.00038466305704787374,
+      "temperature_loss": 0.0028781157452613115,
+      "gradient_norm": 0.15753786265850067,
+      "max_advective_cfl": 0.18546147644519806,
+      "temperature_min": -0.0218646302819252,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.0049067214131355286,
+      "seconds": 0.07449831906706095,
+      "fit_elapsed_s": 55.49420266598463,
+      "accepted": true,
+      "parameter_sha256": [
+        "18fce2a25fdca6860ee8770a7760f00a5c0e640e725bba0a3ec2007aed840e53",
+        "181964e497dc08df5dc08d57d71f1075834e96abbe42f3f92b04d53ee4317603",
+        "f5c884f7ec58c1b0005adf38b2a605812bf7dd859c93fda3d13a6afef1bbb344",
+        "7e2728fd7a203bce20c44955e0ad89dd7f97a608935ff3a368ae1a41c11986fc",
+        "3ab5c63d04012c0cb456c2dd037e03c5e1736ec13dae9443cde902362b655581",
+        "7acd5a1d434e1e3f242ab37fd2b549da0b8b0b67741430b7417f9b85e80e92c1"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 0.4726135730743408,
+      "step_norms": {
+        "shared_trunk": 0.05076509341597557,
+        "velocity_head": 0.16173066198825836,
+        "temperature_head": 0.44116857647895813,
+        "effective_velocity_head": 0.16173066198825836,
+        "effective_temperature_head": 0.09439805940591041
+      }
+    },
+    {
+      "oracle_call": 4,
+      "optimizer_window_evaluations": 16,
+      "loss": 0.4120037965476513,
+      "velocity_loss": 0.04263791814446449,
+      "temperature_loss": 0.3693659007549286,
+      "gradient_norm": 3.216508626937866,
+      "max_advective_cfl": 0.192184180021286,
+      "temperature_min": -0.361149400472641,
+      "temperature_max": 1.0796705484390259,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.0380958616733551,
+      "seconds": 0.07483245595358312,
+      "fit_elapsed_s": 55.573367176926695,
+      "accepted": true,
+      "parameter_sha256": [
+        "ba215c045476df81b793d7aad87c51b5f9d8763f1f4e408105cf01fb4599271b",
+        "202b55035ce4669e54caa6b57e324b931d9b49a1cde93b09d5902e514e4774e8",
+        "a8ba7f5a1da9c99ca6091cb85fecef5dc1bbde2a33b1bd003b51670d145be9d8",
+        "17c01f8b858d94670f1fd3b32dde460960ebb9a799bb1d48f7a9af1065c448cd",
+        "ca62a8c53344d77b84c985ccb64e5b4ff9453db5554920c832386f89b2bae6e0",
+        "e7615f6ae76a3feee497fab40e08bd317820d8e0d531dfb108dff2942bbe5682"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 3.0,
+      "step_norms": {
+        "shared_trunk": 2.232351303100586,
+        "velocity_head": 0.3214819133281708,
+        "temperature_head": 1.9781954288482666,
+        "effective_velocity_head": 0.3214819133281708,
+        "effective_temperature_head": 0.4232799423279543
+      }
+    },
+    {
+      "oracle_call": 5,
+      "optimizer_window_evaluations": 20,
+      "loss": 4.146107077598572,
+      "velocity_loss": 0.236728698015213,
+      "temperature_loss": 3.9093785285949707,
+      "gradient_norm": 25.852527618408203,
+      "max_advective_cfl": 0.31381818652153015,
+      "temperature_min": -1.5459400415420532,
+      "temperature_max": 1.7009145021438599,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.06059296429157257,
+      "seconds": 0.07485472597181797,
+      "fit_elapsed_s": 56.12898247898556,
+      "accepted": true,
+      "parameter_sha256": [
+        "db8c0b253e94f91f7c92bf26cf9072fb0e69574dae109e61a8c3d82d0e013816",
+        "3881b4db71f1b1815881ce995e54d047c9713b4be58b9df905ce7fd10d0774f8",
+        "cdbe3beaedd64c75101c625d5123d40de8a1687bebe991ee3a3aa97c16acebd6",
+        "10e4bd5dfd4fe6e4f0ed0d010e429464337ad32fead83961a7cf7b108fa0d2ed",
+        "f1e832632ec4526bceaae5d2381301352791e83e310243c0bb125219b64a15a1",
+        "e73911e2dccaf29c2197995eefcec66a7a4ee22ef2b3c06d11015754ba9f02d0"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 2.999999761581421,
+      "step_norms": {
+        "shared_trunk": 2.818000316619873,
+        "velocity_head": 0.846693217754364,
+        "temperature_head": 0.5847928524017334,
+        "effective_velocity_head": 0.846693217754364,
+        "effective_temperature_head": 0.12512974260714052
+      }
+    },
+    {
+      "oracle_call": 6,
+      "optimizer_window_evaluations": 24,
+      "loss": 1.0669897496700287,
+      "velocity_loss": 0.4067452549934387,
+      "temperature_loss": 0.6602444648742676,
+      "gradient_norm": 2.6873743534088135,
+      "max_advective_cfl": 0.4403533935546875,
+      "temperature_min": -0.3323531448841095,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.1127970963716507,
+      "seconds": 0.0741096620913595,
+      "fit_elapsed_s": 56.20779655291699,
+      "accepted": true,
+      "parameter_sha256": [
+        "380b5d7d615bbda5888646d58cba0d3e0f434877b19d2f05d8b3be8a44003484",
+        "f5c06c9309990416c0c775bfac837e9e4f22f85678a2edd9708e715386262633",
+        "4469c2dab68c8eed64af00445b85431f9b35568bc8858c23953b470fb3b2c16e",
+        "920c6299aa37d73a84e7aec0e031d8efab447e2134478ca21287c905d04079a1",
+        "b27fe877f25e460917c76496ead00fd0d0f0ecd5cae308bb2ddfd01ae9aea185",
+        "65c93ab8f72e51e1c36cef5e687f3bdd1bc3e3accc8909a7d7acdd51c4ee7cbd"
+      ],
+      "trial_admissible": true,
+      "parameter_step_norm": 3.000000238418579,
+      "step_norms": {
+        "shared_trunk": 1.9770636558532715,
+        "velocity_head": 2.210514783859253,
+        "temperature_head": 0.4525980055332184,
+        "effective_velocity_head": 2.210514783859253,
+        "effective_temperature_head": 0.09684364592399541
+      }
+    },
+    {
+      "oracle_call": 7,
+      "optimizer_window_evaluations": 28,
+      "loss": 20.220051288604736,
+      "velocity_loss": 19.792278289794922,
+      "temperature_loss": 0.4277719259262085,
+      "gradient_norm": 39.02912521362305,
+      "max_advective_cfl": 1.9729360342025757,
+      "temperature_min": -0.3625056743621826,
+      "temperature_max": 0.9904577732086182,
+      "stored_wall_normal_max": 0.0,
+      "max_window_heat_drift": 0.09651298820972443,
+      "seconds": 0.07440384000074118,
+      "fit_elapsed_s": 56.28633537795395,
+      "accepted": false,
+      "parameter_sha256": [
+        "ba308adce9c6782d52e9044398626a3238b3b0ee43f49383c42ab99ca25dc677",
+        "fc61a1a9cc34efa39b9ccf84a7ea2568f2615b71cab94303e72a79c200915c71",
+        "a4a3053181784cb6621b82624b5d0e9f3bccf4679c1f9cfa7954d0e034c4aab4",
+        "a099ba83c31d5441c8c752936d582e3327e0e55c68894766469f0c98e8e0d872",
+        "78ad612d828af2eb470bc0fc655b74ec8a9f468681c8a509f9091d1801412fd9",
+        "c46a316896da5e4ee84a720483a8272feef37073b493fc6efb7c6671be1bed40"
+      ],
+      "trial_admissible": false
+    }
+  ],
+  "checkpoints": [
+    {
+      "oracle_calls": 0,
+      "optimizer_window_evaluations": 0,
+      "accepted_iterations": 0,
+      "reason": "initial",
+      "loss": {
+        "total": 0.0011007894164878208,
+        "velocity": 0.000557757464584241,
+        "temperature": 0.0005430319519035799
+      },
+      "fit_elapsed_s": 16.802612429019064,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ]
+    },
+    {
+      "oracle_calls": 4,
+      "optimizer_window_evaluations": 16,
+      "accepted_iterations": 4,
+      "reason": "four-update checkpoint",
+      "loss": {
+        "total": 74.23941178791964,
+        "velocity": 19.041128189912044,
+        "temperature": 55.1982835980076
+      },
+      "fit_elapsed_s": 55.664808696950786,
+      "parameter_sha256": [
+        "db8c0b253e94f91f7c92bf26cf9072fb0e69574dae109e61a8c3d82d0e013816",
+        "3881b4db71f1b1815881ce995e54d047c9713b4be58b9df905ce7fd10d0774f8",
+        "cdbe3beaedd64c75101c625d5123d40de8a1687bebe991ee3a3aa97c16acebd6",
+        "10e4bd5dfd4fe6e4f0ed0d010e429464337ad32fead83961a7cf7b108fa0d2ed",
+        "f1e832632ec4526bceaae5d2381301352791e83e310243c0bb125219b64a15a1",
+        "e73911e2dccaf29c2197995eefcec66a7a4ee22ef2b3c06d11015754ba9f02d0"
+      ]
+    }
+  ],
+  "accepted": [
+    {
+      "iteration": 1,
+      "oracle_calls": 1,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "737cb2bd75b6b6d4bf0df4336c9eda2da87e2029101fba4c268e39ade4c48817",
+        "009f251aad11a31f4735dba3aab9bd2d727be20fc51fbe3c20b99090ba06a0ae"
+      ],
+      "fit_elapsed_s": 55.3316018700134
+    },
+    {
+      "iteration": 2,
+      "oracle_calls": 2,
+      "parameter_sha256": [
+        "18fce2a25fdca6860ee8770a7760f00a5c0e640e725bba0a3ec2007aed840e53",
+        "181964e497dc08df5dc08d57d71f1075834e96abbe42f3f92b04d53ee4317603",
+        "f5c884f7ec58c1b0005adf38b2a605812bf7dd859c93fda3d13a6afef1bbb344",
+        "7e2728fd7a203bce20c44955e0ad89dd7f97a608935ff3a368ae1a41c11986fc",
+        "3ab5c63d04012c0cb456c2dd037e03c5e1736ec13dae9443cde902362b655581",
+        "7acd5a1d434e1e3f242ab37fd2b549da0b8b0b67741430b7417f9b85e80e92c1"
+      ],
+      "fit_elapsed_s": 55.41962842794601
+    },
+    {
+      "iteration": 3,
+      "oracle_calls": 3,
+      "parameter_sha256": [
+        "ba215c045476df81b793d7aad87c51b5f9d8763f1f4e408105cf01fb4599271b",
+        "202b55035ce4669e54caa6b57e324b931d9b49a1cde93b09d5902e514e4774e8",
+        "a8ba7f5a1da9c99ca6091cb85fecef5dc1bbde2a33b1bd003b51670d145be9d8",
+        "17c01f8b858d94670f1fd3b32dde460960ebb9a799bb1d48f7a9af1065c448cd",
+        "ca62a8c53344d77b84c985ccb64e5b4ff9453db5554920c832386f89b2bae6e0",
+        "e7615f6ae76a3feee497fab40e08bd317820d8e0d531dfb108dff2942bbe5682"
+      ],
+      "fit_elapsed_s": 55.498469750978984
+    },
+    {
+      "iteration": 4,
+      "oracle_calls": 4,
+      "parameter_sha256": [
+        "db8c0b253e94f91f7c92bf26cf9072fb0e69574dae109e61a8c3d82d0e013816",
+        "3881b4db71f1b1815881ce995e54d047c9713b4be58b9df905ce7fd10d0774f8",
+        "cdbe3beaedd64c75101c625d5123d40de8a1687bebe991ee3a3aa97c16acebd6",
+        "10e4bd5dfd4fe6e4f0ed0d010e429464337ad32fead83961a7cf7b108fa0d2ed",
+        "f1e832632ec4526bceaae5d2381301352791e83e310243c0bb125219b64a15a1",
+        "e73911e2dccaf29c2197995eefcec66a7a4ee22ef2b3c06d11015754ba9f02d0"
+      ],
+      "fit_elapsed_s": 55.57783287996426
+    },
+    {
+      "iteration": 5,
+      "oracle_calls": 5,
+      "parameter_sha256": [
+        "380b5d7d615bbda5888646d58cba0d3e0f434877b19d2f05d8b3be8a44003484",
+        "f5c06c9309990416c0c775bfac837e9e4f22f85678a2edd9708e715386262633",
+        "4469c2dab68c8eed64af00445b85431f9b35568bc8858c23953b470fb3b2c16e",
+        "920c6299aa37d73a84e7aec0e031d8efab447e2134478ca21287c905d04079a1",
+        "b27fe877f25e460917c76496ead00fd0d0f0ecd5cae308bb2ddfd01ae9aea185",
+        "65c93ab8f72e51e1c36cef5e687f3bdd1bc3e3accc8909a7d7acdd51c4ee7cbd"
+      ],
+      "fit_elapsed_s": 56.13362129102461
+    },
+    {
+      "iteration": 6,
+      "oracle_calls": 6,
+      "parameter_sha256": [
+        "ba308adce9c6782d52e9044398626a3238b3b0ee43f49383c42ab99ca25dc677",
+        "fc61a1a9cc34efa39b9ccf84a7ea2568f2615b71cab94303e72a79c200915c71",
+        "a4a3053181784cb6621b82624b5d0e9f3bccf4679c1f9cfa7954d0e034c4aab4",
+        "a099ba83c31d5441c8c752936d582e3327e0e55c68894766469f0c98e8e0d872",
+        "78ad612d828af2eb470bc0fc655b74ec8a9f468681c8a509f9091d1801412fd9",
+        "c46a316896da5e4ee84a720483a8272feef37073b493fc6efb7c6671be1bed40"
+      ],
+      "fit_elapsed_s": 56.21186628891155
+    }
+  ],
+  "gradient_diagnostics": [
+    {
+      "oracle_calls": 0,
+      "accepted_iterations": 0,
+      "parameter_sha256": [
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+        "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+        "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+        "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+      ],
+      "velocity_loss_gradient_norm": 0.0011854589683935046,
+      "temperature_loss_gradient_norm": 0.00143057806417346,
+      "cosine": 0.0371601447020205,
+      "blocks": {
+        "shared_trunk": {
+          "velocity_loss_gradient_norm": 0.0,
+          "temperature_loss_gradient_norm": 0.0,
+          "cosine": null
+        },
+        "velocity_head": {
+          "velocity_loss_gradient_norm": 0.0011846200795844197,
+          "temperature_loss_gradient_norm": 8.63075110828504e-05,
+          "cosine": 0.32246731131899337
+        },
+        "temperature_head": {
+          "velocity_loss_gradient_norm": 4.4587406591745093e-05,
+          "temperature_loss_gradient_norm": 0.001427972223609686,
+          "cosine": 0.4719679987580836
+        }
+      },
+      "seconds": 21.0327253700234,
+      "fit_elapsed_s": 37.96326426893938
+    },
+    {
+      "oracle_calls": 4,
+      "accepted_iterations": 4,
+      "parameter_sha256": [
+        "db8c0b253e94f91f7c92bf26cf9072fb0e69574dae109e61a8c3d82d0e013816",
+        "3881b4db71f1b1815881ce995e54d047c9713b4be58b9df905ce7fd10d0774f8",
+        "cdbe3beaedd64c75101c625d5123d40de8a1687bebe991ee3a3aa97c16acebd6",
+        "10e4bd5dfd4fe6e4f0ed0d010e429464337ad32fead83961a7cf7b108fa0d2ed",
+        "f1e832632ec4526bceaae5d2381301352791e83e310243c0bb125219b64a15a1",
+        "e73911e2dccaf29c2197995eefcec66a7a4ee22ef2b3c06d11015754ba9f02d0"
+      ],
+      "velocity_loss_gradient_norm": 2.4989476203918457,
+      "temperature_loss_gradient_norm": 25.045711517333984,
+      "cosine": 0.27817493409005195,
+      "blocks": {
+        "shared_trunk": {
+          "velocity_loss_gradient_norm": 0.5740126967430115,
+          "temperature_loss_gradient_norm": 23.994165420532227,
+          "cosine": 0.4962752818282376
+        },
+        "velocity_head": {
+          "velocity_loss_gradient_norm": 2.4306564331054688,
+          "temperature_loss_gradient_norm": 5.14116907119751,
+          "cosine": 0.8361422414159618
+        },
+        "temperature_head": {
+          "velocity_loss_gradient_norm": 0.08460035920143127,
+          "temperature_loss_gradient_norm": 5.013593673706055,
+          "cosine": 0.29808018939519715
+        }
+      },
+      "seconds": 0.12684958893805742,
+      "fit_elapsed_s": 55.79177076497581
+    }
+  ],
+  "devices": [
+    "cuda:0"
+  ],
+  "data_hashes": {
+    "train": "8d7ea58ee6852178c69952107669aaf304dcffae59403643ce876d7d033c51d0",
+    "validation": "a9029549cb52aac3ab91f2d595e093c71d9b1f0f65d4e9f54879e45f570f12a2",
+    "scales": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab"
+  },
+  "reference_admission": {
+    "spatial_factor": 2,
+    "time_refinement_error": 0.003415039039139105,
+    "audit_gap_ratio": 0.09055170237321285,
+    "splits": {
+      "train": {
+        "time_refinement_error": 0.003415039039139105,
+        "coarse_gap": 0.03771369228447932,
+        "audit_gap_ratio": 0.09055170237321285
+      },
+      "train_1": {
+        "time_refinement_error": 0.0022986273498842177,
+        "coarse_gap": 0.026469543413438185,
+        "audit_gap_ratio": 0.08684046090183933
+      },
+      "train_2": {
+        "time_refinement_error": 0.0020299109241774804,
+        "coarse_gap": 0.022777920807854606,
+        "audit_gap_ratio": 0.08911748097207792
+      },
+      "train_3": {
+        "time_refinement_error": 0.002676041875668916,
+        "coarse_gap": 0.03127811869347029,
+        "audit_gap_ratio": 0.08555635656653397
+      },
+      "validation": {
+        "time_refinement_error": 0.002896539461005629,
+        "coarse_gap": 0.033178146664438364,
+        "audit_gap_ratio": 0.08730262996004697
+      },
+      "test": {
+        "time_refinement_error": 0.0032999815304407512,
+        "coarse_gap": 0.0409960663584836,
+        "audit_gap_ratio": 0.0804950772980165
+      }
+    }
+  },
+  "native_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+  "driver_sha256": "a3c5d0a4a1ff57609a2fb8852e6982a9a21feddb8fa86b52b9f865d700ff406d",
+  "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+  "initial_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+    "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+  ],
+  "objective": {
+    "cases": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "starts": [
+      0,
+      24,
+      48,
+      72
+    ],
+    "horizon": 8,
+    "batch_size": 4,
+    "description": "same deterministic mean of four H8 windows for every optimizer oracle; different from shuffled public training",
+    "raw_temperature_input": true
+  },
+  "gate": {
+    "initial": {
+      "checks": [
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007883968646638095,
+          "relative_error": 0.010563359224426347,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007810016977600753,
+          "relative_error": 0.0011945587209307958,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0007800687453709543,
+          "finite_difference": 0.0007801561732776463,
+          "relative_error": 0.0001120646220419174,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.009380005470833114,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0010826154217769366,
+          "passes": true
+        }
+      ]
+    },
+    "synthetic_nonzero": {
+      "checks": [
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08791383355855942,
+          "relative_error": 0.0003560718338284,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08794163912534714,
+          "relative_error": 3.990241107141956e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.08794514834880829,
+          "finite_difference": 0.08794420957565308,
+          "relative_error": 1.0674530350316059e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.00031618203918268127,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 2.9228192718333752e-05,
+          "passes": true
+        }
+      ]
+    },
+    "scope": "Research convergence criterion; original fixed-epsilon initial/synthetic results retained, no public gate change",
+    "same_pair_passes_both": [
+      true,
+      true
+    ]
+  },
+  "elapsed_s": 58.865511553012766,
+  "common_preparation_seconds": 18.937654088018462,
+  "compute_scope": "First optimizer objective compilation, all component-gradient diagnostics, validation and optimizer steps included in fit_elapsed_s. Native/JAX/reference/gate preparation outside. Optimizer oracles limited64; diagnostic gradient work reported separately. Persistent cache disabled.",
+  "charged_calibration_seconds": 16.359189226990566,
+  "selected_parameter_sha256": [
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+    "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+    "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+    "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+  ],
+  "failure": {
+    "type": "ValueError",
+    "message": "Native CFL admissibility rejected training query 1.9729360342025757",
+    "traceback": "Traceback (most recent call last):\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 179, in <module>\n    value,g=oracle(params);new,state,delta=first_order_update(params,state,g)\n            ^^^^^^^^^^^^^^\n  File \"/data/personal/andrinr/runner/results/mosaic/buoyancy-optimizer-heads-20261030/driver-v2.py\", line 152, in oracle\n    raise ValueError(f\"Native CFL admissibility rejected training query {row['max_advective_cfl']}\")\nValueError: Native CFL admissibility rejected training query 1.9729360342025757\n"
+  }
+}
