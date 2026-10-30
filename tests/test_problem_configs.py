@@ -224,8 +224,13 @@ def _loosens(default: list, override: list) -> bool:
         if factory not in built_in:
             return True
         sign = 1 if _LOOSER_WHEN_HIGHER[factory] else -1
-        if any(sign * (built_in[factory][k] - v) > 0 for k, v in params.items()):
-            return True
+        for k, v in params.items():
+            w = built_in[factory][k]
+            numeric = isinstance(v, int | float) and isinstance(w, int | float)
+            # A changed non-numeric parameter, e.g. max_error's ``at``, narrows
+            # what the check judges.
+            if (numeric and sign * (w - v) > 0) or (not numeric and w != v):
+                return True
     return False
 
 

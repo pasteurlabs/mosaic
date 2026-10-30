@@ -137,11 +137,21 @@ def median_k(k: float, floor: float = 0.0) -> Callable[[ForwardSummary], CheckOu
     return _check
 
 
-def max_error(threshold: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if any sweep point's error exceeds ``threshold`` (absolute)."""
+def max_error(
+    threshold: float, *, at: Any = None
+) -> Callable[[ForwardSummary], CheckOutcome]:
+    """Anomaly if any sweep point's error exceeds ``threshold`` (absolute).
+
+    ``at`` judges that one sweep value only, for sweeps whose other points
+    show convergence rather than meet the bound.
+    """
 
     def _check(s: ForwardSummary) -> CheckOutcome:
-        bad = [(p, e) for p, e in s.errs_by_pval.items() if e > threshold]
+        bad = [
+            (p, e)
+            for p, e in s.errs_by_pval.items()
+            if e > threshold and (at is None or str(p) == str(at))
+        ]
         if not bad:
             return None
         worst = max(bad, key=lambda t: t[1])
