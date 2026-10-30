@@ -29,6 +29,7 @@ from dolfin_adjoint import *  # noqa: F403
 # defaults to UMFPACK and runs out of memory well before mumps would (see
 # pasteurlabs/mosaic#180).
 
+# mosaic-intervention: mumps-adjoint-monkeypatch
 try:
     import fenics_adjoint.types.compat as _fa_compat
 
@@ -38,6 +39,7 @@ try:
     _fa_compat.linalg_solve = _adjoint_linalg_solve_mumps
 except ImportError:
     pass
+# mosaic-intervention-end: mumps-adjoint-monkeypatch
 
 from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
