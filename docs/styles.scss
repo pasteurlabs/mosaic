@@ -142,3 +142,20 @@ figure.m-chart {
   }
 
 }
+
+// ── Effort and deviations columns ────────────────────────────────────────────
+// Cells with details on hover (docs/intervention_views.py) and the effort
+// filter above the setup tables (docs/effort-filter.html).
+.m-tip[title] {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.m-effort-filter {
+  margin: 0.5rem 0 1rem;
+
+  select {
+    margin-left: 0.25rem;
+  }
+}
