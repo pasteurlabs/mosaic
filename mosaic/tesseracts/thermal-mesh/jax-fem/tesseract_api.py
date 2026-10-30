@@ -431,11 +431,11 @@ def jacobian_vector_product(
     """Compute the Jacobian-vector product for the thermal solver.
 
     NOTE: this calls ``jax.jvp`` eagerly rather than the ``jax_jvp`` helper
-    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper`` runs
-    a host-side SciPy UMFPACK direct solve (``scipy.sparse.linalg.spsolve`` on
-    concrete NumPy arrays), which cannot be traced under ``jax.jit``. The
-    shared helper wraps the differentiation in ``eqx.filter_jit``, so routing
-    through it raises an Error 500 inside the container. Keep this un-jitted.
+    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper``
+    assembles each system matrix on the host, as a PETSc matrix built from
+    concrete NumPy arrays, which cannot be traced under ``jax.jit``. The shared
+    helper wraps the differentiation in ``eqx.filter_jit``, so routing through
+    it raises an Error 500 inside the container. Keep this un-jitted.
     """
     assert jvp_inputs <= {"rho", "source"}
     assert jvp_outputs <= {"thermal_compliance", "identification_error"}

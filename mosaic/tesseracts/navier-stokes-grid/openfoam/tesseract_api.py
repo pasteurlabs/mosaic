@@ -459,8 +459,6 @@ _RADIAL_GRADING = 0.5
 # Cell growth along the wake block, outlet cell size over the cell size next
 # to the cylinder.
 _WAKE_GRADING = 10.0
-# Fewest cells per MPI process. Smaller meshes run serially.
-_CELLS_PER_PROCESS = 10_000
 
 _FOAM_HEADER = """\
 FoamFile
@@ -690,8 +688,8 @@ solvers
     {
         solver          GAMG;
         smoother        DICGaussSeidel;
-        tolerance       1e-08;
-        relTol          0.01;
+        tolerance       1e-06;
+        relTol          0.1;
     }
     pFinal { $p; relTol 0; }
     U
@@ -802,9 +800,7 @@ boundaryField
     )
 
 
-def _sample(
-    workdir: Path, points: np.ndarray, n_procs: int
-) -> tuple[np.ndarray, np.ndarray]:
+def _sample(workdir: Path, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """U ``(n, 2)`` and p ``(n,)`` at ``points`` at the final time.
 
     Uses the ``probes`` function object with cell-point interpolation, which
@@ -827,8 +823,7 @@ probes
 }}
 """
     )
-    cmd = "foamPostProcess -dict system/sample -latestTime"
-    _run_of(_parallel(cmd, n_procs), workdir)
+    _run_of("foamPostProcess -dict system/sample -latestTime", workdir)
     (out_dir,) = (workdir / "postProcessing" / "probes").iterdir()
 
     def last_row(name: str) -> str:
@@ -859,6 +854,10 @@ def _read_forces(workdir: Path, depth: float) -> np.ndarray:
     # Columns: time, pressure force (x y z), viscous force (x y z), then the
     # moments.
     return (data[:, 1:3] + data[:, 4:6]) / depth
+
+
+# Fewest cells per MPI process. Smaller meshes run serially.
+_CELLS_PER_PROCESS = 10_000
 
 
 def _physical_cores() -> int:
@@ -927,8 +926,7 @@ def _run_channel(inputs: InputSchema) -> dict:
         u_inlet[:, 0] = np.interp(inlet[:, 1], y_canonical, profile)
         _write_channel_fields(workdir, u_cells, u_inlet)
 
-        n_procs = _decompose(workdir, len(cells))
-        _run_of(_parallel("foamRun", n_procs), workdir)
+        _run_of("foamRun", workdir)
 
         forces = _read_forces(workdir, depth=dx)
         if len(forces) != n_steps:
@@ -938,7 +936,7 @@ def _run_channel(inputs: InputSchema) -> dict:
         X, Y = np.meshgrid(xc, y_canonical, indexing="ij")
         fluid = ~solid_cells(nx, ny, dx, center, radius)
         points = np.stack([X[fluid], Y[fluid], np.full(fluid.sum(), dx / 2)], axis=1)
-        u, p = _sample(workdir, points, n_procs)
+        u, p = _sample(workdir, points)
 
     velocity = np.zeros((nx, ny, 1, 2), dtype=np.float32)
     velocity[fluid, 0] = u

@@ -2,42 +2,6 @@ using TopOpt
 using Zygote
 
 # ---------------------------------------------------------------------------
-# Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
-#
-# Ferrite v0.3.0's `extract_boundary_matrix` (in TopOpt's INP parser) has two
-# bugs when used with 3-D hexahedral meshes:
-#   1. `Ferrite.sortface` is not defined for NTuple{4,Int} (quad faces)
-#   2. The face-hash Dict is typed `Dict{NTuple{dim,Int},Bool}` (dim=3),
-#      which can't hold 4-tuple keys from hex quad faces.
-#
-# Fix: override the function in the Parser module namespace via Core.eval so
-# that it uses `Dict{Any,Bool}` and sorts faces without calling sortface.
-# ---------------------------------------------------------------------------
-Core.eval(
-    TopOpt.TopOptProblems.InputOutput.INP.Parser,
-    quote
-        function extract_boundary_matrix(grid::Ferrite.Grid{dim}) where {dim}
-            nfaces  = length(Ferrite.faces(Ferrite.getcells(grid)[1]))
-            ncells  = length(Ferrite.getcells(grid))
-            countedbefore   = Dict{Any, Bool}()
-            boundary_matrix = ones(Bool, nfaces, ncells)
-            for (ci, cell) in enumerate(Ferrite.getcells(grid))
-                for (fi, face) in enumerate(Ferrite.faces(cell))
-                    sface = Tuple(sort(collect(face)))
-                    token = Base.ht_keyindex2!(countedbefore, sface)
-                    if token > 0
-                        boundary_matrix[fi, ci] = 0
-                    else
-                        Base._setindex!(countedbefore, true, sface, -token)
-                    end
-                end
-            end
-            return sparse(boundary_matrix)
-        end
-    end,
-)
-
-# ---------------------------------------------------------------------------
 # INP file generation from raw mesh arrays
 # ---------------------------------------------------------------------------
 
@@ -137,18 +101,13 @@ function write_inp_hex(
 end
 
 # ---------------------------------------------------------------------------
-# Solver cache (keyed by a hash of the structural problem parameters); holds
-# the current setup only
+# Solver cache (keyed by the structural problem parameters); holds the
+# current setup only
 # ---------------------------------------------------------------------------
 
-const _CACHE = Dict{UInt64, Tuple}()
-
-"""Hash the inputs that define the FEA model (not rho) to cache the setup."""
-function _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
-    h = hash(pts) ⊻ hash(cells) ⊻ hash(dirichlet_mask) ⊻ hash(cload_mask)
-    h = hash(cload_values, h) ⊻ hash(E) ⊻ hash(nu) ⊻ hash(xmin)
-    return h
-end
+# Dict compares keys with isequal after hashing, so a key matches only when every
+# array and constant is equal.
+const _CACHE = Dict{Tuple, Tuple}()
 
 function get_solver_mesh(
     pts::Matrix{Float64},
@@ -160,7 +119,7 @@ function get_solver_mesh(
     nu::Float64,
     xmin::Float64,
 )
-    key = _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
+    key = (pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
     if !haskey(_CACHE, key)
         # Write temporary INP file and load it
         tmpfile = tempname() * ".inp"
@@ -168,8 +127,8 @@ function get_solver_mesh(
         try
             write_inp_hex(tmpfile, pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu)
             problem = InpStiffness(tmpfile)
-            solver = FEASolver(Direct, problem; xmin=xmin, penalty=PowerPenalty(3.0))
-            comp = Compliance(solver)
+            solver = FEASolver(DirectSolver, problem; xmin=xmin, penalty=PowerPenaltyFun(3.0))
+            comp = ComplianceFun(solver)
         finally
             isfile(tmpfile) && rm(tmpfile)
         end
@@ -222,7 +181,7 @@ end
         -> grad_rho::Vector{Float64}
 
 VJP: ∂C/∂ρ scaled by the cotangent, from TopOpt.jl's Zygote rule for
-`Compliance` (the analytical SIMP adjoint, no extra linear solve).
+`ComplianceFun` (the analytical SIMP adjoint, no extra linear solve).
 """
 function topopt_vjp(
     rho_in,

@@ -72,6 +72,12 @@ from mosaic.benchmarks.core.harness import (
         ("RuntimeError", "cudaErrorMemoryAllocation", "OOM"),
         ("XlaRuntimeError", "Failed to allocate 8.00GiB for buffer", "OOM"),
         ("Exception", "Killed by OOM killer", "OOM"),
+        # CUDA.jl's OutOfGPUMemoryError, as raised through juliacall.
+        (
+            "Exception",
+            "juliacall.JuliaError: Out of GPU memory trying to allocate 207.969 KiB",
+            "OOM",
+        ),
         # Timeout: matched by exception name
         ("TimeoutError", "deadline exceeded", "timeout"),
         ("WatchdogTimeout", "", "timeout"),
