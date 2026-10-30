@@ -86,9 +86,11 @@ class OutputSchema(
 # residual floor, so CG runs to max_iterations at 2-3x the cost without
 # improving any result.
 _CG_TOL = 1e-7
-# The channel's pressure solve stops at phiflow's default 1e-5, which gives the
-# same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
-_CHANNEL_CG_TOL = 1e-5
+# The channel's pressure solve stops at 1e-2 (relative and absolute), the
+# loosest at which Cd, Cl and the pressure drop stay within 0.1% of a 1e-7
+# solve at 10 and 20 cells per diameter, and drag_opt ends at the same drag.
+# At 1e-1 the Cd error at 10 cells per diameter moves by 4%.
+_CHANNEL_CG_TOL = 1e-2
 
 
 def periodic_fwd(
