@@ -1,0 +1,8 @@
+[deps]
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+WaterLily = "ed894a53-35f9-47f1-b17f-85db9237eebd"

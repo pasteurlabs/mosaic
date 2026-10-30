@@ -1,0 +1,102 @@
+{
+  "complete": true,
+  "source_numerics_commit": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "scope": "Same native joint recipe across five solvers, original main validation1/test100. Own-solver references and RMS scales differ, so these losses do not rank absolute solver quality.",
+  "recipe": {
+    "physics": {
+      "N": 64,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 8,
+      "domain_extent": 1.0
+    },
+    "training": {
+      "updates": 256,
+      "unroll": 8,
+      "train_frames": 100,
+      "eval_frames": 100,
+      "reference_factor": 2,
+      "learning_rates": [
+        0.001
+      ],
+      "hidden_channels": 8,
+      "correct_temperature": true,
+      "temperature_head_scale": 0.1,
+      "model_seed": 0,
+      "window_seed": 0,
+      "validation_seed": 1,
+      "test_seed": 100,
+      "validation_interval": 64
+    }
+  },
+  "results": [
+    {
+      "solver": "PhiFlow",
+      "uncorrected_mean_loss": 0.012132003428184853,
+      "joint_mean_loss": 0.004539077029794498,
+      "reduction_vs_uncorrected_percent": 62.585923613824605,
+      "selected_update": 128,
+      "public_fixed_epsilon_pass": true,
+      "training_execution": "new256updates",
+      "final_relative_heat_drift": -0.015083086823493085,
+      "undershoot": 0.011235764250159264,
+      "overshoot": 0.0,
+      "max_sampled_advective_cfl": 0.18527408599853515
+    },
+    {
+      "solver": "JAX-CFD",
+      "uncorrected_mean_loss": 0.0016806774568691907,
+      "joint_mean_loss": 0.0005717899207246546,
+      "reduction_vs_uncorrected_percent": 65.97860473539048,
+      "selected_update": 256,
+      "public_fixed_epsilon_pass": true,
+      "training_execution": "reusedimmutableJAXcheckpointsequence",
+      "final_relative_heat_drift": 0.017772730404814845,
+      "undershoot": 0.004899409133940935,
+      "overshoot": 0.0,
+      "max_sampled_advective_cfl": 0.2242733955383301
+    },
+    {
+      "solver": "INS.jl",
+      "uncorrected_mean_loss": 0.00370337178246956,
+      "joint_mean_loss": 0.0021390141248136276,
+      "reduction_vs_uncorrected_percent": 42.24144238126571,
+      "selected_update": 256,
+      "public_fixed_epsilon_pass": true,
+      "training_execution": "new256updates",
+      "final_relative_heat_drift": 0.005215199015548072,
+      "undershoot": 0.0018630243139341474,
+      "overshoot": 0.0,
+      "max_sampled_advective_cfl": 0.22742311477661134
+    },
+    {
+      "solver": "WaterLily",
+      "uncorrected_mean_loss": 0.00472124974548727,
+      "joint_mean_loss": 0.0014773334864867137,
+      "reduction_vs_uncorrected_percent": 68.70884689167738,
+      "selected_update": 256,
+      "public_fixed_epsilon_pass": true,
+      "training_execution": "new256updates",
+      "final_relative_heat_drift": 0.01739092210844375,
+      "undershoot": 0.004055691417306662,
+      "overshoot": 0.0,
+      "max_sampled_advective_cfl": 0.21301198959350587
+    },
+    {
+      "solver": "Oceananigans",
+      "uncorrected_mean_loss": 0.0007356186003233489,
+      "joint_mean_loss": 0.00034284161741247486,
+      "reduction_vs_uncorrected_percent": 53.39410704653537,
+      "selected_update": 192,
+      "public_fixed_epsilon_pass": true,
+      "training_execution": "new256updates",
+      "final_relative_heat_drift": -0.004559468360149132,
+      "undershoot": 0.0015204043593257666,
+      "overshoot": 0.0,
+      "max_sampled_advective_cfl": 0.22745927810668945
+    }
+  ],
+  "timing_caveat": "JAX reuses immutable256update checkpoints and reruns VAL1 selection; new fit_elapsed is replay only. Native cached-data timings are not full CLI or CI timings."
+}

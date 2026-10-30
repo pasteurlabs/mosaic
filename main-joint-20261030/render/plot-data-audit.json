@@ -1,0 +1,16 @@
+{
+  "complete": true,
+  "rollout_plot_rows_exact": 2000,
+  "validation_rows_exact": 25,
+  "linear_log_validation_values_identical": true,
+  "all_five_public_fd_pass": true,
+  "animation_frames": 101,
+  "all_five_solvers_present": true,
+  "inputs": {
+    "result.json": "0e582039b3f9fe5e9ff4f82e8d749463a7a90f6a209a9d11f0e4b4e56408809b",
+    "rollout_errors.vl.json": "7295406468248eac0764dd7f2813754c6ed77ec97c370b7d7af975c8279f8a3e",
+    "validation_loss.vl.json": "b4e55219c39ba0b42ee1409aacc92bb5846d46e416f51121012f6207ab172a78",
+    "validation_loss_log.vl.json": "a18d39cb36af5f4fe1b83358f9165ca35693ce5393d9daa6f7a09d82bfc62335",
+    "error_evolution.json": "8c67621f1437aac490bcdde83156859685d957f1aafe3c18adf9505bd6edfb9b"
+  }
+}

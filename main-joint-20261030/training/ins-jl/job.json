@@ -1,0 +1,7 @@
+{
+  "solver": "ins-jl",
+  "slurm_id": 3632469,
+  "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/ins-jl",
+  "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+  "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+}

@@ -1,0 +1,229 @@
+{
+  "complete": true,
+  "recipe": {
+    "joint": true,
+    "center_temperature": false,
+    "zero_mean_temperature": false,
+    "temperature_head_scale": 0.1,
+    "lr": 0.001,
+    "model_seed": 0,
+    "window_seed": 0,
+    "hidden_channels": 8,
+    "horizon": 8,
+    "updates": 256,
+    "validation_seed": 1,
+    "test_seed": 100,
+    "validation_interval": 64
+  },
+  "scope": "Allthree Julia backends use the same fixed joint recipe, originalmainvalidation1/test100, cached own-backend references. NativeCPUprocessbridge, not canonicalHTTP/containerCI. No retuning or backendmathchanges. Fields/modelNPZs remainremote and are referencedbyhashonly.",
+  "node_policy": "Allthree ran onrtx23, allDGXnodes explicitlyexcluded. Julia initialization ownedbyisolated mainthread worker.",
+  "rows": [
+    {
+      "solver": "ins-jl",
+      "completed": true,
+      "completed_updates": 256,
+      "selected_update": 256,
+      "validation_loss": 0.0021044448102717373,
+      "heldout_loss": {
+        "total": 0.0021390141325071657,
+        "velocity": 0.0011059556988811062,
+        "temperature": 0.0010330584336260596
+      },
+      "uncorrected_loss": {
+        "total": 0.003703371771231358,
+        "velocity": 0.002334320841167268,
+        "temperature": 0.0013690509300640897
+      },
+      "relative_combined_improvement": 0.4224144199824823,
+      "public_fd_pass": true,
+      "research_fd_pass": true,
+      "training_seconds": 356.92589785251766,
+      "validation_seconds": 12.036850372096524,
+      "fit_elapsed_s": 370.77235870598815,
+      "driver_elapsed_s": 641.7851908179,
+      "native_first_step_relative_gap": 0.0,
+      "native_source_sha256": "d5b63c23ef5adaefa40424e075777e85e4ea58eac03bdfe52d3fc4071d82b329",
+      "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+      "driver_sha256": "fc3ef9686aa02af9d739c137f605abff55b91b0d75e029e8c8ff40976c90a1dc",
+      "data_hashes": {
+        "training": "a169da353ecd5d3b8421ec941da07663e75e405fdbabdda57d82035980eda631",
+        "validation": "92387dd8bf1b570755e63dc7896c2ebeaeb191bdc46e8ea8a5428944fa62a418",
+        "scales": "17f51a8a9c9863e9da42a4f4e8b84cc2b819fac3bab1634435a0c369ea149656"
+      },
+      "julia_version": "1.12.6",
+      "runtime_files": {
+        "Project.toml": "a492851fb5c557c89e8ccf9d25ad95f3674de6db966dc91ffa9abfb8f2d9a8fd",
+        "Manifest.toml": "3dbd198a0aff1284dbb711c0ef3762778c24a4ae1fb39e438e8c7892ab32d5b3"
+      },
+      "waterlily_backend": null,
+      "physics": {
+        "maximum_absolute_mean_heat_drift": 0.0003372756503439295,
+        "final_relative_heat_drift": 0.005215199015548072,
+        "temperature_min": -0.0018630243139341474,
+        "temperature_max": 0.99381422996521,
+        "undershoot": 0.0018630243139341474,
+        "overshoot": 0.0,
+        "max_mac_divergence_rms": 4.7009893380488274e-07,
+        "max_stored_wall_normal": 0.0,
+        "max_sampled_advective_cfl": 0.22742311477661134
+      },
+      "files": {
+        "outcome.json": "dc6e5a0fa1ca0c0356c34782e4fc2cb7af640d546fc1eed00b052ec02015c0ca",
+        "metrics.json": "27b3ec636f4b457e1aa3a27f9e1e905797559974e28eabe96668790ade65a75f",
+        "fields.npz": "2f0ebc67e383564949ab851c02a3dd1be8e95fcad59a4a397ebe018c413489a7",
+        "selected_params.npz": "d69bb07f705eb40c84be853061641ee6c3d38d75fccf20b58cf93307f7ad23d6",
+        "final_params.npz": "d69bb07f705eb40c84be853061641ee6c3d38d75fccf20b58cf93307f7ad23d6",
+        "environment.txt": "b79a3df7ff9ef2f99eff22bf7f4faf134264c7b9557b7663b2f801374b65e356",
+        "runtime-before.sha256": "6f17fe5bae76d5bf8d6ca9447b5684c935365d7530add1e87c43acdcd02e4fa4"
+      }
+    },
+    {
+      "solver": "oceananigans",
+      "completed": true,
+      "completed_updates": 256,
+      "selected_update": 192,
+      "validation_loss": 0.00025938869425568337,
+      "heldout_loss": {
+        "total": 0.00034284161612073227,
+        "velocity": 0.00021463495191242335,
+        "temperature": 0.00012820666420830892
+      },
+      "uncorrected_loss": {
+        "total": 0.0007356186038663809,
+        "velocity": 0.0004615615165306442,
+        "temperature": 0.00027405708733573676
+      },
+      "relative_combined_improvement": 0.533941074466074,
+      "public_fd_pass": true,
+      "research_fd_pass": true,
+      "training_seconds": 171.40380066866055,
+      "validation_seconds": 4.976878996938467,
+      "fit_elapsed_s": 177.70547337201424,
+      "driver_elapsed_s": 775.3216133259702,
+      "native_first_step_relative_gap": 0.0,
+      "native_source_sha256": "0316ff893ba8e50b45cdd1e28719160c7ec5457ea2a7a84775c35ee86aa3ed30",
+      "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+      "driver_sha256": "fc3ef9686aa02af9d739c137f605abff55b91b0d75e029e8c8ff40976c90a1dc",
+      "data_hashes": {
+        "training": "d7adfacd99436e8bab7b4b735ea874b2bd856ecaf6a3d46a06c5193157e21e33",
+        "validation": "c3f176c30a9573b8ee458fdbd363c51f7074becf2471cb97c74c612d7d6235f4",
+        "scales": "ff9d6f2d6ea5ab0e0a0382f9f8afe251890afe18aeab61215f1f221ecf729ab2"
+      },
+      "julia_version": "1.12.6",
+      "runtime_files": {
+        "Project.toml": "3db59c5575532225e79f9a37d4dbffa6d2d5043d7d6236141955fdff3875fefc",
+        "Manifest.toml": "88512839bb683bc731566e30046f5637bccbf5b29014ebc005dc9cefb90c93bb"
+      },
+      "waterlily_backend": null,
+      "physics": {
+        "maximum_absolute_mean_heat_drift": 0.0002442263274401099,
+        "final_relative_heat_drift": -0.004559468360149132,
+        "temperature_min": -0.0015204043593257666,
+        "temperature_max": 0.99381422996521,
+        "undershoot": 0.0015204043593257666,
+        "overshoot": 0.0,
+        "max_mac_divergence_rms": 4.5859617136033705e-07,
+        "max_stored_wall_normal": 0.0,
+        "max_sampled_advective_cfl": 0.22745927810668945
+      },
+      "files": {
+        "outcome.json": "5616c6256d58ca2371ed528e60c2149e695feac49df7d4ad199aeb403bcecda3",
+        "metrics.json": "7d0d0aab627ef6c71be860fd8b21a0b6e85f4761f5a67dd91496b78c1e5b7b62",
+        "fields.npz": "a9e89924ed63301ef619c413cb0434d7bf659d2b55f781ec1fa280d896c56c4a",
+        "selected_params.npz": "593b105f623284750bb4f29b8569b4c0a844e21b0a2589b9fd5fb9553b340c13",
+        "final_params.npz": "efd3e0ade5ec24bf3205cfec0cff0f465f9f0f15a2bdf6ddbf7af06ef120f007",
+        "environment.txt": "495673fbc40fb16e1d90726dee89fe0a5d74f8bb13cb5d0a30318607a0d55c71",
+        "runtime-before.sha256": "cf1cb3dce642a832d919110e2925f4627f254e2d941ab5f1873a27b394c63e3d"
+      }
+    },
+    {
+      "solver": "waterlily",
+      "completed": true,
+      "completed_updates": 256,
+      "selected_update": 256,
+      "validation_loss": 0.0012196743507716483,
+      "heldout_loss": {
+        "total": 0.0014773334872299755,
+        "velocity": 0.0007787975725423317,
+        "temperature": 0.0006985359146876439
+      },
+      "uncorrected_loss": {
+        "total": 0.004721249767674266,
+        "velocity": 0.0018976267154766073,
+        "temperature": 0.0028236230521976585
+      },
+      "relative_combined_improvement": 0.6870884702298382,
+      "public_fd_pass": true,
+      "research_fd_pass": true,
+      "training_seconds": 200.27230258658528,
+      "validation_seconds": 5.406809188891202,
+      "fit_elapsed_s": 207.8036133311689,
+      "driver_elapsed_s": 498.33195852697827,
+      "native_first_step_relative_gap": 0.0,
+      "native_source_sha256": "37d0db8f6354527b36933d672d4984f8c777d03bd44dad67f58a7b24a8d9923a",
+      "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+      "driver_sha256": "fc3ef9686aa02af9d739c137f605abff55b91b0d75e029e8c8ff40976c90a1dc",
+      "data_hashes": {
+        "training": "70778f9ae5b5e9a69b1a0f1796d38db4cbda2cc6c1f4ac9b1d02f3df13f78faa",
+        "validation": "59f51c0b778b15188e07256b04807370022657d5ca06466a2bb9230423c09238",
+        "scales": "79332c3c66f63d73363bd8edb498a720e8b2d6e0a567be521d12339cea8e8756"
+      },
+      "julia_version": "1.11.7",
+      "runtime_files": {
+        "Project.toml": "02e659e558641cae83c2a87bcf046386cbeaff3b615c3fa7f99b80c847c17f1b",
+        "Manifest.toml": "56925e5a2912b830f3cb28414bc8341b5a92afde38f05710908fc18d7ba8a01f",
+        "LocalPreferences.toml": "db069bc5895a8ab90dd9cda447188e69eeeead9a3b6c2884175b31015921efcf"
+      },
+      "waterlily_backend": "SIMD",
+      "physics": {
+        "maximum_absolute_mean_heat_drift": 0.000931538657985842,
+        "final_relative_heat_drift": 0.01739092210844375,
+        "temperature_min": -0.004055691417306662,
+        "temperature_max": 0.99381422996521,
+        "undershoot": 0.004055691417306662,
+        "overshoot": 0.0,
+        "max_mac_divergence_rms": 4.5943424189337567e-07,
+        "max_stored_wall_normal": 0.0,
+        "max_sampled_advective_cfl": 0.21301198959350587
+      },
+      "files": {
+        "outcome.json": "c7f44299da801872e85d6f5cf832d2afb03194de52f81390afdab94f2ca8fc1c",
+        "metrics.json": "f1ce6b8fed21e1e27faa9f60c6fdb066bd0904aab1addf795fb417278f531e44",
+        "fields.npz": "2ee40feb91e3012d6a69cfeae0031c473975d26fcc798ea8f1a7fd953c19ac9e",
+        "selected_params.npz": "c9603b93e1856c8947641ad9a4d6cebb62e48106ce9c11a1fd35c7485f2d4282",
+        "final_params.npz": "c9603b93e1856c8947641ad9a4d6cebb62e48106ce9c11a1fd35c7485f2d4282",
+        "environment.txt": "e0a6e38583d5665b74bad6eba21822d521efecf0da99fc2e55d89d38e2a966f2",
+        "runtime-before.sha256": "990a714bb0144173a52ea2cf63fb5b3959449a679cf661979deff1cdb0ea1137"
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "solver": "ins-jl",
+      "slurm_id": 3632469,
+      "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/ins-jl",
+      "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+      "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+    },
+    {
+      "solver": "oceananigans",
+      "slurm_id": 3632470,
+      "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/oceananigans",
+      "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+      "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+    },
+    {
+      "solver": "waterlily",
+      "slurm_id": 3632471,
+      "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/waterlily",
+      "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+      "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+    }
+  ],
+  "source_archive_sha256": "da142f67e3fb391ae7e13215a4ab60b4a671b8c6e032facaa1f5c18ae52b2115",
+  "runtime_manifest_sha256": "2ecb9321307a5fbf7c4b05847eb7118c51d4fc7e475257f05aac9a45d8ec2d77",
+  "shared_scripts_sha256": "ef37622462baf9fea6d1a66ea0eda4ce0f9301c5d4b3c7f1a54dda6169e366dc",
+  "julia_scripts_sha256": "9c5fde9bc215b565a58259b857801273c36cda7900a3d4dd9572c852b36e22a5",
+  "slurm_accounting_sha256": "fd987d8734e4a7e02cc0dbaea8a55221c49ffa49dcabb10735b5e901136bd6ad",
+  "timing_caveat": "Firsttrainingcompilation+validationincludedinfitclock. Environment/bootstrap/native-worker initialization+FDgatepreparationoutsidefitclock; coldJulia packageprecompilation dominates additionalSlurmstartup. Not a CIruntimeforecast."
+}

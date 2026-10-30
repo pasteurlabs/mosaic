@@ -1,0 +1,36 @@
+{
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "scope": "Joint main SOL gallery, native research execution; not canonical CI admission. No default changes.",
+  "solver_keys": [
+    "jax-cfd",
+    "phiflow",
+    "ins-jl",
+    "oceananigans",
+    "waterlily"
+  ],
+  "recipe": {
+    "correct_temperature": true,
+    "center_temperature": false,
+    "zero_mean_temperature": false,
+    "temperature_head_scale": 0.1,
+    "optimizer": "Adam",
+    "learning_rate": 0.001,
+    "clip_global_norm": 1.0,
+    "hidden_channels": 8,
+    "horizon": 8,
+    "updates": 256,
+    "model_seed": 0,
+    "window_seed": 0,
+    "validation_seed": 1,
+    "test_seed": 100,
+    "validation_interval": 64
+  },
+  "data": "Each backend own frozen admitted4trainingtrajectories/fineN128dt.0025reference;N64dt.0058nativeintervalsteps100T4. Samebalancedwindowstream. Originalpublicval1/test100split, not3valfreshresearchsplit.",
+  "selection": "Lowest admissible finite fullrolloutVAL1total at0/64/128/192/256, strictlowestthenearliesttie; all256updatesrun; no testselection.",
+  "jax_reuse": "Existing immutable same256mixedwindowtraining checkpoint weights from joint-improvement.../joint-c0-m0-t0.1-lr0.001-s0; re-evaluateVAL1at5savedcheckpoints andtest100. Verify data/native/helper/init/schedule/checkpoint hashes. Timings retain originaltrain cost and explicit replay cost; do not imply freshtrain.",
+  "admission": "Recordoriginalfixed\u03b5.0035%initial+nonzero criterion separately public_fd_pass; supplementaryresearchcommonadjacentpair from.003/.001/.0003 each5%AD/FD and5%slopes atbothinitial andexactsource syntheticnonzero. publicruleunchanged. Researchfailure aborts; native completed gallery doesnotclaimcanonicalCIpassed.",
+  "native": "JAXdirectnativeapply_jit; Phi+Julia isolated APIworker withfirstorderstatecustomVJP, unchanged nativeapply/vector_jacobian_product methods; no nestedPhiAD or Julia secondderivatives.",
+  "physics": "Recordfulltemperatureheatdrift/extrema/variance,velocityCFL/div/KE/walls. TrainingfiniteandendpointCFL<=.5; validationfinite+endpointCFL<=.5 forcheckpointeligibility. No clipping or posthocphysicalbounds culling.",
+  "hardware": "GPUjobsRTX5090only. Julia CPUjobs excludeDGX, frozenProject/Manifest/LocalPreferences includingWaterLilySIMD. Heavycomputeandplotsclusteronly.",
+  "outputs": "SOLVER/outcome.json researchcompletion+publicFDstatus; metrics.json canonicalplotmetrics withscope; fields.npz reference/uncorrected/solver_in_loop/scales. Originalvelocityresultsretainedelsewhere."
+}

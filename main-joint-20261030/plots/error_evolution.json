@@ -1,0 +1,80 @@
+{
+  "solvers": [
+    "INS.jl",
+    "JAX-CFD",
+    "Oceananigans",
+    "PhiFlow",
+    "WaterLily"
+  ],
+  "frames": 101,
+  "frame_interval": 0.04,
+  "fps": 10,
+  "columns": [
+    "uncorrected_temperature_error",
+    "corrected_temperature_error",
+    "uncorrected_velocity_error",
+    "corrected_velocity_error"
+  ],
+  "row_scales": {
+    "INS.jl": {
+      "temperature_error_max": 0.05716056376695633,
+      "velocity_error_max": 0.07980818301439285
+    },
+    "JAX-CFD": {
+      "temperature_error_max": 0.05104445293545723,
+      "velocity_error_max": 0.04885348305106163
+    },
+    "Oceananigans": {
+      "temperature_error_max": 0.02551414631307125,
+      "velocity_error_max": 0.030357591807842255
+    },
+    "PhiFlow": {
+      "temperature_error_max": 0.10983312129974365,
+      "velocity_error_max": 0.06452363729476929
+    },
+    "WaterLily": {
+      "temperature_error_max": 0.07424889504909515,
+      "velocity_error_max": 0.04762910678982735
+    }
+  },
+  "orientation": {
+    "solver": "JAX-CFD",
+    "method": "selected solver_in_loop correction",
+    "temperature_range": [
+      -0.004388006404042244,
+      0.9523515701293945
+    ],
+    "speed_range": [
+      0.0,
+      0.3578508496284485
+    ],
+    "selection": "JAX-CFD when available, otherwise first available solver"
+  },
+  "layout": {
+    "panel_size": 144,
+    "column_offsets": [
+      0,
+      150,
+      312,
+      462
+    ],
+    "left": 125,
+    "top": 316,
+    "row_height": 192
+  },
+  "normalization": "Per solver and physical field, shared across both arms and all frames; not comparable across rows",
+  "palettes": {
+    "temperature": "sequential red",
+    "velocity": "sequential blue",
+    "zero_error": "black",
+    "actual_fields": "temperature red, speed blue; independent physical scales"
+  },
+  "spatial_reduction": "Block mean of error magnitude, after velocity centering and differencing",
+  "selected_updates": {
+    "INS.jl": 256,
+    "JAX-CFD": 256,
+    "Oceananigans": 192,
+    "PhiFlow": 128,
+    "WaterLily": 256
+  }
+}

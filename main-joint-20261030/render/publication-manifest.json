@@ -1,0 +1,38 @@
+{
+  "complete": true,
+  "campaign": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030",
+  "native_source_commit": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "public_benchmark_defaults_changed": false,
+  "new_container_ci_run": false,
+  "all_five_public_fd_pass": true,
+  "large_arrays_omitted": true,
+  "array_file": {
+    "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/render/results/buoyancy-grid/optimization/solver_in_loop/corrector_fields.npz",
+    "sha256": "0fa3886aaa01bc52944d3d5da346044a39fd8b6da68fcc758b915f2d18be64d4",
+    "bytes": 69988980
+  },
+  "publication_files": {
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss_log.vl.json": "a18d39cb36af5f4fe1b83358f9165ca35693ce5393d9daa6f7a09d82bfc62335",
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss.png": "1c259087a42adef57703cbcfb31e8ebe25cdf955ca9cb31656fc20e84c840bb2",
+    "results/buoyancy-grid/optimization/solver_in_loop/result.json": "0e582039b3f9fe5e9ff4f82e8d749463a7a90f6a209a9d11f0e4b4e56408809b",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.gif": "9b77389f75006e96fe8ab476022c3fda2ffe484de86b19ae2583937d20c4d3d8",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.json": "8c67621f1437aac490bcdde83156859685d957f1aafe3c18adf9505bd6edfb9b",
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss.vl.json": "b4e55219c39ba0b42ee1409aacc92bb5846d46e416f51121012f6207ab172a78",
+    "results/buoyancy-grid/optimization/solver_in_loop/rollout_errors.png": "1fc9d0966205faae13aee1c72bf2325e9e25bd14abf574895e39bb66bb0320fd",
+    "results/buoyancy-grid/optimization/solver_in_loop/validation_loss_log.png": "c13ee9af44c5a8043b55c9dca62cabe65d67f8f6423d3db84461e925ddf37e44",
+    "results/buoyancy-grid/optimization/solver_in_loop/rollout_errors.vl.json": "7295406468248eac0764dd7f2813754c6ed77ec97c370b7d7af975c8279f8a3e",
+    "results/buoyancy-grid/optimization/solver_in_loop/error_evolution.png": "9ff105f4f43c7023e0f4c61b095d6cf9dc844002bd46fd0a78f895756621ba75",
+    "render.py": "bc965bfb8c680ee50c7f0501f3522a3f7c234cb79b2ed0327f9ab299e6a15758",
+    "node.sh": "ee34a8cfd48654a959de77759170fbaf523d5943cc97bb85039b56db91c9abd8",
+    "submit.py": "e51e63b3a6a520457724aeeaf8aa3f3e672153df86ad2f4e9c1906cf5095968c",
+    "scripts.sha256": "12bd11424d9f560a5f09f96f0fdda72ef988d5e31326df99abb1155f99b0bfed",
+    "render-preview-v1.py": "1ad7e0de9adeb51ad3f8f16f0bea52b06ef2145c1c3dbd5d3f8ab46f91d8dc96",
+    "render-canonical-v2-preserved.py": "b3f90d58604dd0a84193d1eb03c08df311db90dccfa22794781820c4d422c1f3",
+    "full-job.json": "6289aa544271e5326471ae61f4b20c5cd41ee6076078052005ca5b77007e9895",
+    "environment-full.txt": "037f1b1ea0f149b49363228e286f1514e33b80d8c226f14a883fab483896d745",
+    "render-receipt.json": "260b3661517971582bf3042ae195ab921a4a92272f1ddce7f5dba5d56a85698a",
+    "plot-data-audit.json": "0f0a9ce906c13b951567d39b5a1ff62ce59cf4f92eff818df082695a34aa7a0a",
+    "matrix-summary.json": "456e4af20cd5f89f2c03d5eeb5054df6d103a8d962f3870728016b39b665ccff"
+  },
+  "visual_review": "Frames0/50/100 and rollout, linear/log validation visually reviewed; five rows/curves, readable redT/bluevelocity, fixed paired physical scales, JAX actual-field orientation. No presentation changes needed."
+}

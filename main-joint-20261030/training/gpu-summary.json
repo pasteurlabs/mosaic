@@ -1,0 +1,76 @@
+{
+  "complete": true,
+  "scope": "CommonjointmainVAL1/test100 nativeRTX; JAXimmutableweightreplay annotated, Phi newtraining; notCIruntime",
+  "rows": [
+    {
+      "solver": "jax-cfd",
+      "selected_update": 256,
+      "heldout_loss": {
+        "total": 0.0005717899178309427,
+        "velocity": 0.0003069767286742321,
+        "temperature": 0.0002648131891567106
+      },
+      "uncorrected_loss": {
+        "total": 0.0016806774586199395,
+        "velocity": 0.0009682507970292321,
+        "temperature": 0.0007124266615907073
+      },
+      "training_seconds": 23.582853174069896,
+      "validation_seconds": 0.8790254690684378,
+      "training_execution": "reusedimmutableJAXcheckpointsequence",
+      "public_fd_pass": true,
+      "research_fd_pass": true,
+      "native_source_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+      "driver_sha256": "fc3ef9686aa02af9d739c137f605abff55b91b0d75e029e8c8ff40976c90a1dc",
+      "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+      "physical_summary": {
+        "final_relative_heat_drift": 0.017772730404814845,
+        "maximum_absolute_mean_heat_drift": 0.0009519900857934971,
+        "undershoot": 0.004899409133940935,
+        "overshoot": 0.0,
+        "max_mac_divergence_rms": 4.590497038977478e-07,
+        "max_stored_wall_normal": 0.0,
+        "max_sampled_advective_cfl": 0.2242733955383301
+      },
+      "field_files": {
+        "metrics": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/jax-cfd/metrics.json",
+        "fields": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/jax-cfd/fields.npz"
+      }
+    },
+    {
+      "solver": "phiflow",
+      "selected_update": 128,
+      "heldout_loss": {
+        "total": 0.004539077047033917,
+        "velocity": 0.002313170014826974,
+        "temperature": 0.002225907032206943
+      },
+      "uncorrected_loss": {
+        "total": 0.01213200347176459,
+        "velocity": 0.005808907369946535,
+        "temperature": 0.006323096101818055
+      },
+      "training_seconds": 272.1940848035738,
+      "validation_seconds": 27.0539694132749,
+      "training_execution": "new256updates",
+      "public_fd_pass": true,
+      "research_fd_pass": true,
+      "native_source_sha256": "2c1134949f8f8da9e8d2525ff38398f5af4cb1c407ceb395f93a5808cd50c6ad",
+      "driver_sha256": "fc3ef9686aa02af9d739c137f605abff55b91b0d75e029e8c8ff40976c90a1dc",
+      "helper_sha256": "9ac1c9aaf10678b9e9a992f98fd417840b65a6ff93704eb79db79892b8e47a26",
+      "physical_summary": {
+        "final_relative_heat_drift": -0.015083086823493085,
+        "maximum_absolute_mean_heat_drift": 0.0008863254479932747,
+        "undershoot": 0.011235764250159264,
+        "overshoot": 0.0,
+        "max_mac_divergence_rms": 4.0683444464468474e-07,
+        "max_stored_wall_normal": 0.0,
+        "max_sampled_advective_cfl": 0.18527408599853515
+      },
+      "field_files": {
+        "metrics": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/phiflow/metrics.json",
+        "fields": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/phiflow/fields.npz"
+      }
+    }
+  ]
+}

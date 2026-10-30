@@ -1,0 +1,23 @@
+{
+  "complete": true,
+  "rows": [
+    {
+      "training_frame": 0,
+      "forward_bitwise_equal": true,
+      "parameter_pullback_max_abs_difference": 0.0
+    },
+    {
+      "training_frame": 50,
+      "forward_bitwise_equal": true,
+      "parameter_pullback_max_abs_difference": 0.0
+    },
+    {
+      "training_frame": 100,
+      "forward_bitwise_equal": true,
+      "parameter_pullback_max_abs_difference": 0.0
+    }
+  ],
+  "H8_scalar_loss_bitwise_equal": true,
+  "H8_parameter_gradient_max_abs_difference": 0.0,
+  "scope": "Same trained parameters/three training states and fixed linear recurrence; no solver or heldout score selected. Production optional scale reproduces external research helper."
+}

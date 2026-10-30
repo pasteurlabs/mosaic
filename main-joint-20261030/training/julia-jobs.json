@@ -1,0 +1,23 @@
+[
+  {
+    "solver": "ins-jl",
+    "slurm_id": 3632469,
+    "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/ins-jl",
+    "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+    "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+  },
+  {
+    "solver": "oceananigans",
+    "slurm_id": 3632470,
+    "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/oceananigans",
+    "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+    "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+  },
+  {
+    "solver": "waterlily",
+    "slurm_id": 3632471,
+    "output": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/waterlily",
+    "node_policy": "CPU only; excludes all DGX nodes dgx01..06",
+    "runtime_manifest": "/data/personal/andrinr/runner/results/mosaic/buoyancy-main-joint-20261030/julia-runtime-manifest.json"
+  }
+]

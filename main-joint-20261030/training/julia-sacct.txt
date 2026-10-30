@@ -1,0 +1,10 @@
+JobID|JobName|State|ExitCode|NodeList|Elapsed|TotalCPU|MaxRSS
+3632469|buoyancy-main-joint-ins-jl|COMPLETED|0:0|rtx23|00:12:21|15:19.240|
+3632469.batch|batch|COMPLETED|0:0|rtx23|00:12:21|15:19.240|5369124K
+3632469.extern|extern|COMPLETED|0:0|rtx23|00:12:21|00:00:00|
+3632470|buoyancy-main-joint-oceananigans|COMPLETED|0:0|rtx23|00:14:41|20:48.289|
+3632470.batch|batch|COMPLETED|0:0|rtx23|00:14:41|20:48.289|6819464K
+3632470.extern|extern|COMPLETED|0:0|rtx23|00:14:41|00:00:00|
+3632471|buoyancy-main-joint-waterlily|COMPLETED|0:0|rtx23|00:09:48|14:40.807|
+3632471.batch|batch|COMPLETED|0:0|rtx23|00:09:48|14:40.807|7929892K
+3632471.extern|extern|COMPLETED|0:0|rtx23|00:09:48|00:00:00|
