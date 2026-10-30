@@ -205,6 +205,7 @@ def _sub_steps(inputs: dict) -> int:
     return max(1, math.ceil(ma / ma_target))
 
 
+# mosaic-intervention: consistent-initial-populations
 def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
     """Populations consistent with a divergence-free periodic velocity field.
 
@@ -255,6 +256,8 @@ def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
     return ops["eq"](rho, u) + f_neq
 
 
+# mosaic-intervention-end: consistent-initial-populations
+# mosaic-intervention: channel-boundary-conditions
 def _channel_links(
     shape: tuple[int, int], dx: float, obstacle: dict
 ) -> tuple[np.ndarray, ...]:
@@ -337,10 +340,12 @@ def _channel_run(
     f_rest = W[:, None, None] * jnp.ones_like(u0[:1])
     bounce = wall | body
     inlet_term = 6.0 * w[:, :, None] * C[0][:, None, None] * u_in[None, None, :]
+    # mosaic-intervention: channel-characteristic-outlet
     # Fully developed outflow carrying the inlet's flux.
     shape = np.arange(u0.shape[2]) + 0.5
     shape = shape * (u0.shape[2] - shape)
     u_developed = jnp.sum(u_in) * shape / shape.sum()
+    # mosaic-intervention-end: channel-characteristic-outlet
 
     def sub_step(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
         rho, u = ops["macro"](f)
@@ -351,8 +356,10 @@ def _channel_run(
         f_new = ops["stream"](f_post)
         f_new = jnp.where(bounce, reflected, f_new)
         f_new = jnp.where(inlet, reflected + inlet_term, f_new)
+        # mosaic-intervention: channel-characteristic-outlet
         u_out = 1.5 * u[:, -1, :] - 0.5 * u[:, -2, :]
         rho_out = 1.0 + math.sqrt(3.0) * (u[0, -1, :] - u_developed)
+        # mosaic-intervention-end: channel-characteristic-outlet
         cu = C.T @ u_out
         f_out = -reflected[:, -1, :] + 2.0 * w * rho_out * (
             1.0 + 4.5 * cu**2 - 1.5 * jnp.sum(u_out**2, axis=0)
@@ -368,6 +375,9 @@ def _channel_run(
 
     f0 = jnp.where(solid, f_rest, ops["eq"](jnp.ones_like(u0[:1]), u0))
     return _checkpointed_scan(outer_step, f0, steps)
+
+
+# mosaic-intervention-end: channel-boundary-conditions
 
 
 def xlb_fwd(
@@ -442,8 +452,11 @@ def xlb_fwd(
 
     out = {}
     if obstacle is None:
+        # mosaic-intervention: consistent-initial-populations
         f0 = _periodic_populations(u0, omega, ops)
+        # mosaic-intervention-end: consistent-initial-populations
 
+        # mosaic-intervention: manual-lbm-loop
         def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, None]:
             f_s = xlb_stream(f)
             rho_s, u_s = xlb_macro(f_s)
@@ -451,6 +464,7 @@ def xlb_fwd(
             return xlb_bgk(f_s, feq, rho_s, u_s, omega), None
 
         f_final, _ = _checkpointed_scan(body, f0, steps_eff)
+        # mosaic-intervention-end: manual-lbm-loop
         _rho_f, u_out = xlb_macro(f_final)
     else:
         u_in = inflow_profile.astype(fdtype) * scale_eff

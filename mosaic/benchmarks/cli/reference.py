@@ -16,9 +16,10 @@ solution, not a peer average that would share their common-mode bias.
 Two modes:
 
 1. **From existing results** (``--from-results``): reads field snapshots
-   from a ``mosaic-results/`` directory and extracts the consensus
-   arrays. Fast, no solver runs needed — just needs prior results.
-   (Consensus experiments only; converged references must be run.)
+   from a ``mosaic-results/`` directory and recomputes the trimmed mean
+   from every solver's stored output. Fast, no solver runs needed — just
+   needs prior results. (Consensus experiments only; converged references
+   must be run.)
 
 2. **By running solvers** (default): builds + runs the solver(s) for the
    target experiments and writes the NPZ — trimmed mean for consensus
@@ -37,8 +38,8 @@ from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.reference import (
     PRECOMPUTED_EXPERIMENTS,
     ConvergedSpec,
+    consensus_from_fields,
     converged_spec,
-    extract_references_from_fields,
     save_reference,
     spectral_downsample,
 )
@@ -128,6 +129,12 @@ def _generate_from_results(
             exps = [e for e in exps if e in exp_filter]
 
         for exp_key in exps:
+            if converged_spec(domain, exp_key) is not None:
+                console.print(
+                    f"  [yellow]SKIP[/] {domain}/{exp_key}: converged reference, "
+                    "generate it by running the reference solver"
+                )
+                continue
             # The fields.npz lives at:
             #   results_dir/<domain>/<suite>/<exp_name>/fields.npz
             suite, _, exp_name = exp_key.partition("/")
@@ -150,13 +157,22 @@ def _generate_from_results(
                 )
                 continue
 
-            refs = extract_references_from_fields(fields_path, n_sweep)
+            from mosaic.benchmarks.problems import get_config
+
+            solver_names = [s.name for s in get_config(domain).solvers]
+            refs = consensus_from_fields(fields_path, solver_names, n_sweep)
             if not refs:
                 console.print(
                     f"  [yellow]SKIP[/] {domain}/{exp_key}: "
-                    "no consensus arrays found in fields.npz"
+                    "fewer than two solver outputs in fields.npz"
                 )
                 continue
+            if len(refs) < n_sweep:
+                missing = sorted(set(range(n_sweep)) - set(refs))
+                console.print(
+                    f"  [yellow]WARN[/] {domain}/{exp_key}: sweep indices {missing} "
+                    "have fewer than two solver outputs and get no reference"
+                )
 
             # Read sweep values from the fields.npz for provenance.
             sweep_values = _read_sweep_values(fields_path)

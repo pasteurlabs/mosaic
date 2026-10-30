@@ -1,40 +1,5 @@
 using TopOpt
-
-# ---------------------------------------------------------------------------
-# Compatibility patch: Ferrite v0.3.0 + TopOpt v0.11.0 hex element support
-#
-# Ferrite v0.3.0's `extract_boundary_matrix` (in TopOpt's INP parser) has two
-# bugs when used with 3-D hexahedral meshes:
-#   1. `Ferrite.sortface` is not defined for NTuple{4,Int} (quad faces)
-#   2. The face-hash Dict is typed `Dict{NTuple{dim,Int},Bool}` (dim=3),
-#      which can't hold 4-tuple keys from hex quad faces.
-#
-# Fix: override the function in the Parser module namespace via Core.eval so
-# that it uses `Dict{Any,Bool}` and sorts faces without calling sortface.
-# ---------------------------------------------------------------------------
-Core.eval(
-    TopOpt.TopOptProblems.InputOutput.INP.Parser,
-    quote
-        function extract_boundary_matrix(grid::Ferrite.Grid{dim}) where {dim}
-            nfaces  = length(Ferrite.faces(Ferrite.getcells(grid)[1]))
-            ncells  = length(Ferrite.getcells(grid))
-            countedbefore   = Dict{Any, Bool}()
-            boundary_matrix = ones(Bool, nfaces, ncells)
-            for (ci, cell) in enumerate(Ferrite.getcells(grid))
-                for (fi, face) in enumerate(Ferrite.faces(cell))
-                    sface = Tuple(sort(collect(face)))
-                    token = Base.ht_keyindex2!(countedbefore, sface)
-                    if token > 0
-                        boundary_matrix[fi, ci] = 0
-                    else
-                        Base._setindex!(countedbefore, true, sface, -token)
-                    end
-                end
-            end
-            return sparse(boundary_matrix)
-        end
-    end,
-)
+using Zygote
 
 # ---------------------------------------------------------------------------
 # INP file generation from raw mesh arrays
@@ -136,18 +101,13 @@ function write_inp_hex(
 end
 
 # ---------------------------------------------------------------------------
-# Solver cache (keyed by a hash of the structural problem parameters); holds
-# the current setup only
+# Solver cache (keyed by the structural problem parameters); holds the
+# current setup only
 # ---------------------------------------------------------------------------
 
-const _CACHE = Dict{UInt64, Tuple}()
-
-"""Hash the inputs that define the FEA model (not rho) to cache the setup."""
-function _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
-    h = hash(pts) ⊻ hash(cells) ⊻ hash(dirichlet_mask) ⊻ hash(cload_mask)
-    h = hash(cload_values, h) ⊻ hash(E) ⊻ hash(nu) ⊻ hash(xmin)
-    return h
-end
+# Dict compares keys with isequal after hashing, so a key matches only when every
+# array and constant is equal.
+const _CACHE = Dict{Tuple, Tuple}()
 
 function get_solver_mesh(
     pts::Matrix{Float64},
@@ -159,7 +119,7 @@ function get_solver_mesh(
     nu::Float64,
     xmin::Float64,
 )
-    key = _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
+    key = (pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
     if !haskey(_CACHE, key)
         # Write temporary INP file and load it
         tmpfile = tempname() * ".inp"
@@ -167,8 +127,8 @@ function get_solver_mesh(
         try
             write_inp_hex(tmpfile, pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu)
             problem = InpStiffness(tmpfile)
-            solver = FEASolver(Direct, problem; xmin=xmin, penalty=PowerPenalty(3.0))
-            comp = Compliance(solver)
+            solver = FEASolver(DirectSolver, problem; xmin=xmin, penalty=PowerPenaltyFun(3.0))
+            comp = ComplianceFun(solver)
         finally
             isfile(tmpfile) && rm(tmpfile)
         end
@@ -185,9 +145,9 @@ end
 """
     topopt_forward(rho_in, pts_in, cells_in, dirichlet_mask_in,
                    cload_mask_in, cload_values_in, E, nu, xmin)
-        -> (compliance::Float64, grad_rho::Vector{Float64}, u::Vector{Float64})
+        -> compliance::Float64
 
-Forward pass + analytical SIMP gradient + nodal displacements.
+Forward pass: structural compliance of the density field.
 
 - `rho_in`           : (n_cells,) density field in [0,1]
 - `pts_in`           : (n_nodes, 3) node coordinates
@@ -196,11 +156,6 @@ Forward pass + analytical SIMP gradient + nodal displacements.
 - `cload_mask_in`    : (n_nodes,) 0=no load, k>0=load group k
 - `cload_values_in`  : (n_groups, 3) concentrated force vector per load group
 - `E`, `nu`, `xmin`  : scalar material / regularisation parameters
-
-Returns:
-- `compliance` : scalar compliance value
-- `grad_rho`   : (n_cells,) analytical SIMP gradient ∂C/∂ρ
-- `u`          : (n_nodes*3,) nodal displacement DOF vector (interleaved x/y/z per node)
 """
 function topopt_forward(
     rho_in,
@@ -214,14 +169,10 @@ function topopt_forward(
     cload_mask     = Int32.(vec(cload_mask_in))
     cload_values   = Float64.(Matrix(cload_values_in))
 
-    _, solver, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
+    _, _, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
 
-    rho  = Float64.(vec(rho_in))
-    x    = PseudoDensities(rho)
-    c    = comp(x)
-    grad = copy(comp.grad)
-    u    = copy(vec(solver.u))
-    return Float64(c), Float64.(grad), Float64.(u)
+    rho = Float64.(vec(rho_in))
+    return Float64(comp(PseudoDensities(rho)))
 end
 
 """
@@ -229,7 +180,8 @@ end
                cload_mask_in, cload_values_in, E, nu, xmin)
         -> grad_rho::Vector{Float64}
 
-VJP: returns  comp.grad * cotangent  (analytical SIMP adjoint scaled by cotangent).
+VJP: ∂C/∂ρ scaled by the cotangent, from TopOpt.jl's Zygote rule for
+`ComplianceFun` (the analytical SIMP adjoint, no extra linear solve).
 """
 function topopt_vjp(
     rho_in,
@@ -246,8 +198,7 @@ function topopt_vjp(
 
     _, _, comp = get_solver_mesh(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
 
-    rho = Float64.(vec(rho_in))
-    x   = PseudoDensities(rho)
-    comp(x)  # populate comp.grad
-    return Float64.(comp.grad .* cotangent)
+    rho  = Float64.(vec(rho_in))
+    grad = Zygote.gradient(r -> comp(PseudoDensities(r)), rho)[1]
+    return Float64.(grad .* cotangent)
 end

@@ -35,3 +35,106 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.openfoam.com/documentation/overview"
+    # What it took to run OpenFOAM here, beyond case files as in its
+    # tutorials. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: application
+    interventions:
+      - id: momentum-tolerance
+        level: L0
+        necessity: required
+        tuned: true
+        what: >
+          The periodic icoFoam case solves the momentum predictor to an
+          absolute tolerance of 1e-8 instead of the cavity tutorial's 1e-5.
+          The rest of its fvSolution follows that tutorial. The 3-D periodic
+          case uses the same file.
+        why:
+          ns-2d-periodic:
+            consequences: [inaccurate-forward]
+            symptom: >
+              At 1e-5 the 2-D Taylor-Green error stalls at 2.7e-4 between
+              N = 64 and N = 128, which made forward/baseline borderline. At
+              1e-8 it reaches 5.9e-5 at N = 128.
+            evidence: >
+              #222, table of U tolerances from 1e-5 to 1e-9 (merged through
+              #232); 3-D results were unchanged.
+        provenance: mosaic-team
+      - id: channel-momentum-tolerance
+        level: L0
+        necessity: choice
+        what: >
+          The cylinder channel also solves the momentum predictor to 1e-8
+          instead of the tutorial's 1e-5.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: >
+              None measured: at 1e-5 Cd is the same to five digits, with no
+              speed-up.
+            evidence: "#269, notes."
+        provenance: mosaic-team
+      - id: channel-pressure-solver
+        level: L0
+        necessity: choice
+        what: >
+          The channel's pressure is solved with GAMG (DICGaussSeidel smoother)
+          to an absolute 1e-8 and relTol 0.01, tighter than the offsetCylinder
+          tutorial's 1e-6 and relTol 0.1.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              GAMG is the faster choice: PCG/DIC takes 193 s for
+              forward/cylinder against 82 s, with the same Cd to eight digits.
+              The tight tolerance buys nothing measured: the tutorial's
+              tolerance gives Cd within about 6e-9 relative in 50 s.
+            evidence: "#269, before/after table."
+        provenance: mosaic-team
+      - id: channel-non-orthogonal-corrector
+        level: L0
+        necessity: required
+        what: >
+          One non-orthogonal corrector (nNonOrthogonalCorrectors 1) on the
+          body-fitted O-grid. The periodic case uses 0, as its tutorial does.
+        why:
+          ns-2d-cylinder:
+            consequences: [crash]
+            symptom: >
+              Without it, the run at 20 cells per diameter fails (maximum
+              Courant number 11.9).
+            evidence: "#269, before/after table."
+        provenance: mosaic-team
+      - id: graded-channel-mesh
+        level: L0
+        necessity: choice
+        what: >
+          The O-grid cells shrink radially to half the size of the box cells
+          at the cylinder wall, so the smallest cell is about 0.35 dx, and the
+          wake block coarsens to 10 dx at the outlet.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              A uniform mesh takes 111 s for forward/cylinder against 82 s.
+              Its Cd (5.567318 and 5.578718 at 10 and 20 cells per diameter)
+              is closer to the reference 5.5795 than the graded mesh's
+              (5.563948 and 5.576608).
+            evidence: "#269, before/after table; smallest cell from #263."
+        provenance: mosaic-team
+      - id: mpi-decomposition
+        level: L0
+        necessity: choice
+        what: >
+          The channel case is decomposed with scotch and run under mpirun,
+          one process per 10,000 cells up to the available cores. The
+          periodic case runs serially.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: >
+              None measured: serial runs are bit-identical and take the same
+              time at the benchmark's mesh sizes (up to about 36k cells, three
+              processes).
+            evidence: "#269, notes."
+        provenance: mosaic-team
+    deviations: []

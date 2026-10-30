@@ -5,7 +5,10 @@ description: >
   (PISOtorch). VJP w.r.t. v0, inflow_profile, and viscosity flows through the PISO
   time loop via PISOtorch_diff (tracks VELOCITY, BOUNDARY_VELOCITY, and VISCOSITY
   gradients). dt is a Python scalar consumed at construction time; zero gradients
-  are returned for it.
+  are returned for it. Deviation from PICT: the VJP scales the cotangents to a
+  largest entry of 1 before PICT's backward pass and scales the gradients back,
+  because PICT's linear solves stop at an absolute residual and would cut the
+  adjoint solves short for small cotangents.
 build_config:
   package_data: []
   target_platform: "linux/amd64"
