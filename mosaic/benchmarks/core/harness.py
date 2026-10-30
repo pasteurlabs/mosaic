@@ -66,6 +66,7 @@ def classify_failure(exc_name: str, exc_str: str) -> str:
         "resource_exhausted" in s
         or "out of memory" in s
         or "out-of-memory" in s
+        or "out of gpu memory" in s
         or "oom killer" in s
         or "oom-killer" in s
         or "cuda_error_out_of_memory" in s
