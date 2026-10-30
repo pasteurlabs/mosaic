@@ -5,17 +5,20 @@ description: >
   backend. Gradient ∂C/∂ρ via analytical SIMP adjoint sensitivity computed alongside the
   forward solve.
 build_config:
+  # juliacall keeps Julia's OpenSSL no newer than Python's. TopOpt.jl 0.14 needs
+  # Julia 1.12, which ships OpenSSL 3.5; bookworm's Python has 3.0, trixie's 3.5.
+  base_image: "debian:trixie-slim"
   package_data:
     - ["./solver.jl", "/tesseract/solver.jl"]
   custom_build_steps:
-    - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates libpython3.11 gcc g++ && rm -rf /var/lib/apt/lists/*"
-    - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.3-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
+    - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates libpython3.13 gcc g++ && rm -rf /var/lib/apt/lists/*"
+    - "RUN wget -q https://julialang-s3.julialang.org/bin/linux/x64/1.12/julia-1.12.5-linux-x86_64.tar.gz -O /tmp/julia.tar.gz && tar -xzf /tmp/julia.tar.gz -C /usr/local --strip-components=1 && rm /tmp/julia.tar.gz"
     # PackageCompiler.create_sysimage(...) used to bake an AOT system image
     # but was 30-60 min on CI for this dep tree. The benchmark reuses one
     # container across many calls, so a one-time JIT cost on first call is a
     # net win over paying the sysimage build cost every push. Removed
     # PackageCompiler from the package list — it's no longer imported.
-    - 'RUN mkdir -p /app/julia_env /app/julia_depot && JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) && echo "Using JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB" && JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="TopOpt", version="0.11.0"), Pkg.PackageSpec(name="Nonconvex", version="2.2.0"), Pkg.PackageSpec(name="NonconvexMMA", version="1.1.1"), Pkg.PackageSpec(name="Zygote", version="0.6.77"), Pkg.PackageSpec(name="ChainRulesCore", version="1.26.1"), Pkg.PackageSpec(name="PythonCall", version="0.9.31")]); Pkg.precompile()'''
+    - 'RUN mkdir -p /app/julia_env /app/julia_depot && JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) && echo "Using JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB" && JULIA_PYTHONCALL_LIB=$JULIA_PYTHONCALL_LIB julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="TopOpt", version="0.14.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10"), Pkg.PackageSpec(name="PythonCall", version="0.9.31")]); Pkg.precompile()'''
     # Warm up juliacall's Julia environment here, as root, mirroring the init
     # that tesseract_api.py does at import time — then chmod in the same layer.
     # The first `import juliacall` is what resolves the environment: juliapkg
@@ -34,6 +37,10 @@ build_config:
     # every file this step just created.
     - 'RUN JULIA_PYTHONCALL_LIB=$(find /usr/lib -name ''libpython3*.so.1.0'' 2>/dev/null | head -1) python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using TopOpt, Printf")'' && chmod -R 777 /app'
 env:
+  # Julia 1.12 adds an interactive thread by default. juliacall leaves Julia's
+  # signal handling off, and multithreaded Julia stops threads for GC through
+  # signals, so the server segfaulted on the larger meshes; one thread avoids it.
+  JULIA_NUM_THREADS: "1,0"
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
   JULIA_DEPOT_PATH: "/app/julia_depot"

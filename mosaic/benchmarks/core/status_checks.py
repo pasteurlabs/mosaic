@@ -183,7 +183,10 @@ def min_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
 
 
 def max_peer_k(k: float) -> Callable[[CostSummary], CheckOutcome]:
-    """Cost suite: anomaly if median wall-clock time > ``k × peer median``."""
+    """Cost suite: anomaly if median wall-clock time > ``k × peer median``.
+
+    The peers are the solvers on the same device class (GPU or CPU).
+    """
 
     def _check(s: CostSummary) -> CheckOutcome:
         if s.solver_median_time is None or s.peer_median_time is None:
