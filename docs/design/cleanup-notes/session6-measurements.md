@@ -62,3 +62,65 @@ A cache of the `SolidHeat` model and boundary tensors, keyed on the mesh, BCs an
 | 64  | VJP   | 644 ms | 644 ms    | 644 ms     |
 
 The setup is a negligible share of a call, and a hit is slower for `apply` (not investigated further). Branch `perf/torch-fem-setup-cache` stays unpushed.
+
+## JAX-FEM: PETSc solvers (#309)
+
+`main` passes JAX-FEM a jitted, Jacobi-preconditioned BiCGSTAB through `custom_solver`. The arms swap in JAX-FEM's own `petsc_solver` with CG and BoomerAMG (PETSc's default rtol and 1e-10) or GAMG. Mean `cost_time_s` over each sweep, failed per-sweep entries in brackets:
+
+| Cell                 | BiCGSTAB (`main`) | CG + hypre | CG + hypre, 1e-10 | CG + GAMG   |
+| -------------------- | ----------------- | ---------- | ----------------- | ----------- |
+| structural spatial   | 0.30 s            | 0.79 s     | 0.52 s            | failed (8)  |
+| structural VJP by N  | 0.74 s            | failed (1) | failed (1)        | failed (10) |
+| thermal spatial      | 0.30 s            | 0.46 s     | 0.29 s            | 0.40 s      |
+| thermal VJP by N     | 0.63 s            | failed (1) | 0.62 s            | failed (5)  |
+| failed entries, both | 0                 | 2          | 1                 | 24          |
+
+Every failure is JAX-FEM's own check after the PETSc solve (absolute residual < 0.1). JAX-FEM zeroes the Dirichlet rows of the matrix but not the columns, so the system is not symmetric and CG is not designed for it; this may be the cause, not verified. `main`'s solver stays. The same reading of `jax_fem.solver` showed that the `numerics` label ("Direct (SuperLU)") and the JVP docstring (UMFPACK) were wrong; #309 corrects them.
+
+## PICT periodic: pressure solver options
+
+Served-equivalent calls in each arm's image (in-process `apply` and VJP, TGV plus noise), two interleaved rounds, median of the warm repeats. GPU shared with the Kolmogorov session's PICT job and this session's Warp-NS A/B.
+
+| Case                     | CG (`main`) | BiCG   | BiCG + precond.      | CG, `pressure_reuse_result` |
+| ------------------------ | ----------- | ------ | -------------------- | --------------------------- |
+| 2-D N=128, 100 st. apply | 3.64 s      | 3.76 s | 10.7 s               | 4.34 s                      |
+| 2-D N=256, 100 st. apply | 4.30 s      | 3.56 s | NaN residual, step 1 | 4.26 s                      |
+| 2-D N=256 VJP            | 7.59 s      | 7.96 s | —                    | 7.60 s                      |
+| 3-D N=48, 20 st. apply   | 2.15 s      | 4.06 s | —                    | 2.38 s                      |
+| 3-D N=48 VJP             | 3.70 s      | 4.72 s | —                    | 4.84 s                      |
+
+BiCG changes outputs (2-D apply up to 4e-3 relative, viscosity gradient up to 100% at N=256 2-D) and is slower in the 3-D cases; in 2-D its times fall inside CG's own spread (3.07–5.30 s over the six N=256 repeats). The preconditioned BiCG breaks down at N=256 (`finalResidual=nan` after 520 iterations). `pressure_reuse_result` leaves `apply` bit-identical. CG stays; no PR.
+
+Two side findings:
+
+- PICT's VJP is not bit-reproducible: CG against CG across rounds differs by up to 1.8% in the 2-D N=256 viscosity gradient (3e-4 in the velocity gradient).
+- 90% of a periodic `apply` is `PISOtorch.SolveLinear` (cProfile, 2-D N=128): 300 solves per 100 steps, about 32 ms each, and the whole apply grows only from 6.3 s at N=32 to 13 s at N=256 (under contention). The cost is per-solve latency, not grid work. This is the likely source of PICT's ns-grid cost anomaly (32× the GPU median in CI, not explained on `main`); not examined further.
+
+## CI findings on this session's PRs
+
+- **#296, #308:** the bot's PhiFlow baseline predates #288, so its PhiFlow cost "regressions" are #288's RK4 cost. #308's multimode change (4.7e-4 → 3.5e-3) is not from #308: `forward/agreement/multimode` on `main` and on #308 agrees to 2e-4 relative.
+- **#307:** CI reports a new ceiling in ns-3d-grid `gradient/horizon_sweep_limits`: the 5120-step VJP fails on the CI GPU runner (the stored traceback is truncated before the exception type), while the A100 completes every horizon up to 10 240 steps.
+
+## #291: XLA's default GEMM autotuning
+
+Images for jax-cfd, PhiFlow and XLB built from `main` with #291 (`x291main`) and with #291's flags reverted (`x291off`). `forward/agreement/multimode` error per ν, old flags against `main`:
+
+| Solver  | largest relative difference                 |
+| ------- | ------------------------------------------- |
+| jax-cfd | 0 (bit-identical)                           |
+| XLB     | 0 (bit-identical)                           |
+| PhiFlow | 5.6e-4 (ν = 0.05; 1e-7 to 2e-5 at the rest) |
+
+The full forward, gradient and cost suites on `main` for the three solvers have no failed entries beyond those of the b6eb311 reference run, with one exception: XLB's ns-3d-grid `horizon_sweep_limits` VJP is NaN at 320 steps (the reference reached 5120). That is BGK's limit, recorded in #282, and it reproduces with the old flags (same gradient norms at 40–160 steps). So the flags do not explain CI's multimode shifts on #291, consistent with #298's finding that they came from scoring against the consensus of the solvers present in each CI job. The flags were not run on the CI's T4.
+
+## PICT channel geometry cache: not adopted
+
+A cache of the DFG channel's wall geometry and transfer weights, keyed on the mesh. Construction time per call, median of three repeats after a first call, in the pressure-tolerance image (`ppcg`) and with the cache (`pcache`):
+
+| res | mesh    | without | with  |
+| --- | ------- | ------- | ----- |
+| 10  | 220×41  | 14 ms   | 5 ms  |
+| 20  | 440×82  | 50 ms   | 6 ms  |
+| 40  | 880×164 | 199 ms  | 40 ms |
+
+`forward/cylinder` outputs are bit-identical. The benchmark never repeats a mesh: `forward/cylinder` runs res 10 and 20 once each, and PICT is excluded from `drag_opt`, so the cache would not hit. Branch `perf/pict-channel-geometry-cache` stays unpushed.
