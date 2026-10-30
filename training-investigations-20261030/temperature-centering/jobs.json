@@ -1,0 +1,86 @@
+[
+  {
+    "slurm_id": 3631302,
+    "seed": 0,
+    "budget": "fixed",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-0/baseline"
+  },
+  {
+    "slurm_id": 3631303,
+    "seed": 0,
+    "budget": "fixed",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-0/temperature_centered"
+  },
+  {
+    "slurm_id": 3631304,
+    "seed": 0,
+    "budget": "budget",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-0/baseline"
+  },
+  {
+    "slurm_id": 3631305,
+    "seed": 0,
+    "budget": "budget",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-0/temperature_centered"
+  },
+  {
+    "slurm_id": 3631306,
+    "seed": 1,
+    "budget": "fixed",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-1/temperature_centered"
+  },
+  {
+    "slurm_id": 3631307,
+    "seed": 1,
+    "budget": "fixed",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-1/baseline"
+  },
+  {
+    "slurm_id": 3631308,
+    "seed": 1,
+    "budget": "budget",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-1/temperature_centered"
+  },
+  {
+    "slurm_id": 3631309,
+    "seed": 1,
+    "budget": "budget",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-1/baseline"
+  },
+  {
+    "slurm_id": 3631310,
+    "seed": 2,
+    "budget": "fixed",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-2/baseline"
+  },
+  {
+    "slurm_id": 3631311,
+    "seed": 2,
+    "budget": "fixed",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/fixed/seed-2/temperature_centered"
+  },
+  {
+    "slurm_id": 3631312,
+    "seed": 2,
+    "budget": "budget",
+    "arm": "baseline",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-2/baseline"
+  },
+  {
+    "slurm_id": 3631313,
+    "seed": 2,
+    "budget": "budget",
+    "arm": "temperature_centered",
+    "directory": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-training-20261030/jax-cfd/budget/seed-2/temperature_centered"
+  }
+]

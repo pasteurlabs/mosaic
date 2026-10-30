@@ -1,0 +1,2730 @@
+{
+  "rows": [
+    {
+      "seed": 0,
+      "budget": "fixed",
+      "arm": "baseline",
+      "selected_update": 192,
+      "validation_loss": 0.0006556185544468462,
+      "heldout_loss": 0.0008612153469584882,
+      "completed_updates": 256,
+      "training_seconds": 40.10918925667647,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0013827856164425611,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0018333032494410872,
+          "selected_temperature_rms_symmetry_defect": 0.0020875108893960714,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0011168260825797915,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0012142619816586375,
+          "selected_temperature_rms_symmetry_defect": 0.0014524293364956975,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0008863157709129155,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 0.0002650824608281255,
+          "selected_temperature_rms_symmetry_defect": 0.0003318155650049448,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0008556469692848623,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 0.00025769497733563185,
+          "selected_temperature_rms_symmetry_defect": 0.00032585172448307276,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0009693029569461942,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0010150878224521875,
+          "selected_temperature_rms_symmetry_defect": 0.0012882883893325925,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0011484315618872643,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0014280438190326095,
+          "selected_temperature_rms_symmetry_defect": 0.0018133365083485842,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0007011162815615535,
+              "relative_error": 0.01566788315168526,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0006913662073202431,
+              "relative_error": 0.0017862222956004257,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0006902465829625726,
+              "relative_error": 0.00016705533807159954,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.01390650095815007,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0016194374932067396,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.00847150944173336,
+              "relative_error": 0.0007885698379567587,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.008465543389320374,
+              "relative_error": 8.438022013226242e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.00846488494426012,
+              "relative_error": 6.601312935129668e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0007042490425137316,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 7.777942064342834e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "3cfe79c338b2306ae4e675489af5c7c2ec1dac4ee90de701ef9f56fb380ef625"
+    },
+    {
+      "seed": 0,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "selected_update": 256,
+      "validation_loss": 0.0006622142973355949,
+      "heldout_loss": 0.0008446577121503651,
+      "completed_updates": 256,
+      "training_seconds": 40.69046997127589,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0008446580031886697,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 5.280329506973658e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0269362249459846e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0008446587598882616,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 6.274272212891674e-09,
+          "selected_temperature_rms_symmetry_defect": 9.786610633000237e-09,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0008446578867733479,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 7.2669816830739364e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0753061552293275e-08,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0008446577121503651,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 5.294372051878327e-09,
+          "selected_temperature_rms_symmetry_defect": 9.337051132263241e-09,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0008446592255495489,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 6.617127290553526e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1427123247642612e-08,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000844659807626158,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 1.0984256171298057e-08,
+          "selected_temperature_rms_symmetry_defect": 2.0861937954919085e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007610575994476676,
+              "relative_error": 0.05507282290378413,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007238212856464088,
+              "relative_error": 0.006461921865871394,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007195664220489562,
+              "relative_error": 0.000587038225110918,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.04892706390197379,
+              "passes": false
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00587833444778131,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010796437039971352,
+              "relative_error": 0.0009348216178857764,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010787483304738998,
+              "relative_error": 0.00010558602748931794,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010786485858261585,
+              "relative_error": 1.3123924992969635e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.000829323155333935,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 9.24633159779718e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          false,
+          true
+        ]
+      },
+      "outcome_sha256": "47b0764f67492604aca330fd6e6fdde6fa7f047e7354278001298d428cb6e8a0"
+    },
+    {
+      "seed": 0,
+      "budget": "budget",
+      "arm": "baseline",
+      "selected_update": 364,
+      "validation_loss": 0.0005589097272604704,
+      "heldout_loss": 0.000752800318878144,
+      "completed_updates": 724,
+      "training_seconds": 56.134427562123165,
+      "fit_elapsed_s": 59.784229944925755,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0011617409763857722,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0019449678948149085,
+          "selected_temperature_rms_symmetry_defect": 0.0023576756939291954,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0009240161161869764,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0013996445341035724,
+          "selected_temperature_rms_symmetry_defect": 0.001587900798767805,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007576283533126116,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 0.0002716958988457918,
+          "selected_temperature_rms_symmetry_defect": 0.000288404495222494,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007481628563255072,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 0.0002288553660036996,
+          "selected_temperature_rms_symmetry_defect": 0.0002377418422838673,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.000727566541172564,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0008678212761878967,
+          "selected_temperature_rms_symmetry_defect": 0.000983965233899653,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007823149207979441,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0013006774242967367,
+          "selected_temperature_rms_symmetry_defect": 0.0015372701454907656,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0007011162815615535,
+              "relative_error": 0.01566788315168526,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0006913662073202431,
+              "relative_error": 0.0017862222956004257,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.000690131273586303,
+              "finite_difference": 0.0006902465829625726,
+              "relative_error": 0.00016705533807159954,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.01390650095815007,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0016194374932067396,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.00847150944173336,
+              "relative_error": 0.0007885698379567587,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.008465543389320374,
+              "relative_error": 8.438022013226242e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.008464829064905643,
+              "finite_difference": 0.00846488494426012,
+              "relative_error": 6.601312935129668e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0007042490425137316,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 7.777942064342834e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "5b2edd25d5f9c891cc940f899a17b52055a5f06c1ad8fa9eaae09bb13422647f"
+    },
+    {
+      "seed": 0,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "selected_update": 623,
+      "validation_loss": 0.0005064596771262586,
+      "heldout_loss": 0.0007161071989685297,
+      "completed_updates": 623,
+      "training_seconds": 56.33151102392003,
+      "fit_elapsed_s": 60.00109954015352,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007161078392527997,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 6.857189038811384e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1972974611751397e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007161066168919206,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 5.986856344009084e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0198340838485365e-08,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007161080720834434,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 7.281637959266618e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0835635499972796e-08,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007161077810451388,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 7.934577439527857e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0855445431445787e-08,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007161074317991734,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 7.126459866668711e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0806766148618863e-08,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007161074900068343,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 1.0019422624907293e-08,
+          "selected_temperature_rms_symmetry_defect": 1.7699678167559796e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007610575994476676,
+              "relative_error": 0.05507282290378413,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007238212856464088,
+              "relative_error": 0.006461921865871394,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0007191440090537071,
+              "finite_difference": 0.0007195664220489562,
+              "relative_error": 0.000587038225110918,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.04892706390197379,
+              "passes": false
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00587833444778131,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010796437039971352,
+              "relative_error": 0.0009348216178857764,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010787483304738998,
+              "relative_error": 0.00010558602748931794,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.010786344297230244,
+              "finite_difference": 0.010786485858261585,
+              "relative_error": 1.3123924992969635e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.000829323155333935,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 9.24633159779718e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          false,
+          true
+        ]
+      },
+      "outcome_sha256": "2dcf653773cbd0e4d60d0fcbde86f04fcc740c3b8ddc47fca710a3eb24891cd6"
+    },
+    {
+      "seed": 1,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "selected_update": 192,
+      "validation_loss": 0.0005315713933669031,
+      "heldout_loss": 0.0009566367953084409,
+      "completed_updates": 256,
+      "training_seconds": 43.58282758295536,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0009566377266310155,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 5.741779052215179e-09,
+          "selected_temperature_rms_symmetry_defect": 1.2440087182596926e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0009566374938003719,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 5.831634286579401e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1335714589222334e-08,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.000956638774368912,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 6.492573589866879e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0330789557144726e-08,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0009566369117237628,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 5.644846368113576e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1037344371800373e-08,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0009566376102156937,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 6.420645348725884e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1213496797779499e-08,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000956637435592711,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 6.060269619467817e-09,
+          "selected_temperature_rms_symmetry_defect": 1.3619737337933202e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0005833586910739541,
+              "relative_error": 0.07427719312927396,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0006249633152037859,
+              "relative_error": 0.00825546410117786,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0006297022919170558,
+              "relative_error": 0.00073525587966854,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.06657130605540502,
+              "passes": false
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.007525741567245503,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.053675051778554916,
+              "relative_error": 0.001913353839606071,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.05376647785305977,
+              "relative_error": 0.00021328758814478452,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.05377686768770218,
+              "relative_error": 2.008879524585499e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.001700428931846972,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00019320267410789064,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          false,
+          true
+        ]
+      },
+      "outcome_sha256": "b25e4fa52cb8860351183b698af58d61cd02bbb6be8784a4f2cd327645328712"
+    },
+    {
+      "seed": 1,
+      "budget": "fixed",
+      "arm": "baseline",
+      "selected_update": 192,
+      "validation_loss": 0.0006344291032291949,
+      "heldout_loss": 0.0010493411682546139,
+      "completed_updates": 256,
+      "training_seconds": 41.120791794965044,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0012138772290199995,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0010073790326714516,
+          "selected_temperature_rms_symmetry_defect": 0.0008970204507932067,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0010401398176327348,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0005936054512858391,
+          "selected_temperature_rms_symmetry_defect": 0.0005512444768100977,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0010392620461061597,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 0.00013323496386874467,
+          "selected_temperature_rms_symmetry_defect": 0.00012481692829169333,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0010558770736679435,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 0.00012132966367062181,
+          "selected_temperature_rms_symmetry_defect": 0.00012167206295998767,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0010272393701598048,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0004763550532516092,
+          "selected_temperature_rms_symmetry_defect": 0.0005912753404118121,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000986894709058106,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0008667080546729267,
+          "selected_temperature_rms_symmetry_defect": 0.0011664872290566564,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006715101189911366,
+              "relative_error": 0.001405905356480365,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006723575643263757,
+              "relative_error": 0.00014568025581556792,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006724424893036485,
+              "relative_error": 1.938941016202449e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0012604087173291698,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0001262932944060294,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.011937804520130157,
+              "relative_error": 0.000136194871303647,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.011939252726733685,
+              "relative_error": 1.4898751671819347e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.01193938497453928,
+              "relative_error": 3.8221928372730264e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.00012129792681951766,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 1.1076601171451979e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "40e1d7ca3fcecd9875ec7af932525a1dd4e93377e4cb09e73ed21e8ab2eb0a3e"
+    },
+    {
+      "seed": 1,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "selected_update": 649,
+      "validation_loss": 0.0005312222056090832,
+      "heldout_loss": 0.0007310907822102308,
+      "completed_updates": 649,
+      "training_seconds": 56.260476241703145,
+      "fit_elapsed_s": 59.646387631073594,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007310896180570126,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 8.051249444918085e-09,
+          "selected_temperature_rms_symmetry_defect": 1.5442271461552082e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007310897344723344,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 5.589265494876372e-09,
+          "selected_temperature_rms_symmetry_defect": 9.60684598538819e-09,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.00073109136428684,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 8.549542407365607e-09,
+          "selected_temperature_rms_symmetry_defect": 1.3038566670786622e-08,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007310911896638572,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 1.1076701333934125e-08,
+          "selected_temperature_rms_symmetry_defect": 1.731293686191293e-08,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007310916553251445,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 1.1553874301739597e-08,
+          "selected_temperature_rms_symmetry_defect": 1.8770551335478558e-08,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007310910732485354,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 1.0763538504932058e-08,
+          "selected_temperature_rms_symmetry_defect": 1.8823936187573054e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0005833586910739541,
+              "relative_error": 0.07427719312927396,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0006249633152037859,
+              "relative_error": 0.00825546410117786,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.000630165624897927,
+              "finite_difference": 0.0006297022919170558,
+              "relative_error": 0.00073525587966854,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.06657130605540502,
+              "passes": false
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.007525741567245503,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.053675051778554916,
+              "relative_error": 0.001913353839606071,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.05376647785305977,
+              "relative_error": 0.00021328758814478452,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.05377794802188873,
+              "finite_difference": 0.05377686768770218,
+              "relative_error": 2.008879524585499e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.001700428931846972,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00019320267410789064,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          false,
+          true
+        ]
+      },
+      "outcome_sha256": "d0d577e687bc9c313f229b423a1eee25398b7611329f19709ad29019543da9e7"
+    },
+    {
+      "seed": 1,
+      "budget": "budget",
+      "arm": "baseline",
+      "selected_update": 689,
+      "validation_loss": 0.0004895824822597206,
+      "heldout_loss": 0.0007253270596265793,
+      "completed_updates": 689,
+      "training_seconds": 56.307575910468586,
+      "fit_elapsed_s": 59.83050171297509,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0009114948916248977,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0009698577341623604,
+          "selected_temperature_rms_symmetry_defect": 0.001084805466234684,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007387378136627376,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0004977256176061928,
+          "selected_temperature_rms_symmetry_defect": 0.0005931991036050022,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007211489137262106,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 9.922213212121278e-05,
+          "selected_temperature_rms_symmetry_defect": 0.00011331158748362213,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007304463651962578,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 9.23175539355725e-05,
+          "selected_temperature_rms_symmetry_defect": 0.00010399435268482193,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0007466895622201264,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0003718652587849647,
+          "selected_temperature_rms_symmetry_defect": 0.00042233054409734905,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007609479362145066,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0005899206735193729,
+          "selected_temperature_rms_symmetry_defect": 0.0006876082043163478,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006715101189911366,
+              "relative_error": 0.001405905356480365,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006723575643263757,
+              "relative_error": 0.00014568025581556792,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0006724555278196931,
+              "finite_difference": 0.0006724424893036485,
+              "relative_error": 1.938941016202449e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0012604087173291698,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0001262932944060294,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.011937804520130157,
+              "relative_error": 0.000136194871303647,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.011939252726733685,
+              "relative_error": 1.4898751671819347e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.011939430609345436,
+              "finite_difference": 0.01193938497453928,
+              "relative_error": 3.8221928372730264e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.00012129792681951766,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 1.1076601171451979e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "cbf954053006153b05609a3649ba4bf87854ae735f5f1afe2e0d65dcf88a4f7e"
+    },
+    {
+      "seed": 2,
+      "budget": "fixed",
+      "arm": "baseline",
+      "selected_update": 256,
+      "validation_loss": 0.0007976698689162731,
+      "heldout_loss": 0.0014950077747926116,
+      "completed_updates": 256,
+      "training_seconds": 41.27335272741038,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0018972434336319566,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0016397953731939197,
+          "selected_temperature_rms_symmetry_defect": 0.0018824856961145997,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.001791963237337768,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0010978467762470245,
+          "selected_temperature_rms_symmetry_defect": 0.001255872193723917,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0015471247024834156,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 0.0002419276861473918,
+          "selected_temperature_rms_symmetry_defect": 0.00027433011564426124,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.001451562624424696,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 0.0002420584496576339,
+          "selected_temperature_rms_symmetry_defect": 0.00027553385007195175,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0013906860258430243,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0010422311024740338,
+          "selected_temperature_rms_symmetry_defect": 0.0012046057963743806,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0014389237621799111,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0014937759842723608,
+          "selected_temperature_rms_symmetry_defect": 0.001762022147886455,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010270619532093406,
+              "relative_error": 0.006616230626717575,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010210259351879358,
+              "relative_error": 0.000743625311354618,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010203211568295956,
+              "relative_error": 5.3397276191249874e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.005876975583160808,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0006902648934285277,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939255632460117,
+              "relative_error": 1.805101754391145e-05,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939384154975414,
+              "relative_error": 4.697288604230217e-07,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939395796507597,
+              "relative_error": 2.1473283309977784e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 1.852073792525057e-05,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 1.6776002585920143e-06,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "7ead13776fad0ce31dbabff277fb9437a50be0295d03310e90dfaad462de5b8d"
+    },
+    {
+      "seed": 2,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "selected_update": 256,
+      "validation_loss": 0.000671345682349056,
+      "heldout_loss": 0.0011988995829597116,
+      "completed_updates": 256,
+      "training_seconds": 42.09846837213263,
+      "fit_elapsed_s": null,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.001198898651637137,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 5.721556561866237e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0733265831674998e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.001198899233713746,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 5.491992638440024e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0568754760242882e-08,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0011989001650363207,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 5.120955659521087e-09,
+          "selected_temperature_rms_symmetry_defect": 9.385786370330607e-09,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0011988996993750334,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 7.230521070766827e-09,
+          "selected_temperature_rms_symmetry_defect": 1.220434509008328e-08,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0011988983023911715,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 6.673819274993775e-09,
+          "selected_temperature_rms_symmetry_defect": 1.0954347651193075e-08,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0011988978367298841,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 7.503966337196744e-09,
+          "selected_temperature_rms_symmetry_defect": 1.5912267059547958e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010201166151091456,
+              "relative_error": 0.0043115534134034635,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010162127437070012,
+              "relative_error": 0.0004865279193364891,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010157600045204163,
+              "relative_error": 4.1030051418218626e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0038268873816222904,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00044551614746870876,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.026090793311595917,
+              "relative_error": 0.0006421055124900938,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.026105718687176704,
+              "relative_error": 7.041757120308028e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.02610734850168228,
+              "relative_error": 7.9906463776545e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.000571728200998316,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 6.242742366089252e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "0588b3cd6f4e9f515f9cbcfd912e395e7f8cea8de1bd5629c31cb84a662ce806"
+    },
+    {
+      "seed": 2,
+      "budget": "budget",
+      "arm": "baseline",
+      "selected_update": 556,
+      "validation_loss": 0.0005130680510774255,
+      "heldout_loss": 0.0007761240703985095,
+      "completed_updates": 730,
+      "training_seconds": 56.55873530090321,
+      "fit_elapsed_s": 59.92784860508982,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000836864928714931,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 0.0011980609269812703,
+          "selected_temperature_rms_symmetry_defect": 0.0010547376004979014,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0008108416222967207,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 0.0008719599572941661,
+          "selected_temperature_rms_symmetry_defect": 0.000831826007924974,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.000776003987994045,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 0.0001968697615666315,
+          "selected_temperature_rms_symmetry_defect": 0.00020975791267119348,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0007811167160980403,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 0.0001952797028934583,
+          "selected_temperature_rms_symmetry_defect": 0.00021780657698400319,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0008570948848500848,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 0.0008260490139946342,
+          "selected_temperature_rms_symmetry_defect": 0.0009171864949166775,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.0009819379774853587,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 0.0011708152014762163,
+          "selected_temperature_rms_symmetry_defect": 0.0012472181115299463,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010270619532093406,
+              "relative_error": 0.006616230626717575,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010210259351879358,
+              "relative_error": 0.000743625311354618,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0010202666744589806,
+              "finite_difference": 0.0010203211568295956,
+              "relative_error": 5.3397276191249874e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.005876975583160808,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.0006902648934285277,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939255632460117,
+              "relative_error": 1.805101754391145e-05,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939384154975414,
+              "relative_error": 4.697288604230217e-07,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.006939380895346403,
+              "finite_difference": 0.006939395796507597,
+              "relative_error": 2.1473283309977784e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 1.852073792525057e-05,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 1.6776002585920143e-06,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "c29ca928ac5ea6f1680c2e3de8d170525e902129902c8a51a62b54f771d04fc6"
+    },
+    {
+      "seed": 2,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "selected_update": 541,
+      "validation_loss": 0.0004308525822125375,
+      "heldout_loss": 0.0006386383902281523,
+      "completed_updates": 716,
+      "training_seconds": 56.46865507471375,
+      "fit_elapsed_s": 59.927761167054996,
+      "offset_heldout": [
+        {
+          "offset_scale_units": -1.0,
+          "offset_physical": -0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000638637924566865,
+          "uncorrected_loss_to_symmetry_target": 0.0016806762432679534,
+          "selected_velocity_rms_symmetry_defect": 5.99442007143125e-09,
+          "selected_temperature_rms_symmetry_defect": 1.1182514469965099e-08,
+          "native_velocity_rms_symmetry_defect": 5.180490258993586e-09,
+          "native_temperature_rms_symmetry_defect": 1.02081303410273e-08
+        },
+        {
+          "offset_scale_units": -0.5,
+          "offset_physical": -0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0006386379827745259,
+          "uncorrected_loss_to_symmetry_target": 0.0016806769417598844,
+          "selected_velocity_rms_symmetry_defect": 4.8906212413157846e-09,
+          "selected_temperature_rms_symmetry_defect": 7.674648472288936e-09,
+          "native_velocity_rms_symmetry_defect": 4.73045869142652e-09,
+          "native_temperature_rms_symmetry_defect": 7.809229707333998e-09
+        },
+        {
+          "offset_scale_units": -0.1,
+          "offset_physical": -0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.0006386389723047614,
+          "uncorrected_loss_to_symmetry_target": 0.0016806828789412975,
+          "selected_velocity_rms_symmetry_defect": 4.689316046579961e-09,
+          "selected_temperature_rms_symmetry_defect": 7.994378492526266e-09,
+          "native_velocity_rms_symmetry_defect": 1.0953782769718146e-08,
+          "native_temperature_rms_symmetry_defect": 1.5784298312837564e-08
+        },
+        {
+          "offset_scale_units": 0.1,
+          "offset_physical": 0.012592172622680664,
+          "selected_loss_to_symmetry_target": 0.000638637866359204,
+          "uncorrected_loss_to_symmetry_target": 0.001680675777606666,
+          "selected_velocity_rms_symmetry_defect": 5.533046909533823e-09,
+          "selected_temperature_rms_symmetry_defect": 9.168361181366436e-09,
+          "native_velocity_rms_symmetry_defect": 4.251404117638913e-09,
+          "native_temperature_rms_symmetry_defect": 8.54201154254497e-09
+        },
+        {
+          "offset_scale_units": 0.5,
+          "offset_physical": 0.06296086311340332,
+          "selected_loss_to_symmetry_target": 0.0006386377499438822,
+          "uncorrected_loss_to_symmetry_target": 0.0016806797357276082,
+          "selected_velocity_rms_symmetry_defect": 5.030812211259672e-09,
+          "selected_temperature_rms_symmetry_defect": 9.408324785908917e-09,
+          "native_velocity_rms_symmetry_defect": 7.570684523727778e-09,
+          "native_temperature_rms_symmetry_defect": 1.301822649679707e-08
+        },
+        {
+          "offset_scale_units": 1.0,
+          "offset_physical": 0.12592172622680664,
+          "selected_loss_to_symmetry_target": 0.000638637924566865,
+          "uncorrected_loss_to_symmetry_target": 0.0016806782223284245,
+          "selected_velocity_rms_symmetry_defect": 7.159257187083767e-09,
+          "selected_temperature_rms_symmetry_defect": 1.433588359134319e-08,
+          "native_velocity_rms_symmetry_defect": 5.785783407930012e-09,
+          "native_temperature_rms_symmetry_defect": 1.4175753904055455e-08
+        }
+      ],
+      "research_fd_profiles": {
+        "initial": {
+          "checks": [
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010201166151091456,
+              "relative_error": 0.0043115534134034635,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010162127437070012,
+              "relative_error": 0.0004865279193364891,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.0010157183278352022,
+              "finite_difference": 0.0010157600045204163,
+              "relative_error": 4.1030051418218626e-05,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.0038268873816222904,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 0.00044551614746870876,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "synthetic_nonzero": {
+          "checks": [
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.026090793311595917,
+              "relative_error": 0.0006421055124900938,
+              "epsilon": 0.003
+            },
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.026105718687176704,
+              "relative_error": 7.041757120308028e-05,
+              "epsilon": 0.001
+            },
+            {
+              "autodiff": 0.026107557117938995,
+              "finite_difference": 0.02610734850168228,
+              "relative_error": 7.9906463776545e-06,
+              "epsilon": 0.0003
+            }
+          ],
+          "adjacent_pairs": [
+            {
+              "epsilons": [
+                0.003,
+                0.001
+              ],
+              "slope_relative_disagreement": 0.000571728200998316,
+              "passes": true
+            },
+            {
+              "epsilons": [
+                0.001,
+                0.0003
+              ],
+              "slope_relative_disagreement": 6.242742366089252e-05,
+              "passes": true
+            }
+          ],
+          "passes": true
+        },
+        "same_pair_passes_both_points": [
+          true,
+          true
+        ]
+      },
+      "outcome_sha256": "475d718790d690a8dd9de60566ced028d6fdeee964201fd3b69df08d95b0e5dc"
+    }
+  ],
+  "paired_results": [
+    {
+      "budget": "fixed",
+      "seed": 0,
+      "validation_ratio_centered_over_baseline": 1.0100603359133324,
+      "heldout_ratio_centered_over_baseline": 0.98077410619005
+    },
+    {
+      "budget": "fixed",
+      "seed": 1,
+      "validation_ratio_centered_over_baseline": 0.8378735947976629,
+      "heldout_ratio_centered_over_baseline": 0.9116546879597132
+    },
+    {
+      "budget": "fixed",
+      "seed": 2,
+      "validation_ratio_centered_over_baseline": 0.841633498405997,
+      "heldout_ratio_centered_over_baseline": 0.8019353498854035
+    },
+    {
+      "budget": "budget",
+      "seed": 0,
+      "validation_ratio_centered_over_baseline": 0.9061564907962886,
+      "heldout_ratio_centered_over_baseline": 0.9512578316062671
+    },
+    {
+      "budget": "budget",
+      "seed": 1,
+      "validation_ratio_centered_over_baseline": 1.0850514976703618,
+      "heldout_ratio_centered_over_baseline": 1.00794637744057
+    },
+    {
+      "budget": "budget",
+      "seed": 2,
+      "validation_ratio_centered_over_baseline": 0.8397571848563982,
+      "heldout_ratio_centered_over_baseline": 0.8228560543164656
+    }
+  ],
+  "failures": [],
+  "spectra": [
+    {
+      "seed": 0,
+      "budget": "fixed",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        4.5520308407071064e-07,
+        1.5976516249791752e-06,
+        9.764997987251936e-07
+      ],
+      "energy_cross_term_mean": [
+        4.549225920627434e-07,
+        1.5962024352191119e-06,
+        9.681107312847534e-07
+      ],
+      "energy_self_term_mean": [
+        2.8049200790429226e-10,
+        1.44918976016646e-09,
+        8.389067440486664e-09
+      ],
+      "local_velocity_squared_error_change": [
+        3.7098713604954224e-08,
+        -3.722424695801398e-08,
+        -6.054994962695077e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.813261607137343e-06,
+            6.058839588897608e-06,
+            2.1538010630098304e-06
+          ],
+          "temperature": [
+            8.608597063291172e-07,
+            5.3664332149078935e-06,
+            7.639222426716642e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.5779345968855364e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 7.802232332432268e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 0,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        4.4149818972532005e-07,
+        1.5933627802015408e-06,
+        7.384211706018266e-07
+      ],
+      "energy_cross_term_mean": [
+        4.414590381901589e-07,
+        1.592437715586342e-06,
+        7.316959430207321e-07
+      ],
+      "energy_self_term_mean": [
+        3.9151535013387126e-11,
+        9.250646153141418e-10,
+        6.725227581095308e-09
+      ],
+      "local_velocity_squared_error_change": [
+        7.60212951259738e-09,
+        -2.8432959229102316e-08,
+        -6.715654923708529e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.3301115412421881e-06,
+            5.421306753409319e-06,
+            2.107332074208294e-06
+          ],
+          "temperature": [
+            1.1757479245870442e-06,
+            6.011387563789359e-06,
+            7.708785172250201e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.3836886564585209e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 3.778162505074789e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 0,
+      "budget": "budget",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        9.050866895141423e-08,
+        1.6518913581029488e-06,
+        1.2435585941024632e-06
+      ],
+      "energy_cross_term_mean": [
+        9.0398339254013e-08,
+        1.6490146961557776e-06,
+        1.2284212868824223e-06
+      ],
+      "energy_self_term_mean": [
+        1.1032969740809366e-10,
+        2.8766619471133825e-09,
+        1.5137307220061245e-08
+      ],
+      "local_velocity_squared_error_change": [
+        -6.228598416176834e-10,
+        -6.023353808752581e-08,
+        -3.1911304504341315e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            6.880248148423965e-07,
+            5.9436023514218375e-06,
+            1.5434705865095407e-06
+          ],
+          "temperature": [
+            4.382366105840942e-07,
+            5.307700472896901e-06,
+            7.169417573773295e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.4386807354742169e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 5.680892284365413e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 0,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        2.7591179437976683e-07,
+        1.659691013905907e-06,
+        9.468140834826875e-07
+      ],
+      "energy_cross_term_mean": [
+        2.7585423401950736e-07,
+        1.6575791175846545e-06,
+        9.363304335976022e-07
+      ],
+      "energy_self_term_mean": [
+        5.7560360234640496e-11,
+        2.111896321201698e-09,
+        1.0483649885008474e-08
+      ],
+      "local_velocity_squared_error_change": [
+        7.966298547005873e-09,
+        -3.564272586409925e-08,
+        -7.474127720001834e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            7.867026389544894e-07,
+            6.003028426903858e-06,
+            1.3883293494777096e-06
+          ],
+          "temperature": [
+            5.95010055000216e-07,
+            4.565240564153006e-06,
+            6.591494530959956e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.371594964625324e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 5.79282004309345e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 1,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        3.9792852376490586e-07,
+        1.7908467468199684e-06,
+        6.623891202715119e-07
+      ],
+      "energy_cross_term_mean": [
+        3.978802802341814e-07,
+        1.7896377664976333e-06,
+        6.569927179667693e-07
+      ],
+      "energy_self_term_mean": [
+        4.824353077417524e-11,
+        1.208980322525008e-09,
+        5.396402304785008e-09
+      ],
+      "local_velocity_squared_error_change": [
+        8.845115556554914e-10,
+        -3.1980768875539695e-08,
+        -6.154545900758498e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.1504006140306689e-06,
+            7.782430288324295e-06,
+            2.489316144881423e-06
+          ],
+          "temperature": [
+            8.958223757387286e-07,
+            5.2995667838709425e-06,
+            8.806556432545856e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.322911543629135e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 6.214873130017118e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 1,
+      "budget": "fixed",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        6.551928388902514e-07,
+        2.398146528978319e-06,
+        9.74765713955395e-07
+      ],
+      "energy_cross_term_mean": [
+        6.549872782080871e-07,
+        2.3958887135702097e-06,
+        9.65859993067478e-07
+      ],
+      "energy_self_term_mean": [
+        2.0556068216878316e-10,
+        2.2578154080979664e-09,
+        8.905720887927282e-09
+      ],
+      "local_velocity_squared_error_change": [
+        2.0000642877354166e-08,
+        -3.072385851020558e-08,
+        -7.03748001227618e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.418688950125234e-06,
+            9.426589460167729e-06,
+            2.251995534112411e-06
+          ],
+          "temperature": [
+            8.44610917886863e-07,
+            5.772894689273269e-06,
+            9.111908601518317e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 2.0446136916907804e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 2.3116791814103976e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 1,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        4.0230754652184763e-07,
+        1.9419592771060453e-06,
+        9.91525988131531e-07
+      ],
+      "energy_cross_term_mean": [
+        4.02217448260246e-07,
+        1.9398818275392145e-06,
+        9.807908875749699e-07
+      ],
+      "energy_self_term_mean": [
+        9.009826169444279e-11,
+        2.077449567098298e-09,
+        1.073510055654565e-08
+      ],
+      "local_velocity_squared_error_change": [
+        7.704944809904867e-09,
+        -5.776100221466171e-08,
+        -8.472132440006965e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            8.053112569240118e-07,
+            5.176274554000721e-06,
+            1.5356999501713573e-06
+          ],
+          "temperature": [
+            9.714467657775198e-07,
+            4.873743858402352e-06,
+            7.256048555163359e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.6872650994653146e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 9.279765428304998e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 1,
+      "budget": "budget",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        2.0106896141771115e-07,
+        1.4372370450993398e-06,
+        8.48427924495712e-07
+      ],
+      "energy_cross_term_mean": [
+        2.0100259112944568e-07,
+        1.4354538411091046e-06,
+        8.386023509135502e-07
+      ],
+      "energy_self_term_mean": [
+        6.637028824819486e-11,
+        1.7832039901649042e-09,
+        9.82557358216896e-09
+      ],
+      "local_velocity_squared_error_change": [
+        9.520731453046161e-10,
+        -3.7330224784327663e-08,
+        -8.775776165617712e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            4.923585301141519e-07,
+            5.653983749951853e-06,
+            1.5506893252956106e-06
+          ],
+          "temperature": [
+            6.927030939852376e-07,
+            4.537465322693012e-06,
+            7.446515458153869e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.254315665135105e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 4.412662180097726e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 2,
+      "budget": "fixed",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        5.71904405031311e-07,
+        2.3688504787439702e-06,
+        7.892294419248563e-07
+      ],
+      "energy_cross_term_mean": [
+        5.717165059492763e-07,
+        2.3674257665222776e-06,
+        7.82142656829331e-07
+      ],
+      "energy_self_term_mean": [
+        1.8789908200621005e-10,
+        1.4247122215577586e-09,
+        7.086785095541342e-09
+      ],
+      "local_velocity_squared_error_change": [
+        1.694759844311932e-08,
+        -4.942637431962528e-09,
+        -7.26157210446682e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.9832447123251877e-06,
+            1.630756093139099e-05,
+            3.454980900083272e-06
+          ],
+          "temperature": [
+            1.1963127487960983e-06,
+            7.0299520671151e-06,
+            1.0065362224738933e-05
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.3755525356131867e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 4.449622337254766e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 2,
+      "budget": "fixed",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        4.655848188997756e-07,
+        2.1126786407833527e-06,
+        9.422879441273274e-07
+      ],
+      "energy_cross_term_mean": [
+        4.653960944116282e-07,
+        2.11081812216468e-06,
+        9.343160510428906e-07
+      ],
+      "energy_self_term_mean": [
+        1.8872448819360886e-10,
+        1.8605186184490907e-09,
+        7.971893084392358e-09
+      ],
+      "local_velocity_squared_error_change": [
+        1.997412742741074e-08,
+        -1.4001868997286427e-08,
+        -9.58936517682868e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            1.2523176427378804e-06,
+            1.1934051831562721e-05,
+            2.6311332848259614e-06
+          ],
+          "temperature": [
+            7.894549319343995e-07,
+            5.671871967304974e-06,
+            1.0350000446159313e-05
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.4218916496279085e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 3.441183032970585e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 2,
+      "budget": "budget",
+      "arm": "baseline",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        1.694467758005598e-07,
+        2.2534275515410033e-06,
+        1.140412069576618e-06
+      ],
+      "energy_cross_term_mean": [
+        1.693170293787161e-07,
+        2.2504996550601533e-06,
+        1.128315581915779e-06
+      ],
+      "energy_self_term_mean": [
+        1.2974642186424956e-10,
+        2.927896480673675e-09,
+        1.2096487660862204e-08
+      ],
+      "local_velocity_squared_error_change": [
+        1.1798946484963123e-08,
+        -8.38835885973905e-09,
+        -7.80922607344044e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            9.84344455756209e-07,
+            5.8068073490332625e-06,
+            1.57222231194217e-06
+          ],
+          "temperature": [
+            7.754961963160159e-07,
+            4.867486050085228e-06,
+            7.755488276984804e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.7324460316122536e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 4.3006953553970106e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    },
+    {
+      "seed": 2,
+      "budget": "budget",
+      "arm": "temperature_centered",
+      "bands": [
+        "large (mode<4)",
+        "middle (4\u201312)",
+        "small (mode\u226512)"
+      ],
+      "energy_change_mean_per_correction": [
+        1.895579430149902e-07,
+        2.1441910999097068e-06,
+        1.2324148343513508e-06
+      ],
+      "energy_cross_term_mean": [
+        1.8941588949939197e-07,
+        2.1407356244199045e-06,
+        1.218604816631739e-06
+      ],
+      "energy_self_term_mean": [
+        1.4205351559325855e-10,
+        3.455475489926144e-09,
+        1.3810017719614613e-08
+      ],
+      "local_velocity_squared_error_change": [
+        1.22067987992698e-08,
+        -1.412620091087407e-08,
+        -4.643658458346712e-08
+      ],
+      "forecast_band_mse": {
+        "uncorrected": {
+          "velocity": [
+            2.199019119214856e-06,
+            1.594536155540548e-05,
+            4.738341247142891e-06
+          ],
+          "temperature": [
+            1.9592008620026865e-06,
+            9.278752092268158e-06,
+            1.1354921915570394e-05
+          ]
+        },
+        "corrected": {
+          "velocity": [
+            7.208338859833763e-07,
+            4.726168538425483e-06,
+            1.4132004273869872e-06
+          ],
+          "temperature": [
+            3.6697698568393764e-07,
+            3.9500298643247586e-06,
+            6.736534237380948e-06
+          ]
+        }
+      },
+      "immediate_heat_flux_change_mean": 1.6104372956223303e-06,
+      "immediate_temperature_change_max": 0.0,
+      "heat_drift_abs_max": 4.762710573147366e-10,
+      "temperature_min": 0.0,
+      "temperature_max": 0.99381422996521
+    }
+  ],
+  "notes": [
+    "JAX-CFD native RTX only; 3 model seeds, same data, single heldout IC.",
+    "Centered is velocity-only correction; does not correct temperature directly.",
+    "DCT-II orthonormal bands are descriptive closed-box spatial scales, not hydrodynamic eigenmodes or turbulent cascade flux.",
+    "Reference physical fields are restricted N128 reference, not native fine-grid budgets.",
+    "Direct pre/post C energy increment includes cross term and correction self energy; verified exact Parseval and sum identity.",
+    "Offsets use symmetry-transformed reference, no new shifted fine simulation; native coarse covariance defect measured separately.",
+    "Research FD criterion distinct from public fixed-epsilon gate; all original failures retained."
+  ]
+}

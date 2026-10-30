@@ -1,0 +1,453 @@
+{
+  "completed": true,
+  "scope": "Diagnostic-only profile. Original centered initial fixed-epsilon rejection permanently retained. No automatic training/readmission. Existing trained-selected checkpoint is supplementary; preregistered criterion uses initial and exact production synthetic nonzero probe only.",
+  "criteria": {
+    "baseline": {
+      "initial_adjacent_pair_pass": true,
+      "exact_synthetic_adjacent_pair_pass": true,
+      "both_points_have_passing_pair": true,
+      "same_adjacent_pair_passes_both": [
+        true,
+        true
+      ],
+      "same_pair_epsilons": [
+        [
+          0.003,
+          0.001
+        ],
+        [
+          0.001,
+          0.0003
+        ]
+      ],
+      "original_initial_eps003_pass": true,
+      "synthetic_eps003_pass": true,
+      "training_or_readmission_authorized": false
+    },
+    "temperature_centered": {
+      "initial_adjacent_pair_pass": true,
+      "exact_synthetic_adjacent_pair_pass": true,
+      "both_points_have_passing_pair": true,
+      "same_adjacent_pair_passes_both": [
+        false,
+        true
+      ],
+      "same_pair_epsilons": [
+        [
+          0.003,
+          0.001
+        ],
+        [
+          0.001,
+          0.0003
+        ]
+      ],
+      "original_initial_eps003_pass": false,
+      "synthetic_eps003_pass": true,
+      "training_or_readmission_authorized": false
+    }
+  },
+  "rows": [
+    {
+      "arm": "baseline",
+      "checkpoint": "initial",
+      "checks": [
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0007011162815615535,
+          "relative_error": 0.01566788315168526,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006913662073202431,
+          "relative_error": 0.0017862222956004257,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.000690131273586303,
+          "finite_difference": 0.0006902465829625726,
+          "relative_error": 0.00016705533807159954,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.01390650095815007,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0016194374932067396,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "baseline",
+      "checkpoint": "selected",
+      "checks": [
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008494892972521484,
+          "relative_error": 0.0032087763927493127,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008519236580468714,
+          "relative_error": 0.00035229605435932215,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0008522238931618631,
+          "finite_difference": 0.0008522018324583769,
+          "relative_error": 2.5886041993443796e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0028574870197924465,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.0003264184620478944,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "temperature_centered",
+      "checkpoint": "initial",
+      "checks": [
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007610575994476676,
+          "relative_error": 0.05507282290378413,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007238212856464088,
+          "relative_error": 0.006461921865871394,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0007191440090537071,
+          "finite_difference": 0.0007195664220489562,
+          "relative_error": 0.000587038225110918,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.04892706390197379,
+          "passes": false
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 0.00587833444778131,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": false
+    },
+    {
+      "arm": "temperature_centered",
+      "checkpoint": "selected",
+      "checks": [
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.0018471943913027644,
+          "relative_error": 0.00042899604903903185,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.001846475643105805,
+          "relative_error": 3.990894707525106e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.0018464019522070885,
+          "finite_difference": 0.0018464280292391777,
+          "relative_error": 1.4122961564864492e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0003891026306400738,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 2.578634969001214e-05,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "baseline",
+      "checkpoint": "synthetic_nonzero",
+      "forward_loss": 6.182159268064424e-05,
+      "checks": [
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.00847150944173336,
+          "relative_error": 0.0007885698379567587,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.008465543389320374,
+          "relative_error": 8.438022013226242e-05,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.008464829064905643,
+          "finite_difference": 0.00846488494426012,
+          "relative_error": 6.601312935129668e-06,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.0007042490425137316,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 7.777942064342834e-05,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    },
+    {
+      "arm": "temperature_centered",
+      "checkpoint": "synthetic_nonzero",
+      "forward_loss": 9.549978858558461e-05,
+      "checks": [
+        {
+          "autodiff": 0.010786344297230244,
+          "finite_difference": 0.010796437039971352,
+          "relative_error": 0.0009348216178857764,
+          "epsilon": 0.003
+        },
+        {
+          "autodiff": 0.010786344297230244,
+          "finite_difference": 0.010787483304738998,
+          "relative_error": 0.00010558602748931794,
+          "epsilon": 0.001
+        },
+        {
+          "autodiff": 0.010786344297230244,
+          "finite_difference": 0.010786485858261585,
+          "relative_error": 1.3123924992969635e-05,
+          "epsilon": 0.0003
+        }
+      ],
+      "adjacent_pairs": [
+        {
+          "epsilons": [
+            0.003,
+            0.001
+          ],
+          "slope_relative_disagreement": 0.000829323155333935,
+          "passes": true
+        },
+        {
+          "epsilons": [
+            0.001,
+            0.0003
+          ],
+          "slope_relative_disagreement": 9.24633159779718e-05,
+          "passes": true
+        }
+      ],
+      "convergence_criterion_passes": true,
+      "original_gate_passes": true
+    }
+  ],
+  "initial_and_trained_selected_controls": [
+    {
+      "arm": "baseline",
+      "residual_temperature_gradient_sum": -0.00054896529763937,
+      "residual_gradient_norm": 0.02770213969051838,
+      "full_temperature_gradient_sum": 0.9994510412216187,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 7.139146327972412e-05
+    },
+    {
+      "arm": "temperature_centered",
+      "residual_temperature_gradient_sum": 0.0,
+      "residual_gradient_norm": 0.029945161193609238,
+      "full_temperature_gradient_sum": 1.0,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 1.4901161193847656e-08
+    }
+  ],
+  "synthetic_controls": [
+    {
+      "arm": "baseline",
+      "residual_temperature_gradient_sum": -0.05233891308307648,
+      "residual_gradient_norm": 0.05865677446126938,
+      "full_temperature_gradient_sum": 0.9476611018180847,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 0.00043651461601257324
+    },
+    {
+      "arm": "temperature_centered",
+      "residual_temperature_gradient_sum": -3.725290298461914e-09,
+      "residual_gradient_norm": 0.06090206652879715,
+      "full_temperature_gradient_sum": 1.0,
+      "expected_identity_temperature_sum": 1.0,
+      "C_temperature_bitwise_unchanged": true,
+      "C_offset_velocity_max_absolute_change": 2.9802322387695312e-08
+    }
+  ],
+  "forward_metadata": {
+    "physics": {
+      "N": 64,
+      "nu": 0.0005,
+      "diffusivity": 0.0005,
+      "buoyancy": 1.0,
+      "dt": 0.005,
+      "steps": 8
+    },
+    "horizon": 8,
+    "training_case": 0,
+    "window_start": 0,
+    "source_archive_sha256": "da142f67e3fb391ae7e13215a4ab60b4a671b8c6e032facaa1f5c18ae52b2115",
+    "native_api_sha256": "81b23d7b1e8094849dea8b16309237277522a584687a3541bc2e50093e226a01",
+    "inventory_sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5",
+    "target_sha256": "b9de74d7cb7ed133473bae548dee51c284d802dce0752149cfda8e07132f1564",
+    "scales_sha256": "cc638532240aa9af7499a03ecb92530668de0d836bbabc607b3a5319d9e287ab",
+    "probe_leaf_sha256": [
+      "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+      "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+      "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+      "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+      "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+      "e1de5da05d46afa3e867947812900a68e53626c9dfb57e3df686e23d821133b5"
+    ],
+    "probe_recipe": "Initial saved parameters; final-layer w replaced by .01*random.normal(PRNGKey17,dtypefloat32), exactly production training.py nonzero probe."
+  },
+  "provenance": [
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/PROTOCOL.json",
+      "sha256": "5fcfee6fef06108a6bae5d19e65d4abd6360446a4165710fc950e7672cd5c19d"
+    },
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/driver.py",
+      "sha256": "7dfa68b0f3883b350f682925ca051866636dd8988f5049fb19a07c29da09d663"
+    },
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/scripts.sha256",
+      "sha256": "d48e0d05b617be9f0782900db1b493963b1513987ceed83c91c26663981606ef"
+    },
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/source.sha256",
+      "sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873"
+    },
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/inventory.json",
+      "sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5"
+    },
+    {
+      "job_id": 3623833,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-diagnostic-20261029/jax-cfd/diagnostic/epsilon_diagnostic.json",
+      "sha256": "025f97bde51581ccf0f4f32be0e5d63929d1791a049968c1b7106fd059a503b0"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/PROTOCOL.json",
+      "sha256": "c82c03524a2b54ac1019e00a25e56db1bc26fb1c23ca4a35cf5fc42e9d74994b"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/driver.py",
+      "sha256": "7b98d4fcb9eae636923719dafe65671f86f93bbfa85361a07f2af751e25e783d"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/scripts.sha256",
+      "sha256": "ccc71675618e73706776524fadbbb3d67bdf69a42c5f1d5ae88660a2b6b1b86a"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/source.sha256",
+      "sha256": "7a2d4462262f867c6440a7bc6bdddee2ee1699a2b100f2b174cfb09e62353873"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/inventory.json",
+      "sha256": "d5c860ae2c71968ca0d67d9c7fa053773be6b04fbb13a63c012058aaaec4f7a5"
+    },
+    {
+      "job_id": 3623885,
+      "path": "/data/personal/andrinr/runner/results/mosaic/buoyancy-centered-epsilon-synthetic-20261029/jax-cfd/diagnostic/epsilon_diagnostic.json",
+      "sha256": "f58705e246afa7e5b3bfd52b4eafa0f6bfc65a6a2f0aab2519e2a3a21d7105e5"
+    }
+  ],
+  "original_attempt": {
+    "job_id": 3623615,
+    "epsilon": 0.003,
+    "relative_error": 0.05507282290378413,
+    "disposition": "Rejected before training under unchanged original protocol."
+  }
+}

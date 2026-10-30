@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-30",
+  "source_head": "1c714dd9ee393a87e9a5a6710289c0ec1b783481",
+  "arms": [
+    "baseline",
+    "temperature_centered"
+  ],
+  "model_seeds": [
+    0,
+    1,
+    2
+  ],
+  "window_seed": 0,
+  "training": "Same4cases H8 width8 Adam .003 clip1; trueAD both. Dual gradient diagnostics identical.",
+  "budgets": {
+    "fixed": "256updates validation0/64/128/192/256",
+    "budget": "60sfit including first training compile and validation; elapsed7.5s milestones; common preparation/gates excluded; no late selection credit"
+  },
+  "cache": "Persistent JAX cache disabled per process",
+  "admission": "Research-only eps .003/.001/.0003, unchanged5% AD/FD error AND slope agreement; same adjacent pair initial and exact synthetic nonzero. Original failures preserved, no source/CI gate changes.",
+  "evaluation": "Validation seed1 selects; test seed100 and offsets \u00b1.1/.5/1 training temperature scale afterwards only. Paired seeds. No test tuning. Symmetry transformed fine target and independent native coarse control.",
+  "physics": "Direct pre/postC energy by closed-box DCT scale; field error same scales; heat flux variance thermal centroid and mass; reference and uncorrected controls.",
+  "hardware": "RTX5090 only; native research timings, not container/T4 CI. Remote data only."
+}
