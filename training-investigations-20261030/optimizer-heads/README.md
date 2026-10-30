@@ -4,6 +4,12 @@ JAX-CFD native RTX5090, seed0, same fixed batch of four H8 windows. Velocity-onl
 
 Completed 26/32 cells; explicit failed cells: 6.
 
+The main plots follow the checkpoint with lowest measured **total validation loss** at each evaluation. Its velocity and temperature contributions are shown for the same selected model; these are not independently minimized components. Only the shared validation-selected LR is drawn. AdamW is dashed to expose its overlap with Adam. Raw curves, failed cells and all LR traces remain below.
+
+![Best checkpoint by elapsed time](best_checkpoint_time.png)
+![Best checkpoint by optimizer work](best_checkpoint_work.png)
+
+
 | Optimizer | Shared LR | Joint/velocity validation | Joint/velocity heldout |
 |---|---:|---:|---:|
 | adam | 0.001 | 0.9043 | 0.8854 |
@@ -83,3 +89,5 @@ All six high-LR SGD rejections and all initial-identity selections remain explic
 ## Stronger velocity-only comparison
 
 Shared-LR ratios answer the paired optimizer question; they do not establish that joint correction beats a separately tuned velocity-only model. In this screen, velocity-only Adam selected by its own validation grid uses LR0.01 (validation0.0008558, heldout0.0009668). Scaled joint Adam uses LR0.001 (validation0.0006700, heldout0.0012145). Thus the scaled joint model has better validation but **worse held-out error** than this separately validation-tuned velocity-only baseline. Neither selection uses test data. The29% improvement is against **unscaled joint Adam at the same LR0.001**, not against the strongest velocity-only model.
+
+Additional main-plot render job3631435 reused scalar checkpoints only. [Plot manifest](best-checkpoint-plot-manifest.json) retains exact selected checkpoint identities and confirms the numerical summary hash is unchanged.

@@ -1,0 +1,3155 @@
+{
+  "completed": true,
+  "source_summary_sha256": "2120c15fd22915df6caa945e91e9db797fb095084af39639b759a5c708499641",
+  "selection": "Cumulative argmin total validation only; chosen-model velocity and temperature contributions retained. No independent per-component minimum. Strict less-than preserves initial/earlier checkpoint ties.",
+  "sampling": "Markers at actual completed validation measurements; step-after carries latest measured chosen model, not interpolated/re-simulated checkpoints.",
+  "time": "Original fitelapsed includes compile,validation,diagnostics; no fresh timing measurement.",
+  "scope": "Single modelseed0, fixed4H8trainingwindows; shared LR chosen by geometricmean totalvalidation across bothheadmodes. Pure scalar plotting; original rawplots/numericalsummary unchanged.",
+  "curves": [
+    {
+      "optimizer": "adam",
+      "joint": false,
+      "lr": 0.001,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.4318058919161558,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 39.47997064993251,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 40.13884115300607,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 40.74832441995386,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 41.665840114001185,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 42.30847685993649,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 42.876786638982594,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 43.45062392996624,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 44.11958272091579,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 44.769567249924876,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 45.343419459997676,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 46.105099985026754,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 46.74503214494325,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 47.33209112798795,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 47.950279369950294,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 48.59571805293672,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 49.27774687693454,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204665387130245,
+            "velocity": 0.0005731758455627163,
+            "temperature": 0.0004472906931503083
+          },
+          "selected_parameter_sha256": [
+            "b1c9e33c5cd036ae9656dd43e658b7689503b11ff92180273ebacf9d44ffda05",
+            "44a86144ac1f12efc1d406b1cee357698b083a5ae4ed33b43f64474286f44ac7",
+            "79a8266dcc692c54061f911e2f29d320a2722a292695b00d2d9a89b9d934210d",
+            "f05b91cbbf9cb014fa91b40b2e7da562b64d3ca11f3d7f7b1b16f856ff2dd597",
+            "03be2da1da118e8d92881efa41b4f587223a53f4711d915139eee996e48f6f10",
+            "232847279939941ca2bc5d9b247c45d09c714d78e18dc58a14a56bb36526f39e"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "ef6b0a4de5cf2a94844a33d4f7fc9f5aab313f2cbf1db896b2a0125806548af9"
+    },
+    {
+      "optimizer": "adam",
+      "joint": true,
+      "lr": 0.001,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.38101469399407506,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 55.219915413996205,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 55.87464985600673,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 56.49776236596517,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 57.21842128504068,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 57.88415047596209,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 58.54958769795485,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 59.15019654203206,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 59.79339382587932,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 60.5486688578967,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 61.27467190101743,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 61.94345412403345,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 62.592275962932035,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 63.30432842485607,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 64.02491271286272,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 64.63113112095743,
+          "selected_oracle_calls": 60,
+          "selected_loss": {
+            "total": 0.0010448987301975776,
+            "velocity": 0.0005308040691034284,
+            "temperature": 0.0005140946610941491
+          },
+          "selected_parameter_sha256": [
+            "7090b2dd78fc6d19c1ea0e7576df603dc1b42de706d77959dad1cb410d6e3c52",
+            "bcb301d48716da5be9322a231d6aa2bb5e17be0ce17d1753a42d4935c410edc1",
+            "9c46681ba5036f88933545abf452dd56f09661fe362c7ee3cc38f6a9fead2c08",
+            "f19d9215ca4276647077ea9e23fe80a55b271f9c23f2de9fff957b667d952094",
+            "0fa74b1fe76ad096d8b5ab11dd0f6db4644d9145350a252a8988d21ad4c11e6a",
+            "071627575ff855a1e6a7ccb9834c2449c454d5aca683aa32b365d4b7ce1ab832"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 65.26531278993934,
+          "selected_oracle_calls": 64,
+          "selected_loss": {
+            "total": 0.0009227631281472952,
+            "velocity": 0.0004783150402901946,
+            "temperature": 0.0004444480878571006
+          },
+          "selected_parameter_sha256": [
+            "3a3610ea42e94cef4024f05861e052e34750e3e074dc6699fb7925f4542d981e",
+            "96067af2b5502587906d0a4d65be0df57da4ecc13a6056818011656936c8f48a",
+            "cff86a101f071d88d01f0bdbe9f0a4ba8cea7d8d00c99d2d683166aa14fb0e23",
+            "5c019fd34c8266f211ac4a16ed4f4c760dc42a7ea4814fbe6397cbfa52ad9f35",
+            "d0249d176af24e22c826cd578e5aaf00b60d5a1644937c69fa93f7ed781d4f56",
+            "e2321adaae8c3be6b46276aea6b7989893bf488078ba16fe197b02cf4e134ff6"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "0e700eedb9cbafa4e4f44e4c6b1bbdd7277995a46bdba35964c4bdae8a07bdc2"
+    },
+    {
+      "optimizer": "adamw",
+      "joint": false,
+      "lr": 0.001,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.39241788699291646,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 38.70250271097757,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 39.48069554695394,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 40.079743698006496,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 40.804971050005406,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 41.4057352169184,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 41.996046538930386,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 42.661566587979905,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 43.2996013709344,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 44.021831017918885,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 44.617721983930096,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 45.22888732596766,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 45.80288870993536,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 46.465810991008766,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 47.09018766495865,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 47.70407074491959,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 48.357105674920604,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010204674524687514,
+            "velocity": 0.0005731763940114703,
+            "temperature": 0.00044729105845728106
+          },
+          "selected_parameter_sha256": [
+            "cf2d9bc8e765729741618da50f3d0e7d0074552ce227bcd7f3403086b16910d7",
+            "54045f1ca0c227f5ca92a7307fba8265bad7137da0a2b28b5117e6b751aa2f1e",
+            "0719590fa1280d4add06f59fe8f41d925838c53afcf04bcd1cec221b3a9ba46d",
+            "d362ac51a1e0ce38d9ee2ad236519b1abb6f5a1a75759c2bb70edcbea553ed5a",
+            "62f6e002cd2ac009374f9993896102d38b329327fe410b9c2983da979bdc7934",
+            "c1d5b4957496745898e6172ed972eaf43b1950709af1466fe40ed118b7026e4f"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "e6e3b52d570e830984dc33152a0fe41faaea0de3d5c5fc57b74724aee04bf69f"
+    },
+    {
+      "optimizer": "adamw",
+      "joint": true,
+      "lr": 0.001,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.385233978042379,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 38.710266142035834,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 39.460028075031005,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 40.073190791066736,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 40.66424668603577,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 41.27501432201825,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 41.9448339859955,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 42.54050476406701,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 43.24999968498014,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 43.89039400801994,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 44.48182134097442,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 45.14903839607723,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 45.76760798797477,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 46.423620003974065,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 47.092483346001245,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 47.69170977501199,
+          "selected_oracle_calls": 60,
+          "selected_loss": {
+            "total": 0.001044913142403156,
+            "velocity": 0.0005308126596784959,
+            "temperature": 0.0005141004827246601
+          },
+          "selected_parameter_sha256": [
+            "3c590fc4b0c0fe96b62174d2adfc5b3a2b7e8b41adb876d71e8eaf44befb8061",
+            "f25bf872efb8f5276848aff3e0413db451a68af1e872364185cfeb8bd419ec6d",
+            "3dc18b7131f14740e43bb435b4e22b069c49e12e6a9d2397fb4513ef184f5479",
+            "13e241dfd5b58bd100c9f0c7d20c69d75b8bd3d15a756331e14706d415c532c3",
+            "f8a9f23ac3d4f23805551b0f1df0a4dfc646a8c1e493d9e59cd0a76d97f22a44",
+            "a06286fc3660875b95a1d6dabbf059f67a66156f1ba70738ad525bb4e0b49930"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 48.42858592304401,
+          "selected_oracle_calls": 64,
+          "selected_loss": {
+            "total": 0.0009227701358000097,
+            "velocity": 0.0004783198790523255,
+            "temperature": 0.0004444502567476842
+          },
+          "selected_parameter_sha256": [
+            "e8a286d009c98fea5b8e5f2492b836192f535b33e7af16db2ddbf604188e77ee",
+            "8fbe877aeb6f1fef5a24f5f79e28350c1c38b396d355a5daf916ea15782ff63e",
+            "21c96b0a020b8d7d712b73c17b2eddada51a7815997652e379779859aa745018",
+            "8c7a8c91195b4d1d588c3c72d10efaa82e665a25d9b02e5bcc07027d5f40fb40",
+            "16d92681daa57d97b38271d75eb9bb26a57e8f698128f250a0a067c9b4044ca2",
+            "922f13cccdf117b99b0d96149252d06c345aec6f5d6b2da0a7f1bbd0e74c7584"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "c323fa7a1c27f570d05616830cacb00c126b7159c79aa401543150d397c83fb3"
+    },
+    {
+      "optimizer": "muon",
+      "joint": false,
+      "lr": 0.003,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.3917698541190475,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 41.41026278305799,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 42.25708819995634,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 42.96735873213038,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 43.564066227991134,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 44.17400545091368,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 44.7490014010109,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 45.36123321112245,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 45.9532023051288,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 46.592352448031306,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 47.27532270899974,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 47.876202248968184,
+          "selected_oracle_calls": 44,
+          "selected_loss": {
+            "total": 0.0010743589500744166,
+            "velocity": 0.0005331779657803487,
+            "temperature": 0.0005411809842940678
+          },
+          "selected_parameter_sha256": [
+            "6f6674b5f68618de3fe30e9ea7a6d31ea5453728097f306731d7d3e50e813042",
+            "89629ba94b34df90ae5e41fb485d415cf3078b133767ae58d10552ced3a25d55",
+            "e5e465b8b543d65e18cc11eed1048c436fec0db9219e2aab04ba43336bf2ff8b",
+            "1ff8b7faf3d43612acf96f21202f42b3b43509eaf7f9b6ac08341ca3852b32ab",
+            "9c80a3bc992db065dde5afdb9e150d1ec4426ec871d97cbc23b549e519cee68e",
+            "1b2488642714151ca451fedd7045a6b0f640702f097fc364c56faa2f5f9ae649"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 48.738205211935565,
+          "selected_oracle_calls": 48,
+          "selected_loss": {
+            "total": 0.0010015629630228976,
+            "velocity": 0.000497023249344745,
+            "temperature": 0.0005045397136781526
+          },
+          "selected_parameter_sha256": [
+            "3678623153196b7a54a61f870325100f1d75d4e1ead4106ddd9bbeffefe8ad30",
+            "76b2469a3309d6a3923d665e06166e96559b0d698f2efedf81ac1ce1c835c684",
+            "03e7e7920d2742c2be4e0a75687d86c4edd5b1d0d06334b6ca1412e2572806f3",
+            "504b7452647ef4c636cff28815560485180b53d117ba16d8875370bf3fe717cb",
+            "55e13046df5949f66fffeb516316f910fb4586d86045eba17f7496a1e6d0a9ad",
+            "dbe4ae85f7204351a81a9692601a9cbe9555d8ff0f5867e094d0bc50e44b9135"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 49.47022424894385,
+          "selected_oracle_calls": 52,
+          "selected_loss": {
+            "total": 0.000960289089005325,
+            "velocity": 0.00047600758127039957,
+            "temperature": 0.0004842815077349254
+          },
+          "selected_parameter_sha256": [
+            "ba3eecce363a099d36919ff6fedb559183d64110a345d097924caf8ef9cc0146",
+            "945ae313ae86508d41814e41bce4d2f75adff79b9f3a9fcb7c5c60110bd6e925",
+            "ae786de90155998ce7b77b252af3147df5fa20fd640f8fc5aee0073366bdf0f1",
+            "c1c18fe04aa26374222faea79e24f2e081c5ca336c2ace2f62a01a72fc593bc8",
+            "83af505ab0817d210440c76549b7665abcfa207ffe7ab0c19ba5e67036abe6fa",
+            "04a0486368309e4c4a438f3660b055e5421f346f5491699c4ffea89da194e438"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 50.16943167010322,
+          "selected_oracle_calls": 56,
+          "selected_loss": {
+            "total": 0.0009273445885079339,
+            "velocity": 0.0004572899431774224,
+            "temperature": 0.00047005464533051154
+          },
+          "selected_parameter_sha256": [
+            "b312db1732ae3dba934ad29b39e4ae62067a5ba13c4e52f6ee03dbc8da1daf13",
+            "78f525a63c8098305f72e604795fb0e76bae4ee4458e8bd32d486703930e2e1a",
+            "95eee77bc2a55e0c8eaeb7a43c60a9862b964a9fde821080db702ac2096470e8",
+            "d5cfd023385191dbb69ebab9aa3bb9f2f259852b8eef182e4509a5f8fa5f6011",
+            "ebc42717d6f56c405d083c241d2ba7c46fb9a6cc275575c81e0c763ce4399184",
+            "f2c6893905d006cb0f06ecd17c639540cfdf67812d7fbc1309fa31da0bdc9e5e"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 50.83058983599767,
+          "selected_oracle_calls": 60,
+          "selected_loss": {
+            "total": 0.0008908611638676453,
+            "velocity": 0.000435124425710685,
+            "temperature": 0.00045573673815696024
+          },
+          "selected_parameter_sha256": [
+            "0fb74b58d12685c33724bcc34004fef049538c76b189fe923ab0783eb9b1fcd4",
+            "0d73b56b75d284b92269717521721477476f75942bb93c54d1c1196e13c20416",
+            "1ad08c92a2e857880bab58fb2022735019a7681d3c9c5f7fddd20b36306c3c62",
+            "b867c2330e3e6391c6eb7fe0f8f477373594e0370df8cffa99eb0fc43a938305",
+            "12b76cf4626b1e3699110ad83cdf65f56f3d03b4f815048723fcce9f42dbfd63",
+            "ca65c98b9d80265cdf860d520500f50942209a6cd48ae5d9aeea9fcf03a57283"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 51.562480764929205,
+          "selected_oracle_calls": 64,
+          "selected_loss": {
+            "total": 0.0008532680800002724,
+            "velocity": 0.0004119075067419184,
+            "temperature": 0.00044136057325835405
+          },
+          "selected_parameter_sha256": [
+            "c398218d01c8b10697da70e8c7ea98b33991da2abb8a1f603c536c03c83e6ef7",
+            "fb9b1ffd3279f305cf877ec571b935d073be19ed57c2d803d598f49386d1a6e2",
+            "f6acd2e8b94f161a8bacbf31c0b3745b80b718dde45a6bd9ada3081fdd2b3190",
+            "db0c1c206e6166c01688f478b20055d9340e2a17a2e14df2bce47fe9f60a5137",
+            "34fdf42b660fafa16848aeaf5432a4e16060fd725f0332482775494954b3ee02",
+            "aa992425ae2abb9f8f118b4314d9ccfb392976b11434537eb5d09fccc568cc6c"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "5f478df24890e50e46b9e4098cd8a51b7417fe0b7fd0180abc00e3e5c30cb87a"
+    },
+    {
+      "optimizer": "muon",
+      "joint": true,
+      "lr": 0.003,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.39962933608330786,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 45.94414426200092,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 46.533835671143606,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 47.10589028918184,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 47.68839929206297,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 48.28384138504043,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 48.94855406996794,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 49.57641001208685,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 50.19822540204041,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 50.785524546168745,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 51.37492273701355,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 51.957994607044384,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 52.55513315903954,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 53.17370768915862,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 53.79851296101697,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 54.386827178066596,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 55.00918038515374,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "ec1652f10742ac8923762bf864a5e9656f076b4653c405a58ee9aa15f8e8245a"
+    },
+    {
+      "optimizer": "sgd",
+      "joint": false,
+      "lr": 0.3,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.39409296005032957,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 35.19570795213804,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 35.883717752061784,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 36.46492225304246,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 37.027496539987624,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 37.66709280991927,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 38.25670861895196,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 38.81367126107216,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 39.38334197411314,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 39.97118404414505,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 40.55692346696742,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 41.284180514048785,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 41.90052223810926,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 42.46351587306708,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 43.06486986903474,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 43.65521717397496,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 44.320831603137776,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "03470ad6d70cc34f65fcbbeecf46c1dd9df7ecbb3c19f4b75bad06f457902902"
+    },
+    {
+      "optimizer": "sgd",
+      "joint": true,
+      "lr": 0.3,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.39695526706054807,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 38.98486868501641,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 39.687065039994195,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 40.340511665912345,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 40.98037620889954,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 41.698914983076975,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 42.2939203849528,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 42.90583494398743,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 43.57480424386449,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 44.22349284705706,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 44.90755373286083,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 45.542724621947855,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 46.16539511992596,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 46.76515460689552,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 47.43044249690138,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 48.04301378200762,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 48.70161415007897,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "0cc3a95d47a2f1089b5ee1116cb3ee89e3dd1275251a7f3bc978e625969cb302"
+    },
+    {
+      "optimizer": "lbfgs",
+      "joint": false,
+      "lr": 1.0,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.39997941977344453,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 37.41801452077925,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 38.131876120809466,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+            "2d5565fb483d8ea4525a7a9229677d1038ad34b6e22c8d5152e1d7f7b9817597"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 38.72758262883872,
+          "selected_oracle_calls": 12,
+          "selected_loss": {
+            "total": 0.0010730111225416162,
+            "velocity": 0.0005522558645262327,
+            "temperature": 0.0005207552580153834
+          },
+          "selected_parameter_sha256": [
+            "4d109ec35dfe2b119a2becad91b327dd6feca82768bc891d76d6421e993514fa",
+            "2f04b477a2e09aea6f7dee199758e5ba9a825280cdc3e7dec72ec73b01aa7630",
+            "dac6158ee6dd5760bc0304c42b45b3d32020fa89470daf1320c5fe86f372d705",
+            "d2adc380f2619fdac2572ab625fdb463bac16c662b9c751ba34ee943285a1510",
+            "8bef59da2a7a5f95d8ce88e0489bfd28819ec438ada8e7068e8ca6d065b5e4ff",
+            "ab9f24b39d0f72c3638918a6e04795777499f56c07a2ac05bda6c08d029a8731"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 39.56416160496883,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 21,
+          "measured_at_fit_elapsed_s": 40.428526325849816,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 40.93810669495724,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 41.5650111399591,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 32,
+          "measured_at_fit_elapsed_s": 42.25450710486621,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 42.87521523493342,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 43.471728888805956,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 44.14417850994505,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 44.76026398479007,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 45.43981653591618,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 46.08260738197714,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 61,
+          "measured_at_fit_elapsed_s": 46.806447515962645,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 47.31044435594231,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0010099627944800838,
+            "velocity": 0.0005158680746826901,
+            "temperature": 0.0004940947197973937
+          },
+          "selected_parameter_sha256": [
+            "098ddfd9b6d6920259617c1ab4b12ec7154a6956ed39d29a514d15656f5763b5",
+            "fe128cd986f081c0ddf29226d7a7e4232d37529fc340938dbc3dbe68759a0fc8",
+            "b385746033eb100a025fcd3f6f93e853cc18dada87e53e3dca0164093ce758b2",
+            "4bb199422b3fe7c7f5a48aafe74ae06445411e8bcf55b2ac51f9669b3f241f32",
+            "ce9a4a41f9ffb0eb55453948b514c7de4f1613c06259deca07e1360b63091e5e",
+            "e8d5fda94a7a5e712730fac4881916498361a6342dbeed2ce51e495990f172aa"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "a61658f37fdccf4f54ba737d38e8a92838f01b5ce67b678400c9f51337fdebf6"
+    },
+    {
+      "optimizer": "lbfgs",
+      "joint": true,
+      "lr": 1.0,
+      "points": [
+        {
+          "measured_at_oracle_calls": 0,
+          "measured_at_fit_elapsed_s": 0.3951243010815233,
+          "selected_oracle_calls": 0,
+          "selected_loss": {
+            "total": 0.0011007894164878208,
+            "velocity": 0.000557757464584241,
+            "temperature": 0.0005430319519035799
+          },
+          "selected_parameter_sha256": [
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "1e704610218b2c947134a16b37f430429f9713943dec9d9a0902af98a657b368",
+            "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+            "371fc599cdb3e3107fd481bc24ae82dab47cc27a8900db0662ba62052a39523e",
+            "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+            "1a0295f4bf5986c5f74eca9153a6a4cb10b073a01a76ba4a457fd862c78966a4"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 4,
+          "measured_at_fit_elapsed_s": 38.12046954315156,
+          "selected_oracle_calls": 4,
+          "selected_loss": {
+            "total": 0.0010706341851568206,
+            "velocity": 0.0005300187872659972,
+            "temperature": 0.0005406153978908234
+          },
+          "selected_parameter_sha256": [
+            "5da6477a405bbf3832b262e0a3cec74479f6eea3398db0633f5d51f011ae0e86",
+            "16f9013a5c7b59d6e8a4dcd1c73c348a8fc2ccf5b985189142ecabe5430bbdd9",
+            "3e7025109c75d5d4807eb399feb8f2d1a615fb7b656a2c5a9a25c6b87f109cfa",
+            "86ea8f5800fb597a07a32371517211a42e35c5dfb4f31f71bbeec4e57b93637b",
+            "bea641cb727a37690fb542747dc6e2ada992d97f8cf5346e56ddb04c3d38abcf",
+            "cb0b0c87ffa116884c410782ae81be62c956496d486c601fdb3e23fed3f6dd79"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 8,
+          "measured_at_fit_elapsed_s": 38.83258725213818,
+          "selected_oracle_calls": 8,
+          "selected_loss": {
+            "total": 0.0010473397930869151,
+            "velocity": 0.0005178007533980524,
+            "temperature": 0.0005295390396888629
+          },
+          "selected_parameter_sha256": [
+            "012bf2dacbc53bb559a023c83dc9421066307bf346cf6d5416acc2789c8a12a0",
+            "4609ae189ee8766a4fbf38a2166f420ac48f3b4088758ff4ae95a6c9edd68231",
+            "3d37949f774aa3f02054e0dc6af3acee8377b617299396ad40775c49a307cee5",
+            "097e4ffa73737b850c6bc956855f0c825d5b8a8e54d4d7712da22b41a8534b4a",
+            "8fa6c9aa2bfe384976e276220707681c90313eac10ef9b4228a9b96f4d122d05",
+            "08bd656d1baeaa5b8263a1cfdd1d096775bda209596a1e6a814912be13482663"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 12,
+          "measured_at_fit_elapsed_s": 39.55861756019294,
+          "selected_oracle_calls": 8,
+          "selected_loss": {
+            "total": 0.0010473397930869151,
+            "velocity": 0.0005178007533980524,
+            "temperature": 0.0005295390396888629
+          },
+          "selected_parameter_sha256": [
+            "012bf2dacbc53bb559a023c83dc9421066307bf346cf6d5416acc2789c8a12a0",
+            "4609ae189ee8766a4fbf38a2166f420ac48f3b4088758ff4ae95a6c9edd68231",
+            "3d37949f774aa3f02054e0dc6af3acee8377b617299396ad40775c49a307cee5",
+            "097e4ffa73737b850c6bc956855f0c825d5b8a8e54d4d7712da22b41a8534b4a",
+            "8fa6c9aa2bfe384976e276220707681c90313eac10ef9b4228a9b96f4d122d05",
+            "08bd656d1baeaa5b8263a1cfdd1d096775bda209596a1e6a814912be13482663"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 16,
+          "measured_at_fit_elapsed_s": 40.179467854090035,
+          "selected_oracle_calls": 16,
+          "selected_loss": {
+            "total": 0.0009740367439366282,
+            "velocity": 0.0005026055603022227,
+            "temperature": 0.0004714311836344054
+          },
+          "selected_parameter_sha256": [
+            "b1521ba86ef2b702be6df05b8ea199d247418567f0f67a1ee07167e3a0b396a3",
+            "13a26f9eef7f30833d62095f60e55d2ca420401d8ab8070c2135679d2715a9bd",
+            "be909707194c48e30a890bb3dc785b090ebbf431a00844278545734bc1105e12",
+            "059868051f2df412062ce8e299156111904951c37bac7dfb6804fadc7f66a1cf",
+            "e64783ff863094b7e3cb1f013df948b688e22a93c4da9a42b105e7e68f6c7573",
+            "3c44f697b5fa05405d3f075b5bcce23a438f53ed7b09ff3077a7e35dfeca542f"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 20,
+          "measured_at_fit_elapsed_s": 41.08655405510217,
+          "selected_oracle_calls": 20,
+          "selected_loss": {
+            "total": 0.0008613449902699691,
+            "velocity": 0.0004402538510655038,
+            "temperature": 0.0004210911392044653
+          },
+          "selected_parameter_sha256": [
+            "af09c54f9bc8df83e2479762f823516dd92e072eb7333dcf6641656f1b2853c9",
+            "d2820d6c5e229ac5354b256cc647744bf51e987c85fd9528608706261112d4a0",
+            "9bf8f58eae620eeae36c2dd6c2192bce3882ea427ce3ea219900b04f964c4aa8",
+            "a90ead07db4159d27c9f957ab68f9c40fcd095ee2ccf666d6b563385f41d6479",
+            "e105755849d49608d489f7113d4be6b489d060afb25643b33ae5cb708e925899",
+            "60364e6ed823ff3e1916421b1410fe4d18b97e31c70bf52068abaa77944fd19d"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 24,
+          "measured_at_fit_elapsed_s": 41.91102678608149,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 28,
+          "measured_at_fit_elapsed_s": 42.672542731044814,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 33,
+          "measured_at_fit_elapsed_s": 43.36978015303612,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 36,
+          "measured_at_fit_elapsed_s": 44.050849681021646,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 40,
+          "measured_at_fit_elapsed_s": 45.15469011012465,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 44,
+          "measured_at_fit_elapsed_s": 45.79355980199762,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 48,
+          "measured_at_fit_elapsed_s": 46.48185355914757,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 52,
+          "measured_at_fit_elapsed_s": 47.10868410603143,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 56,
+          "measured_at_fit_elapsed_s": 47.76645716209896,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 60,
+          "measured_at_fit_elapsed_s": 48.48370172618888,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        },
+        {
+          "measured_at_oracle_calls": 64,
+          "measured_at_fit_elapsed_s": 49.188504975056276,
+          "selected_oracle_calls": 24,
+          "selected_loss": {
+            "total": 0.0008289369237488169,
+            "velocity": 0.00042159373826107743,
+            "temperature": 0.00040734318548773943
+          },
+          "selected_parameter_sha256": [
+            "4ddd7f8f2f9ba834a68d08bd3050383d7d8b63e0cfa76e040f4296e3f4a76eb2",
+            "18ff4715d1e19eaf97bd7671546436f14575f27492b79b6223cb91ba0351d935",
+            "c427420fa964e7f73ec599d8ad7bdf712506ae8ec3e01bbb33c6553ce52a853d",
+            "8dc5fef337db634a9d6ee9a8411528d79b00f42c0329031a6dd65d04e680458c",
+            "8ee2edb3a1d53669e2d5821941318b54b4aad69d44dd10e09776d971c8f7ae07",
+            "021a3020c7c1ed0d5d60c9208dd95bebec556366226016c60ab0b6eff38ca8ad"
+          ]
+        }
+      ],
+      "raw_outcome_sha256": "5d26f0e5e4c135401009d54933a89e55604da938cc417f0aed2015973a2c0681"
+    }
+  ],
+  "files": {
+    "best_checkpoint_time.png": "768ea05de3e19600f418ab69ff12630fda33201e013a3fac9889a8308241392d",
+    "best_checkpoint_work.png": "2eff25aad358d3e10293d4970a60fbd8984844113ba1f65e172da377dbe950f8"
+  },
+  "script_sha256": "077a7cd5de4ba0296f4b09428fa07c90a17e2c33d60415958d16dd8f2910af11"
+}
