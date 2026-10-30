@@ -65,13 +65,14 @@ EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     "Kolmogorov flow's speeds put that bound far below the timestep of every "
     "grid, so the solver diverges on all of them",
 )
-EXPLICIT_CENTRAL_UNSTABLE_CHAIN = (
+EXPLICIT_CENTRAL_UNSTABLE_CHAIN = Exclusion(
+    ExclusionCategory.UNSTABLE,
     "the solver advances with explicit Euler and central differences for "
     "advection, which is linearly unstable at the timestep of the chain (see "
     "forward/kolmogorov). Over the chain's calls the unstable modes grow, so "
     "they dominate both the gradient and the finite differences, which then "
     "do not agree at any ε a float32 run resolves; where they grow fast "
-    "enough, the chain from the ground-truth state diverges"
+    "enough, the chain from the ground-truth state diverges",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -132,14 +133,7 @@ def register(problem: Problem) -> None:
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
     problem.exclude(
         "gradient/chain_fd_check",
-        {
-            "phiflow": Exclusion(
-                ExclusionCategory.ANOMALY_EXPLAINED, EXPLICIT_CENTRAL_UNSTABLE_CHAIN
-            ),
-            "warp_ns": Exclusion(
-                ExclusionCategory.UNSTABLE, EXPLICIT_CENTRAL_UNSTABLE_CHAIN
-            ),
-        },
+        {"warp_ns": EXPLICIT_CENTRAL_UNSTABLE_CHAIN},
     )
 
     # Optimization — suite-level + per-experiment obstacle gates
