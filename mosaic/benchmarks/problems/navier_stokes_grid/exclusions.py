@@ -6,8 +6,8 @@
 Two layers:
 
 * Reusable :class:`Exclusion` constants for failure modes that recur across
-  multiple experiments (e.g. OpenFOAM's per-step cost explains both
-  cost/spatial_cost and cost/temporal_cost).
+  multiple experiments (e.g. OpenFOAM's missing VJP excludes it from every
+  gradient and VJP-cost experiment).
 * :func:`register` — applies every ``problem.exclude(...)`` call, so
   ``config.py`` keeps a single ``_register_exclusions(problem)`` line and the
   long reason strings live here instead of cluttering the assembly.
@@ -78,15 +78,6 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
     "order drops. More correctors remove the floor at a multiple of the wall "
     "time and reverse-mode memory",
 )
-OPENFOAM_SERIAL_IMPLICIT_COST = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "OpenFOAM runs icoFoam on one CPU core, while most peers run on the GPU. "
-    "Each PISO step solves the momentum equation once and the pressure "
-    "equation twice with PCG/DIC, the setup of the icoFoam tutorials. The "
-    "pressure solve's iteration count grows in proportion to N, so the cost "
-    "per step grows roughly as N³",
-)
-
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
@@ -104,8 +95,6 @@ def register(problem: Problem) -> None:
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
-    problem.exclude("cost/spatial_cost", {"openfoam": OPENFOAM_SERIAL_IMPLICIT_COST})
-    problem.exclude("cost/temporal_cost", {"openfoam": OPENFOAM_SERIAL_IMPLICIT_COST})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below

@@ -4,25 +4,15 @@
 import functools
 import math
 import os
+from typing import Any
 
-# Force XLA_FLAGS to disable cublaslt and GEMM autotuning.
-# --xla_gpu_autotune_level=0 prevents DEVICE_TYPE_INVALID failures on V100 (CC 7.0)
-# with JAX 0.10.x when cuBLAS GEMM autotuner fails to identify the GPU device type.
-# Using os.environ assignment (not setdefault) to override any Dockerfile ENV.
-_xla_flags = os.environ.get("XLA_FLAGS", "")
-if "--xla_gpu_autotune_level" not in _xla_flags:
-    os.environ["XLA_FLAGS"] = (_xla_flags + " --xla_gpu_autotune_level=0").strip()
-del _xla_flags
-
-from typing import Any  # noqa: E402
-
-import equinox as eqx  # noqa: E402
-import jax  # noqa: E402
-import jax.numpy as jnp  # noqa: E402
-import numpy as np  # noqa: E402
-import xlb  # noqa: E402
-import xlb.velocity_set  # noqa: E402
-from tesseract_core.runtime.jax_recipes import jax_vjp  # noqa: E402
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import numpy as np
+import xlb
+import xlb.velocity_set
+from tesseract_core.runtime.jax_recipes import jax_vjp
 
 # Enable 64-bit floats in JAX.  Must be set before any JAX computation.
 # This is required so that the VJP/JVP paths can run the LBM in float64 to
