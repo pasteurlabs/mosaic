@@ -65,7 +65,7 @@ The fifth session's "Next" list, in its order:
 
 ## After merging
 
-- #303's intervention records describe `main`; update them as #299, #305 to #308, #313 and #314 merge.
+- #303's intervention records describe `main`; update them as #299, #305 to #308 and #314 merge.
 - Merge order: #306 before #314 (it contains #306's commit); #299 and #300, #308 and #296, #269 and #314 conflict pairwise.
 - #307's horizon ceiling is labelled `error` until #312 merges; the next benchmark run of INS.jl after both records it as `OOM`.
 - #310 targets `feat/ns-grid-forcing` (#267), not `main`.
