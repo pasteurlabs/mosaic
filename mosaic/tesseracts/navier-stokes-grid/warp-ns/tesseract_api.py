@@ -2160,9 +2160,10 @@ def _flag_unconverged_kernel(
         flag[0] = 1
 
 
-# Relative residual at which the pressure CG stops, as in PhiFlow. A tighter
-# tolerance changes Cd by less than 1e-5 at 10 cells per diameter.
-_CHANNEL_CG_TOL = 1e-5
+# Relative residual at which the pressure CG stops: the loosest at which Cd,
+# Cl and the pressure drop stay within 0.3% of a 1e-7 solve at 10 and 20 cells
+# per diameter, and drag_opt ends at the same drag. At 1e-2 Cl moves by 5%.
+_CHANNEL_CG_TOL = 1e-3
 _CHANNEL_CG_MAXITER = 5000
 
 
