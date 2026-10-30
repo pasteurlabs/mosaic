@@ -28,7 +28,13 @@ from .corrector import (
 
 
 def trajectory(
-    step: Any, initial: Any, frames: int, params: Any = None, scales: Any = None
+    step: Any,
+    initial: Any,
+    frames: int,
+    params: Any = None,
+    scales: Any = None,
+    *,
+    temperature_head_scale: float = 1.0,
 ) -> np.ndarray:
     """Capture all states, synchronizing each remote solver result."""
     states = [np.asarray(initial)]
@@ -36,7 +42,9 @@ def trajectory(
     for _ in range(frames):
         state = step(state)
         if params is not None:
-            state = apply_corrector(params, state, scales)
+            state = apply_corrector(
+                params, state, scales, temperature_head_scale=temperature_head_scale
+            )
         states.append(np.asarray(state))
     result = np.stack(states)
     if not np.isfinite(result).all():
@@ -49,13 +57,17 @@ def window_loss(
     targets: jax.Array,
     step: Any,
     scales: jax.Array,
+    *,
+    temperature_head_scale: float = 1.0,
 ) -> jax.Array:
     """Average intermediate-state errors on a recurrent training window."""
     state = targets[0]
     loss = jnp.asarray(0.0)
     for target in targets[1:]:
         advanced = step(state)
-        state = apply_corrector(params, advanced, scales)
+        state = apply_corrector(
+            params, advanced, scales, temperature_head_scale=temperature_head_scale
+        )
         loss = loss + normalized_loss(state, target, scales)
     return loss / (len(targets) - 1)
 
@@ -273,6 +285,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     validation_interval = int(cfg.get("validation_interval", 64))
     window_seed = int(cfg.get("window_seed", 0))
     lrs = [float(lr) for lr in cfg.get("learning_rates", [0.003])]
+    temperature_head_scale = float(cfg.get("temperature_head_scale", 1.0))
     cases = [
         dict(case)
         for case in cfg.get("train_cases", [{"seed": int(cfg.get("train_seed", 0))}])
@@ -302,9 +315,11 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         or len(set(seeds)) != len(seeds)
         or not lrs
         or not all(np.isfinite(lr) and lr > 0 for lr in lrs)
+        or not np.isfinite(temperature_head_scale)
+        or temperature_head_scale <= 0
     ):
         raise ValueError(
-            "invalid training budget, reference factor, learning rates or seeds"
+            "invalid training budget, reference factor, learning rates, head scale or seeds"
         )
 
     def make_step(subdivision: int = 1) -> Any:
@@ -390,7 +405,13 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         correct_temperature=bool(cfg.get("correct_temperature", False)),
     )
     train_jax = jnp.asarray(train)
-    check_loss = lambda p: window_loss(p, train_jax[: horizon + 1], step, scales)
+    check_loss = lambda p: window_loss(
+        p,
+        train_jax[: horizon + 1],
+        step,
+        scales,
+        temperature_head_scale=temperature_head_scale,
+    )
     fd = directional_fd(check_loss, params0, float(cfg.get("fd_epsilon", 0.003)))
     if fd["relative_error"] > float(cfg.get("fd_tolerance", 0.05)):
         raise ValueError(f"recurrent gradient finite-difference check failed: {fd}")
@@ -437,6 +458,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
             targets,
             step,
             scales,
+            temperature_head_scale=temperature_head_scale,
         )
 
     baseline = baselines["test"]
@@ -446,6 +468,7 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         "corrector_fields": "velocity+temperature"
         if cfg.get("correct_temperature", False)
         else "velocity",
+        "temperature_head_scale": temperature_head_scale,
         "corrector_parameters": sum(int(p.size) for p in jax.tree.leaves(params0)),
         "reference": {
             "spatial_factor": factor,
@@ -478,7 +501,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
     }
 
     def validate(params: Any) -> float:
-        rollout = trajectory(step, validation[0], frames, params, scales)
+        rollout = trajectory(
+            step,
+            validation[0],
+            frames,
+            params,
+            scales,
+            temperature_head_scale=temperature_head_scale,
+        )
         return float(np.mean(rollout_errors(rollout, validation, scales)["loss"][1:]))
 
     candidates = []
@@ -490,7 +520,14 @@ def solver_in_loop(t: Any, ctx: KernelContext) -> dict:
         candidates.append(candidate)
         models.append(params)
     selected = select_candidate(candidates)
-    rollout = trajectory(step, test[0], frames, models[selected], scales)
+    rollout = trajectory(
+        step,
+        test[0],
+        frames,
+        models[selected],
+        scales,
+        temperature_head_scale=temperature_head_scale,
+    )
     snapshots["solver_in_loop"] = rollout
     metrics["solver_in_loop"] = {
         **rollout_errors(rollout, test, scales),

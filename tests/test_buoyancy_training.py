@@ -51,7 +51,9 @@ def test_corrector_starts_at_identity_and_preserves_scalar_and_walls():
 
 
 def test_training_gradient_includes_recurrent_solver_derivative(monkeypatch):
-    monkeypatch.setattr(training, "apply_corrector", lambda p, state, scales: state + p)
+    monkeypatch.setattr(
+        training, "apply_corrector", lambda p, state, scales, **_: state + p
+    )
     targets = jnp.zeros((3, 2, 2, 3))
 
     def loss(p):
@@ -61,7 +63,9 @@ def test_training_gradient_includes_recurrent_solver_derivative(monkeypatch):
 
 
 def test_directional_fd_checks_recurrent_derivative(monkeypatch):
-    monkeypatch.setattr(training, "apply_corrector", lambda p, state, scales: state + p)
+    monkeypatch.setattr(
+        training, "apply_corrector", lambda p, state, scales, **_: state + p
+    )
     targets = jnp.zeros((3, 2, 2, 3))
     check = training.directional_fd(
         lambda p: training.window_loss(p, targets, lambda x: 2 * x, jnp.ones(3)),
@@ -271,6 +275,44 @@ def test_joint_temperature_correction_receives_recurrent_gradient():
 
     # Temperature predictions are b and 2b, so mean loss derivative at b=0 is -1.5.
     np.testing.assert_allclose(jax.grad(loss)(0.0), -1.5, rtol=1e-6)
+
+
+def test_temperature_head_scaling_agrees_in_recurrent_loss_and_evaluation():
+    params = init_corrector(0, 2, correct_temperature=True)
+    targets = jnp.zeros((3, 4, 4, 3))
+
+    def model(bias):
+        return (*params[:-1], {**params[-1], "b": jnp.array([0.0, bias])})
+
+    def loss(bias):
+        return training.window_loss(
+            model(bias),
+            targets,
+            lambda state: 2 * state,
+            jnp.ones(3),
+            temperature_head_scale=0.1,
+        )
+
+    # The two temperature predictions are 0.1b and 0.3b, so L=0.025b².
+    np.testing.assert_allclose(loss(1.0), 0.025, rtol=1e-6)
+    np.testing.assert_allclose(jax.grad(loss)(1.0), 0.05, rtol=1e-6)
+    rollout = training.trajectory(
+        lambda state: 2 * state,
+        targets[0],
+        2,
+        model(1.0),
+        jnp.ones(3),
+        temperature_head_scale=0.1,
+    )
+    np.testing.assert_allclose(rollout[:, 0, 0, 2], [0, 0.1, 0.3], rtol=1e-6)
+    np.testing.assert_array_equal(rollout[..., :2], 0)
+
+
+@pytest.mark.parametrize("scale", [0, -1, float("nan"), float("inf")])
+def test_invalid_temperature_head_scale_rejected_before_reference_generation(scale):
+    ctx = SimpleNamespace(run={"training": {"temperature_head_scale": scale}}, phys={})
+    with pytest.raises(ValueError, match="head scale"):
+        training.solver_in_loop(None, ctx)
 
 
 def test_temperature_diagnostics_report_signed_heat_loss_and_extrema():

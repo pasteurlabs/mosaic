@@ -33,11 +33,24 @@ def init_corrector(
     )
 
 
-def apply_corrector(params: Any, state: jax.Array, scales: jax.Array) -> jax.Array:
+def apply_corrector(
+    params: Any,
+    state: jax.Array,
+    scales: jax.Array,
+    *,
+    temperature_head_scale: float = 1.0,
+) -> jax.Array:
     """Curl a zero-boundary streamfunction into divergence-free face updates."""
     # Eager Tesseract calls return NumPy arrays; traced calls return JAX values.
     state = jnp.asarray(state, dtype=jnp.float32)
     scales = jnp.asarray(scales, dtype=state.dtype)
+    if temperature_head_scale != 1.0 and params[-1]["w"].shape[-1] == 2:
+        # Keep the same head reparameterization in training and evaluation.
+        factors = jnp.asarray([1.0, temperature_head_scale], dtype=state.dtype)
+        params = (
+            *params[:-1],
+            {key: value * factors for key, value in params[-1].items()},
+        )
     x = (state / scales)[None]
     for i, layer in enumerate(params):
         x = jnp.pad(x, ((0, 0), (1, 1), (1, 1), (0, 0)), mode="edge")
