@@ -21,7 +21,7 @@ metadata:
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, adjoint AD)"
     discretization: FE
-    numerics: "Direct (SuperLU)"
+    numerics: "BiCGSTAB+Jacobi"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true
