@@ -259,3 +259,21 @@ def test_ns_grid_forcing_and_drag_are_accepted_on_a_periodic_box():
     )
     assert inputs.forcing.shape == v0.shape
     assert InputSchema(v0=v0).forcing is None
+
+
+@needs_runtime
+def test_ns_grid_native_state_needs_a_solver_that_opts_in():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    v0 = np.zeros((8, 8, 1, 2), dtype=np.float32)
+    with pytest.raises(ValidationError, match="does not continue"):
+        InputSchema(v0=v0, return_state=True)
+
+    class Continuing(InputSchema):
+        supports_native_state = True
+
+    assert Continuing(v0=v0, return_state=True).return_state
+    with pytest.raises(ValidationError, match="periodic box"):
+        Continuing(**_channel_inputs(return_state=True))
