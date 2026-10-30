@@ -100,8 +100,9 @@ def periodic_fwd(
 ) -> jnp.ndarray:
     """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
-    Explicit-Euler central-difference advection and diffusion followed by a CG
-    pressure projection. Dimensionality is inferred from v0.shape[-1]
+    2nd-order central-difference advection and diffusion integrated with
+    phiflow's ``fluid.incompressible_rk4``, which projects every stage with a
+    CG pressure solve. Dimensionality is inferred from v0.shape[-1]
     (2 → 2D, 3 → 3D).
 
     Args:
@@ -111,8 +112,8 @@ def periodic_fwd(
         steps: Number of simulation steps.
         domain_extent: Side length of the periodic square/cubic domain.
         forcing: Body force at the cell centers, shape of v0. It is resampled
-            to the faces like v0 and added to the explicit update.
-        linear_drag: Coefficient α of an explicit drag -αu in the same update.
+            to the faces like v0 and added to the momentum rate.
+        linear_drag: Coefficient α of a drag -αu in the momentum rate.
 
     Returns:
         Final velocity at the cell centers, same shape as v0.
@@ -176,20 +177,38 @@ def periodic_fwd(
 
     force_faces = None if forcing is None else faces_to_staggered(to_faces(forcing))
 
-    def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
-        vel = faces_to_staggered(face_arr)
-        # Explicit Euler with 2nd-order central differences on the advective
-        # form (advect.differential), which JAX differentiates without
-        # interpolation.
-        rate = advect.differential(vel, vel)
+    # The force and the drag are part of the momentum rate, so every RK4 stage
+    # sees them, the drag at that stage's velocity.
+    def momentum(vel: StaggeredGrid) -> StaggeredGrid:
+        rate = advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
+            vel, viscosity, order=2
+        )
         if force_faces is not None:
             rate = rate + force_faces
         if linear_drag is not None:
             rate = rate - linear_drag * vel
-        vel = vel + dt * rate
-        vel = diffuse.explicit(vel, viscosity, dt)
-        vel, _ = fluid.make_incompressible(vel, (), solve=_cg_solve)
-        return staggered_to_faces(vel), None
+        return rate
+
+    # phiflow's documented pairing for accurate periodic flow: finite
+    # differences under incompressible_rk4 instead of operator splitting
+    # ("Higher-Order Simulations" in its fluid simulation guide). The pressure
+    # gradient matches the 2nd-order stencils. The scheme carries the pressure
+    # from step to step; each step makes four CG pressure projections.
+    def step(
+        carry: tuple[jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray], None]:
+        face_arr, p_arr = carry
+        vel = faces_to_staggered(face_arr)
+        p = CenteredGrid(
+            math.tensor(p_arr, math.spatial(spatial_str)),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        vel, p = fluid.incompressible_rk4(
+            momentum, vel, p, dt, pressure_order=2, pressure_solve=_cg_solve
+        )
+        return (staggered_to_faces(vel), p.values.native(spatial_str)), None
 
     # Convert the IC to staggered face values once. The scan carry then stays
     # in face-value space so no smoothing accumulates across steps.
@@ -198,7 +217,8 @@ def periodic_fwd(
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
     # through the loop — both forward and VJP are safe inside lax.scan.
-    face_final, _ = jax.lax.scan(step, face_init, None, length=steps)
+    p_init = jnp.zeros(face_init.shape[1:], face_init.dtype)
+    (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
 
     # Convert final face values back to collocated once.
     vel_final = faces_to_staggered(face_final)
@@ -242,8 +262,9 @@ def channel_fwd(
 ) -> dict[str, jnp.ndarray]:
     """Run the 2-D DFG channel: profile inlet, outflow, no-slip walls, cylinder.
 
-    The same explicit-Euler central-difference step as the periodic box, with
-    phiflow's wind-tunnel boundaries and the cylinder as a staircase of the
+    Operator splitting with phiflow's default semi-Lagrangian self-advection,
+    explicit diffusion and a CG pressure projection (``incompressible_rk4``
+    takes no obstacles). Wind-tunnel boundaries, and the cylinder as a staircase of the
     cells whose center lies strictly inside it. Every face touching a solid cell
     is held at zero velocity, and the pressure is solved in the fluid cells only.
 
@@ -319,7 +340,7 @@ def channel_fwd(
     ) -> tuple[tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         ux, uy, p_prev = carry
         vel = to_grid(ux, uy)
-        vel = vel + dt * advect.differential(vel, vel)
+        vel = advect.semi_lagrangian(vel, vel, dt)
         ux, uy, removed = close(vel)
         vel = diffuse.explicit(to_grid(ux, uy), viscosity, dt)
         ux, uy, removed_viscous = close(vel)
