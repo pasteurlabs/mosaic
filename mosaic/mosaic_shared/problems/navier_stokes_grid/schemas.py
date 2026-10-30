@@ -126,20 +126,6 @@ class InputSchema(BaseModel):
             "Requires x_lo to be 'dirichlet' with no value."
         ),
     )
-    forcing: GridVectorField | None = Field(
-        default=None,
-        description=(
-            "Body force per unit mass (an acceleration) at the cell centers, "
-            "constant in time, same shape as v0. 2-D periodic boxes only."
-        ),
-    )
-    linear_drag: Array[(1,), Float32] | None = Field(
-        default=None,
-        description=(
-            "Coefficient α of a linear drag -αu on the right-hand side of the "
-            "momentum equation. 2-D periodic boxes only."
-        ),
-    )
 
     @property
     def extent(self) -> tuple[float, ...]:
@@ -193,18 +179,6 @@ class InputSchema(BaseModel):
                     f"inflow_profile has shape {tuple(self.inflow_profile.shape)}, "
                     f"expected ({ny},) to match v0"
                 )
-        if self.forcing is not None or self.linear_drag is not None:
-            if not bc.is_fully_periodic or self.obstacle is not None:
-                raise ValueError(
-                    "forcing and linear_drag require a periodic box without an obstacle"
-                )
-            if self.v0.shape[-1] != 2:
-                raise ValueError("forcing and linear_drag are only defined in 2-D")
-        if self.forcing is not None and self.forcing.shape != self.v0.shape:
-            raise ValueError(
-                f"forcing has shape {tuple(self.forcing.shape)}, expected "
-                f"{tuple(self.v0.shape)} to match v0"
-            )
         return self
 
 

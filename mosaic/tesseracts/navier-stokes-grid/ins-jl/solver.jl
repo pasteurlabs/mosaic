@@ -210,43 +210,6 @@ end
 
 
 # ---------------------------------------------------------------------------
-# Body force and linear drag (2-D)
-# ---------------------------------------------------------------------------
-
-"""
-Collocated body force (n,n,2) → projected, ghosted staggered force, or `nothing`.
-
-The force is averaged onto the faces like v0 and projected once, so that
-adding it to the projected right-hand side keeps the stages divergence-free.
-"""
-function staggered_force(force, setup, psolver, n::Int)
-    isnothing(force) && return nothing
-    f = add_ghosts_2d(coloc_to_stag_2d(to_device(Float32.(force)), n), n)
-    return project(f, setup; psolver)
-end
-
-"""
-`rhs` plus a constant body force `f` and a linear drag `-drag * u`.
-
-The drag acts on the stage velocity, which is divergence-free, so the sum
-stays projected. Returns `rhs` itself when there is neither.
-"""
-function forced_rhs(rhs, f, drag::Real)
-    isnothing(f) && drag == 0 && return rhs
-    return function (u, p, t)
-        du = rhs(u, p, t)
-        if !isnothing(f)
-            du = du .+ f
-        end
-        if drag != 0
-            du = du .- eltype(u)(drag) .* u
-        end
-        return du
-    end
-end
-
-
-# ---------------------------------------------------------------------------
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
@@ -263,23 +226,11 @@ used for the VJP primal. `RKMethods.RK44` applies the same per-stage BC +
 projection as the projected RHS in `ns_forward_*`, so the two paths agree to
 round-off.
 """
-function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64;
-                  force = nothing, drag::Float64 = 0.0)
+function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64)
     T = Float32
     v0   = to_device(T.(v0_np))
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
-
-    if !isnothing(force) || drag != 0
-        # A body force or drag runs the same RK4 loop as the VJP, so that both
-        # integrate the same right-hand side. 2-D only.
-        rhs = forced_rhs(
-            create_right_hand_side(setup, psolver),
-            staggered_force(force, setup, psolver, n),
-            drag,
-        )
-        return Array(T.(ns_forward_2d(v0, rhs, setup, psolver, T(nu), T(dt), steps, n)))
-    end
 
     u = initial_state(v0, setup, psolver, n)
 
@@ -314,18 +265,13 @@ exact), which removed the need for the finite-difference fallback (and its
 two extra forward rollouts per VJP call) that earlier versions required.
 """
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
-                steps::Int, n::Int, L::Float64;
-                force = nothing, drag::Float64 = 0.0)
+                steps::Int, n::Int, L::Float64)
     v0   = to_device(Float32.(v0_np))
     cot  = to_device(Float32.(cotangent_np))
     ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
-    rhs  = forced_rhs(
-        create_right_hand_side(setup, psolver),
-        staggered_force(force, setup, psolver, n),
-        drag,
-    )
+    rhs  = create_right_hand_side(setup, psolver)
 
     if ndim == 2
         fwd = (v, dt_, nu_) -> ns_forward_2d(v, rhs, setup, psolver, nu_, dt_, steps, n)

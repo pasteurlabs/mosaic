@@ -51,25 +51,17 @@ def cfd_fwd(
     steps: int,
     inner_steps: int,
     domain_extent: float,
-    forcing: jnp.ndarray | None = None,
-    linear_drag: float | None = None,
     **_kwargs: Any,
 ) -> jax.Array:
     """Compute the final velocity field of the incompressible Navier-Stokes equations.
 
     Supports 2D and 3D on a fully periodic domain, inferred from
     v0.shape[-1]. The result has the same shape as v0.
-
-    ``forcing`` and ``linear_drag`` enter the explicit right-hand side that
-    every RK4 stage evaluates, the force averaged onto the faces like v0 and
-    the drag ``-linear_drag * u`` on the current face velocity.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
-        if forcing is not None:
-            forcing = forcing[:, :, 0, :]
     domain_sizes = (domain_extent,) * ndim
 
     bc = cfd.boundaries.periodic_boundary_conditions(ndim)
@@ -100,19 +92,6 @@ def cfd_fwd(
     def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
-    def body_force(v: Any) -> tuple:
-        # jax-cfd's own sum_forcings calls jax.tree_map, which JAX 0.10
-        # removed, so the force and the drag are summed here.
-        terms = []
-        for i, u in enumerate(v):
-            term = 0.0
-            if forcing is not None:
-                term = interp_to_face(forcing[..., i], own_axis=i)
-            if linear_drag is not None:
-                term = term - linear_drag * u.data
-            terms.append(cfd.grids.GridArray(term, u.offset, grid))
-        return tuple(terms)
-
     # --- NS step function ------------------------------------------------
     # The library's default (van Leer + forward Euler) uses a Lax-Wendroff
     # flux whose time correction assumes pure advection. In incompressible
@@ -127,7 +106,6 @@ def cfd_fwd(
             grid=grid,
             convect=cfd.advection.convect_linear,
             time_stepper=cfd.time_stepping.classic_rk4,
-            forcing=(None if forcing is None and linear_drag is None else body_force),
         ),
         steps=inner_steps,
     )
@@ -157,8 +135,8 @@ def apply_jit(inputs: dict) -> dict:
 
 def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
-    for key in ("density", "viscosity", "dt", "linear_drag"):
-        if d.get(key) is not None:
+    for key in ("density", "viscosity", "dt"):
+        if key in d:
             d[key] = float(d[key][0])
     return d
 
