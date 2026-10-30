@@ -1,6 +1,6 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below), and the session's open questions are decided ("Decisions taken 2026-10-30"). What remains is reviewing and merging the open pull requests and filing the upstream issues. Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
+**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below), and the session's open questions are decided ("Decisions taken 2026-10-30"). What remains is reviewing and merging the open pull requests, and the follow-ups after merging listed under "After merging". Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
 
 ## Read first
 
@@ -63,17 +63,16 @@ The fifth session's "Next" list, in its order:
 10. **Kolmogorov forcing in RK4:** #310, into #267's branch.
 11. **Rollout:** #302 to #304.
 
+## After merging
+
+- #303's intervention records describe `main`; update them as #299, #305 to #308, #313 and #314 merge.
+- Merge order: #306 before #314 (it contains #306's commit); #299 and #300, #308 and #296, #269 and #314 conflict pairwise.
+- #307's horizon ceiling is labelled `error` until #312 merges; the next benchmark run of INS.jl after both records it as `OOM`.
+- #310 targets `feat/ns-grid-forcing` (#267), not `main`.
+
 ## Upstream issues
 
-Dion files them, because the sandbox token gets HTTP 403 outside pasteurlabs. Each draft was re-checked on 2026-10-30 against the latest release and default branch (no newer release, no existing issue):
-
-| Draft                             | Repository            | Attach                                                                                                        |
-| --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `upstream-phiml.md`               | tum-pbs/PhiML         | `upstream-phiml-repro.py`                                                                                     |
-| `upstream-phiml-cluster.md`       | tum-pbs/PhiML         | — (inline reproducer)                                                                                         |
-| `upstream-pict.md`                | tum-pbs/PICT          | `pressure_system_{true,false}.npz` from `~/localfiles/runs/cleanup/upstream/pict/`, `diag/pict/standalone.py` |
-| `upstream-phiflow-rk4.md`         | tum-pbs/PhiFlow       | `diag/phiflow/rk4order.py`                                                                                    |
-| `upstream-topopt-julia-compat.md` | JuliaTopOpt/TopOpt.jl | —                                                                                                             |
+Filed by Dion on 2026-10-30: tum-pbs/PhiML#17 (`upstream-phiml.md`), tum-pbs/PhiML#18 (`upstream-phiml-cluster.md`), tum-pbs/PICT#9 (`upstream-pict.md`), tum-pbs/PhiFlow#218 (`upstream-phiflow-rk4.md`), JuliaTopOpt/TopOpt.jl#341 (`upstream-topopt-julia-compat.md`). If PhiML#17 is fixed in a release, #279's `phiml==1.16.1` pin and PhiFlow's warm-start workaround can be revisited.
 
 Not filed: `upstream-xlb.md` (Mosaic pins Warp since #265, and XLB's maintainers are already moving to newer Warp in Autodesk/XLB#168) and `upstream-topopt-jl.md` (fixed in 0.14.0).
 

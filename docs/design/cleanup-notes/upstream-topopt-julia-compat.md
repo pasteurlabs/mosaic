@@ -1,6 +1,6 @@
 # Draft: JuliaTopOpt/TopOpt.jl, Julia 1.11 compatibility
 
-**Status:** ready to file (decided 2026-10-30). Re-checked 2026-10-30: 0.14.0 is still the latest release, master still has the field, CI still tests only `version: '1'`. Found while bumping TopOpt.jl (#299), which moved to Julia 1.12.
+**Status:** filed 2026-10-30 (see the handoff for the issue number).
 
 **Title:** TopOpt 0.14.0 fails to precompile on Julia 1.11 (compat allows julia = "1.10")
 

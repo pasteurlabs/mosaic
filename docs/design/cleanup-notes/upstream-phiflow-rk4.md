@@ -1,6 +1,6 @@
 # Draft: tum-pbs/PhiFlow
 
-**Status:** ready to file (decided 2026-10-30). Re-checked 2026-10-30: phiflow 3.4.0 is still the latest release, and `develop` still builds stage 4 from `rhs2` (`phi/physics/fluid.py`, line 324).
+**Status:** filed 2026-10-30 (see the handoff for the issue number).
 
 **Title:** `fluid.incompressible_rk4` is third-order: stage 4 uses `rhs2` instead of `rhs3`
 

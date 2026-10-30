@@ -1,6 +1,6 @@
 # Draft: tum-pbs/PhiML (or tum-pbs/PhiFlow)
 
-**Status:** ready to file (approved 2026-10-27). Re-checked 2026-10-30: phiml 1.16.1 is still the latest release, the reproducer still raises `UnexpectedTracerError`, no matching issue upstream. #279 pins `phiml==1.16.1`.
+**Status:** filed 2026-10-30 (see the handoff for the issue number).
 
 **Title:** `UnexpectedTracerError` in the gradient of `solve_linear` when `Solve.x0` comes from a `jax.lax.scan` carry
 
