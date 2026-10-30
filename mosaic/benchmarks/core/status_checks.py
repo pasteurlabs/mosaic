@@ -94,11 +94,15 @@ class OptimizationSummary:
 
     ``peer_final_median``: the median of ``final_value`` across solvers, or
     ``None`` when fewer than 3 solvers reported one.
+
+    ``metrics`` is the solver's full result entry, for checks on quantities
+    other than the loss trajectory.
     """
 
     final_initial_ratio: float | None = None
     final_value: float | None = None
     peer_final_median: float | None = None
+    metrics: dict = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────

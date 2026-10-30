@@ -57,6 +57,11 @@ COARSE_N = 64
 COARSE_DT = 0.01
 FORWARD_GRIDS = (32, 64, 128, 256)
 
+# The length of one correction interval of the solver-in-the-loop study, and the
+# refinement of its reference configuration in space and time.
+INTERVAL = 0.1
+REFERENCE_FACTOR = 4
+
 # Forward times scored against the ground truth, within the time over which
 # two converged runs from the same state stay correlated.
 HORIZON_TIMES = (1.0, 2.0, 3.0, 4.0)

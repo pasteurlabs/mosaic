@@ -571,7 +571,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
             elif initial > 0:
                 ratio = final / initial
         summaries[solver] = OptimizationSummary(
-            final_initial_ratio=ratio, final_value=final
+            final_initial_ratio=ratio, final_value=final, metrics=entry
         )
 
     finals = [s.final_value for s in summaries.values() if s.final_value is not None]

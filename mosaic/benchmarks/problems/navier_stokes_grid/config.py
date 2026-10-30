@@ -70,12 +70,12 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import chain, cylinder, kolmogorov
+from . import chain, cylinder, kolmogorov, sil, sil_status
 from .exclusions import register as _register_exclusions
 from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt, plot_kolmogorov
+from .plots import plot_drag_opt, plot_kolmogorov, plot_kolmogorov_sil
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -574,6 +574,72 @@ problem.add_experiment(
     # known.
     status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )
+_SIL_PHYSICS = {
+    "N": kolmogorov.COARSE_N,
+    "nu": kolmogorov.VISCOSITY,
+    "dt": kolmogorov.COARSE_DT,
+    "reference_factor": kolmogorov.REFERENCE_FACTOR,
+    **kolmogorov.FORCING_PHYSICS,
+}
+_SIL_DESCRIPTION = (
+    "A small CNN corrects each solver's coarse Kolmogorov flow (64², ν = 2·10⁻³)"
+    " every 0.1 time units and is trained against that solver's own 256²"
+    " reference: on one-interval pairs (supervised), through a 4-interval"
+    " rollout with the gradient stopped at the solver, and through the same"
+    " rollout differentiated through the solver (solver in the loop). Wall time"
+    " per training update of each. A solver passes when its reference agrees"
+    " with a finer run, chained calls reproduce one long call, the gradient of"
+    " the training loss through 16 intervals matches finite differences, and"
+    " training completes with finite losses. 32 updates are too few to say how"
+    " much the corrector helps, so its errors are not scored."
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil",
+    sil.solver_in_loop,
+    plot_description=_SIL_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    optim={
+        "unrolls": [4],
+        "updates": 32,
+        "model_seeds": [0],
+        "learning_rates": [1e-3],
+        "validation_interval": 16,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5]},
+        "train_frames": 24,
+        "eval_frames": 40,
+    },
+    plot=plot_kolmogorov_sil,
+    # Feasibility only: no arm has to win. See sil_status.
+    status_check=[sil_status.feasible()],
+)
+_SIL_STABILITY_DESCRIPTION = (
+    "The setup of optimization/kolmogorov_sil, trained long enough to compare"
+    " the arms: 16-interval rollouts, 256 updates, three seeds, scored on three"
+    " test states. Every trained corrector, as selected by validation and as"
+    " it stood after its last update, is then rolled out for 200 intervals to"
+    " see whether training through the solver leaves it less stable than the"
+    " other arms."
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil_stability",
+    sil.solver_in_loop,
+    plot_description=_SIL_STABILITY_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    optim={
+        "unrolls": [16],
+        "updates": 256,
+        "model_seeds": [0, 1, 2],
+        "learning_rates": [1e-3],
+        "validation_interval": 32,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5, 6, 7]},
+        "train_frames": 24,
+        "eval_frames": 40,
+        "stability_frames": 200,
+    },
+    # Feasibility only, as for optimization/kolmogorov_sil.
+    status_check=[sil_status.feasible()],
+)
+
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",

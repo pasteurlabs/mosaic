@@ -108,6 +108,19 @@ _OBSTACLE_GATE = {
     "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
+PHIFLOW_REFERENCE_DIVERGES = Exclusion(
+    ExclusionCategory.UNSTABLE,
+    "the corrector trains against the solver's own run on the finest grid of "
+    "forward/kolmogorov, and that run turns non-finite within the study's "
+    "horizon from some of the ground truth's test states; the cause has not "
+    "been established",
+)
+# The solver-in-the-loop experiments run the forward/kolmogorov configurations.
+_KOLMOGOROV_DIVERGES = {
+    "phiflow": PHIFLOW_REFERENCE_DIVERGES,
+    "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
+}
+
 
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
@@ -140,3 +153,5 @@ def register(problem: Problem) -> None:
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
     problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})
+    problem.exclude("optimization/kolmogorov_sil", _KOLMOGOROV_DIVERGES)
+    problem.exclude("optimization/kolmogorov_sil_stability", _KOLMOGOROV_DIVERGES)
