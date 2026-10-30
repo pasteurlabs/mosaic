@@ -1,6 +1,8 @@
 using IncompressibleNavierStokes
 using Zygote
 
+const FFTW = IncompressibleNavierStokes.FFTW
+
 # ---------------------------------------------------------------------------
 # Setup cache (indexed by (n, L, ndim)); holds the current setup only
 # ---------------------------------------------------------------------------
@@ -163,13 +165,19 @@ end
 """2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
 function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
-    p = (; viscosity = nu)
-    u = initial_state(v0, setup, psolver, n)
+    u = rk4(initial_state(v0, setup, psolver, n), rhs, (; viscosity = nu), dt, steps)
+    return stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
+end
 
-    # rhs (create_right_hand_side) applies the periodic BCs to its input and
-    # projects its output, so no ghost refresh is needed between stages; the
-    # state's own ghost entries go stale but are never read and are stripped
-    # at the end.
+"""
+`steps` classic RK4 steps of `rhs` from the ghosted staggered state `u`.
+
+rhs (create_right_hand_side) applies the periodic BCs to its input and
+projects its output, so no ghost refresh is needed between stages; the
+state's own ghost entries go stale but are never read and are stripped at
+the end.
+"""
+function rk4(u, rhs, p, dt::Real, steps::Int)
     for _ in 1:steps
         k1 = rhs(u, p, 0.0)
         k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
@@ -177,8 +185,7 @@ function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
         k4 = rhs(u .+ dt .* k3, p, 0.0)
         u = u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
     end
-
-    return stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
+    return u
 end
 
 """3-D forward: v0 (n,n,n,3) → v_out (n,n,n,3)."""
@@ -238,6 +245,56 @@ end
 
 
 # ---------------------------------------------------------------------------
+# Native state (2-D): the high-face velocities and the returned velocity
+# ---------------------------------------------------------------------------
+
+# Largest amplification the lift applies to a Fourier mode; see
+# mosaic_shared/problems/navier_stokes_grid/grid_layout.py.
+const MAX_LIFT_GAIN = 32
+
+"""Per-mode inverse of the face-to-centre average along one axis, gain-capped."""
+function lift_filter(n::Int)
+    transfer = (1 .+ cispi.(-2 .* FFTW.fftfreq(n))) ./ 2
+    return [abs(t) * MAX_LIFT_GAIN >= 1 ? 1 / t : zero(t) for t in transfer]
+end
+
+"""High-face field (n,n,2) whose average to the cell centres is `d` (n,n,2)."""
+function lift_coloc_to_stag_2d(d::AbstractArray, n::Int)
+    inv = Zygote.@ignore lift_filter(n)
+    ux = real.(FFTW.ifft(FFTW.fft(d[:, :, 1], 1) .* inv, 1))
+    uy = real.(FFTW.ifft(FFTW.fft(d[:, :, 2], 2) .* transpose(inv), 2))
+    T = eltype(d)
+    return cat(reshape(T.(ux), n, n, 1), reshape(T.(uy), n, n, 1); dims=3)
+end
+
+"""
+Ghosted staggered state continuing from the native `state` (n,n,4) with `v0`.
+
+Only the change from the velocity returned with `state` to `v0` is lifted onto
+the faces and projected, so an unchanged `v0` continues exactly.
+"""
+function continued_state(v0::AbstractArray, state::AbstractArray, setup, psolver, n::Int)
+    correction = lift_coloc_to_stag_2d(v0 .- state[:, :, 3:4], n)
+    correction = project(add_ghosts_2d(correction, n), setup; psolver)
+    u = add_ghosts_2d(state[:, :, 1:2], n) .+ correction
+    return apply_bc_u(u, zero(eltype(u)), setup)
+end
+
+"""2-D forward from `v0`, or continuing from `state`; returns (v_out, native)."""
+function ns_forward_native_2d(v0::AbstractArray, state, rhs, setup, psolver,
+                              nu::Real, dt::Real, steps::Int, n::Int)
+    u = if isnothing(state)
+        initial_state(v0, setup, psolver, n)
+    else
+        continued_state(v0, state, setup, psolver, n)
+    end
+    faces = strip_ghosts_2d(rk4(u, rhs, (; viscosity = nu), dt, steps), n)
+    v_out = stag_to_coloc_2d(faces, n)
+    return v_out, cat(faces, v_out; dims=3)
+end
+
+
+# ---------------------------------------------------------------------------
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
@@ -255,11 +312,27 @@ projection as the projected RHS in `ns_forward_*`, so the two paths agree to
 round-off.
 """
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64;
-                  force = nothing, drag::Float64 = 0.0)
+                  force = nothing, drag::Float64 = 0.0,
+                  state = nothing, return_state::Bool = false)
     T = Float32
     v0   = T.(v0_np)
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
+
+    if !isnothing(state) || return_state
+        # Continuing or returning a native state (2-D only) runs the RK4 loop
+        # of the VJP; returns (v_out, native).
+        rhs = forced_rhs(
+            create_right_hand_side(setup, psolver),
+            staggered_force(force, setup, psolver, n),
+            drag,
+        )
+        st = isnothing(state) ? nothing : T.(state)
+        v_out, native = ns_forward_native_2d(
+            v0, st, rhs, setup, psolver, T(nu), T(dt), steps, n,
+        )
+        return T.(v_out), T.(native)
+    end
 
     if !isnothing(force) || drag != 0
         # A body force or drag runs the same RK4 loop as the VJP, so that both
@@ -306,7 +379,9 @@ two extra forward rollouts per VJP call) that earlier versions required.
 """
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64;
-                force = nothing, drag::Float64 = 0.0)
+                force = nothing, drag::Float64 = 0.0,
+                state = nothing, return_state::Bool = false,
+                state_cotangent = nothing)
     v0   = Float32.(v0_np)
     cot  = Float32.(cotangent_np)
     ndim = size(v0, ndims(v0))
@@ -317,6 +392,26 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
         staggered_force(force, setup, psolver, n),
         drag,
     )
+
+    if !isnothing(state) || return_state
+        # With a native state, also the cotangent of the returned state and
+        # the gradient with respect to the incoming one (2-D only).
+        st = isnothing(state) ? nothing : Float32.(state)
+        fwd = (v, dt_, nu_, s) -> ns_forward_native_2d(
+            v, s, rhs, setup, psolver, nu_, dt_, steps, n,
+        )
+        _, back = Zygote.pullback(fwd, v0, Float32(dt), Float32(nu), st)
+        cot_state = isnothing(state_cotangent) ? nothing : Float32.(state_cotangent)
+        grads = back((cot, cot_state))
+        grad_state = isnothing(st) ? nothing : Float32.(something(grads[4], zero(st)))
+        return (
+            Float32.(something(grads[1], zero(v0))),
+            Float64(something(grads[3], 0.0)),
+            Float64(something(grads[2], 0.0)),
+            Float64(0.0),
+            grad_state,
+        )
+    end
 
     if ndim == 2
         fwd = (v, dt_, nu_) -> ns_forward_2d(v, rhs, setup, psolver, nu_, dt_, steps, n)
