@@ -96,6 +96,8 @@ def periodic_fwd(
     dt: float,
     steps: int,
     domain_extent: float,
+    forcing: jnp.ndarray | None = None,
+    linear_drag: float | None = None,
 ) -> jnp.ndarray:
     """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
@@ -110,6 +112,9 @@ def periodic_fwd(
         dt: Timestep size.
         steps: Number of simulation steps.
         domain_extent: Side length of the periodic square/cubic domain.
+        forcing: Body force at the cell centers, shape of v0. It is resampled
+            to the faces like v0 and added to the momentum rate.
+        linear_drag: Coefficient α of a drag -αu in the momentum rate.
 
     Returns:
         Final velocity at the cell centers, same shape as v0.
@@ -118,6 +123,8 @@ def periodic_fwd(
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
+        if forcing is not None:
+            forcing = forcing[:, :, 0, :]
 
     if ndim == 2:
         nx, ny = v0.shape[:2]
@@ -151,10 +158,37 @@ def periodic_fwd(
     # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
     _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
+    def to_faces(v: jnp.ndarray) -> jnp.ndarray:
+        """Collocated (*spatial, ndim) → face-centred (ndim, *spatial).
+
+        PhiFlow's native CenteredGrid→StaggeredGrid resampling.
+        """
+        v_arr = jnp.moveaxis(v, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
+        channel = math.stack(
+            [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],
+            dim=math.channel("vector"),
+        )
+        staggered = StaggeredGrid(
+            CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        return staggered_to_faces(staggered)
+
+    force_faces = None if forcing is None else faces_to_staggered(to_faces(forcing))
+
+    # The force and the drag are part of the momentum rate, so every RK4 stage
+    # sees them, the drag at that stage's velocity.
     def momentum(vel: StaggeredGrid) -> StaggeredGrid:
-        return advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
+        rate = advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
             vel, viscosity, order=2
         )
+        if force_faces is not None:
+            rate = rate + force_faces
+        if linear_drag is not None:
+            rate = rate - linear_drag * vel
+        return rate
 
     # phiflow's documented pairing for accurate periodic flow: finite
     # differences under incompressible_rk4 instead of operator splitting
@@ -177,21 +211,9 @@ def periodic_fwd(
         )
         return (staggered_to_faces(vel), p.values.native(spatial_str)), None
 
-    # Convert IC from collocated to staggered face values once using PhiFlow's
-    # native CenteredGrid→StaggeredGrid resampling.  The scan carry then stays
+    # Convert the IC to staggered face values once. The scan carry then stays
     # in face-value space so no smoothing accumulates across steps.
-    v_arr = jnp.moveaxis(v0, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
-    channel = math.stack(
-        [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],
-        dim=math.channel("vector"),
-    )
-    vel_init = StaggeredGrid(
-        CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
-        ext,
-        bounds=bounds,
-        **grid_kwargs,
-    )
-    face_init = staggered_to_faces(vel_init)
+    face_init = to_faces(v0)
 
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
@@ -400,17 +422,19 @@ def apply_jit(inputs: dict) -> dict:
         inputs["dt"],
         inputs["steps"],
         inputs["domain_extent"],
+        inputs["forcing"],
+        inputs["linear_drag"],
     )
     return {"result": result}
 
 
-_SCALAR_KEYS = ("viscosity", "dt")
+_SCALAR_KEYS = ("viscosity", "dt", "linear_drag")
 
 
 def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
-        if key in d:
+        if d.get(key) is not None:
             d[key] = float(d[key][0])
     return d
 

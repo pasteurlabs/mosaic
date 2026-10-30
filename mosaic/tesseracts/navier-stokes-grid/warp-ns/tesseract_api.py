@@ -48,12 +48,17 @@ def tentative_vel_2d_kernel(
     inv_2h: float,
     inv_h2: float,
     nu: wp.array(dtype=wp.float32),
+    fx: wp.array2d(dtype=wp.float32),
+    fy: wp.array2d(dtype=wp.float32),
+    drag: wp.array(dtype=wp.float32),
 ) -> None:
-    """2-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u).
+    """2-D tentative velocity: u* = u + dt·(-u·∇u + ν∇²u + f - αu).
 
     ``dt`` and ``nu`` are 1-element arrays (rather than plain floats) so that
     Warp's source-to-source autodiff tracks gradients w.r.t. them: Warp only
-    differentiates through array-typed kernel arguments.
+    differentiates through array-typed kernel arguments. The body force
+    ``(fx, fy)`` and the drag coefficient ``drag`` (α) are zero when the inputs
+    carry none.
 
     [2D-only function]
     """
@@ -76,7 +81,7 @@ def tentative_vel_2d_kernel(
         ui * (ux[ip1, j] - ux[im1, j]) * inv_2h
         + vi * (ux[i, jp1] - ux[i, jm1]) * inv_2h
     )
-    ux_star[i, j] = ui + dt_ * (-adv_ux + nu_ * lap_ux)
+    ux_star[i, j] = ui + dt_ * (-adv_ux + nu_ * lap_ux + fx[i, j] - drag[0] * ui)
 
     # uy component
     lap_uy = (uy[im1, j] + uy[ip1, j] + uy[i, jm1] + uy[i, jp1] - 4.0 * vi) * inv_h2
@@ -84,7 +89,7 @@ def tentative_vel_2d_kernel(
         ui * (uy[ip1, j] - uy[im1, j]) * inv_2h
         + vi * (uy[i, jp1] - uy[i, jm1]) * inv_2h
     )
-    uy_star[i, j] = vi + dt_ * (-adv_uy + nu_ * lap_uy)
+    uy_star[i, j] = vi + dt_ * (-adv_uy + nu_ * lap_uy + fy[i, j] - drag[0] * vi)
 
 
 @wp.kernel
@@ -1204,6 +1209,26 @@ def _poisson_workspace_3d(n: int, device: str) -> dict:
     }
 
 
+def _body_force_2d(
+    forcing_np: np.ndarray | None, linear_drag: float | None, n: int, device: str
+) -> tuple[wp.array, wp.array, wp.array]:
+    """Force components and drag coefficient for ``tentative_vel_2d_kernel``.
+
+    The force is collocated like the velocity, so it is used as given. Absent
+    inputs become zeros, which leave the update unchanged.
+    """
+    if forcing_np is None:
+        forcing_np = np.zeros((n, n, 1, 2), dtype=np.float32)
+    fx = wp.array(forcing_np[:, :, 0, 0], dtype=wp.float32, device=device)
+    fy = wp.array(forcing_np[:, :, 0, 1], dtype=wp.float32, device=device)
+    drag = wp.array(
+        np.array([linear_drag or 0.0], dtype=np.float32),
+        dtype=wp.float32,
+        device=device,
+    )
+    return fx, fy, drag
+
+
 def ns2d_solve_tape(
     v0_np: np.ndarray,
     viscosity: float,
@@ -1212,6 +1237,8 @@ def ns2d_solve_tape(
     domain_extent: float,
     device: str = "cpu",
     track_scalar_grads: bool = False,
+    forcing_np: np.ndarray | None = None,
+    linear_drag: float | None = None,
 ) -> tuple[wp.Tape, wp.array, wp.array, wp.array, wp.array, wp.array, wp.array]:
     """Run periodic 2-D incompressible NS by Chorin projection under a tape.
 
@@ -1282,6 +1309,7 @@ def ns2d_solve_tape(
         requires_grad=track_scalar_grads,
         device=device,
     )
+    fx_wp, fy_wp, drag_wp = _body_force_2d(forcing_np, linear_drag, n, device)
 
     tape = wp.Tape()
     with tape:
@@ -1297,7 +1325,19 @@ def ns2d_solve_tape(
             wp.launch(
                 tentative_vel_2d_kernel,
                 dim=(n, n),
-                inputs=[cur_ux, cur_uy, ux_star, uy_star, dt_wp, inv_2h, inv_h2, nu_wp],
+                inputs=[
+                    cur_ux,
+                    cur_uy,
+                    ux_star,
+                    uy_star,
+                    dt_wp,
+                    inv_2h,
+                    inv_h2,
+                    nu_wp,
+                    fx_wp,
+                    fy_wp,
+                    drag_wp,
+                ],
                 block_dim=_bd_2d,
                 device=device,
             )
@@ -1366,6 +1406,8 @@ def ns2d_solve_forward(
     steps: int,
     domain_extent: float,
     device: str = "cpu",
+    forcing_np: np.ndarray | None = None,
+    linear_drag: float | None = None,
 ) -> np.ndarray:
     """Forward-only periodic 2-D incompressible NS by Chorin projection, no gradients.
 
@@ -1399,6 +1441,7 @@ def ns2d_solve_forward(
         np.array([viscosity], dtype=np.float32), dtype=wp.float32, device=device
     )
     dt_wp = wp.array(np.array([dt], dtype=np.float32), dtype=wp.float32, device=device)
+    fx_wp, fy_wp, drag_wp = _body_force_2d(forcing_np, linear_drag, n, device)
 
     ux_star = wp.zeros((n, n), dtype=wp.float32, device=device)
     uy_star = wp.zeros((n, n), dtype=wp.float32, device=device)
@@ -1419,6 +1462,9 @@ def ns2d_solve_forward(
                 inv_2h,
                 inv_h2,
                 nu_wp,
+                fx_wp,
+                fy_wp,
+                drag_wp,
             ],
             block_dim=_bd_2d,
             device=device,
@@ -2558,9 +2604,28 @@ def apply(inputs: InputSchema) -> OutputSchema:
         )
     else:
         result = ns2d_solve_forward(
-            v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
+            v0,
+            nu,
+            dt,
+            inputs.steps,
+            inputs.domain_extent,
+            device=device,
+            **_body_force_args(inputs),
         )
     return OutputSchema(result=result)
+
+
+def _body_force_args(inputs: InputSchema) -> dict[str, Any]:
+    return {
+        "forcing_np": (
+            None
+            if inputs.forcing is None
+            else np.asarray(inputs.forcing, dtype=np.float32)
+        ),
+        "linear_drag": (
+            None if inputs.linear_drag is None else float(inputs.linear_drag[0])
+        ),
+    }
 
 
 def channel_vjp(
@@ -2673,6 +2738,7 @@ def vector_jacobian_product(
             inputs.domain_extent,
             device=device,
             track_scalar_grads=track_scalar_grads,
+            **_body_force_args(inputs),
         )
         cot_result = np.asarray(
             cotangent_vector.get("result", np.zeros_like(v0)), dtype=np.float32

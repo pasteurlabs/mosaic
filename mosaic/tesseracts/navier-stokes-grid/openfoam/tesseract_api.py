@@ -1007,6 +1007,13 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     With an obstacle, also return the final pressure and the force history.
     """
+    if inputs.forcing is not None or inputs.linear_drag is not None:
+        # Supporting a source term needs the foamRun incompressibleFluid
+        # solver with a coded fvModel in place of icoFoam.
+        raise NotImplementedError(
+            "openfoam runs icoFoam, which has no momentum source term, so it "
+            "cannot apply forcing or linear_drag"
+        )
     if inputs.obstacle is not None:
         return _run_channel(inputs)
 

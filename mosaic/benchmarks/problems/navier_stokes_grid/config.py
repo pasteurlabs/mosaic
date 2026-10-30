@@ -70,12 +70,12 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import cylinder
+from . import chain, cylinder, kolmogorov
 from .exclusions import register as _register_exclusions
 from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt
+from .plots import plot_drag_opt, plot_kolmogorov
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -87,9 +87,6 @@ _TESSERACT_SLUG = "navier-stokes-grid"
 # applied here.
 
 _SOLVERS: dict[str, SolverSpec] = discover_solvers(_TESSERACT_SLUG)
-
-# Exponax is a 3D-only spectral solver; exclude it from the 2D suite.
-_SOLVERS.pop("exponax", None)
 
 # Plot styling lives in mosaic.benchmarks.problems.shared.plots.solver_styles, not in YAML.
 apply_styles(_SOLVERS)
@@ -167,6 +164,16 @@ problem.add_ic(
     description=(
         "Taylor–Green vortex $u=\\sin(x)\\cos(y)$, $v=-\\cos(x)\\sin(y)$; has a closed-form "
         "analytic solution for viscous decay, enabling solver verification."
+    ),
+    plot_params={"N": 64},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "rest",
+    fn=kolmogorov.rest,
+    description=(
+        "The fluid at rest. A constant body force then drives the laminar "
+        "Kolmogorov transient, which has a closed form."
     ),
     plot_params={"N": 64},
     plot=plot_ic,
@@ -301,6 +308,60 @@ problem.add_experiment(
         cylinder.max_cd_drift(1e-3),
     ],
 )
+problem.add_experiment(
+    "forward/kolmogorov_laminar",
+    agreement,
+    plot_description=(
+        "Relative error vs grid resolution $N$ of the flow that the Kolmogorov"
+        " force $(A\\sin(\\kappa y), 0)$, $\\kappa = 4$, drives from rest"
+        " against linear drag, at $t = 2$. The flow stays a shear flow, so it has"
+        " the exact solution $u = (A/\\lambda)(1 - e^{-\\lambda t})"
+        " \\sin(\\kappa y)$ with $\\lambda = \\nu\\kappa^2 + \\alpha$. The"
+        " timestep is small enough that the error is the spatial one."
+    ),
+    ic={"name": "rest", "seed": 0},
+    physics={
+        "N": [32, 64, 128],
+        "nu": 0.05,
+        "dt": 0.002,
+        "steps": 1000,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.laminar_reference,
+    plot=plot_agreement,
+    # A second-order scheme misses this mode by about (κh)²/12 in its
+    # diffusion rate, 1.3% at N = 64, while a wrong 2π/L factor, a flipped
+    # sign or a force half a cell off (a phase error of κh/2) cost 20% or
+    # more. 5% at N = 64 separates the two; the coarser grid only shows the
+    # order. Not peer-relative: the bound comes from the solution.
+    status_check=[max_error(0.05, at=64), min_order(0.8)],
+)
+problem.add_experiment(
+    "forward/kolmogorov",
+    kolmogorov.forward,
+    plot_description=(
+        "Each solver on 32² to 256² grids against a converged Exponax run at"
+        " 1024², from three turbulent states of the Kolmogorov flow at"
+        " ν = 2·10⁻³. Every grid runs at the CFL number of 64² with dt = 0.01"
+        " and is scored on the 64² grid. Relative error at t = 4 against the"
+        " wall time of one time unit, and relative error per time on each"
+        " grid; medians over the states."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "dt": kolmogorov.COARSE_DT,
+        "grids": list(kolmogorov.FORWARD_GRIDS),
+        "nu": kolmogorov.VISCOSITY,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.generate_ground_truth,
+    plot=plot_kolmogorov,
+    # Space and time are refined together, so a consistent scheme converges
+    # at order 1 or more, as on forward/baseline; 0.8 catches error floors and
+    # non-convergence. Not peer-relative: the bound comes from the scheme's
+    # consistency.
+    status_check=[kolmogorov.min_refinement_order(0.8)],
+)
 # Cost
 problem.add_experiment(
     "cost/spatial_cost",
@@ -356,6 +417,43 @@ problem.add_experiment(
     status_check=[
         min_cosine(0.99),
         max_rel_err(1e-3),
+        rel_err_peer_outlier(50.0),
+    ],
+)
+problem.add_experiment(
+    "gradient/chain_fd_check",
+    chain.chain_fd_check,
+    plot_description=(
+        "Finite-difference check of the gradient of a loss on 16 chained solver"
+        " calls of 0.1 time units each, on the Kolmogorov flow at 64² and"
+        " dt = 0.01, from a turbulent state of its ground truth plus a 1%"
+        " divergence-free offset. The loss is the mean relative squared"
+        " distance to the solver's chain from that state, as in training"
+        " through a solver, so its cotangents are far smaller than those of"
+        " the single-call checks. Error and 1 − cos against ε, over 8"
+        " divergence-free directions."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "dt": kolmogorov.COARSE_DT,
+        "steps": 10,
+        "intervals": 16,
+        "offset": 0.01,
+        "nu": kolmogorov.VISCOSITY,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2], "n_dirs": 8},
+    plot=plot_fd_check,
+    # The finite differences run the solver in float32, so even an exact VJP
+    # meets them only to the rounding and truncation error of the difference
+    # quotient: on the A100 the best ε gives median errors of order 1e-4 to
+    # 1e-3 for the solvers whose VJP is linear in the cotangent, with cosines
+    # above 0.9999. A VJP whose adjoint solves stop at an absolute tolerance
+    # is off by tens of percent with a cosine near 0.5. Both bounds sit at
+    # least a factor of five from either side.
+    status_check=[
+        min_cosine(0.99),
+        max_rel_err(1e-2),
         rel_err_peer_outlier(50.0),
     ],
 )

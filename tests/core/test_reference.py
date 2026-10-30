@@ -98,6 +98,20 @@ class TestSpectralDownsample:
         assert ds.shape == (nt, nt, nt, 3)
         np.testing.assert_allclose(ds, direct, atol=1e-12)
 
+    def test_2d_layout_keeps_its_singleton_axis(self):
+        """The ns-grid layout (N, N, 1, C) truncates the two spatial axes only."""
+        n, nt = 32, 16
+        x = np.linspace(0, 2 * np.pi, n, endpoint=False)
+        X, Y = np.meshgrid(x, x, indexing="ij")
+        field = np.stack([np.sin(X) * np.cos(2 * Y), np.cos(3 * X)], -1)[:, :, None]
+        ds = spectral_downsample(field, nt)
+
+        x2 = np.linspace(0, 2 * np.pi, nt, endpoint=False)
+        X2, Y2 = np.meshgrid(x2, x2, indexing="ij")
+        direct = np.stack([np.sin(X2) * np.cos(2 * Y2), np.cos(3 * X2)], -1)
+        assert ds.shape == (nt, nt, 1, 2)
+        np.testing.assert_allclose(ds[:, :, 0], direct, atol=1e-12)
+
     def test_upsample_rejected(self):
         field = np.zeros((8, 8, 8, 3))
         with pytest.raises(ValueError):
@@ -187,11 +201,15 @@ class TestConsensusFromFields:
 
 
 class TestPrecomputedExperiments:
-    def test_ns_grid_only_multimode_agreement(self):
+    def test_ns_grid_multimode_agreement_and_kolmogorov(self):
         # The Taylor–Green experiments use the analytic solution and
-        # forward/cylinder the DFG 2D-1 literature values; only the multimode
-        # agreement needs a stored consensus.
-        assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == ["forward/agreement/multimode"]
+        # forward/cylinder the DFG 2D-1 literature values; the multimode
+        # agreement needs a stored consensus and forward/kolmogorov its
+        # converged ground truth.
+        assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == [
+            "forward/agreement/multimode",
+            "forward/kolmogorov",
+        ]
 
     def test_structural_mesh_experiments(self):
         exps = PRECOMPUTED_EXPERIMENTS["structural-mesh"]
@@ -237,10 +255,19 @@ class TestCheckedInReferences:
         ],
     )
     def test_reference_loadable(self, domain, exp_key):
-        """Each checked-in reference must have at least one reference_* array."""
+        """Each checked-in reference must have at least one reference_* array.
+
+        The Kolmogorov ground truth holds initial states and trajectories
+        instead, one per seed.
+        """
         ref_dir = _reference_dir(domain)
         path = ref_dir / _reference_filename(exp_key)
         with np.load(str(path), allow_pickle=False) as data:
+            if (domain, exp_key) == ("ns-grid", "forward/kolmogorov"):
+                assert any(k.startswith("initial_") for k in data.files)
+                assert any(k.startswith("truth_") for k in data.files)
+                assert "horizon_times" in data
+                return
             ref_keys = [k for k in data.files if k.startswith("reference_")]
             assert len(ref_keys) > 0, f"No reference_* arrays in {path}"
             assert "sweep_values" in data, f"No sweep_values in {path}"

@@ -69,13 +69,18 @@ def _reference_filename(exp_key: str) -> str:
     return exp_key.replace("/", "_") + ".npz"
 
 
+def reference_path(domain: str, exp_key: str) -> Path:
+    """Path of the checked-in reference NPZ of one experiment."""
+    return _reference_dir(domain) / _reference_filename(exp_key)
+
+
 def load_reference(domain: str, exp_key: str, sweep_index: int) -> np.ndarray | None:
     """Load a precomputed reference field for one sweep value.
 
     Returns ``None`` if the reference file doesn't exist or doesn't
     contain an entry for the requested sweep index.
     """
-    path = _reference_dir(domain) / _reference_filename(exp_key)
+    path = reference_path(domain, exp_key)
     if not path.exists():
         return None
     try:
@@ -190,6 +195,7 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     # solution.
     "ns-grid": [
         "forward/agreement/multimode",
+        "forward/kolmogorov",
     ],
     "structural-mesh": [
         "forward/baseline",
@@ -238,6 +244,9 @@ CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
     ("ns-3d-grid", "forward/agreement"): ConvergedSpec(solver="Exponax", high_n=64),
     # 3D resolution sweep: one high-resolution run per grid, truncated to it.
     ("ns-3d-grid", "forward/baseline"): ConvergedSpec(solver="Exponax", high_n=64),
+    # Kolmogorov flow: burned-in states and a turbulent trajectory at N=1024,
+    # converged against N=512 (see the ns-grid references README).
+    ("ns-grid", "forward/kolmogorov"): ConvergedSpec(solver="Exponax", high_n=1024),
 }
 
 
@@ -250,20 +259,22 @@ def spectral_downsample(field: np.ndarray, n_target: int) -> np.ndarray:
     """Spectrally truncate a periodic field to ``n_target`` points per axis.
 
     ``field`` has shape ``(N, N, N, C)`` (or ``(N, N, C)``) on a uniform
-    periodic grid. Truncation keeps the ``n_target`` lowest-|k| Fourier modes
-    per spatial axis; it is exact when the field carries no energy above the
-    target Nyquist cutoff. Returns the same layout at ``n_target`` per axis.
+    periodic grid; the 2-D layout ``(N, N, 1, C)`` keeps its singleton axis.
+    Truncation keeps the ``n_target`` lowest-|k| Fourier modes per spatial
+    axis; it is exact when the field carries no energy above the target
+    Nyquist cutoff. Returns the same layout at ``n_target`` per axis.
     """
-    spatial = field.ndim - 1
-    axes = tuple(range(spatial))
     n = field.shape[0]
+    axes = tuple(a for a in range(field.ndim - 1) if field.shape[a] == n)
     if n_target > n:
         raise ValueError(f"n_target={n_target} exceeds source resolution {n}")
     fh = np.fft.fftn(field, axes=axes)
     h = n_target // 2
     idx = np.concatenate([np.arange(h), np.arange(n - h, n)])
-    fh = fh[np.ix_(*([idx] * spatial), range(field.shape[-1]))]
-    out = np.fft.ifftn(fh, axes=axes) * (n_target / n) ** spatial
+    fh = fh[
+        np.ix_(*(idx if a in axes else range(size) for a, size in enumerate(fh.shape)))
+    ]
+    out = np.fft.ifftn(fh, axes=axes) * (n_target / n) ** len(axes)
     return np.real(out)
 
 
