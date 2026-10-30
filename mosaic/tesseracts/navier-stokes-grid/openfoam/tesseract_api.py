@@ -861,9 +861,26 @@ def _read_forces(workdir: Path, depth: float) -> np.ndarray:
     return (data[:, 1:3] + data[:, 4:6]) / depth
 
 
+def _physical_cores() -> int:
+    """Physical cores among the CPUs this process may run on.
+
+    One rank per physical core: OpenFOAM's ranks busy-wait in MPI, and two
+    of them on hardware threads of the same core slow each other down.
+    """
+    cpus = os.sched_getaffinity(0)
+    siblings = set()
+    for cpu in cpus:
+        path = Path(f"/sys/devices/system/cpu/cpu{cpu}/topology/thread_siblings_list")
+        try:
+            siblings.add(path.read_text().strip())
+        except OSError:
+            return len(cpus)
+    return len(siblings)
+
+
 def _decompose(workdir: Path, n_cells: int) -> int:
     """Split the case over the available cores; returns the number of processes."""
-    n_procs = min(len(os.sched_getaffinity(0)), n_cells // _CELLS_PER_PROCESS)
+    n_procs = min(_physical_cores(), n_cells // _CELLS_PER_PROCESS)
     if n_procs < 2:
         return 1
     (workdir / "system" / "decomposeParDict").write_text(
@@ -1019,7 +1036,10 @@ def apply(inputs: InputSchema) -> OutputSchema:
         _write_initial_p(workdir, ndim)
 
         _run_of("blockMesh", workdir)
-        _run_of("icoFoam", workdir)
+        n_procs = _decompose(workdir, N**ndim)
+        _run_of(_parallel("icoFoam", n_procs), workdir)
+        if n_procs > 1:
+            _run_of("reconstructPar -latestTime", workdir)
 
         result = _read_final_velocity(workdir, N, ndim)
 
