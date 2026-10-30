@@ -1,6 +1,6 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below). What remains is reviewing and merging the open pull requests, the decisions listed under "For Dion", and the upstream issues. Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
+**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below), and the session's open questions are decided ("Decisions taken 2026-10-30"). What remains is reviewing and merging the open pull requests, reading #314's benchmark run, and filing the upstream issues. Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
 
 ## Read first
 
@@ -31,6 +31,9 @@ Open from this pass, CI green on every head commit unless noted:
 | #309 | JAX-FEM's `numerics` label and JVP docstring describe its BiCGSTAB      | none   | Docs only; PETSc solvers measured, not adopted                                                                                                |
 | #310 | Forcing in every PhiFlow RK4 stage; merges `main` into #267's branch    | solver | Based on `feat/ns-grid-forcing`, not `main`. Forcing tests pass for PhiFlow and PICT; XLB's forcing path untested                             |
 | #311 | Warp-NS setup caches hold the current grid only                         | solver | Statuses and forward errors unchanged, cost within 6%                                                                                         |
+| #312 | Harness classifies CUDA.jl's out-of-GPU-memory error as OOM             | none   | Verified on a served INS.jl failure under a 15 GiB cap: `error` → `OOM`                                                                       |
+| #313 | Documented cause for PICT's ns-grid cost anomaly                        | none   | Solves bound by synchronisation; both cells 🟠ⁱ                                                                                               |
+| #314 | OpenFOAM periodic cases decomposed over the physical cores              | solver | Contains #306's commit; its CI run decides (Decisions 2026-10-30, item 2)                                                                     |
 
 Conflicts when merging: #299 and #300 both edit TopOpt.jl's cache in `solver.jl`; #308 and #296 edit adjacent lines of PhiFlow's `tesseract_api.py`; #269 removes the OpenFOAM channel decomposition, near #306's periodic change. #303's records must follow whatever merges first.
 
@@ -40,24 +43,13 @@ Conflicts when merging: #299 and #300 both edit TopOpt.jl's cache in `solver.jl`
 
 **Reading CI results.** Each pull request opened with a label starts two benchmark runs; the first is cancelled. Read the bot comment of the completed run on the head commit. Metric changes on cells a pull request cannot touch are baseline drift; compare with a local A/B before acting on them. A crashed sweep entry can show as "ok" locally when `ab.sh` has merged the reference results: check per-entry `metrics.status` (`compare.py` prints the failed entries).
 
-## For Dion
-
-1. **Firedrake heat with MPI:** the solve halves by 8 ranks, but a served tesseract would need a persistent MPI worker pool with pyadjoint's tape across ranks (`session6-measurements.md`). Worth doing?
-2. **OpenFOAM decomposition:** faster on an idle machine, collapses under load (ranks busy-wait). Not adopted because benchmark runs share the machine with GPU jobs. Revisit if CPU jobs get dedicated cores.
-3. **PhiFlow channel tolerance:** #308 uses 1e-2, the loosest at which every check holds. 1e-3 is the more conservative choice with the same checks, at about twice the drag_opt time.
-4. **INS.jl threads:** with `JULIA_NUM_THREADS=auto` and juliacall's signal handling on, the CPU entry is 1.5–4.4× faster. Recorded only, since #307 moves INS.jl to the GPU.
-5. **INS.jl horizon ceiling on the T4** (#307): reverse mode stores ~5.5 MB per 3-D N = 20 step on the device. Checkpointing would lift it but is engineering beyond the library's documented use; as it stands the ceiling is a result.
-6. **PICT's ns-grid cost anomaly** (32× and 26× the GPU median in CI, unexplained on `main`): 90% of an apply is in `PISOtorch.SolveLinear`, about 32 ms per solve nearly independent of grid size. A documented-cause exclusion could cite this; not written.
-7. **Unused explanations:** the bot reports the ns-3d-grid `forward/agreement` face-averaging explanation as unused for INS.jl, jax-cfd and PhiFlow. Remove them, or keep them for runs where the cells trip again?
-8. **phiml `'cluster'` preconditioner issue:** drafted in `upstream-phiml-cluster.md`, not approved.
-
 ## Done in the sixth session
 
 The fifth session's "Next" list, in its order:
 
-1. **#296's run:** all four PhiFlow ns-grid cost cells are explained anomalies on the head commit. #291's multimode shifts: on the A100, `forward/agreement/multimode` with the old flags and with XLA's default autotuning is bit-identical for jax-cfd and XLB and within 6e-4 relative for PhiFlow, and `main`'s forward, gradient and cost suites for the three solvers have no failed entries beyond the b6eb311 reference run's, except XLB's 3-D VJP NaN at 320 steps, which is BGK's limit (recorded in #282) and reproduces with the old flags. This agrees with Dion's finding that the CI shifts came from scoring against the consensus of the solvers present in each CI job, which #298 fixes. #292: INS.jl cost unchanged locally (every cell within 3%), so the CI shift was drift; TopOpt.jl's structural forward error of exactly 0 is expected, since its float32 compliance matches the checked-in reference built from the same load (#281).
+1. **#296's run:** all four PhiFlow ns-grid cost cells are explained anomalies on the head commit. #291's multimode shifts: on the A100, `forward/agreement/multimode` with the old flags and with XLA's default autotuning is bit-identical for jax-cfd and XLB and within 6e-4 relative for PhiFlow, and `main`'s forward, gradient and cost suites for the three solvers have no failed entries beyond the b6eb311 reference run's (jax-cfd's ns-3d-grid suites, which postdate that run, have none), except XLB's 3-D VJP NaN at 320 steps, which is BGK's limit (recorded in #282) and reproduces with the old flags. This agrees with Dion's finding that the CI shifts came from scoring against the consensus of the solvers present in each CI job, which #298 fixes. #292: INS.jl cost unchanged locally (every cell within 3%), so the CI shift was drift; TopOpt.jl's structural forward error of exactly 0 is expected, since its float32 compliance matches the checked-in reference built from the same load (#281).
 2. **Tolerances:** torch-fem's CG (#301); the channel CG of Warp-NS and PhiFlow (#308). PICT's periodic tolerance was set in #287.
-3. **CPU parallelism and solvers:** deal.II heat AMG (#305); OpenFOAM periodic GAMG (#306), decomposition not adopted; FEniCS heat stays serial (slower with every rank); Firedrake and INS.jl threads are options (For Dion 1 and 4).
+3. **CPU parallelism and solvers:** deal.II heat AMG (#305); OpenFOAM periodic GAMG (#306), decomposition in #314; FEniCS heat stays serial (slower with every rank); Firedrake MPI and INS.jl threads not adopted (Decisions 2026-10-30, items 1, 2 and 4).
 4. **INS.jl on the GPU:** #307.
 5. **Policy 2 work items** (the per-solver statement is `policy2-adaptations.md`):
    - the deal.II worker (#297);
@@ -73,7 +65,17 @@ The fifth session's "Next" list, in its order:
 
 ## Upstream issues
 
-Dion files them, because the sandbox token gets HTTP 403 outside pasteurlabs. Ready: `upstream-phiml.md` and `upstream-pict.md` (attach the matrices from the sandbox). Not approved: `upstream-phiflow-rk4.md`, the TopOpt.jl Julia 1.11 precompile issue, `upstream-xlb.md`, `upstream-phiml-cluster.md`.
+Dion files them, because the sandbox token gets HTTP 403 outside pasteurlabs. Each draft was re-checked on 2026-10-30 against the latest release and default branch (no newer release, no existing issue):
+
+| Draft                             | Repository            | Attach                                                                                                        |
+| --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `upstream-phiml.md`               | tum-pbs/PhiML         | `upstream-phiml-repro.py`                                                                                     |
+| `upstream-phiml-cluster.md`       | tum-pbs/PhiML         | — (inline reproducer)                                                                                         |
+| `upstream-pict.md`                | tum-pbs/PICT          | `pressure_system_{true,false}.npz` from `~/localfiles/runs/cleanup/upstream/pict/`, `diag/pict/standalone.py` |
+| `upstream-phiflow-rk4.md`         | tum-pbs/PhiFlow       | `diag/phiflow/rk4order.py`                                                                                    |
+| `upstream-topopt-julia-compat.md` | JuliaTopOpt/TopOpt.jl | —                                                                                                             |
+
+Not filed: `upstream-xlb.md` (Mosaic pins Warp since #265, and XLB's maintainers are already moving to newer Warp in Autodesk/XLB#168) and `upstream-topopt-jl.md` (fixed in 0.14.0).
 
 ## Decisions taken 2026-10-27
 
@@ -97,6 +99,19 @@ Dion files them, because the sandbox token gets HTTP 403 outside pasteurlabs. Re
 3. **Cost checks compare within a device class** (#293), as the results pages do. A serial CPU solver is no longer flagged against GPU peers, so OpenFOAM's explained cost anomaly in ns-grid goes away. This exposes PhiFlow's 2D cost: 21–42× the GPU median on the current baseline.
 4. **XLA autotuning:** restored (#291). If a failure reproduces on the T4 or the A100, the flag returns for that solver with the reason recorded.
 5. The answers to the questions in `cleanup-notes/policy4-tuning.md` are recorded there.
+
+## Decisions taken 2026-10-30
+
+Taken from what Mosaic is for. It tells people who optimize or train through a simulation what to expect from each solver: gradient accuracy, cost, and whether it runs the task at all, with each solver configured as an experienced user would and measured on the benchmark's own hardware. The published results come from CI: each suite on a dedicated VM (CPU jobs on a Xeon 8573C, GPU jobs on a T4), solvers one after another. So a change belongs in Mosaic when it makes a published number describe the solver as practitioners run it on that hardware. Findings about the method stay and get labelled correctly. Engineering that no user of the wrapped library would do is out, because integration effort is itself one of the things Mosaic reports.
+
+1. **Firedrake heat with MPI: no.** Per-call `mpirun` costs more than the solve gains. Only a persistent MPI worker pool with pyadjoint's tape spread over the ranks would gain anything, and that measures our infrastructure rather than Firedrake. The heat solvers stay serial, which also keeps that CPU class like with like (FEniCS gets slower with ranks).
+2. **OpenFOAM decomposition: measured on the benchmark hardware via #314.** The earlier reason for not adopting it, a machine shared with GPU jobs, held for the sandbox but not for CI. An experienced OpenFOAM user decomposes large cases, and the hardware rule makes ranks a tuning choice picked by measurement. #314 uses one rank per physical core, because busy-waiting ranks on sibling hardware threads slow each other down. Merge it if its run improves OpenFOAM's cost cells over #306's run; otherwise close it and keep #306.
+3. **PhiFlow channel tolerance: 1e-2 stays (#308).** The tuning rule asks for the loosest tolerance at which every check holds. 1e-2 meets it, also on the T4 in CI. Picking 1e-3 would apply a rule that is not written down.
+4. **INS.jl threads: not adopted.** #307's GPU backend is the library's own and the faster entry; the CPU threading result stays in `session6-measurements.md`.
+5. **INS.jl's T4 horizon ceiling: a result.** jax-cfd, the other entry whose reverse mode stores every step on the GPU, stops at the same 5120 steps on the T4. In both, gradient norms grow from about 90 at 160 steps to 1e5–1e6 by 1280, so a longer horizon would not yield a usable gradient. This is the README's memory finding, set by the differentiation strategy. Checkpointing, as XLB does, would only be fair if applied to both tape-based entries. #312 makes the harness label the ceiling OOM.
+6. **PICT's ns-grid cost anomaly: explained (#313).** Each solve is bound by device synchronisations, not by grid size. A reader of the results page should see the cause.
+7. **Unused `forward/agreement` explanations in ns-3d-grid: kept.** The cells pass in CI only because jax-cfd's error lifts the peer median; the staggered entries sit at about 2.6× it, and without jax-cfd (as in the A100 reference run) INS.jl and PhiFlow trip again. The face-averaging mechanism holds in either case.
+8. **phiml `'cluster'` issue: file it.** A documented preconditioner option crashes on a periodic solve, with a three-line reproducer, still on phiml 1.16.1. The PhiFlow RK4 and TopOpt.jl Julia 1.11 drafts go out for the same reason: verified bugs, still present on the default branches.
 
 ## Constraints
 

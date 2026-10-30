@@ -1,6 +1,6 @@
 # Draft: Autodesk/XLB
 
-**Status:** draft, not filed. File only after Dion approves. May not be needed (see notes).
+**Status:** not filed (decided 2026-10-30). Mosaic pins Warp (#265), and XLB's maintainers are already moving to newer Warp releases (Autodesk/XLB#168). Text kept for the record.
 
 **Title:** Release request: xlb 0.3.1 fails to import with warp-lang ≥ 1.13
 

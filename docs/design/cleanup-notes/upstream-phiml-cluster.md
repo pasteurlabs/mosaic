@@ -1,6 +1,6 @@
 # Draft: tum-pbs/PhiML, `'cluster'` preconditioner on a periodic pressure solve
 
-**Status:** drafted 2026-10-29, not approved, not filed. Found while measuring PhiFlow's 2-D cost (`phiflow-cost.md`). Mosaic does not use the preconditioner, so nothing waits on this.
+**Status:** ready to file (decided 2026-10-30). Re-checked 2026-10-30 on phiml 1.16.1 (latest release): both failures reproduce as written. Found while measuring PhiFlow's 2-D cost (`phiflow-cost.md`); Mosaic does not use the preconditioner.
 
 **Title:** `Solve(preconditioner='cluster')` fails in `make_incompressible` on a periodic grid: "shape of weights must match shape of x"
 

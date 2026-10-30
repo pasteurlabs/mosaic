@@ -94,7 +94,7 @@ BiCG changes outputs (2-D apply up to 4e-3 relative, viscosity gradient up to 10
 Two side findings:
 
 - PICT's VJP is not bit-reproducible: CG against CG across rounds differs by up to 1.8% in the 2-D N=256 viscosity gradient (3e-4 in the velocity gradient).
-- 90% of a periodic `apply` is `PISOtorch.SolveLinear` (cProfile, 2-D N=128): 300 solves per 100 steps, about 32 ms each, and the whole apply grows only from 6.3 s at N=32 to 13 s at N=256 (under contention). The cost is per-solve latency, not grid work. This is the likely source of PICT's ns-grid cost anomaly (32× the GPU median in CI, not explained on `main`); not examined further.
+- 90% of a periodic `apply` is `PISOtorch.SolveLinear` (cProfile, 2-D N=128): 300 solves per 100 steps, about 32 ms each. A follow-up profile (10 steps, every solve timed, CUDA runtime calls counted) shows why: each CG iteration adds about three stream synchronisations, each solve about 19 device synchronisations and 10 `cudaFree` calls whatever the size, and the apply time is about 0.30 ms per synchronisation at both N=32 (152 iterations, 1283 synchronisations, 388 ms) and N=256 (881 iterations, 3470 synchronisations, 1050 ms). A solve takes 8.9 ms at N=32 and 35 ms at N=256, for 64 times the cells. This is the cause of PICT's ns-grid cost anomaly (32× and 26× the GPU median in CI); #313 records it.
 
 ## CI findings on this session's PRs
 
@@ -111,7 +111,7 @@ Images for jax-cfd, PhiFlow and XLB built from `main` with #291 (`x291main`) and
 | XLB     | 0 (bit-identical)                           |
 | PhiFlow | 5.6e-4 (ν = 0.05; 1e-7 to 2e-5 at the rest) |
 
-The full forward, gradient and cost suites on `main` for the three solvers have no failed entries beyond those of the b6eb311 reference run, with one exception: XLB's ns-3d-grid `horizon_sweep_limits` VJP is NaN at 320 steps (the reference reached 5120). That is BGK's limit, recorded in #282, and it reproduces with the old flags (same gradient norms at 40–160 steps). So the flags do not explain CI's multimode shifts on #291, consistent with #298's finding that they came from scoring against the consensus of the solvers present in each CI job. The flags were not run on the CI's T4.
+The full forward, gradient and cost suites on `main` for the three solvers have no failed entries beyond those of the b6eb311 reference run (jax-cfd's ns-3d-grid suites, added in #283 after that run, have none; its horizon sweep reaches 10 240 steps on the A100), with one exception: XLB's ns-3d-grid `horizon_sweep_limits` VJP is NaN at 320 steps (the reference reached 5120). That is BGK's limit, recorded in #282, and it reproduces with the old flags (same gradient norms at 40–160 steps). So the flags do not explain CI's multimode shifts on #291, consistent with #298's finding that they came from scoring against the consensus of the solvers present in each CI job. The flags were not run on the CI's T4.
 
 ## PICT channel geometry cache: not adopted
 
@@ -124,3 +124,7 @@ A cache of the DFG channel's wall geometry and transfer weights, keyed on the me
 | 40  | 880×164 | 199 ms  | 40 ms |
 
 `forward/cylinder` outputs are bit-identical. The benchmark never repeats a mesh: `forward/cylinder` runs res 10 and 20 once each, and PICT is excluded from `drag_opt`, so the cache would not hit. Branch `perf/pict-channel-geometry-cache` stays unpushed.
+
+## INS.jl on the GPU: the T4 ceiling
+
+With CUDA.jl's device memory capped at 15 GiB (`JULIA_CUDA_HARD_MEMORY_LIMIT`), #307's image fails the 3-D 5120-step VJP with `Out of GPU memory trying to allocate 207.969 KiB`, as CI's T4 run does. Served through `Tesseract.from_image`, as the harness calls it, the client receives the full traceback; `main`'s `classify_failure` labels it `error`, #312 labels it `OOM`. In the CI baseline jax-cfd stops at the same 5120 steps (OOM), and the gradient norms of both grow from about 90 at 160 steps to 1e5–1e6 by 1280 (INS.jl 1.7e6, jax-cfd 1.6e5).

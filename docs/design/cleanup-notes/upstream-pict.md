@@ -1,6 +1,6 @@
 # Draft: tum-pbs/PICT
 
-**Status:** approved by Dion 2026-10-27, ready to file. Not filed: the session's GitHub token is limited to pasteurlabs (HTTP 403 elsewhere).
+**Status:** ready to file (approved 2026-10-27). Re-checked 2026-10-30: master is still e019ebe.
 
 **Title:** Pressure matrix becomes indefinite with `non_orthogonal=True` on a multi-block O-grid; CG and float32 BiCGStab fail in the first step
 
