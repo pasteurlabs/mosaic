@@ -1,6 +1,6 @@
 # Handoff: solver cleanup pass
 
-**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below), and the session's open questions are decided ("Decisions taken 2026-10-30"). What remains is reviewing and merging the open pull requests, reading #314's benchmark run, and filing the upstream issues. Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
+**Status:** 2026-10-30, end of the sixth A100 session. Every item of the backlog has been measured and either has a pull request or a recorded reason for not having one ("Done in the sixth session" below), and the session's open questions are decided ("Decisions taken 2026-10-30"). What remains is reviewing and merging the open pull requests and filing the upstream issues. Notes, issue texts and diagnostic scripts are in [cleanup-notes/](cleanup-notes/); the sixth session's measurements are in [session6-measurements.md](cleanup-notes/session6-measurements.md).
 
 ## Read first
 
