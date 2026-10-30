@@ -121,7 +121,6 @@ def register(problem: Problem) -> None:
         "forward/kolmogorov",
         {
             "openfoam": OPENFOAM_NO_SOURCE_TERM,
-            "phiflow": EXPLICIT_CENTRAL_UNSTABLE,
             "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
         },
     )
