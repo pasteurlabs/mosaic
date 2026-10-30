@@ -79,3 +79,7 @@ The previous width32 Muon and width8 AdamW joint results differed in architectur
 All six high-LR SGD rejections and all initial-identity selections remain explicit. Selected joint models can improve field error while introducing heat drift and undershoot. No production recommendation follows from one seed on four fixed training windows.
 
 [Protocol](PROTOCOL.json), [parity audit](parity-audit.json), [all LR results and raw outcomes](summary.json), [Slurm accounting](sacct.txt), [publication manifest](publication-manifest.json). Full model/field NPZs remain at the recorded remote campaign paths; no large arrays or experiment code were added to the benchmark source branch.
+
+## Stronger velocity-only comparison
+
+Shared-LR ratios answer the paired optimizer question; they do not establish that joint correction beats a separately tuned velocity-only model. In this screen, velocity-only Adam selected by its own validation grid uses LR0.01 (validation0.0008558, heldout0.0009668). Scaled joint Adam uses LR0.001 (validation0.0006700, heldout0.0012145). Thus the scaled joint model has better validation but **worse held-out error** than this separately validation-tuned velocity-only baseline. Neither selection uses test data. The29% improvement is against **unscaled joint Adam at the same LR0.001**, not against the strongest velocity-only model.
