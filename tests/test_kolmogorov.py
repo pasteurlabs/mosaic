@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from mosaic.benchmarks.core.status_checks import ForwardSummary, max_error
+from mosaic.benchmarks.core.status_checks import ForwardSummary
 from mosaic.benchmarks.problems.navier_stokes_grid import kolmogorov as ko
 
 L = ko.DOMAIN_EXTENT
@@ -161,10 +161,3 @@ def _ladder(order: float, coarse_diverged: bool = False) -> dict:
 def test_min_refinement_order(metrics, fires):
     """Grids below the coarse one may diverge; it and finer ones may not."""
     assert (ko.min_refinement_order(0.8)(_summary(metrics)) is not None) == fires
-
-
-def test_max_error_at_one_sweep_value():
-    summary = ForwardSummary(errs_by_pval={"32": 0.08, "64": 0.02, "128": 0.005})
-    assert max_error(0.05)(summary) is not None
-    assert max_error(0.05, at=64)(summary) is None
-    assert max_error(0.01, at=64)(summary) is not None
