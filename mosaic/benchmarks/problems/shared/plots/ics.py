@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,9 @@ def plot_ic(
     ic_name: str,
     ic: np.ndarray,
     out_dir: Path,
+    ic_to_2d: Any = None,
+    field_cmap: str = "RdBu_r",
+    field_symmetric: bool = True,
     **_kw: Any,
 ) -> None:
     """Draw ONE combined figure of every registered IC as ``ics/ics.png``.
@@ -28,4 +32,10 @@ def plot_ic(
     regenerates every IC of the problem and overwrites the same combined
     chart in the shared ICs directory (the parent of ``out_dir``).
     """
-    render(cfg, Path(out_dir).parent, {"ics": charts.ics}, suite="ics")
+    builder = partial(
+        charts.ics,
+        to_2d=ic_to_2d,
+        field_cmap=field_cmap,
+        field_symmetric=field_symmetric,
+    )
+    render(cfg, Path(out_dir).parent, {"ics": builder}, suite="ics")

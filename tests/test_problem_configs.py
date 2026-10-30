@@ -126,6 +126,7 @@ def test_unknown_problem_raises():
 _UNGATED_BY_DESIGN: frozenset[str] = frozenset(
     {
         "ns-grid/ics",
+        "buoyancy-grid/ics",
         "ns-3d-grid/ics",
         "thermal-mesh/ics",
         "structural-mesh/ics",
@@ -134,6 +135,9 @@ _UNGATED_BY_DESIGN: frozenset[str] = frozenset(
         "ns-grid/gradient/jacobian_svd_steps20",
         "ns-grid/gradient/jacobian_svd_steps40",
         "ns-grid/gradient/horizon_sweep",
+        # Buoyancy spectra/horizon trends are diagnostics, like the NS equivalents.
+        "buoyancy-grid/gradient/horizon_sweep",
+        "buoyancy-grid/gradient/jacobian_svd",
         "ns-grid/gradient/param_sweep",
         "ns-3d-grid/gradient/jacobian_svd",
         "ns-3d-grid/gradient/jacobian_svd_nu01",

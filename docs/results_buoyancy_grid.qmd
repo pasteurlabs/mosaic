@@ -1,0 +1,143 @@
+---
+title: Buoyancy flow (2D)
+---
+
+Two unequal warm plumes rise and interact in a closed square. Their temperature anomaly (the transported scalar)
+field creates upward buoyancy, and the resulting incompressible flow transports
+that scalar.
+All backends use no-slip velocity walls and zero normal scalar derivative.
+
+| Backend | Coupled flow implementation | Differentiable inputs |
+| --- | --- | --- |
+| PhiFlow | Semi-Lagrangian transport, explicit diffusion, and pressure projection. | State and physics parameters |
+| JAX-CFD | Native Van Leer momentum and scalar transport, explicit diffusion, and closed-wall pressure projection. | State and physics parameters |
+| INS.jl | Native Boussinesq model, centered transport, RK4, and closed-wall transform pressure projection. | State |
+| WaterLily | Native momentum and pressure routines, with conservative upwind scalar transport and two-stage coupling added by the adapter. | State and physics parameters |
+| Oceananigans | Native nonhydrostatic buoyancy model, third-order upwind advection, RK3, and spectral pressure projection. | State |
+| OpenFOAM | Native OpenCFD v2412 laminar Boussinesq PIMPLE, with pressure-corrected face-flux output. | None; forward-only |
+
+The Julia backends initially run on CPU. Each differentiable backend generates
+its own fine-resolution reference for training; the physical problem and
+training recipe are shared, but the numerical discretizations differ.
+OpenFOAM provides an independent forward comparison. It does not participate in
+neural training or gradient tests, and its adapter does not claim exact restart
+equivalence across separate calls.
+
+JAX-CFD uses Float64 internally to avoid reverse-mode underflow in the native
+Van Leer limiter at the plume's small tails; its public state remains Float32.
+
+WaterLily and Oceananigans use Enzyme reverse-mode differentiation; INS.jl uses
+Zygote with the library's native operator adjoints. Oceananigans uses
+an equivalent separable Neumann pressure inverse because its native FFTW path
+lacks Enzyme support. Forward simulation and derivatives use the same pressure
+implementation. Its adapter pins Julia 1.12.6 to avoid the reverse-mode
+compilation crash observed with Julia 1.11.7 in the Python–Julia runtime.
+
+The domain runs the same four benchmark suites as the other Mosaic domains:
+
+| Suite | Measurements |
+| --- | --- |
+| Forward | Independent OpenFOAM agreement; analytic scalar diffusion; coupled-flow spatial/time refinement; closed-wall divergence, scalar mass drift and extrema, and kinetic energy across rollout horizons. |
+| Cost | Forward and state-VJP wall time versus grid resolution and step count, with warmup, repeated trials and resource measurements. |
+| Gradient | Directional finite differences, horizon sweeps, and small-grid state-Jacobian spectra. |
+| Optimization | Recurrent neural corrector training and held-out evaluation. |
+
+The independent forward agreement test uses a shipped OpenFOAM 128² numerical
+reference at time 0.4, restricted by face and volume averages to 16² and 32².
+This is separate from the same-backend training targets and is not exact ground
+truth. Comparing 64² and 128² changes restricted velocity by at most 1.39% and
+scalar by 0.39%; halving the fine timestep changes them by at most 0.032% and
+0.022%. These are sensitivity measurements, not error bounds, and rankings
+within these differences are unresolved. Missing or mismatched reference data
+fail explicitly instead of falling back to solver consensus.
+
+The coupled refinement comparison uses the same solver at twice the resolution
+and half the timestep, with identical physical time and seeded plume geometry.
+It reports velocity and scalar differences separately; it measures refinement
+consistency rather than accuracy against an independent exact solution.
+The physical diagnostics use the closed-wall staggered layout and exclude the
+scalar from kinetic energy. Buoyancy can increase kinetic energy, and
+semi-Lagrangian scalar transport can lose mass; these effects are reported
+rather than hidden by an unforced-flow energy-decay assumption. Scalar mass drift above 1% is flagged; coupled refinement differences above
+50% are flagged as gross disagreement. Other physical diagnostics are reported
+without asserting exact conservation.
+
+Gradient finite differences and horizon sweeps start after four undifferentiated
+warmup steps to move away from transport kinks at zero velocity. Jacobian spectra
+instead use the same resting state for every solver, so they describe each
+backend's AD-selected derivative there, including any nonsmooth transport choices.
+For an N×N grid, the packed state has 3N² entries, but closed-wall
+incompressible velocity has (N−1)² independent degrees of freedom and temperature
+adds N². The expected rank is therefore 2N²−2N+1: 113 of 192 at N=8.
+The spectrum marks this boundary and reports full and non-null singular-value
+ratios separately. Numerical rank uses a relative cutoff of 10⁻⁶, stated on the
+plot. The non-null ratio describes the map outside its numerical kernel; it is
+not a separately projected physical-coordinate Jacobian. These short resting-state
+measurements do not establish long-rollout conditioning or training quality.
+These bounded sweeps complement the larger corrector experiment.
+
+The benchmark trains a small convolutional neural network to correct velocity
+after each solver interval. A streamfunction makes these corrections
+divergence-free with zero normal wall velocity. The scalar remains solver-driven.
+
+```{mermaid}
+flowchart LR
+    S[Velocity and scalar] --> P[Coupled solver step]
+    P --> N[Neural velocity correction]
+    N --> S
+    N --> L[Compare with restricted fine reference]
+    L -. Training gradient through the rollout .-> N
+```
+
+The default uses a 64² coarse grid and a 128² reference grid, with viscosity
+and scalar diffusivity both 0.0005. Each correction interval contains eight
+solver steps of 0.005; 100 intervals evolve the flow to time 4. Training uses
+256 optimizer updates across four training trajectories. Seed 0 retains the
+original two-plume initial condition; seeds 2, 3, and 4 add broader position
+variation (±0.04 domain units), width variation (±15%), and amplitude variation
+(±15%). Each group of four updates visits every trajectory once in shuffled
+order, using independently shuffled eight-interval windows within each trajectory.
+Normalization remains fixed from training case 0 to isolate the effect of added
+data. Validation seed 1 and held-out test seed 100 retain their original initial
+conditions. Every training reference is checked independently for time refinement.
+
+The full validation rollout selects among checkpoints at updates 0, 64, 128,
+192, and 256; update 0 is the initial zero-correction model. Every run completes
+all 256 updates, even when validation selects an earlier checkpoint. Only the
+selected model is evaluated on the test trajectory.
+
+Solver-in-the-loop training minimizes a recurrent trajectory loss, with gradients
+through the solver. Held-out rollouts compare the trained corrector against the
+uncorrected coarse solver and report velocity and scalar errors separately.
+Only the corrector is trained; the uncorrected baseline and fine reference
+require forward simulation only.
+
+References come from the same solver at finer spatial and temporal resolution.
+The experiment checks reference time refinement, restart equivalence, and
+end-to-end finite differences before reporting training results. The benchmark
+measures rollout accuracy and training cost within a budget suitable for CI;
+these measurements do not require solver-in-the-loop training to win.
+
+This setup is inspired by [Um et al. (2020)](https://arxiv.org/abs/2007.00016).
+It is a bounded benchmark, not a reproduction of their full training campaign.
+The Solver In Loop section shows one GIF comparing corrected and uncorrected
+spatial errors for every differentiable solver, one combined velocity/temperature-anomaly
+rollout-error figure, and one validation-loss figure containing every solver.
+The GIF shows one explicitly labeled corrected JAX-CFD temperature/speed pair at
+the top for orientation, followed by corrected and uncorrected error heatmaps for
+each solver. Red encodes temperature anomaly; blue encodes speed or velocity error.
+The orientation fields have their own physical scales and are not a common ground
+truth. Error scales are shared by corrected and uncorrected panels within each
+solver row and fixed over time. Each row prints its physical scale limits;
+colors should be compared within rows. The combined curves use the shared Altair pipeline
+with PNG previews and interactive tooltips. Training-cost and separate per-solver
+checkpoint plots are omitted. Backend-specific normalization means these losses
+measure correction within each backend and should not rank solver accuracy.
+
+```bash
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s phiflow
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s jax-cfd
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s ins-jl
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s waterlily
+mosaic run -p buoyancy-grid --suites forward,gradient,cost,optimization -s oceananigans
+```

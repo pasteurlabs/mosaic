@@ -169,6 +169,7 @@ def extract_references_from_fields(
 #   - converged reference: a high-fidelity run stands in for the analytic
 #     solution (see CONVERGED_REFERENCES).
 PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
+    "buoyancy-grid": ["forward/agreement"],
     # The 3D TGV forward references are *converged* spectral runs, not the
     # linearized analytic decay (issue #123). Their strategy lives in
     # CONVERGED_REFERENCES below.

@@ -99,6 +99,7 @@ class OptimizationSummary:
     final_initial_ratio: float | None = None
     final_value: float | None = None
     peer_final_median: float | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Built-in check factories ─────────────────────────────────────────────────

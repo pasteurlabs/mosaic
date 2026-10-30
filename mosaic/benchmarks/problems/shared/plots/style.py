@@ -26,6 +26,8 @@ SOLVER_STYLES: dict[str, tuple] = {
     "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),
     "exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),
     "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),
+    "waterlily": ("WaterLily", "#228833", "-.", "^"),
+    "oceananigans": ("Oceananigans", "#AA3377", "-", "D"),
     # ── FEM / Structural ────────────────────────────────────────────────────
     "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),
     "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),
@@ -50,6 +52,16 @@ NS_ORDER: list[str] = [
     "pict",
     "warp_ns",
     "exponax",
+    "openfoam",
+]
+
+
+BUOYANCY_ORDER: list[str] = [
+    "phiflow",
+    "jax_cfd",
+    "ins_jl",
+    "waterlily",
+    "oceananigans",
     "openfoam",
 ]
 
@@ -128,6 +140,8 @@ def resolve_solver_alias(name: str, prefer: Sequence[str] | None = None) -> str 
 
 def solver_order_for_problem(name: str) -> list[str]:
     """Canonical solver ordering for a problem, picked by problem name."""
+    if name == "buoyancy-grid":
+        return BUOYANCY_ORDER
     if "thermal" in name:
         return THERMAL_ORDER
     if "structural" in name:

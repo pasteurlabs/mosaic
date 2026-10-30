@@ -12,11 +12,12 @@ on:
   workflow_dispatch:
     inputs:
       domain:
-        description: "Domain to build (all, navier-stokes-grid, structural-mesh, thermal-mesh)"
+        description: "Domain to build (all, buoyancy-grid, navier-stokes-grid, structural-mesh, thermal-mesh)"
         default: "all"
         type: choice
         options:
           - all
+          - buoyancy-grid
           - navier-stokes-grid
           - structural-mesh
           - thermal-mesh

@@ -188,6 +188,8 @@ packaging==26.3
     #   tesseract-jax
 pandas==3.1.0
     # via mosaic-bench
+pillow==13.0.0
+    # via mosaic-bench
 pip==26.2.2
     # via tesseract-core
 propcache==0.5.4
