@@ -130,16 +130,16 @@ SETUPS = [
         "problem": "ns-grid",
         "label": "Navier–Stokes (2D)",
         "setup": "Forced periodic box (Kolmogorov flow)",
-        "task": "training a neural corrector through the solver",
+        "task": "",
         "claims": [
             "forward/kolmogorov",
             "forward/kolmogorov_laminar",
-            "optimization/kolmogorov_sil",
+            "gradient/chain_fd_check",
         ],
         "gates": {
             "forward": ["forward/kolmogorov_laminar", "forward/kolmogorov"],
-            "gradient": [],
-            "optimization": ["optimization/kolmogorov_sil"],
+            "gradient": ["gradient/chain_fd_check"],
+            "optimization": [],
         },
     },
     {

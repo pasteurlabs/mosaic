@@ -204,7 +204,7 @@ EXPERIMENT_LABELS = {
     "drag_opt": "Drag Optimisation",
     "kolmogorov_laminar": "Kolmogorov Flow (Laminar)",
     "kolmogorov": "Kolmogorov Flow",
-    "kolmogorov_sil": "Training Through the Solver",
+    "chain_fd_check": "Gradient Through Chained Calls",
     "conductivity_recovery_bfgs": "Conductivity Recovery (L-BFGS)",
     "recovery_constant_ic_bfgs_proj": "Initial-Condition Recovery (L-BFGS)",
     "recovery": "Recovery",
