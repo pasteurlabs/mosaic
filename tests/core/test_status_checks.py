@@ -520,3 +520,10 @@ class TestLookupCheckPrecedence:
 
     def test_no_config_means_no_checks(self) -> None:
         assert _lookup_check(self._problem({}), "forward", "agreement/tgv") == []
+
+
+def test_max_error_at_one_sweep_value():
+    summary = ForwardSummary(errs_by_pval={"32": 0.08, "64": 0.02, "128": 0.005})
+    assert max_error(0.05)(summary) is not None
+    assert max_error(0.05, at=64)(summary) is None
+    assert max_error(0.01, at=64)(summary) is not None

@@ -40,6 +40,7 @@ from mosaic.benchmarks.core.reference import (
     ConvergedSpec,
     consensus_from_fields,
     converged_spec,
+    reference_path,
     save_reference,
     spectral_downsample,
 )
@@ -419,6 +420,54 @@ def _generate_converged(
     _save(cfg, exp_key, refs, sweep_values)
 
 
+def _generate_trajectories(
+    cfg: object, exp_key: str, run: dict, spec: ConvergedSpec
+) -> None:
+    """Converged reference built by the experiment's own generator.
+
+    ``run["reference"]`` is called with ``advance(v, dt, steps)``, which runs
+    the reference solver on ``v``'s grid with the experiment's physics, and
+    returns the arrays to store. One GPU container serves every call, since
+    a generator runs the solver many times, at resolutions a CPU cannot reach.
+    """
+    from dataclasses import replace
+
+    import numpy as np
+
+    from mosaic.benchmarks.core.resources import container_memory_args
+    from mosaic.benchmarks.core.runner import (
+        _tracked_tesseract,
+        build_all,
+        get_last_apply_error,
+        safe_apply,
+    )
+
+    solver = next((s for s in cfg.solvers if s.name == spec.solver), None)
+    if solver is None:
+        console.print(f"    [red]✗[/] reference solver {spec.solver!r} not found")
+        return
+    console.print(f"    Building {spec.solver}...")
+    tags = build_all(replace(cfg, solvers=[solver]))
+    phys = {**run.get("physics", {}), "domain_extent": cfg.domain_extent}
+    docker_args = ["--no-healthcheck", *container_memory_args()]
+    with _tracked_tesseract(tags[solver.name], ["all"], docker_args) as t:
+
+        def advance(v: np.ndarray, dt: float, steps: int) -> np.ndarray:
+            inputs = cfg.make_inputs(
+                solver.name, v, **{**phys, "dt": dt, "steps": steps}
+            )
+            out = safe_apply(t, inputs, cfg.output_key)
+            if out is None:
+                raise RuntimeError(get_last_apply_error() or "apply failed")
+            return np.asarray(out)
+
+        arrays = run["reference"](advance, log=lambda m: console.print(f"    {m}"))
+    path = reference_path(cfg.name, exp_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, **arrays)
+    console.print(f"    [green]OK[/] {len(arrays)} array(s) → {path}")
+
+
 def _save(cfg: object, exp_key: str, refs: dict, sweep_values: list) -> None:
     """Persist generated references, or report that none were produced."""
     if refs:
@@ -450,10 +499,14 @@ def _generate_by_running(
 
         for exp_key in exps:
             console.print(f"  [bold]{domain}/{exp_key}[/]")
+            spec = converged_spec(domain, exp_key)
+            run = _experiment_run(cfg, exp_key)
+            if spec is not None and run and callable(run.get("reference")):
+                _generate_trajectories(cfg, exp_key, run, spec)
+                continue
             rp = _experiment_run_params(cfg, exp_key)
             if rp is None:
                 continue
-            spec = converged_spec(domain, exp_key)
             if spec is not None:
                 _generate_converged(cfg, exp_key, rp, spec)
             else:
