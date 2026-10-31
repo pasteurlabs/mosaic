@@ -249,6 +249,25 @@ class TestOptimizationPeerPipeline:
         assert all(c.status == OK for c in cells.values())
 
 
+@pytest.mark.parametrize("sweep_key", ["N", "nx"])
+def test_cost_peer_outlier_is_flagged_on_any_resolution_sweep(sweep_key: str) -> None:
+    """Mesh problems sweep ``nx`` rather than ``N`` and are gated the same way."""
+    times = {"a": 1.0, "b": 1.0, "slow": 100.0}
+    data = {
+        "schema_version": 1,
+        "sweep": {"key": sweep_key, "values": ["4", "8"]},
+        "results": [
+            {"solver": s, "sweep_value": v, "metrics": {"mean": t}}
+            for s, t in times.items()
+            for v in ("4", "8")
+        ],
+    }
+    cells = {s: Cell(OK) for s in times}
+    _refine_for_suite("cost", "spatial_cost", data, cells, [max_peer_k(20.0)])
+    assert cells["slow"].status == ANOMALY
+    assert cells["a"].status == OK
+
+
 class TestMedianKMinority:
     """``median_k`` needs half the valid points, and half rounds up.
 
