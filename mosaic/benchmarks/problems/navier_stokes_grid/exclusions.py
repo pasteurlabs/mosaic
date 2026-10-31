@@ -37,6 +37,19 @@ INS_JL_NO_OBSTACLE = Exclusion(
     "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
     "Brinkman forcing, which are not wired up here",
 )
+EXPONAX_PERIODIC_ONLY = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "a Fourier pseudo-spectral method represents only periodic fields, so it "
+    "cannot express a channel with walls, an inflow and an outflow",
+)
+EXPONAX_EXACT_TGV = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "the Taylor–Green vortex is a single Fourier mode, which a spectral method "
+    "represents exactly on every grid, so Exponax's error is float32 round-off "
+    "from the first step. Round-off grows with the number of grid points and "
+    "steps rather than shrinking with the grid spacing, so no positive order "
+    "can be observed",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -88,13 +101,17 @@ PHIFLOW_SPARSE_CG_COST = Exclusion(
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
+    "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
 
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
     # Forward
-    problem.exclude("forward/baseline", {"pict": PICT_PISO_SPLITTING_FLOOR})
+    problem.exclude(
+        "forward/baseline",
+        {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
+    )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost

@@ -119,7 +119,9 @@ def exponax_fwd(
 
     2D uses the pseudo-spectral streamfunction-vorticity stepper with an
     internal velocity<->vorticity conversion so the interface matches the
-    other CFD tesseracts.
+    other CFD tesseracts. Exponax's 2D steppers evolve q = -ω: they take the
+    stream function from Δψ = q and the velocity from (∂ᵧψ, -∂ₓψ), whose
+    vorticity is -q.
 
     3D uses the Leray-projected velocity stepper directly.
 
@@ -159,8 +161,8 @@ def exponax_fwd(
         # The vorticity formulation strips it (∂const/∂x = 0), so we save and restore it.
         v_mean = jnp.mean(v, axis=(0, 1), keepdims=True)  # (1, 1, 2)
 
-        # velocity -> vorticity: (1, N, N)  (operate on fluctuation only)
-        vort = _velocity_to_vorticity(v - v_mean, domain_extent)
+        # velocity -> Exponax's q = -ω: (1, N, N)  (operate on fluctuation only)
+        q = -_velocity_to_vorticity(v - v_mean, domain_extent)
 
         if kolmogorov_forcing:
             stepper = ex.stepper.KolmogorovFlowVorticity(
@@ -177,10 +179,10 @@ def exponax_fwd(
         def step_fn(carry: Any, _: Any) -> tuple[Any, None]:
             return stepper(carry).astype(carry.dtype), None
 
-        result_vort, _ = jax.lax.scan(step_fn, vort, None, length=steps)
+        result_q, _ = jax.lax.scan(step_fn, q, None, length=steps)
 
-        # vorticity -> velocity: (N, N, 2) -> (N, N, 1, 2); restore conserved mean
-        result = _vorticity_to_velocity(result_vort, domain_extent) + v_mean
+        # q -> velocity: (N, N, 2) -> (N, N, 1, 2); restore conserved mean
+        result = _vorticity_to_velocity(-result_q, domain_extent) + v_mean
         return result[:, :, None, :]
 
     else:  # 3D
