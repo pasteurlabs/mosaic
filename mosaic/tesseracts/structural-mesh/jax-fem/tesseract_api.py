@@ -132,6 +132,7 @@ class Elasticity(Problem):
         return val
 
 
+# mosaic-intervention: jitted-bicgstab-solver
 # JAX-FEM's default `jax_solver` (Jacobi-preconditioned BiCGSTAB) runs
 # `jax.scipy.sparse.linalg.bicgstab` eagerly, so every linear solve is traced
 # and compiled anew: 2 XLA compilations per forward call and 4 per VJP. This is
@@ -167,6 +168,7 @@ def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> A
 
 
 _SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
+# mosaic-intervention-end: jitted-bicgstab-solver
 
 
 # Module-level cache for the compiled elasticity solver, keyed on everything

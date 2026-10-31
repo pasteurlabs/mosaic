@@ -24,3 +24,40 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/google/jax-cfd"
+    # What it took to run jax-cfd here, beyond expressing the setup through
+    # its API. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: central-advection-rk4
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          Passes convect=advection.convect_linear and
+          time_stepper=time_stepping.classic_rk4 to
+          semi_implicit_navier_stokes instead of its defaults, van Leer
+          advection with forward Euler.
+        why:
+          ns-2d-periodic:
+            consequences: [inaccurate-forward]
+            symptom: >
+              With the default scheme the Taylor-Green errors were 1.3e-2 to
+              1.5e-2, 5 to 6 times the peer median (borderline), the
+              convergence order was 1.25 and the fd_check error 5.5e-4. With
+              this scheme: 2.3e-3 to 2.4e-3 (1.0 times the median), order 2.00
+              and 9.3e-6. Central advection is unstable under forward Euler and
+              RK2 in the PR's probes, hence RK4. The forward pass is 2 to 3
+              times slower.
+            evidence: "#225, before/after and scheme tables (merged through #232)."
+          ns-3d:
+            consequences: []
+            symptom: >
+              Not compared with the default on this setup; jax-cfd joined
+              ns-3d-grid with this scheme, and every cell was ok.
+            evidence: "#283, notes."
+        upstream: >
+          https://github.com/google/jax-cfd/issues/259 asked which advection
+          scheme the maintainers would pick; no reply, and the project says
+          it is no longer maintained.
+        provenance: mosaic-team
+    deviations: []

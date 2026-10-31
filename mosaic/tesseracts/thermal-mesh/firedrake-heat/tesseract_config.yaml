@@ -26,3 +26,29 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.firedrakeproject.org/"
+    # What it took to run Firedrake here, beyond expressing the setup in UFL.
+    # Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: nodal-misfit-seed
+        level: L2
+        necessity: required
+        what: >
+          The identification-error gradient seeds the derivative of the
+          temperature functional with a hand-built cofunction
+          dI/dT = 2 (T - T_target) at the nodes that have a target value,
+          because the error is a nodal sum rather than an integral.
+        why:
+          heat:
+            consequences: [incorrect-gradient]
+            symptom: >
+              The earlier approximation, an L2 integral rescaled by the node
+              count, gave gradients that did not match the reported value:
+              gradient/source_fd_check went from 4.58e-02 to 3.52e-05 with the
+              nodal seed, and the rho gradient was 9% off central differences,
+              with a conductivity_recovery_bfgs final/initial ratio of 0.00313
+              against 0.00020. Whether a vertex quadrature rule would let the
+              nodal sum be written in UFL was not checked.
+            evidence: "#162; #167, summary; #184; current form from #229."
+        provenance: contributor
+    deviations: []

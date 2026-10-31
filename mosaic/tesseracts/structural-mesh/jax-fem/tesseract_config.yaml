@@ -29,3 +29,28 @@ metadata:
     uses_gpu: true
     internal_dtype: float64
     doc_url: "https://github.com/deepmodeling/jax-fem"
+    # What it took to run JAX-FEM here, beyond expressing the setup as a
+    # JAX-FEM Problem. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: jitted-bicgstab-solver
+        level: L2
+        necessity: choice
+        what: >
+          Passes JAX-FEM's own Jacobi-preconditioned BiCGSTAB (the default
+          jax_solver's algorithm and tolerances), compiled once per matrix
+          size, to ad_wrapper through the custom_solver option for the forward
+          and adjoint solves.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              The default jax_solver runs bicgstab eagerly, so it compiles 2
+              XLA programs per forward call and 4 per VJP, a fixed overhead on
+              every call. The umfpack_solver option used before gives
+              identical outputs but is much slower on large meshes. At N =
+              128, spatial_cost took 11.6 s with umfpack_solver and 1.49 s
+              with this solver, vjp_cost/by_N 23.5 s and 2.91 s.
+            evidence: "#286, before/after table; comment above _bicgstab."
+        provenance: mosaic-team
+    deviations: []

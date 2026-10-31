@@ -346,6 +346,7 @@ class _Channel:
         self._build_wall()
         self._build_transfers()
 
+    # mosaic-intervention: body-force-integration
     # -- cylinder wall ------------------------------------------------------
 
     def _build_wall(self) -> None:
@@ -409,6 +410,7 @@ class _Channel:
         traction = -self.wall_pressure() * n + nu * shear * tangent
         return (traction * self.wall_len).sum(dim=1)
 
+    # mosaic-intervention-end: body-force-integration
     # -- transfers between the blocks and the canonical grid ----------------
 
     def _build_transfers(self) -> None:
@@ -565,6 +567,7 @@ class _LogRecordCollector(logging.Handler):
             self.exceptions.append(record.exc_info[1])
 
 
+# mosaic-intervention: warm-start-pressure
 def _warm_cg(
     matrix: PISOtorch.CSRmatrix,
     rhs: torch.Tensor,
@@ -681,6 +684,7 @@ class _WarmStartSimulation(PISOtorch_simulation.Simulation):
         return result, ok
 
 
+# mosaic-intervention-end: warm-start-pressure
 def _simulate(
     domain: PISOtorch.Domain,
     dt_val: float,
@@ -695,10 +699,12 @@ def _simulate(
     With ``warm_start_tol``, pressure solves start from the previous step's
     pressure and stop at that tolerance.
     """
+    # mosaic-intervention: warm-start-pressure
     if warm_start_tol is None:
         sim_cls = PISOtorch_simulation.Simulation
     else:
         sim_cls = functools.partial(_WarmStartSimulation, solve_tol=warm_start_tol)
+    # mosaic-intervention-end: warm-start-pressure
     sim = sim_cls(
         domain,
         substeps=1,
@@ -833,8 +839,11 @@ def _run_channel(
             domain, channel.outlets, adv_vel, time_step.to(_DEVICE)
         )
 
+    # mosaic-intervention: body-force-integration
     def _post_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
         forces.append(channel.body_force())
+
+    # mosaic-intervention-end: body-force-integration
 
     _simulate(
         domain,
@@ -849,7 +858,9 @@ def _run_channel(
         # the box corners, a diameter away.
         non_orthogonal=False,
         pressure_tol=pressure_tol,
+        # mosaic-intervention: warm-start-pressure
         warm_start_tol=1e-8,
+        # mosaic-intervention-end: warm-start-pressure
     )
     return channel.velocity(), channel.pressure(), torch.stack(forces), domain
 
@@ -972,6 +983,7 @@ def vector_jacobian_product(
     leaves = {"v0": v0_t, "viscosity": nu_t, "inflow_profile": profile_t}
     keys = [k for k, wanted in want.items() if wanted]
     grads: list[torch.Tensor | None] = [None] * len(keys)
+    # mosaic-intervention: cotangent-scaling
     # DEVIATION FROM PICT. PICT's linear solves stop once the RMS of their
     # residual falls below an absolute tolerance (by default 1e-5 in float32),
     # and the adjoint solves of its backward pass use the same one. For small
@@ -990,6 +1002,7 @@ def vector_jacobian_product(
             allow_unused=True,
         )
         grads = [None if g is None else g * scale for g in grads]
+    # mosaic-intervention-end: cotangent-scaling
     out: dict[str, Any] = {}
     for key, g in zip(keys, grads, strict=True):
         if g is None:

@@ -63,3 +63,65 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://agdestein.github.io/IncompressibleNavierStokes.jl/dev/"
+    # What it took to run INS.jl here, beyond expressing the setup through
+    # its API. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: hand-written-rk4-rollout
+        level: L2
+        necessity: choice
+        what: >
+          The VJP differentiates a hand-written, non-mutating RK4 loop over
+          create_right_hand_side with Zygote.pullback. apply runs the
+          library's in-place solve_unsteady with RKMethods.RK44 instead.
+        why:
+          ns-2d-periodic: &rollout-reason
+            consequences: []
+            symptom: >
+              Zygote cannot differentiate array mutation, so the VJP needs a
+              non-mutating rollout; INS.jl's documented way is a loop over its
+              non-mutating timestep. No reason is recorded for writing RK4 by
+              hand instead. Keeping the in-place stepper for apply is faster:
+              0.56 s against 2.49 s for the non-mutating rollout at N = 256,
+              100 steps, CPU. The two paths agree to 2.2e-4 (2-D) and 1.0e-4
+              (3-D) in float32.
+            evidence: >
+              https://github.com/agdestein/IncompressibleNavierStokes.jl/blob/v5.0.0/examples/Differentiability.jl;
+              #103.
+          ns-3d: *rollout-reason
+        provenance: mosaic-team
+      - id: float32-setup
+        level: L0
+        necessity: choice
+        what: >
+          Builds the Setup from Float32 grid vectors and keeps literals
+          eltype-preserving, so the solve and its pullback run in float32.
+        why:
+          ns-2d-periodic: &float32-reason
+            consequences: []
+            symptom: >
+              With Float64 grid vectors the state and the Zygote tape were
+              promoted to Float64 after the first projection, so INS.jl paid
+              Float64 cost with float32 inputs and outputs. Float32 matches
+              the other float32 solvers; #103 offered keeping Float64 and
+              disclosing it instead. No cost factor was measured separately.
+            evidence: >
+              #103, item 3; INS.jl's manual on floating point precision
+              (docs/src/manual/backends.md at v5.0.0).
+          ns-3d: *float32-reason
+        provenance: maintainer-authored
+      - id: julia-cpu-target-generic
+        level: L0
+        necessity: unknown
+        what: >
+          The image sets JULIA_CPU_TARGET=generic, so Julia precompiles for a
+          generic x86-64 CPU rather than the build machine's.
+        why:
+          ns-2d-periodic: &target-reason
+            consequences: []
+            symptom: >
+              No reason recorded (added in #62, "fix all tesseract builds").
+              Whether it slows the compiled solver has not been measured.
+          ns-3d: *target-reason
+        provenance: mosaic-team
+    deviations: []

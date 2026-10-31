@@ -29,3 +29,25 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.dealii.org/"
+    # What it took to run deal.II here, beyond writing the assembly loop the
+    # library is designed for. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: cg-tolerance
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          The SSOR-preconditioned CG solve (omega = 1.2, as in the step-5 tutorial)
+          stops at a residual of 1e-8 times the right-hand-side norm, with a
+          cap of 50000 iterations.
+        why:
+          heat:
+            consequences: [too-slow]
+            symptom: >
+              At the earlier 1e-12 every forward metric is identical and the
+              largest mesh is slower: spatial_cost at nx = 1024 took 60.1 s
+              against 51.1 s.
+            evidence: "#266, before/after table."
+        provenance: mosaic-team
+    deviations: []

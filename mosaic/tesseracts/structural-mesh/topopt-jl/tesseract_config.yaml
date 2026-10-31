@@ -60,3 +60,21 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://github.com/JuliaTopOpt/TopOpt.jl"
+    # What it took to run TopOpt.jl here, beyond loading the setup as an INP
+    # problem. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: julia-cpu-target-generic
+        level: L0
+        necessity: unknown
+        what: >
+          The image sets JULIA_CPU_TARGET=generic, so Julia precompiles for a
+          generic x86-64 CPU rather than the build machine's.
+        why:
+          structural:
+            consequences: []
+            symptom: >
+              No reason recorded. Whether it slows the compiled solver has not
+              been measured.
+        provenance: mosaic-team
+    deviations: []

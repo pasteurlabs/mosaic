@@ -22,15 +22,6 @@ TESSERACT_DIRS = sorted(
     p.parent for p in TESSERACTS_DIR.glob("*/*/tesseract_config.yaml")
 )
 
-# Tesseracts whose record is in place; the others follow in a later change.
-RECORDED = {
-    "navier-stokes-grid/openfoam",
-    "navier-stokes-grid/warp-ns",
-    "navier-stokes-grid/xlb",
-    "structural-mesh/fenics-structural",
-    "thermal-mesh/fenics-heat",
-}
-
 
 def _name(d: Path) -> str:
     return f"{d.parent.name}/{d.name}"
@@ -40,8 +31,7 @@ def _name(d: Path) -> str:
 def test_record_and_markers_are_valid(tesseract_dir: Path) -> None:
     record, problems = check_tesseract(tesseract_dir)
     assert not problems, "\n".join(problems)
-    if _name(tesseract_dir) in RECORDED:
-        assert record is not None, f"{_name(tesseract_dir)} has no record"
+    assert record is not None, f"{_name(tesseract_dir)} has no intervention record"
 
 
 def test_discovered_specs_carry_the_record() -> None:

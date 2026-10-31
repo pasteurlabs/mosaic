@@ -34,6 +34,7 @@ from phiml.backend._numpy_backend import NumPyBackend
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
+# mosaic-intervention: int64-sparse-indices
 _numpy_ravel_multi_index = NumPyBackend.ravel_multi_index
 
 
@@ -56,6 +57,7 @@ def _ravel_multi_index_int64(
 
 
 NumPyBackend.ravel_multi_index = _ravel_multi_index_int64
+# mosaic-intervention-end: int64-sparse-indices
 
 
 class InputSchema(
@@ -260,6 +262,7 @@ def channel_fwd(
     grid_kwargs = {"x": nx, "y": ny, "bounds": Box(x=nx * dx, y=ny * dx)}
 
     solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
+    # mosaic-intervention: inlined-obstacle-projection
 
     inlet = extrapolation.combine_by_direction(
         normal=extrapolation.ConstantExtrapolation(
@@ -288,6 +291,7 @@ def channel_fwd(
     open_x = jnp.asarray(open_faces.vector["x"].values.numpy("x,y"))
     open_y = jnp.asarray(open_faces.vector["y"].values.numpy("x,y"))
     fluid_cells = jnp.asarray(~solid)
+    # mosaic-intervention-end: inlined-obstacle-projection
 
     def to_grid(ux: jnp.ndarray, uy: jnp.ndarray) -> StaggeredGrid:
         components = {
@@ -298,12 +302,16 @@ def channel_fwd(
             math.stack(components, math.dual("vector")), ext, **grid_kwargs
         )
 
+    # mosaic-intervention: inlined-obstacle-projection
+    # mosaic-intervention: body-force-output
     def close(vel: StaggeredGrid) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Zero the faces touching the cylinder and return the momentum removed."""
         ux = vel.vector["x"].values.native("x,y")
         uy = vel.vector["y"].values.native("x,y")
         removed = jnp.stack([(ux * (1 - open_x)).sum(), (uy * (1 - open_y)).sum()])
         return ux * open_x, uy * open_y, removed * dx**2
+
+    # mosaic-intervention-end: inlined-obstacle-projection
 
     def pressure_force(p: jnp.ndarray) -> jnp.ndarray:
         """Pressure on the faces between fluid and solid cells, from the fluid side."""
@@ -314,12 +322,15 @@ def channel_fwd(
         fy = ((p[:, :-1] - p[:, 1:]) * shut_y).sum()
         return jnp.stack([fx, fy]) * dx
 
+    # mosaic-intervention-end: body-force-output
+
     def step(
         carry: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], _: None
     ) -> tuple[tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         ux, uy, p_prev = carry
         vel = to_grid(ux, uy)
         vel = advect.semi_lagrangian(vel, vel, dt)
+        # mosaic-intervention: inlined-obstacle-projection
         ux, uy, removed = close(vel)
         vel = diffuse.explicit(to_grid(ux, uy), viscosity, dt)
         ux, uy, removed_viscous = close(vel)
@@ -337,6 +348,7 @@ def channel_fwd(
             "upwind": None,
             "correct_skew": False,
         }
+        # mosaic-intervention: channel-pressure-warm-start
         p_guess = Field(
             div.geometry,
             math.tensor(p_prev * dt, math.spatial("x,y")),
@@ -351,12 +363,16 @@ def channel_fwd(
             *laplace_args,
             **laplace_kwargs,
         )
+        # mosaic-intervention-end: channel-pressure-warm-start
         grad = field.spatial_gradient(
             p_dt, ext, at="face", order=2, scheme="green-gauss"
         )
         vel = vel - grad * open_faces
+        # mosaic-intervention-end: inlined-obstacle-projection
         p = p_dt.values.native("x,y") / dt
+        # mosaic-intervention: body-force-output
         force = (removed + removed_viscous) / dt + pressure_force(p)
+        # mosaic-intervention-end: body-force-output
         ux = vel.vector["x"].values.native("x,y")
         uy = vel.vector["y"].values.native("x,y")
         return (ux, uy, p), force

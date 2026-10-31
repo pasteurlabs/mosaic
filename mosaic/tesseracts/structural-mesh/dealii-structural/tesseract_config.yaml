@@ -28,3 +28,23 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://www.dealii.org/"
+    # What it took to run deal.II here, beyond writing the assembly loop the
+    # library is designed for. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: umfpack-direct-solve
+        level: L0
+        necessity: choice
+        what: >
+          Solves the assembled system with deal.II's SparseDirectUMFPACK
+          instead of the CG with SSOR preconditioning of the step-8 tutorial
+          the assembly follows.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              CG with SSOR gives the same compliance but is 1.7x slower at
+              nx = 128.
+            evidence: "#271, notes."
+        provenance: mosaic-team
+    deviations: []
