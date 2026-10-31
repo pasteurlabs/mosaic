@@ -21,6 +21,7 @@ Forward only: no VJP/JVP.
 """
 
 import math
+import os
 import re
 import subprocess
 import tempfile
@@ -855,6 +856,45 @@ def _read_forces(workdir: Path, depth: float) -> np.ndarray:
     return (data[:, 1:3] + data[:, 4:6]) / depth
 
 
+# Fewest cells per MPI process. Smaller meshes run serially.
+_CELLS_PER_PROCESS = 10_000
+
+
+def _physical_cores() -> int:
+    """Physical cores among the CPUs this process may run on.
+
+    One rank per physical core: OpenFOAM's ranks busy-wait in MPI, and two
+    of them on hardware threads of the same core slow each other down.
+    """
+    cpus = os.sched_getaffinity(0)
+    siblings = set()
+    for cpu in cpus:
+        path = Path(f"/sys/devices/system/cpu/cpu{cpu}/topology/thread_siblings_list")
+        try:
+            siblings.add(path.read_text().strip())
+        except OSError:
+            return len(cpus)
+    return len(siblings)
+
+
+def _decompose(workdir: Path, n_cells: int) -> int:
+    """Split the case over the available cores; returns the number of processes."""
+    n_procs = min(_physical_cores(), n_cells // _CELLS_PER_PROCESS)
+    if n_procs < 2:
+        return 1
+    (workdir / "system" / "decomposeParDict").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="decomposeParDict")
+        + f"numberOfSubdomains {n_procs};\nmethod          scotch;\n"
+    )
+    _run_of("decomposePar", workdir)
+    return n_procs
+
+
+def _parallel(cmd: str, n_procs: int) -> str:
+    """``cmd`` run on ``n_procs`` MPI processes of a decomposed case."""
+    return f"mpirun -np {n_procs} {cmd} -parallel" if n_procs > 1 else cmd
+
+
 def _run_channel(inputs: InputSchema) -> dict:
     """Solve the DFG channel on a body-fitted mesh and return canonical-grid outputs."""
     v0 = np.asarray(inputs.v0, dtype=np.float64)[:, :, 0, :]
@@ -994,7 +1034,10 @@ def apply(inputs: InputSchema) -> OutputSchema:
         _write_initial_p(workdir, ndim)
 
         _run_of("blockMesh", workdir)
-        _run_of("icoFoam", workdir)
+        n_procs = _decompose(workdir, N**ndim)
+        _run_of(_parallel("icoFoam", n_procs), workdir)
+        if n_procs > 1:
+            _run_of("reconstructPar -latestTime", workdir)
 
         result = _read_final_velocity(workdir, N, ndim)
 

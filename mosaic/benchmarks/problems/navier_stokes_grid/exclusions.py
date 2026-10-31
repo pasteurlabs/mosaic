@@ -37,6 +37,19 @@ INS_JL_NO_OBSTACLE = Exclusion(
     "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
     "Brinkman forcing, which are not wired up here",
 )
+EXPONAX_PERIODIC_ONLY = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "a Fourier pseudo-spectral method represents only periodic fields, so it "
+    "cannot express a channel with walls, an inflow and an outflow",
+)
+EXPONAX_EXACT_TGV = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "the Taylor–Green vortex is a single Fourier mode, which a spectral method "
+    "represents exactly on every grid, so Exponax's error is float32 round-off "
+    "from the first step. Round-off grows with the number of grid points and "
+    "steps rather than shrinking with the grid spacing, so no positive order "
+    "can be observed",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -75,22 +88,43 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
     "order drops. More correctors remove the floor at a multiple of the wall "
     "time and reverse-mode memory",
 )
+PHIFLOW_SPARSE_CG_COST = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "PhiFlow solves each pressure projection with phiml's conjugate gradient "
+    "on an explicit sparse matrix, as phiml does for every linear solve on a "
+    "backend with sparse tensors, JAX included. JAX runs the sparse "
+    "matrix-vector product as a gather and a scatter-add, about 160 of the "
+    "184 µs per CG iteration at 256², against 14 µs for the same Laplacian "
+    "as a stencil. A projection takes about 300 iterations at 256², and each "
+    "RK4 step four projections",
+)
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "ins_jl": INS_JL_NO_OBSTACLE,
+    "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
 
 def register(problem: Problem) -> None:
     """Apply every ns-grid exclusion via :meth:`Problem.exclude`."""
     # Forward
-    problem.exclude("forward/baseline", {"pict": PICT_PISO_SPLITTING_FLOOR})
+    problem.exclude(
+        "forward/baseline",
+        {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
+    )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
 
     # Cost
     for key in ("cost/spatial_cost", "cost/temporal_cost"):
         problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
+    for key in (
+        "cost/spatial_cost",
+        "cost/temporal_cost",
+        "cost/vjp_cost/by_N",
+        "cost/vjp_cost/by_steps",
+    ):
+        problem.exclude(key, {"phiflow": PHIFLOW_SPARSE_CG_COST})
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
