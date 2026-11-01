@@ -73,7 +73,11 @@ metadata:
         what: >
           The VJP differentiates a hand-written, non-mutating RK4 loop over
           create_right_hand_side with Zygote.pullback. apply runs the
-          library's in-place solve_unsteady with RKMethods.RK44 instead.
+          library's in-place solve_unsteady with RKMethods.RK44 instead,
+          except with a body force or drag, where it runs the hand-written
+          loop too so that both integrate the same right-hand side. No
+          comparison with the library's force! hook
+          (examples/Kolmogorov2D.jl) is recorded.
         why:
           ns-2d-periodic: &rollout-reason
             consequences: []

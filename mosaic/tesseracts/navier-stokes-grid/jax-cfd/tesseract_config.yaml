@@ -60,4 +60,26 @@ metadata:
           scheme the maintainers would pick; no reply, and the project says
           it is no longer maintained.
         provenance: mosaic-team
+      - id: summed-forcing
+        level: L2
+        necessity: required
+        what: >
+          Adds the body force and the linear drag in one forcing function
+          passed to semi_implicit_navier_stokes, in place of jax-cfd's
+          sum_forcings.
+        why:
+          ns-2d-periodic:
+            consequences: [crash]
+            symptom: >
+              sum_forcings adds the terms with equations.sum_fields, which
+              calls jax.tree_map. The pinned JAX 0.10.0 no longer has
+              jax.tree_map, so combining the force and the drag through the
+              library would raise an AttributeError. This comes from reading
+              both sources and was not run.
+            evidence: >
+              https://github.com/google/jax-cfd/blob/0.2.1/jax_cfd/base/equations.py
+              (sum_fields); #272.
+        upstream: >
+          No issue filed: the project says it is no longer maintained.
+        provenance: mosaic-team
     deviations: []

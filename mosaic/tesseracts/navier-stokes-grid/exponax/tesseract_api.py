@@ -194,6 +194,7 @@ def exponax_fwd(
                 **stepper_kwargs,
             )
         elif forcing is not None:
+            # mosaic-intervention: canonical-force-injection
             stepper = ex.stepper.KolmogorovFlowVorticity(
                 num_spatial_dims=2, injection_scale=0.0, **stepper_kwargs
             )
@@ -206,6 +207,7 @@ def exponax_fwd(
                 stepper,
                 jnp.fft.rfft2(-curl).astype(jnp.complex64),
             )
+            # mosaic-intervention-end: canonical-force-injection
         else:
             stepper = ex.stepper.NavierStokesVorticity(
                 num_spatial_dims=2, **stepper_kwargs

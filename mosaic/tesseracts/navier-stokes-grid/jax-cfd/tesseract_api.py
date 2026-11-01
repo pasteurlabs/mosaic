@@ -100,9 +100,10 @@ def cfd_fwd(
     def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
+    # mosaic-intervention: summed-forcing
     def body_force(v: Any) -> tuple:
-        # jax-cfd's own sum_forcings calls jax.tree_map, which JAX 0.10
-        # removed, so the force and the drag are summed here.
+        # jax-cfd's own sum_forcings calls jax.tree_map, which JAX 0.10 no
+        # longer has, so the force and the drag are summed here.
         terms = []
         for i, u in enumerate(v):
             term = 0.0
@@ -112,6 +113,8 @@ def cfd_fwd(
                 term = term - linear_drag * u.data
             terms.append(cfd.grids.GridArray(term, u.offset, grid))
         return tuple(terms)
+
+    # mosaic-intervention-end: summed-forcing
 
     # --- NS step function ------------------------------------------------
     # The library's default (van Leer + forward Euler) uses a Lax-Wendroff

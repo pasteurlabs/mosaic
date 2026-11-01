@@ -148,6 +148,26 @@ metadata:
             evidence: Initial commit (c47498a) description.
           ns-3d: *loop-reason
         provenance: mosaic-team
+      - id: exact-difference-forcing
+        level: L2
+        necessity: required
+        what: >
+          Periodic runs with a body force or drag apply the exact difference
+          method by hand in the manual LBM loop, with the drag evaluated
+          semi-implicitly at the half-force velocity. The initial populations
+          and the output velocity are shifted by half a kick.
+        why:
+          ns-2d-periodic:
+            consequences: [cannot-express]
+            symptom: >
+              XLB 0.3.1's ExactDifference operator takes one constant force
+              vector ("currently we are limited to a single force vector not a
+              spatially dependent forcing field"), so it cannot apply the
+              Kolmogorov force sin(κy) or a drag that depends on the velocity.
+            evidence: >
+              https://github.com/Autodesk/XLB/blob/v0.3.1/xlb/operator/force/exact_difference_force.py;
+              tests/test_ns_grid_forcing.py; #272.
+        provenance: mosaic-team
       - id: channel-boundary-conditions
         level: L2
         necessity: choice
@@ -191,7 +211,9 @@ metadata:
         what: >
           Each prescribed step runs as k = ceil(Ma / Ma_target) LBM steps of
           dt / k, never coarser than prescribed. Ma_target is 0.1, lowered in
-          proportion to 1/N above N = 64 on periodic boxes.
+          proportion to 1/N above N = 64 on periodic boxes. With a body force,
+          Ma uses the larger of max|v0| and a bound on the speed the force can
+          drive, so a flow it spins up from rest stays within the target.
         consequences: [cannot-express]
         effect: >
           LBM ties the time step to the grid through the lattice Mach number,

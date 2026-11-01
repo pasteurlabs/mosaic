@@ -476,6 +476,7 @@ def xlb_fwd(
 
     out = {}
     if obstacle is None and (forcing is not None or linear_drag is not None):
+        # mosaic-intervention: exact-difference-forcing
         # Body force by the exact difference method (Kupershtokh 2004), which
         # adds feq(ρ, u + Δu) - feq(ρ, u) after the collision. With the force
         # a - αu per unit mass, the kick per LBM step is Δu = a - αu* at the
@@ -509,6 +510,7 @@ def xlb_fwd(
         # mosaic-intervention-end: manual-lbm-loop
         _rho_f, u_post = xlb_macro(f_final)
         u_out = (u_post - 0.5 * accel) / (1.0 - 0.5 * drag)
+        # mosaic-intervention-end: exact-difference-forcing
     elif obstacle is None:
         # mosaic-intervention: consistent-initial-populations
         f0 = _periodic_populations(u0, omega, ops)
