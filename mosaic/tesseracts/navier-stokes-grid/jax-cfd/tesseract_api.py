@@ -29,7 +29,7 @@ class InputSchema(
         description="Density of the fluid", default=1.0
     )
     inner_steps: int = Field(
-        description="Solver sub-iterations per timestep (higher = more accurate pressure solve)",
+        description="Time steps of dt per output step, so a run advances steps * inner_steps * dt",
         default=1,
     )
 

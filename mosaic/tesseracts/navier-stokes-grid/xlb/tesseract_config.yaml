@@ -91,6 +91,20 @@ metadata:
               is recorded.
             evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
         provenance: mosaic-team
+      - id: channel-checkpointing
+        level: L0
+        necessity: unknown
+        what: >
+          The channel runs its time loop through the same sqrt-checkpointed
+          scan as the periodic boxes.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: >
+              No reason recorded: the channel reuses the periodic boxes' helper
+              since #239, and no run without it is recorded. drag_opt
+              differentiates through the whole run.
+        provenance: mosaic-team
       - id: consistent-initial-populations
         level: L2
         necessity: required
@@ -186,16 +200,3 @@ metadata:
           sub-stepping the Taylor-Green case ran at Ma of about 0.88, with
           errors 84 to 114x the peer median.
         evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
-      - id: harness-dt-scaling
-        setups: [ns-3d]
-        what: >
-          In ns-3d-grid experiments that set lbm_N_base = 16 (agreement,
-          physical laws, cost), the harness gives XLB alone a time step of
-          dt * 16 / N and steps * N / 16, with no lower clamp, so XLB runs
-          twice the prescribed step at N = 8.
-        consequences: [cannot-express]
-        effect: >
-          Removing it leaves every status unchanged. The N = 8 analytic error
-          goes from 0.064 to 0.079 and the N = 32 divergence RMS from 3.0e-4
-          to 5.6e-4; cost at N = 32 to 64 is expected to drop.
-        evidence: "#284 (open), notes."

@@ -166,7 +166,7 @@ Each intervention has:
 - `id` (kebab-case) and `what`, one or two sentences;
 - `level`, by mechanism: `L0` documented use (public API and documented options), `L1` undocumented configuration (found by reading the source), `L2` user code on public primitives (a boundary condition, objective or VJP rule the library does not provide), `L3` changing the solver (monkeypatching, private APIs, patching its source). Fixes that exist only in unreleased upstream code (L4) are not accepted;
 - `necessity`: `required` (the setup fails without it), `choice` (not needed to pass; say what it gains) or `unknown`;
-- `why`, per setup (`ns-2d-periodic`, `ns-2d-cylinder`, `ns-3d`, `structural`, `heat`): the `consequences` a user who skips it would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, with a measured number where one exists, and the `evidence`: a pull request, issue, test or log. Above `L0`, a `required` or `choice` intervention needs evidence; so does a value found by measurement (`tuned: true`). If the reason is not known, say `necessity: unknown` rather than guess;
+- `why`, per setup (`ns-2d-periodic`, `ns-2d-cylinder`, `ns-3d`, `structural`, `heat`): the `consequences` a user who skips it would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, with a measured number where one exists, and the `evidence`: a pull request, issue, test or log. Above `L0`, a `required` or `choice` intervention needs evidence; so does a setting picked by measuring alternatives (`tuned: true`), such as a tolerance, linear solver, preconditioner, device or parallel layout. If the reason is not known, say `necessity: unknown` rather than guess; this includes a setup on which the intervention was never measured, which then gets its own entry;
 - `provenance`: `mosaic-team`, `contributor`, `maintainer-authored` or `maintainer-advised`;
 - optionally `upstream` (a link to the upstream issue, or why there is none), `tuned` and `active: false` for code no experiment exercises.
 
@@ -192,7 +192,7 @@ metadata:
     deviations: []
 ```
 
-Not recorded: fixes to Mosaic's own wrapper code, code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
+Not recorded: fixes to Mosaic's own wrapper code (including runtime settings that only keep an embedded runtime working inside the Python wrapper, such as Julia's under juliacall), settings that only let solvers share the benchmark machine (such as JAX's GPU memory preallocation and fraction), code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
 
 `L2` and `L3` code is wrapped in marker comments (`//` in C and C++), outside import blocks:
 

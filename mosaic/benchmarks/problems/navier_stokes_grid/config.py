@@ -295,8 +295,8 @@ problem.add_experiment(
     ),
     ic={"name": "dfg_inflow", "seed": 0},
     # 40 cells per diameter is left out of the routine run because it is not
-    # scored and costs PhiFlow ~1000 s on an A100, past the per-call timeout on a
-    # T4.
+    # scored. At PhiFlow's earlier channel CG tolerance of 1e-5 (before #308) it
+    # cost PhiFlow ~1000 s on an A100, past the per-call timeout on a T4.
     # Checked locally, it gives Cd = 5.5791 (OpenFOAM), 5.647 (XLB) and
     # 5.471 (PhiFlow).
     physics={"resolution": [10, 20]},
