@@ -31,6 +31,7 @@ from tesseract_jax import apply_tesseract
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_free
+from mosaic.benchmarks.problems.shared.gradient import fd_eps_sweep
 
 from .kolmogorov import (
     DOMAIN_EXTENT,
@@ -105,7 +106,7 @@ def chain_fd_check(t: Any, ctx: KernelContext) -> dict:
         return float(chain_loss(states, targets, np))
 
     rng = np.random.default_rng(_SEED)
-    seed = GROUND_TRUTH_SEEDS["test"][0]
+    seed = GROUND_TRUTH_SEEDS[0]
     reference = initial_state(load_ground_truth(ctx.cfg.name), seed, n)
     targets = [np.asarray(s) for s in chain(step, jnp.asarray(reference), intervals)]
     if not all(np.isfinite(s).all() for s in targets):
@@ -126,10 +127,10 @@ def chain_fd_check(t: Any, ctx: KernelContext) -> dict:
     vjp_arr = np.array([float(np.vdot(g, d)) for d in dirs])
     targets64 = [np.asarray(s, dtype=np.float64) for s in targets]
 
-    eps_sweep: dict = {}
+    fd_per_eps = {}
     for eps in eps_values:
         h = eps * ic_scale
-        fd_arr = np.array(
+        fd_per_eps[eps] = np.array(
             [
                 (
                     host_loss(start + h * d, targets64)
@@ -139,21 +140,12 @@ def chain_fd_check(t: Any, ctx: KernelContext) -> dict:
                 for d in dirs
             ]
         )
-        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
-        eps_sweep[eps] = {
-            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
-            "cosine": float(
-                np.dot(fd_arr, vjp_arr)
-                / (np.linalg.norm(fd_arr) * np.linalg.norm(vjp_arr) + 1e-30)
-            ),
-            "fd_arr": fd_arr.tolist(),
-        }
     return {
         "metrics": {
             "ic_scale": ic_scale,
             "loss": host_loss(start, targets64),
             "vjp_arr": vjp_arr.tolist(),
-            "eps_sweep": eps_sweep,
+            "eps_sweep": fd_eps_sweep(vjp_arr, fd_per_eps),
         },
         "snapshot": g,
         "shared": {"ic": start},
