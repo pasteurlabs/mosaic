@@ -132,3 +132,36 @@ def test_cost_subtitle_names_each_solvers_device():
         "hardware_by_solver", {"JAX-FEM": gpu_node, "FEniCS": cpu_node}
     )
     assert _hardware_str([split], cfg) == "GPU Tesla T4 · CPU INTEL XEON PLATINUM 8573C"
+
+
+def test_fd_check_skips_non_finite_entries(tmp_path):
+    """A perturbed run that diverged leaves nulls in the stored ε sweep."""
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.shared.plots.charts.gradient import fd_check
+
+    def sweep(rel_error, cosine):
+        return {"rel_error": rel_error, "cosine": cosine, "fd_arr": [0.0, 0.0]}
+
+    entries = [
+        {"solver": "XLB", "metrics": {"eps_sweep": {"0.1": sweep([1e-4, 2e-4], 1.0)}}},
+        {
+            "solver": "PhiFlow",
+            "metrics": {
+                "eps_sweep": {
+                    "1.0": sweep([None, None], None),
+                    "0.1": sweep([0.5, None], 0.2),
+                }
+            },
+        },
+    ]
+    result = {"schema_version": 1, "results": entries}
+    (tmp_path / "result.json").write_text(json.dumps(result))
+    ctx = Ctx(
+        "ns-grid", "gradient", "fd_check", tmp_path / "x.png", get_config("ns-grid")
+    )
+
+    chart = fd_check(ctx)
+
+    assert chart is not None
+    rows = [r for ds in chart.to_dict()["datasets"].values() for r in ds]
+    assert {(r["solver"], r["eps"]) for r in rows} == {("XLB", 0.1), ("PhiFlow", 0.1)}

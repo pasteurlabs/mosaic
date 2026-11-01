@@ -38,7 +38,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
 
 jl = juliacall.newmodule("ins_ns")
 jl.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
-jl.seval("using IncompressibleNavierStokes, Zygote")
+jl.seval("using IncompressibleNavierStokes, Zygote, CUDA")
 jl.include(str(Path(__file__).parent / "solver.jl"))
 
 

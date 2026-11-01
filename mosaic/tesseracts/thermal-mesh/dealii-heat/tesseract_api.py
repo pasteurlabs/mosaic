@@ -5,8 +5,7 @@
 
 Uses deal.II Q1 finite elements as a C++ subprocess.  Python writes JSON +
 rho.npy + source.npy to a tempdir, runs the compiled heat_solver binary, and
-reads back compliance.txt.  This solver is forward-only — it serves as the
-reference solver for ground-truth temperature targets in inverse experiments.
+reads back compliance.txt.  This solver is forward-only.
 
 SIMP conductivity:
     k(ρ) = k_min + (k_max − k_min) · ρ^p    (k_min = 1e-3 · k_max)

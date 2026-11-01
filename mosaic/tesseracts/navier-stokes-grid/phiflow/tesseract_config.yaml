@@ -54,46 +54,33 @@ metadata:
         level: L0
         necessity: unknown
         what: >
-          Passes an explicit math.Solve("CG", ...) to the pressure solves
-          instead of phiml's default Solve() ("auto").
+          The channel's pressure solve passes math.Solve("CG", ...) instead of
+          the "auto" method of make_incompressible's default Solve(). The
+          periodic boxes' solve equals incompressible_rk4's default.
         why:
-          ns-2d-periodic: &cg-reason
-            consequences: [non-finite]
-            symptom: >
-              The code comment says the default solver produces NaN in 3-D at
-              20 or more steps, 2-D unaffected. No run is recorded, and the
-              comment predates the switch to incompressible_rk4 (#288).
-            evidence: Comment above _cg_solve in tesseract_api.py.
-          ns-3d: *cg-reason
           ns-2d-cylinder:
             consequences: []
-            symptom: No reason recorded for the channel.
+            symptom: No reason recorded.
         provenance: mosaic-team
-      - id: periodic-cg-tolerance
+      - id: channel-cg-tolerance
         level: L0
         necessity: choice
         tuned: true
         what: >
-          The periodic pressure CG stops at a relative and absolute residual
-          of 1e-7 instead of phiml's float32 default of 1e-5.
+          The channel's pressure CG stops at a relative and absolute residual
+          of 1e-2 instead of phiml's float32 default of 1e-5.
         why:
-          ns-3d:
-            consequences: []
+          ns-2d-cylinder:
+            consequences: [too-slow]
             symptom: >
-              Tuned on the earlier forward-Euler step, where 1e-5 stalled the
-              recovery at an IC error of 0.009 against 0.0032 (#234). Under the
-              RK4 step on main, forward errors and gradient checks move by
-              under 0.15% at 1e-5 and the recovery's final IC error is 0.00301
-              against 0.00308.
-            evidence: "#234; #296 (open), notes."
-          ns-2d-periodic:
-            consequences: []
-            symptom: >
-              At 1e-5, forward errors and gradient checks move by under 0.15%
-              under the RK4 step; ns-grid divergence_rms rises by up to 65%,
-              which no check uses. One projection at 256^2 takes 95 ms at 1e-7
-              against 54 ms at 1e-5.
-            evidence: "#296 (open), notes."
+              At 1e-5, forward/cylinder took 293 s against 43 s and drag_opt
+              10,782 s against 1,271 s, on a shared GPU. Against 1e-7, Cd, Cl
+              and the pressure drop move by at most 0.07%, and drag_opt
+              reaches a drag reduction of 47.60% against 47.66%; every status
+              is unchanged. At 1e-1 the Cd error moves by 4%. Tuned with the
+              channel-pressure-warm-start correction in place, so the
+              tolerance applies to the correction's residual.
+            evidence: "#308, notes."
         provenance: mosaic-team
       - id: rk4-central-differences
         level: L0
@@ -121,22 +108,6 @@ metadata:
               #288; https://tum-pbs.github.io/PhiFlow/Fluid_Simulation.html
               ("Higher-Order Simulations").
           ns-3d: *rk4-reason
-        provenance: mosaic-team
-      - id: jax-memory-fraction
-        level: L0
-        necessity: unknown
-        what: >
-          Sets XLA_PYTHON_CLIENT_MEM_FRACTION=0.5 next to
-          XLA_PYTHON_CLIENT_PREALLOCATE=false.
-        why:
-          ns-2d-periodic: &mem-reason
-            consequences: []
-            symptom: >
-              No reason recorded; present since the initial commit. Whether it
-              limits PhiFlow to half the GPU memory with preallocation off has
-              not been checked.
-          ns-2d-cylinder: *mem-reason
-          ns-3d: *mem-reason
         provenance: mosaic-team
       - id: inlined-obstacle-projection
         level: L2
@@ -169,13 +140,12 @@ metadata:
             consequences: [too-slow]
             symptom: >
               Per the code comment, it keeps the CG iterations low in the
-              near-steady flow; not measured for PhiFlow. Passing the previous
+              near-steady flow; not measured for PhiFlow, and the channel's CG
+              tolerance was tuned with it in place. Passing the previous
               pressure as x0 fails under reverse mode with an
               UnexpectedTracerError inside lax.scan.
             evidence: Comment in channel_fwd.step (#239).
-        upstream: >
-          Not filed yet: an issue for the x0 tracer error in phiml's
-          solve_linear under lax.scan is drafted and approved.
+        upstream: https://github.com/tum-pbs/PhiML/issues/17 (x0 tracer error)
         provenance: mosaic-team
       - id: body-force-output
         level: L2

@@ -80,15 +80,16 @@ class OutputSchema(
 
 
 # The periodic pressure solve stops at a relative and absolute residual of
-# 1e-7, the loosest tolerance whose results match a fully converged solve.
-# phiflow's default 1e-5 leaves enough noise in the loss that the ns-3d
-# recovery stalls at ~3x the IC error. Much tighter (1e-10) is below float32's
-# residual floor, so CG runs to max_iterations at 2-3x the cost without
-# improving any result.
-_CG_TOL = 1e-7
-# The channel's pressure solve stops at phiflow's default 1e-5, which gives the
-# same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
-_CHANNEL_CG_TOL = 1e-5
+# 1e-5, phiml's default in float32. Tightening it to 1e-7 changes no check
+# (forward errors move by less than 0.15%, the ns-3d recovery reaches the same
+# IC error) and makes each solve up to 1.8x slower, since 1e-7 is close to
+# float32's residual floor.
+_CG_TOL = 1e-5
+# The channel's pressure solve stops at 1e-2 (relative and absolute), the
+# loosest at which Cd, Cl and the pressure drop stay within 0.1% of a 1e-7
+# solve at 10 and 20 cells per diameter, and drag_opt ends at the same drag.
+# At 1e-1 the Cd error at 10 cells per diameter moves by 4%.
+_CHANNEL_CG_TOL = 1e-2
 
 
 def periodic_fwd(
@@ -148,8 +149,8 @@ def periodic_fwd(
             [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    # Use explicit CG pressure solver to prevent numerical divergence in 3D
-    # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
+    # The same solve as incompressible_rk4's default Solve("CG"), whose
+    # tolerances resolve to 1e-5 in float32.
     _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
     def momentum(vel: StaggeredGrid) -> StaggeredGrid:
@@ -261,8 +262,6 @@ def channel_fwd(
     grid_kwargs = {"x": nx, "y": ny, "bounds": Box(x=nx * dx, y=ny * dx)}
 
     solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
-    # mosaic-intervention: inlined-obstacle-projection
-
     inlet = extrapolation.combine_by_direction(
         normal=extrapolation.ConstantExtrapolation(
             math.tensor(inflow_profile, math.spatial("y"))
@@ -272,6 +271,7 @@ def channel_fwd(
     ext = extrapolation.combine_sides(
         x=(inlet, extrapolation.ZERO_GRADIENT), y=extrapolation.ZERO
     )
+    # mosaic-intervention: inlined-obstacle-projection
     with math.NUMPY:
         accessible = CenteredGrid(
             math.tensor(~solid, math.spatial("x,y")), _CHANNEL_ACCESSIBLE, **grid_kwargs

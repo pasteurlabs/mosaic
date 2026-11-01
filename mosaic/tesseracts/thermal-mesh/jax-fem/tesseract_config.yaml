@@ -21,7 +21,7 @@ metadata:
     family: fem
     scheme: "FEM HEX8 heat conduction (SIMP, adjoint AD)"
     discretization: FE
-    numerics: "Direct (SuperLU)"
+    numerics: "BiCGSTAB+Jacobi"
     ad_strategy: hybrid
     differentiable: true
     uses_gpu: true
@@ -34,6 +34,7 @@ metadata:
       - id: jitted-bicgstab-solver
         level: L2
         necessity: choice
+        tuned: true
         what: >
           Passes JAX-FEM's own Jacobi-preconditioned BiCGSTAB (the default
           jax_solver's algorithm and tolerances), compiled once per matrix

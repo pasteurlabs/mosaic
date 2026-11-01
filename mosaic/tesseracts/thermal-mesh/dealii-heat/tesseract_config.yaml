@@ -2,7 +2,7 @@ name: dealii_heat_thermal_mesh
 version: "0.1.0"
 description: >
   deal.II Q1 trilinear hexahedral FEM heat-conduction solver with SIMP conductivity (C++
-  subprocess, SSOR-preconditioned CG). Forward-only — reference implementation for
+  subprocess, AMG-preconditioned CG). Forward-only — reference implementation for
   cross-framework validation.
 build_config:
   base_image: "dealii/dealii:v9.7.1-jammy"
@@ -23,7 +23,7 @@ metadata:
     family: fem
     scheme: "FEM Q1 heat conduction (SIMP, forward-only)"
     discretization: FE
-    numerics: "CG+SSOR"
+    numerics: "CG+AMG"
     ad_strategy: null
     differentiable: false
     uses_gpu: false
@@ -33,21 +33,39 @@ metadata:
     # library is designed for. Format: mosaic/benchmarks/core/interventions.py.
     abstraction: framework
     interventions:
+      - id: amg-preconditioner
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          Preconditions the CG solve with Trilinos ML algebraic multigrid
+          (PreconditionAMG, elliptic) instead of the SSOR of the step-5
+          tutorial the assembly follows.
+        why:
+          heat:
+            consequences: [too-slow]
+            symptom: >
+              With SSOR every forward metric is the same, and spatial_cost at
+              nx = 1024 takes 61.1 s against 25.6 s (UMFPACK: 35.6 s). AMG wins
+              from nx = 256 on; at nx = 16 its setup makes it slower, 0.020 s
+              against 0.014 s.
+            evidence: "#305, notes table."
+        provenance: mosaic-team
       - id: cg-tolerance
         level: L0
         necessity: choice
         tuned: true
         what: >
-          The SSOR-preconditioned CG solve (omega = 1.2, as in the step-5 tutorial)
-          stops at a residual of 1e-8 times the right-hand-side norm, with a
-          cap of 50000 iterations.
+          The CG solve stops at a residual of 1e-8 times the right-hand-side
+          norm, with a cap of 50000 iterations.
         why:
           heat:
             consequences: [too-slow]
             symptom: >
               At the earlier 1e-12 every forward metric is identical and the
               largest mesh is slower: spatial_cost at nx = 1024 took 60.1 s
-              against 51.1 s.
-            evidence: "#266, before/after table."
+              against 51.1 s. Measured with SSOR; with AMG, #305 checked only
+              that the forward metrics are unchanged at 1e-8.
+            evidence: "#266, before/after table; #305, notes."
         provenance: mosaic-team
     deviations: []
