@@ -325,9 +325,9 @@ def _refine_cost(
     if not checks:
         return
     key = "by_N" if "by_N" in data else "by_steps" if "by_steps" in data else None
-    if not key:
+    top = data.get(key, {}) if key else data.get("by_solver", {})
+    if not isinstance(top, dict):
         return
-    top = data[key]
     solver_medians: dict[str, float] = {}
     for solver, cell in cells.items():
         if cell.status != OK:
