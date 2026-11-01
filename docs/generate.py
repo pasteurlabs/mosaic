@@ -23,6 +23,23 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+
+def _load_views():
+    """Load docs/intervention_views.py whether this runs as a script or a module."""
+    import importlib.util
+
+    name = "_mosaic_intervention_views"
+    if name not in sys.modules:
+        path = Path(__file__).resolve().parent / "intervention_views.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+views = _load_views()
 TESSERACTS = ROOT / "mosaic" / "tesseracts"
 OUTPUT = Path(__file__).resolve().parent / "solvers.qmd"
 
@@ -275,6 +292,8 @@ def load_solver(path: Path) -> dict | None:
     # The YAML metadata.mosaic block is the authoritative per-container
     # source; SolverSpec is used only as a fallback when a key is missing.
     yaml_mosaic = (config.get("metadata") or {}).get("mosaic") or {}
+    setups = views.iv.DOMAIN_SETUPS.get(physics, ())
+    record, _ = views.iv.parse_record(yaml_mosaic, setups or None)
 
     return {
         "name": config.get("name", f"{physics}/{backend}"),
@@ -309,6 +328,8 @@ def load_solver(path: Path) -> dict | None:
         or (spec["internal_dtype"] if spec else ""),
         "exclusions": spec["exclusions"] if spec else {},
         "explained_anomalies": spec["explained_anomalies"] if spec else {},
+        "record": record,
+        "setups": setups,
     }
 
 
@@ -439,6 +460,9 @@ def render_solver(solver: dict) -> str:
         lines.append(":::")
         lines.append("")
 
+    # Intervention record: a summary line plus a collapsible detail table.
+    lines += views.developer_block(solver.get("record"), solver.get("setups", ()))
+
     # Collapsible schema tables
     lines += [
         '::: {.callout-note collapse="true"}',
@@ -464,6 +488,12 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         f"Each solver card shows its numerical scheme, AD strategy, and "
         f"Tesseract schema; per-(solver, problem) exclusions and explained "
         f"anomalies come from the problem configs and are listed alongside. "
+        f"Each card also says what it took to run the solver here: the "
+        f"**effort** per setup (the highest level among the interventions it "
+        f"needs, L0 documented use to L3 changes to the solver), and under "
+        f"**Interventions and deviations** every intervention with its reason, "
+        f"evidence and upstream issue, the setup deviations, and the "
+        f"interventions nobody has a reason for yet. "
         f"Click **Inputs / Outputs** on any solver to expand its field tables. "
         f"The \u2202 column marks fields that support automatic differentiation "
         f"(VJP/JVP).\n\n"

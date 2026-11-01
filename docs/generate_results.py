@@ -21,6 +21,23 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = ROOT / "mosaic-results"
 OUTPUT_DIR = Path(__file__).resolve().parent  # docs/
 
+
+def _load_views():
+    """Load docs/intervention_views.py whether this runs as a script or a module."""
+    import importlib.util
+
+    name = "_mosaic_intervention_views"
+    if name not in sys.modules:
+        path = Path(__file__).resolve().parent / "intervention_views.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+views = _load_views()
+
 # Relative path from docs/results_*.qmd to mosaic-results/
 _IMG_BASE = "../mosaic-results"
 
@@ -360,7 +377,7 @@ def _load_suite_results(problem: str, suite: str, experiment: str) -> list[dict]
         return []
 
 
-def _rank_forward(problem: str) -> tuple[list[str], list[tuple]] | None:
+def _rank_forward(problem: str) -> tuple[list[str], list[tuple], str] | None:
     """Rank solvers by mean relative error vs the reference (lower is better)."""
     # Prefer the viscosity/parameter sweep; fall back to the first forward
     # experiment dir that carries an ``error`` metric.
@@ -381,10 +398,10 @@ def _rank_forward(problem: str) -> tuple[list[str], list[tuple]] | None:
     if len(rows) < 2:
         return None
     header = ["Solver", "Mean rel. error"]
-    return header, [(s, _fmt_sci(e)) for s, e in rows]
+    return header, [(s, _fmt_sci(e)) for s, e in rows], f"forward/{exp}"
 
 
-def _rank_gradient(problem: str) -> tuple[list[str], list[tuple]] | None:
+def _rank_gradient(problem: str) -> tuple[list[str], list[tuple], str] | None:
     """Rank by best-ε FD error (lower better); show direction cosine alongside."""
     by_solver: dict[str, tuple[float, float]] = {}
     for r in _load_suite_results(problem, "gradient", "fd_check"):
@@ -405,10 +422,14 @@ def _rank_gradient(problem: str) -> tuple[list[str], list[tuple]] | None:
     # Cosines sit so close to 1 that a fixed-decimal column reads as a wall of
     # "1.00000"; report the defect 1 − cos instead, where smaller is better.
     header = ["Solver", "Best-ε FD error", "1 − cosine"]
-    return header, [
-        (s, _fmt_sci(err), _fmt_sci(1.0 - cos) if math.isfinite(cos) else "—")
-        for s, (err, cos) in rows
-    ]
+    return (
+        header,
+        [
+            (s, _fmt_sci(err), _fmt_sci(1.0 - cos) if math.isfinite(cos) else "—")
+            for s, (err, cos) in rows
+        ],
+        "gradient/fd_check",
+    )
 
 
 def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float, float]]:
@@ -436,7 +457,7 @@ def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float, float]]
     return out
 
 
-def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
+def _rank_cost(problem: str) -> tuple[list[str], list[tuple], str] | None:
     """Rank by forward wall-clock, reporting both forward and VJP time.
 
     Forward time comes from the ``spatial_cost`` sweep and VJP time from
@@ -465,7 +486,11 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
 
     rows = sorted(fwd.items(), key=lambda t: t[1][1])
     header = ["Solver", "Forward time", "Forward first call", "VJP time"]
-    return header, [(s, _time(fv), _first(fv), _time(vjp.get(s))) for s, fv in rows]
+    return (
+        header,
+        [(s, _time(fv), _first(fv), _time(vjp.get(s))) for s, fv in rows],
+        "cost/spatial_cost",
+    )
 
 
 # final-objective metric name by domain optimization experiment, in priority
@@ -482,7 +507,7 @@ _OPT_METRIC_LABELS = {
 }
 
 
-def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
+def _rank_optimization(problem: str) -> tuple[list[str], list[tuple], str] | None:
     """Rank by final optimization objective (lower is better)."""
     # Find the first optimization experiment dir with a recognised final metric.
     opt_dir = RESULTS_DIR / problem / "optimization"
@@ -490,6 +515,7 @@ def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
         return None
     rows: list[tuple[str, float, bool]] = []
     metric_label = None
+    ranked_exp = ""
     for exp in sorted(p.name for p in opt_dir.iterdir() if p.is_dir()):
         for r in _load_suite_results(problem, "optimization", exp):
             m = r.get("metrics") or {}
@@ -503,12 +529,17 @@ def _rank_optimization(problem: str) -> tuple[list[str], list[tuple]] | None:
                 )
                 rows.append((r["solver"], float(val), bool(m.get("converged", False))))
         if rows:
+            ranked_exp = f"optimization/{exp}"
             break
     if len(rows) < 2:
         return None
     rows.sort(key=lambda t: t[1])
     header = ["Solver", metric_label, "Converged"]
-    return header, [(s, _fmt_sci(v), "yes" if conv else "no") for s, v, conv in rows]
+    return (
+        header,
+        [(s, _fmt_sci(v), "yes" if conv else "no") for s, v, conv in rows],
+        ranked_exp,
+    )
 
 
 _SUITE_RANKERS = {
@@ -549,7 +580,20 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
         return []
     if not ranked:
         return []
-    header, rows = ranked
+    header, rows, experiment = ranked
+    # Effort and deviations of each solver on the setup this table ranks.
+    setup = views.iv.setup_of(problem, experiment)
+    if setup is not None:
+        records = views.records_for(setup.key)
+        header = [*header, views.EFFORT_LABEL, views.DEVIATIONS_LABEL]
+        rows = [
+            (
+                *row,
+                views.effort_cell(records.get(row[0]), setup.key),
+                views.deviations_cell(records.get(row[0]), setup.key),
+            )
+            for row in rows
+        ]
     # Wrap the table in a .sortable-table div so docs/sortable-tables.html
     # (injected via include-after-body) can attach click-to-sort handlers
     # (numeric-aware). Static and correctly rank-ordered without JS, so it
@@ -559,7 +603,7 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
     lines = [
         "**Solver ranking**",
         "",
-        "::: {.sortable-table}",
+        "::: {.sortable-table .effort-table}",
         "| " + " | ".join(header) + " |",
         "|" + "|".join("---" for _ in header) + "|",
     ]
@@ -570,6 +614,68 @@ def _leaderboard_block(problem: str, suite: str) -> list[str]:
     if caption:
         lines += ["", f"*{caption}*"]
     lines += [""]
+    return lines
+
+
+# ── Setup and effort (intervention records) ──────────────────────────────────
+
+
+def _solvers_by_setup(problem: str) -> dict[str, list[str]]:
+    """Solvers with results in each setup of ``problem``, in first-seen order."""
+    by_setup: dict[str, list[str]] = {}
+    problem_dir = RESULTS_DIR / problem
+    if not problem_dir.is_dir():
+        return by_setup
+    for path in sorted(problem_dir.rglob("result.json")):
+        experiment = str(path.parent.relative_to(problem_dir))
+        if "_debug" in experiment or experiment.startswith("ics"):
+            continue
+        setup = views.iv.setup_of(problem, experiment)
+        if setup is None:
+            continue
+        try:
+            results = json.loads(path.read_text(encoding="utf-8")).get("results")
+        except Exception:  # noqa: S112 — malformed result file, skip it
+            continue
+        names = by_setup.setdefault(setup.key, [])
+        for r in results or []:
+            solver = r.get("solver") if isinstance(r, dict) else None
+            if solver and solver not in names:
+                names.append(solver)
+    return by_setup
+
+
+def _effort_block(problem: str) -> list[str]:
+    """QMD lines for the per-setup effort and deviations tables, or []."""
+    by_setup = _solvers_by_setup(problem)
+    setups = [s for s in views.iv.setups_of(problem) if by_setup.get(s.key)]
+    if not setups:
+        return []
+    lines = [
+        "## Setup and effort",
+        "",
+        "What it took to run each solver on each setup. " + views.EFFORT_EXPLAINER,
+        "",
+        views.LEVEL_FILTER_HTML,
+        "",
+    ]
+    for setup in setups:
+        records = views.records_for(setup.key)
+        if len(setups) > 1:
+            lines += [f"**{setup.label}**", ""]
+        lines += [
+            "::: {.sortable-table .effort-table}",
+            f"| Solver | {views.EFFORT_LABEL} | {views.DEVIATIONS_LABEL} | Interventions |",
+            "|---|---|---|---|",
+        ]
+        for solver in sorted(by_setup[setup.key], key=str.lower):
+            record = records.get(solver)
+            lines.append(
+                f"| {solver} | {views.effort_cell(record, setup.key)} "
+                f"| {views.deviations_cell(record, setup.key)} "
+                f"| {views.interventions_cell(record, setup.key)} |"
+            )
+        lines += [":::", ""]
     return lines
 
 
@@ -853,6 +959,8 @@ def generate_qmd_for_problem(problem: str, suites: dict, timestamp: str) -> str:
             ":::",
             "",
         ]
+
+    lines += _effort_block(problem)
 
     for suite, experiments in suites.items():
         suite_label = SUITE_LABELS.get(suite, suite.title())
