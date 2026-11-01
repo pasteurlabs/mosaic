@@ -24,6 +24,8 @@ import shutil
 import numpy as np
 import pytest
 
+from mosaic.benchmarks.problems.navier_stokes_grid.kolmogorov import forcing_field
+
 from .helpers import image_available
 
 _L = 2 * np.pi
@@ -59,14 +61,6 @@ def solver(request):
         yield request.param, t, extra
 
 
-def _kolmogorov_force(n: int, k: int, amplitude: float = 1.0) -> np.ndarray:
-    """(A sin(κy), 0) at the cell centres, shape (n, n, 1, 2)."""
-    y = (np.arange(n) + 0.5) * _L / n
-    force = np.zeros((n, n, 1, 2), np.float32)
-    force[..., 0, 0] = amplitude * np.sin(2 * np.pi * k * y / _L)[None, :]
-    return force
-
-
 def _inputs(v0, *, nu, dt, steps, extra, **more) -> dict:
     return {
         "v0": np.asarray(v0, np.float32),
@@ -100,7 +94,7 @@ def test_laminar_kolmogorov_transient(solver):
     """Within 5% of the exact shear flow at N = 64 after two time units."""
     _, t, extra = solver
     n, k, nu, alpha, dt, steps = 64, 4, 0.05, 0.1, 0.01, 200
-    force = _kolmogorov_force(n, k)
+    force = forcing_field(n, _L, k)
     out = t.apply(
         _inputs(
             np.zeros_like(force),
@@ -143,7 +137,7 @@ def test_forced_vjp_matches_central_difference(solver):
     name, t, extra = solver
     n = 16
     v0 = _smooth_field(n)
-    force = _kolmogorov_force(n, 2)
+    force = forcing_field(n, _L, 2)
     inputs = _inputs(
         v0,
         nu=0.02,

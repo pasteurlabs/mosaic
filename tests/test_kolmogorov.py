@@ -65,13 +65,6 @@ def test_vorticity_of_the_force_and_its_self_correlation():
     assert float(ko.vorticity_correlation(field, -field)) == pytest.approx(-1.0)
 
 
-def test_energy_spectrum_sums_to_the_kinetic_energy():
-    field = _smooth(32)
-    energy = 0.5 * np.mean(np.sum(field.astype(np.float64) ** 2, axis=-1))
-    assert ko.energy_spectrum(field).sum() == pytest.approx(energy, rel=1e-6)
-    assert ko.spectrum_error([field], [field]) == pytest.approx(0.0)
-
-
 def test_high_correlation_time_and_capped_error():
     assert ko.high_correlation_time([1.0, 0.99, 0.9, 0.97], 0.1) == pytest.approx(0.2)
     assert ko.high_correlation_time([1.0, 0.99], 0.1) == pytest.approx(0.2)
@@ -79,7 +72,7 @@ def test_high_correlation_time_and_capped_error():
 
 
 def _truth(n_coarse: int = 16, n_ref: int = 32) -> dict:
-    seeds = ko.GROUND_TRUTH_SEEDS["test"]
+    seeds = ko.GROUND_TRUTH_SEEDS
     out = {f"initial_{s}": _smooth(n_ref, s) for s in seeds}
     for s in seeds:
         out[f"truth_{s}"] = np.stack(
