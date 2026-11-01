@@ -72,11 +72,9 @@ def test_energy_spectrum_sums_to_the_kinetic_energy():
     assert ko.spectrum_error([field], [field]) == pytest.approx(0.0)
 
 
-def test_high_correlation_time_and_first_unstable_frame():
+def test_high_correlation_time_and_capped_error():
     assert ko.high_correlation_time([1.0, 0.99, 0.9, 0.97], 0.1) == pytest.approx(0.2)
     assert ko.high_correlation_time([1.0, 0.99], 0.1) == pytest.approx(0.2)
-    assert ko.first_unstable_frame([0.0, 1.0, np.nan, 0.5]) == 2
-    assert ko.first_unstable_frame([0.0, 1.5]) == 2
     assert ko.capped_error(np.full((4, 4, 1, 2), np.nan), np.ones((4, 4, 1, 2))) == 2
 
 

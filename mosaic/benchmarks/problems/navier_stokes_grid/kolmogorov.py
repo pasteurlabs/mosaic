@@ -33,7 +33,7 @@ from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.reference import reference_path
 from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
 from mosaic.benchmarks.core.status_checks import CheckOutcome, ForwardSummary
-from mosaic.benchmarks.core.utils import active_solvers
+from mosaic.benchmarks.core.utils import active_solvers, l2_error_rel
 
 from .ics import _multimode
 
@@ -204,12 +204,6 @@ def vorticity_correlation(
     return jnp.sum(wa * wb) / jnp.sqrt(jnp.sum(wa * wa) * jnp.sum(wb * wb))
 
 
-def relative_l2(a: Any, b: Any) -> jax.Array:
-    """‖a − b‖ / ‖b‖."""
-    a, b = jnp.asarray(a), jnp.asarray(b)
-    return jnp.sqrt(jnp.sum((a - b) ** 2) / jnp.sum(b**2))
-
-
 def energy_spectrum(v: Any) -> np.ndarray:
     """Kinetic energy per integer wavenumber shell, ½Σ|û|² over |k| ∈ [s−½, s+½).
 
@@ -257,22 +251,12 @@ def high_correlation_time(
     return float(frame * interval)
 
 
-def first_unstable_frame(errors: Any, threshold: float = DIVERGED_ERROR) -> int:
-    """First frame whose relative error is non-finite or above ``threshold``.
-
-    A stable rollout scores its frame count.
-    """
-    e = np.asarray(errors, dtype=np.float64)
-    bad = np.nonzero(~(e <= threshold))[0]
-    return int(bad[0]) if bad.size else len(e)
-
-
 def capped_error(state: Any, target: Any) -> float:
     """Relative L2 error, :data:`DIVERGED_ERROR` for a non-finite state."""
     state = np.asarray(state)
     if not np.isfinite(state).all():
         return DIVERGED_ERROR
-    return min(float(relative_l2(state, target)), DIVERGED_ERROR)
+    return min(l2_error_rel(state, target), DIVERGED_ERROR)
 
 
 # ── Ground truth ─────────────────────────────────────────────────────────────
@@ -371,7 +355,7 @@ def generate_ground_truth(
         )
         out[f"convergence_error_{seed}"] = np.array(
             [
-                float(relative_l2(a, b))
+                l2_error_rel(a, b)
                 for a, b in zip(check_coarse, truth_coarse, strict=True)
             ]
         )
@@ -481,7 +465,7 @@ def forward(t: Any, ctx: KernelContext) -> dict:
     n = int(phys.pop("N"))
     dt = float(phys.pop("dt"))
     grids = sorted(int(g) for g in phys.pop("grids"))
-    seeds = tuple(int(s) for s in phys.pop("seeds", GROUND_TRUTH_SEEDS["test"]))
+    seeds = GROUND_TRUTH_SEEDS["test"]
     if n not in grids:
         raise ValueError(f"the coarse grid {n} is not among the grids {grids}")
     truth = load_ground_truth(ctx.cfg.name)
