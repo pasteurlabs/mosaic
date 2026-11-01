@@ -90,13 +90,21 @@ class Setup:
     key: str
     problem: str  # Problem.name, e.g. "ns-grid"
     label: str
+    # "<suite>/<experiment>" prefixes this setup owns. A problem's setup
+    # without claims owns every other experiment of that problem.
+    claims: tuple[str, ...] = ()
 
 
 SETUPS: dict[str, Setup] = {
     s.key: s
     for s in (
         Setup("ns-2d-periodic", "ns-grid", "Periodic box (2D)"),
-        Setup("ns-2d-cylinder", "ns-grid", "Channel flow past a cylinder"),
+        Setup(
+            "ns-2d-cylinder",
+            "ns-grid",
+            "Channel flow past a cylinder",
+            claims=("forward/cylinder", "optimization/drag_opt"),
+        ),
         Setup("ns-3d", "ns-3d-grid", "Triply periodic box (3D)"),
         Setup("structural", "structural-mesh", "Linear-elastic cantilever"),
         Setup("heat", "thermal-mesh", "Steady conduction in a slab"),
@@ -109,6 +117,26 @@ DOMAIN_SETUPS: dict[str, tuple[str, ...]] = {
     "structural-mesh": ("structural",),
     "thermal-mesh": ("heat",),
 }
+
+
+def setups_of(problem: str) -> list[Setup]:
+    """The setups of one problem, in display order."""
+    return [s for s in SETUPS.values() if s.problem == problem]
+
+
+def setup_of(problem: str, experiment: str) -> Setup | None:
+    """The setup an experiment (``"<suite>/<experiment>[/...]"``) belongs to."""
+    candidates = setups_of(problem)
+    for s in candidates:
+        if any(experiment == c or experiment.startswith(c + "/") for c in s.claims):
+            return s
+    return next((s for s in candidates if not s.claims), None)
+
+
+def domain_of(setup: str) -> str | None:
+    """The tesseract directory under mosaic/tesseracts/ that serves ``setup``."""
+    return next((d for d, keys in DOMAIN_SETUPS.items() if setup in keys), None)
+
 
 _ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _MARKER = re.compile(r"(?:#|//)\s*mosaic-intervention(-end)?:\s*(\S+)")
@@ -488,6 +516,17 @@ def load_meta(tesseract_dir: Path) -> dict:
     doc = yaml.safe_load((tesseract_dir / "tesseract_config.yaml").read_text("utf-8"))
     meta = ((doc or {}).get("metadata") or {}).get("mosaic")
     return meta if isinstance(meta, dict) else {}
+
+
+def load_records(tesseracts_dir: Path, domain: str) -> dict[str, InterventionRecord]:
+    """Valid records of one domain's tesseracts, keyed by display name."""
+    records: dict[str, InterventionRecord] = {}
+    for cfg in sorted((tesseracts_dir / domain).glob("*/tesseract_config.yaml")):
+        meta = load_meta(cfg.parent)
+        record, problems = parse_record(meta, DOMAIN_SETUPS.get(domain))
+        if record is not None and not problems:
+            records[str(meta.get("name") or cfg.parent.name)] = record
+    return records
 
 
 def check_tesseract(tesseract_dir: Path) -> tuple[InterventionRecord | None, list[str]]:
