@@ -153,7 +153,7 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
             max_iters=max_iters,
             has_aux=True,
             aux_history=aux_history,
-            clip_fn=clip_fn,
+            bounds=(x_min, 1.0),
             snap_interval=snap_interval,
             history=history if snap_interval > 0 else None,
             log_fn=_log_iter,
@@ -186,8 +186,8 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
     vol_fracs = aux_history.get("vol_frac", [])
     final_vol_frac = vol_fracs[-1] if vol_fracs else float(jnp.mean(rho_opt))
     n_iters = len(losses)
-    converged = n_iters < max_iters
-    grad_norms = (diag or {}).get("grad_norms")
+    converged = diag["converged"]
+    grad_norms = diag.get("grad_norms")
 
     snapshots: dict[str, np.ndarray] = {"rho_final": np.asarray(rho_opt)}
     if history:

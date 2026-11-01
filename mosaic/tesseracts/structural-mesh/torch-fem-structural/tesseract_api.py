@@ -70,9 +70,15 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # Sparse linear solve: on GPU we use Jacobi-preconditioned CG in torch, so the
 # forward and adjoint solves stay on the device. On CPU-only hosts torch-fem
 # picks the solver automatically (SciPy).
+#
+# The CG stops at a relative residual of 1e-6 instead of torch-fem's 1e-10. No
+# check changes between 1e-12 and 1e-6; on the small forward meshes CG reaches
+# round-off before its first residual test either way.
 _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _SOLVE_KWARGS: dict[str, Any] = (
-    {"method": "cg", "preconditioner": "jacobi"} if _DEVICE.type == "cuda" else {}
+    {"method": "cg", "preconditioner": "jacobi", "stol": 1e-6}
+    if _DEVICE.type == "cuda"
+    else {}
 )
 _DTYPE = torch.float64
 

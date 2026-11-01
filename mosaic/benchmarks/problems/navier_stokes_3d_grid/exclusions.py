@@ -44,7 +44,11 @@ def register(problem: Problem) -> None:
     """Apply every ns-3d-grid exclusion via :meth:`Problem.exclude`."""
     problem.exclude(
         "forward/agreement",
-        {"ins_jl": STAGGERED_ROUND_TRIP, "phiflow": STAGGERED_ROUND_TRIP},
+        {
+            "ins_jl": STAGGERED_ROUND_TRIP,
+            "jax_cfd": STAGGERED_ROUND_TRIP,
+            "phiflow": STAGGERED_ROUND_TRIP,
+        },
     )
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})

@@ -1,7 +1,7 @@
 name: exponax_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Exponential time-differencing Runge–Kutta (ETDRK) spectral integrator for 3D
+  Exponential time-differencing Runge–Kutta (ETDRK) spectral integrator for 2D and 3D
   Navier–Stokes, enforcing incompressibility to machine precision by construction. Gradients
   via JAX source-transformation AD
 build_config:

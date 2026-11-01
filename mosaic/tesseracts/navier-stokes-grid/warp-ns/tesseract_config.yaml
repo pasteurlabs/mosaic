@@ -24,3 +24,112 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://github.com/NVIDIA/warp"
+    # Warp provides kernels, tile FFTs, linear solvers and a tape but no flow
+    # solver, so the solver itself is baseline here. Recorded are the parts
+    # made for the benchmark: workarounds and performance tuning.
+    # Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: kernel-toolkit
+    interventions:
+      - id: maintainer-advised-rewrite
+        level: L0
+        necessity: choice
+        what: >
+          The periodic solver was restructured following a Warp developer's
+          advice: native tape adjoints instead of hand-written NumPy adjoints,
+          an on-device tile-FFT Poisson solve, fused pack and unpack kernels,
+          and separate buffer policies for the forward-only and taped paths.
+        why:
+          ns-2d-periodic: &rewrite-reason
+            consequences: [too-slow]
+            symptom: >
+              The earlier version was 15 to 30x slower in forward and VJP,
+              measured by direct apply and VJP calls on an A100.
+            evidence: "#132; https://github.com/NVIDIA/warp/discussions/1636."
+          ns-3d: *rewrite-reason
+        provenance: maintainer-advised
+      - id: bluestein-non-pow2-fft
+        level: L2
+        necessity: required
+        what: >
+          Grids whose size is not a power of two run their spectral Poisson
+          solve through a Bluestein chirp-z transform built from
+          power-of-two wp.tile_fft calls. Power-of-two grids keep the native
+          path. The transform is exact to float32 round-off.
+        why:
+          ns-2d-periodic: &bluestein-reason
+            consequences: [crash]
+            symptom: >
+              wp.tile_fft (cuFFTDx) only compiles power-of-two lengths on the
+              GPU, so the benchmark's non-power-of-two sizes (N = 192 in 2-D,
+              N = 48 in 3-D) failed at compile time.
+            evidence: >
+              #132; section comment in tesseract_api.py. The scaling of this
+              path was fixed in #232; tests/test_warp_ns_fft.py checks it
+              against NumPy.
+          ns-3d: *bluestein-reason
+        upstream: None filed.
+        provenance: mosaic-team
+      - id: channel-cg-adjoint
+        level: L2
+        necessity: required
+        what: >
+          The backward pass of each channel pressure solve is a hand-written
+          adjoint registered with tape.record_func: a CG solve with the same
+          symmetric operator, started from the previous adjoint solution.
+        why:
+          ns-2d-cylinder:
+            consequences: [no-gradient]
+            symptom: >
+              The pressure solve (warp.optim.linear.cg, captured as a CUDA
+              graph) is not a Warp kernel, so wp.Tape cannot differentiate
+              it. No failing run is recorded.
+            evidence: >
+              Docstring of channel_solve (#239);
+              tests/test_warp_ns_cylinder.py checks the drag gradient against
+              central finite differences.
+        provenance: mosaic-team
+      - id: channel-cg-preconditioner
+        level: L2
+        necessity: choice
+        what: >
+          Preconditions the channel's pressure CG with the exact inverse of
+          the same operator without the cylinder, applied through dense 1-D
+          eigenbases along x and y.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              CG needs about 20 iterations instead of 150 at 10 cells per
+              diameter. Run time halves at 10 cells per diameter (drag_opt),
+              breaks even at 20 (forward/cylinder) and doubles at 40.
+            evidence: "Docstring of _channel_pressure_solver (#239)."
+        provenance: mosaic-team
+      - id: channel-cg-graph-capture
+        level: L0
+        necessity: choice
+        what: >
+          On CUDA the channel CG iterations run as a captured conditional
+          graph, replayed per solution buffer, with non-convergence flagged on
+          the device and raised after the run.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              Avoids a host sync per residual check, per the docstring. Not
+              measured.
+        provenance: mosaic-team
+      - id: channel-cg-tolerance
+        level: L0
+        necessity: choice
+        what: >
+          The channel's pressure CG stops at a relative residual of 1e-5, with
+          a cap of 5000 iterations.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: >
+              The code comment says a tighter tolerance changes Cd by less
+              than 1e-5 at 10 cells per diameter. Whether a looser one leaves
+              every check unchanged is not recorded.
+        provenance: mosaic-team
+    deviations: []

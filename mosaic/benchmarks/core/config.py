@@ -12,6 +12,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
+from .interventions import DOMAIN_SETUPS, InterventionRecord, parse_record
+
 log = logging.getLogger(__name__)
 
 
@@ -1092,6 +1094,10 @@ class SolverSpec:
     # or "float64". Solvers that compute in float64 but return float32 outputs
     # may show lower discretisation error at the same resolution — a precision
     # advantage, not a scheme advantage.
+    record: InterventionRecord | None = None
+    # Abstraction level, interventions and setup deviations from the YAML's
+    # ``metadata.mosaic`` block (see :mod:`mosaic.benchmarks.core.interventions`).
+    # ``None`` when the solver has no record yet.
     # NB: per-solver exclusions and explained-anomalies live on
     # :attr:`Problem.exclusions` — a problem-level dict keyed by solver
     # name. SolverSpec is solver-identity data only.
@@ -1152,6 +1158,9 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
             uses_gpu: true
             internal_dtype: float32
             doc_url: "https://..."              # upstream docs link
+            abstraction: framework              # intervention record, see
+            interventions: []                   # mosaic.benchmarks.core.interventions
+            deviations: []
 
     Note: ``color`` / ``linestyle`` / ``marker`` are *not* read from YAML —
     plot styling lives in :mod:`mosaic.benchmarks.problems.shared.plots.solver_styles` and is
@@ -1222,6 +1231,14 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
             val = _meta.get(key, default)
             return val.strip() if isinstance(val, str) else val
 
+        record, problems = parse_record(
+            meta,
+            DOMAIN_SETUPS.get(tesseract_dir.name),
+            where=str(config_path),
+        )
+        for msg in problems:
+            warnings.warn(f"Solver discovery: {msg}", stacklevel=2)
+
         # Color / linestyle / marker are presentation-only; they live in
         # ``mosaic.benchmarks.problems.shared.plots.solver_styles`` and are applied by each
         # problem config via ``apply_styles()`` after re-keying. We leave them
@@ -1244,6 +1261,7 @@ def discover_solvers(tesseract_dir: str | Path) -> dict[str, SolverSpec]:
             description=(doc.get("description") or "").strip(),
             doc_url=_txt("doc_url"),
             image_tag=f"{image_name}:latest",
+            record=record,
         )
     log.info("Discovered %d solver(s) in %s", len(solvers), tesseract_dir)
     return solvers

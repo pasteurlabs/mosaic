@@ -13,7 +13,6 @@
 // Writes:
 //   compliance.txt     — structural compliance C = F^T U (single float)
 
-#include <deal.II/base/multithread_info.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor.h>
@@ -480,14 +479,29 @@ void StructSolver::run()
 // main
 // ---------------------------------------------------------------------------
 
+// With --serve, the binary reads one input.json path per line from stdin and
+// answers each with a line "ok" or "error: <message>" on stdout, so one process
+// serves every request of a tesseract.
 int main(int argc, char *argv[])
 {
-  // The solver is serial, and this binary runs once per request, so avoid expensive MPI setup here
-  MultithreadInfo::set_thread_limit(1);
-
   if (argc < 2) {
-    std::cerr << "Usage: struct_solver input.json\n";
+    std::cerr << "Usage: struct_solver input.json | --serve\n";
     return 1;
+  }
+  if (std::string(argv[1]) == "--serve") {
+    std::string path;
+    while (std::getline(std::cin, path)) {
+      try {
+        StructSolver solver(path);
+        solver.run();
+        std::cout << "ok" << std::endl;
+      } catch (const std::exception &e) {
+        std::string msg = e.what();
+        std::replace(msg.begin(), msg.end(), '\n', ' ');
+        std::cout << "error: " << msg << std::endl;
+      }
+    }
+    return 0;
   }
 
   try {

@@ -21,6 +21,7 @@ dependencies = [
     "vl-convert-python>=1.9",
     "jax[cpu]",
     "optax",
+    "scipy",
     "tesseract-core[runtime]>=1.10.0",
     "tesseract-jax",
     "psutil",

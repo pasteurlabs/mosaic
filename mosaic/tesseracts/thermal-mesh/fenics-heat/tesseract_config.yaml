@@ -25,3 +25,69 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://fenicsproject.org/"
+    # What it took to run FEniCS here, beyond expressing the setup in UFL.
+    # Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: mumps-forward-solver
+        level: L0
+        necessity: required
+        what: >
+          The forward solve passes solver_parameters={"linear_solver":
+          "mumps"} instead of using DOLFIN's default LU backend (UMFPACK).
+        why:
+          heat:
+            consequences: [out-of-memory]
+            symptom: >
+              With UMFPACK the forward solve runs out of memory at the largest
+              cost-sweep size (nx = 1024), which showed as an error on the
+              results page. No peak memory was recorded.
+            evidence: >
+              https://github.com/pasteurlabs/mosaic/issues/180 (comment by the
+              FEniCS developer who proposed the change); merged in #182.
+        provenance: maintainer-authored
+      - id: mumps-adjoint-monkeypatch
+        level: L3
+        necessity: required
+        what: >
+          Replaces fenics_adjoint.types.compat.linalg_solve at import time
+          with a function that always solves with MUMPS, because legacy
+          dolfin-adjoint does not pass the forward solver_parameters to the
+          adjoint solve, which then runs UMFPACK.
+        why:
+          heat:
+            consequences: [out-of-memory]
+            symptom: >
+              With MUMPS in the forward solve only, the gradient computation
+              still fails at nx = 1024, because the adjoint solve runs
+              UMFPACK.
+            evidence: >
+              https://github.com/pasteurlabs/mosaic/issues/180 (comment by the
+              FEniCS developer who proposed the patch); merged in #182.
+        upstream: >
+          Not filed: legacy dolfin-adjoint has had no release since 2019.1.0.
+          Per #182, newer dolfin-adjoint passes linear_solver to the adjoint
+          solve; per #180, DOLFINx-adjoint takes adjoint PETSc options.
+        provenance: maintainer-authored
+      - id: nodal-misfit-block
+        level: L2
+        necessity: required
+        what: >
+          A custom pyadjoint Block puts the nodal identification error
+          sum_v mask_v (T_v - T_target,v)^2 on the tape, with hand-written
+          adjoint and tangent-linear components, so pyadjoint differentiates
+          it together with the solve.
+        why:
+          heat:
+            consequences: [cannot-express, incorrect-gradient]
+            symptom: >
+              Legacy FEniCS has no vertex quadrature on hexahedra, so the
+              nodal sum cannot be written as a UFL integral. The earlier
+              approximation, an L2 integral rescaled by the node count, gave
+              gradients that did not match the reported value:
+              gradient/source_fd_check flagged FEniCS at 1753x the peer
+              median, and conductivity_recovery_bfgs reached a final/initial
+              misfit of 0.02779 against 0.00020 with the nodal adjoint.
+            evidence: "#167; #184, notes; comment above NodalSquaredErrorBlock."
+        provenance: maintainer-authored
+    deviations: []

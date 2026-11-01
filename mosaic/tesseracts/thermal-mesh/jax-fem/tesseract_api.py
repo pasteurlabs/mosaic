@@ -4,12 +4,15 @@
 import hashlib
 import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import jax
 import jax.numpy as jnp
 import meshio
 import numpy as np
+import scipy.sparse
+from jax.experimental.sparse import BCOO
 from jax_fem.generate_mesh import Mesh
 from jax_fem.problem import Problem
 from jax_fem.solver import ad_wrapper
@@ -180,6 +183,43 @@ class HeatConduction(Problem):
         return val
 
 
+# JAX-FEM's default `jax_solver` (Jacobi-preconditioned BiCGSTAB) runs
+# `jax.scipy.sparse.linalg.bicgstab` eagerly, so every linear solve is traced
+# and compiled anew: 2 XLA compilations per forward call and 4 per VJP. This is
+# the same solve, compiled once per matrix size and number of nonzeros, and
+# passed to `ad_wrapper` through JAX-FEM's `custom_solver` option.
+@partial(jax.jit, static_argnames=("shape",))
+def _bicgstab(
+    data: jnp.ndarray,
+    indices: jnp.ndarray,
+    b: jnp.ndarray,
+    x0: jnp.ndarray,
+    inv_diag: jnp.ndarray,
+    shape: tuple[int, int],
+) -> tuple[jnp.ndarray, jnp.ndarray]:
+    A = BCOO((data, indices), shape=shape)
+    x, _ = jax.scipy.sparse.linalg.bicgstab(
+        A, b, x0=x0, M=lambda r: r * inv_diag, tol=1e-10, atol=1e-10, maxiter=10000
+    )
+    return x, jnp.linalg.norm(A @ x - b)
+
+
+def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> Any:
+    """`jax_fem.solver.jax_solve` with the BiCGSTAB iteration compiled once."""
+    indptr, indices, data = A.getValuesCSR()
+    A_csr = scipy.sparse.csr_array((data, indices, indptr), shape=A.getSize())
+    A_bcoo = BCOO.from_scipy_sparse(A_csr).sort_indices()
+    x0 = np.zeros_like(b) if x0 is None else x0
+    x, err = _bicgstab(
+        A_bcoo.data, A_bcoo.indices, b, x0, 1.0 / A_csr.diagonal(), A_bcoo.shape
+    )
+    assert err < 0.1, f"JAX linear solver failed to converge with err = {err}"
+    return x
+
+
+_SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
+
+
 def setup(
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
@@ -276,14 +316,15 @@ def setup(
 
     fwd_pred = ad_wrapper(
         problem,
-        solver_options={"umfpack_solver": {}},
-        adjoint_solver_options={"umfpack_solver": {}},
+        solver_options=_SOLVER_OPTIONS,
+        adjoint_solver_options=_SOLVER_OPTIONS,
     )
     return problem, fwd_pred
 
 
-# `_SETUP_CACHE` holds one (problem, fwd_pred) pair per (mesh, BC)
-# combination, i.e. everything `setup` depends on. Building a JAX-FEM
+# `_SETUP_CACHE` holds the (problem, fwd_pred) pair of the current (mesh, BC)
+# combination, i.e. everything `setup` depends on, and nothing else, so memory
+# does not grow with every mesh a sweep visits. Building a JAX-FEM
 # `Problem` precomputes shape functions and boundary indices and compiles its
 # kernels, which dominates the cost of a call on the small meshes used here;
 # an optimisation run calls `apply` / `vector_jacobian_product` hundreds of
@@ -322,6 +363,7 @@ def _cached_setup(
 ) -> tuple[HeatConduction, Callable]:
     key = _setup_cache_key(pts, cells, boundary_conditions)
     if key not in _SETUP_CACHE:
+        _SETUP_CACHE.clear()
         _SETUP_CACHE[key] = setup(
             pts=pts, cells=cells, boundary_conditions=boundary_conditions
         )
@@ -389,11 +431,11 @@ def jacobian_vector_product(
     """Compute the Jacobian-vector product for the thermal solver.
 
     NOTE: this calls ``jax.jvp`` eagerly rather than the ``jax_jvp`` helper
-    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper`` runs
-    a host-side SciPy UMFPACK direct solve (``scipy.sparse.linalg.spsolve`` on
-    concrete NumPy arrays), which cannot be traced under ``jax.jit``. The
-    shared helper wraps the differentiation in ``eqx.filter_jit``, so routing
-    through it raises an Error 500 inside the container. Keep this un-jitted.
+    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper``
+    assembles each system matrix on the host, as a PETSc matrix built from
+    concrete NumPy arrays, which cannot be traced under ``jax.jit``. The shared
+    helper wraps the differentiation in ``eqx.filter_jit``, so routing through
+    it raises an Error 500 inside the container. Keep this un-jitted.
     """
     assert jvp_inputs <= {"rho", "source"}
     assert jvp_outputs <= {"thermal_compliance", "identification_error"}

@@ -47,6 +47,7 @@ _PROBLEMS_DIR: Path = Path(__file__).resolve().parents[1] / "problems"
 
 # Domains whose CLI slug does not map to the package name by ``-`` → ``_``.
 _PACKAGE_ALIASES: dict[str, str] = {
+    "ns-grid": "navier_stokes_grid",
     "ns-3d-grid": "navier_stokes_3d_grid",
 }
 
@@ -68,13 +69,18 @@ def _reference_filename(exp_key: str) -> str:
     return exp_key.replace("/", "_") + ".npz"
 
 
+def reference_path(domain: str, exp_key: str) -> Path:
+    """Path of the checked-in reference NPZ of one experiment."""
+    return _reference_dir(domain) / _reference_filename(exp_key)
+
+
 def load_reference(domain: str, exp_key: str, sweep_index: int) -> np.ndarray | None:
     """Load a precomputed reference field for one sweep value.
 
     Returns ``None`` if the reference file doesn't exist or doesn't
     contain an entry for the requested sweep index.
     """
-    path = _reference_dir(domain) / _reference_filename(exp_key)
+    path = reference_path(domain, exp_key)
     if not path.exists():
         return None
     try:
@@ -132,19 +138,23 @@ def reference_exists(domain: str, exp_key: str) -> bool:
     return (_reference_dir(domain) / _reference_filename(exp_key)).exists()
 
 
-def extract_references_from_fields(
+def consensus_from_fields(
     fields_path: Path | str,
+    solver_names: list[str],
     n_sweep_values: int,
 ) -> dict[int, np.ndarray]:
-    """Extract consensus references from a fields.npz snapshot.
+    """Recompute the trimmed-mean consensus from a fields.npz's per-solver arrays.
 
-    The forward/agreement experiments store consensus references as
-    ``consensus_{i}`` arrays in ``fields.npz``. This function reads
-    them out, suitable for saving as a standalone reference NPZ.
+    The agreement aggregate writes each solver's output as ``{solver}_{i}``
+    and the reference it scored against as ``consensus_{i}``. The stored
+    consensus only covers the solvers of the run that last wrote it, which in
+    CI is a single job's subset; the per-solver arrays are merged across runs.
+    Averaging those gives the consensus of every solver's latest output.
 
-    Returns a dict mapping sweep index to the consensus array. Missing
-    indices are omitted.
+    Sweep indices with fewer than two solver arrays are omitted.
     """
+    from .utils import trimmed_mean
+
     fields_path = Path(fields_path)
     if not fields_path.exists():
         return {}
@@ -152,9 +162,13 @@ def extract_references_from_fields(
     try:
         with np.load(str(fields_path), allow_pickle=False) as data:
             for i in range(n_sweep_values):
-                key = f"consensus_{i}"
-                if key in data:
-                    refs[i] = np.asarray(data[key])
+                arrays = [
+                    np.asarray(data[f"{name}_{i}"])
+                    for name in solver_names
+                    if f"{name}_{i}" in data
+                ]
+                if len(arrays) >= 2:
+                    refs[i] = np.asarray(trimmed_mean(arrays))
     except Exception:
         log.warning("Failed to read fields from %s", fields_path, exc_info=True)
     return refs
@@ -175,6 +189,12 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     "ns-3d-grid": [
         "forward/baseline",
         "forward/agreement",
+    ],
+    # The multimode initial condition has no closed form, so its agreement is
+    # scored against a consensus; the Taylor–Green variant keeps its analytic
+    # solution.
+    "ns-grid": [
+        "forward/agreement/multimode",
     ],
     "structural-mesh": [
         "forward/baseline",
@@ -235,20 +255,22 @@ def spectral_downsample(field: np.ndarray, n_target: int) -> np.ndarray:
     """Spectrally truncate a periodic field to ``n_target`` points per axis.
 
     ``field`` has shape ``(N, N, N, C)`` (or ``(N, N, C)``) on a uniform
-    periodic grid. Truncation keeps the ``n_target`` lowest-|k| Fourier modes
-    per spatial axis; it is exact when the field carries no energy above the
-    target Nyquist cutoff. Returns the same layout at ``n_target`` per axis.
+    periodic grid; the 2-D layout ``(N, N, 1, C)`` keeps its singleton axis.
+    Truncation keeps the ``n_target`` lowest-|k| Fourier modes per spatial
+    axis; it is exact when the field carries no energy above the target
+    Nyquist cutoff. Returns the same layout at ``n_target`` per axis.
     """
-    spatial = field.ndim - 1
-    axes = tuple(range(spatial))
     n = field.shape[0]
+    axes = tuple(a for a in range(field.ndim - 1) if field.shape[a] == n)
     if n_target > n:
         raise ValueError(f"n_target={n_target} exceeds source resolution {n}")
     fh = np.fft.fftn(field, axes=axes)
     h = n_target // 2
     idx = np.concatenate([np.arange(h), np.arange(n - h, n)])
-    fh = fh[np.ix_(*([idx] * spatial), range(field.shape[-1]))]
-    out = np.fft.ifftn(fh, axes=axes) * (n_target / n) ** spatial
+    fh = fh[
+        np.ix_(*(idx if a in axes else range(size) for a, size in enumerate(fh.shape)))
+    ]
+    out = np.fft.ifftn(fh, axes=axes) * (n_target / n) ** len(axes)
     return np.real(out)
 
 

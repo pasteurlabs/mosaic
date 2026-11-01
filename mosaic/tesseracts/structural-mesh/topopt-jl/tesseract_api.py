@@ -52,7 +52,6 @@ from pathlib import Path
 from typing import Any
 
 import filelock
-import mosaic_shared
 import numpy as np
 from mosaic_shared.problems.structural_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -74,14 +73,7 @@ with _julia_init_lock:
     _jl_mod = juliacall.newmodule("topopt_jl")
     _jl_mod.seval('using Pkg; Pkg.activate(ENV["JULIA_PROJECT"])')
     _jl_mod.seval("using TopOpt, Printf")
-    _jl_mod.include(
-        str(
-            Path(mosaic_shared.__file__).parent
-            / "problems"
-            / "structural_mesh"
-            / "topopt_solver.jl"
-        )
-    )
+    _jl_mod.include(str(Path(__file__).parent / "solver.jl"))
     _jl = _jl_mod
 
 
@@ -155,7 +147,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     jl = _get_jl()
     pts, cells, rho, dm, vm, vv = _unpack(inputs)
 
-    result = jl.topopt_forward(
+    c = jl.topopt_forward(
         _to_julia(rho),
         _to_julia(pts),
         _to_julia(cells),
@@ -166,8 +158,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
         float(inputs.nu),
         float(inputs.xmin),
     )
-    c = float(result[0])
-    return OutputSchema(compliance=np.float32(c))
+    return OutputSchema(compliance=np.float32(float(c)))
 
 
 def vector_jacobian_product(
@@ -176,7 +167,7 @@ def vector_jacobian_product(
     vjp_outputs: set[str],
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
-    """VJP for compliance w.r.t. rho via analytical SIMP adjoint."""
+    """VJP for compliance w.r.t. rho via TopOpt.jl's Zygote rule (analytical SIMP adjoint)."""
     assert vjp_inputs <= {"rho"}
     assert vjp_outputs <= {"compliance"}
 
@@ -193,8 +184,9 @@ def vector_jacobian_product(
     pts, cells, rho, dm, vm_mask, vv = _unpack(inputs)
     E, nu, xmin = float(inputs.E), float(inputs.nu), float(inputs.xmin)
 
-    result = jl.topopt_forward(
+    vjp = jl.topopt_vjp(
         _to_julia(rho),
+        cot_c,
         _to_julia(pts),
         _to_julia(cells),
         _to_julia(dm),
@@ -204,8 +196,7 @@ def vector_jacobian_product(
         nu,
         xmin,
     )
-    c_grad = _to_numpy(result[1])  # ∂C/∂ρ_e  (n_active_cells,)
-    grad_rho[: hm.n_faces] = (cot_c * c_grad).astype(np.float32)
+    grad_rho[: hm.n_faces] = _to_numpy(vjp).astype(np.float32)
     return {"rho": grad_rho}
 
 

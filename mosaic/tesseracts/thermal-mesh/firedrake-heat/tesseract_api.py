@@ -448,7 +448,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     cells = np.asarray(hm.faces[: hm.n_faces], dtype=np.int64)
     rho_values = np.asarray(inputs.rho[: hm.n_faces], dtype=np.float64)
     source_values = np.asarray(inputs.source[: hm.n_faces], dtype=np.float64)
-    target_temp = np.asarray(inputs.target_temperature, dtype=np.float32)
+    target_temp = np.asarray(inputs.target_temperature, dtype=np.float64)
 
     bc = inputs.boundary_conditions
     dm = np.asarray(bc.dirichlet.mask if bc.dirichlet else [])
@@ -476,9 +476,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
         p_exp=inputs.p_exp,
     )
 
-    T_f32 = T_nodes.astype(np.float32)
-    n = min(len(T_f32), len(target_temp))
-    id_error = np.float32(np.sum((T_f32[:n] - target_temp[:n]) ** 2))
+    n = min(len(T_nodes), len(target_temp))
+    id_error = np.float32(np.sum((T_nodes[:n] - target_temp[:n]) ** 2))
 
     return OutputSchema(
         thermal_compliance=np.float32(J_val),

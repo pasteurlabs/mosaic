@@ -25,3 +25,47 @@ metadata:
     uses_gpu: false
     internal_dtype: float64
     doc_url: "https://fenicsproject.org/"
+    # What it took to run FEniCS here, beyond expressing the setup in UFL.
+    # Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: mumps-forward-solver
+        level: L0
+        necessity: choice
+        what: >
+          The forward solve passes solver_parameters={"linear_solver":
+          "mumps"} instead of using DOLFIN's default LU backend (UMFPACK).
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              At nx = 128, apply took 10.1 s before and 8.8 s after the change
+              that introduced it, about 1.15x. Instrumentation put 99.6% of
+              apply in the linear solve, so the gain is attributed to the
+              solver switch. No failure without it is recorded on this setup.
+            evidence: "#182, section 2 (measured together with tape replay)."
+        provenance: maintainer-authored
+      - id: mumps-adjoint-monkeypatch
+        level: L3
+        necessity: choice
+        what: >
+          Replaces fenics_adjoint.types.compat.linalg_solve at import time
+          with a function that always solves with MUMPS, because legacy
+          dolfin-adjoint does not pass the forward solver_parameters to the
+          adjoint solve, which then runs UMFPACK.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              Without the patch the VJP takes 14.6 s against 11.1 s at
+              nx = 128, and 4.7 s against 3.2 s at nx = 64, with identical
+              gradients. Small meshes show no difference.
+            evidence: >
+              A/B on an A100, 2026-10-26, in the intervention cleanup notes
+              (item 3), not yet published.
+        upstream: >
+          Not filed: legacy dolfin-adjoint has had no release since 2019.1.0.
+          Per #182, newer dolfin-adjoint passes linear_solver to the adjoint
+          solve.
+        provenance: maintainer-authored
+    deviations: []

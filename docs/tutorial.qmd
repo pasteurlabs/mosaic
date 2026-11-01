@@ -151,6 +151,59 @@ The single Mosaic-specific extension to the YAML. tesseract-core ignores this bl
 | `internal_dtype` | `str` | `"float32"` or `"float64"` --- the precision used internally. |
 | `doc_url` | `str` | Link to upstream documentation or repository. |
 
+### Intervention record *(Mosaic layer)*
+
+Almost any solver passes a benchmark if someone works around its problems hard enough, so the effort it took is part of the result. The same `metadata.mosaic:` block records it:
+
+| Field | Purpose |
+|:------|:--------|
+| `abstraction` | `application` (e.g. OpenFOAM: case files as in the tutorials are ordinary use), `framework` (e.g. FEniCS, XLB: expressing the setup through the library's API is ordinary use) or `kernel-toolkit` (e.g. Warp: the hand-written solver is ordinary use, and only what was added for the benchmark is recorded). |
+| `interventions` | Everything beyond that ordinary use, one entry each (below). |
+| `deviations` | Where the solver runs a substitute for the prescribed setup, such as a different outflow condition: `id`, `setups`, `what`, `consequences` (why, usually `cannot-express`), `effect` on the results ("Not measured." if unknown) and optional `evidence`. |
+
+Each intervention has:
+
+- `id` (kebab-case) and `what`, one or two sentences;
+- `level`, by mechanism: `L0` documented use (public API and documented options), `L1` undocumented configuration (found by reading the source), `L2` user code on public primitives (a boundary condition, objective or VJP rule the library does not provide), `L3` changing the solver (monkeypatching, private APIs, patching its source). Fixes that exist only in unreleased upstream code (L4) are not accepted;
+- `necessity`: `required` (the setup fails without it), `choice` (not needed to pass; say what it gains) or `unknown`;
+- `why`, per setup (`ns-2d-periodic`, `ns-2d-cylinder`, `ns-3d`, `structural`, `heat`): the `consequences` a user who skips it would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, with a measured number where one exists, and the `evidence`: a pull request, issue, test or log. Above `L0`, a `required` or `choice` intervention needs evidence; so does a value found by measurement (`tuned: true`). If the reason is not known, say `necessity: unknown` rather than guess;
+- `provenance`: `mosaic-team`, `contributor`, `maintainer-authored` or `maintainer-advised`;
+- optionally `upstream` (a link to the upstream issue, or why there is none), `tuned` and `active: false` for code no experiment exercises.
+
+```yaml
+metadata:
+  mosaic:
+    name: "My Spectral"
+    # ...
+    abstraction: framework
+    interventions:
+      - id: custom-outflow
+        level: L2
+        necessity: required
+        what: >
+          Writes the zero-pressure outlet by hand on the library's operators.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: The library ships no pressure outlet.
+            evidence: https://example.org/docs/boundary-conditions
+        upstream: https://github.com/example/solver/issues/1
+        provenance: contributor
+    deviations: []
+```
+
+Not recorded: fixes to Mosaic's own wrapper code, code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
+
+`L2` and `L3` code is wrapped in marker comments (`//` in C and C++), outside import blocks:
+
+```python
+# mosaic-intervention: custom-outflow
+...
+# mosaic-intervention-end: custom-outflow
+```
+
+The test suite checks every record and its markers (`tests/core/test_interventions.py`); the format is defined in `mosaic/benchmarks/core/interventions.py`.
+
 ::: {.callout-note}
 Plot styling (`color`, `linestyle`, `marker`) is **not** declared in the YAML. It lives in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`. After adding your solver, register its style in the `SOLVER_STYLES` dict there using the solver key (typically the directory name with hyphens replaced by underscores).
 :::
@@ -544,7 +597,7 @@ If your solver needs none of these overrides, you do not need to edit the proble
 
 1. **Lint passes:** `ruff check --fix && ruff format`
 2. **Tests pass:** `pytest`
-3. **Config is valid:** CI validates all `tesseract_config.yaml` files automatically.
+3. **Config is valid:** CI validates all `tesseract_config.yaml` files automatically, including the intervention record and its markers.
 4. **Forward suite runs:** `mosaic run -p ns-grid --suites forward -s my_spectral_solver` completes without errors.
 5. **Status looks right:** `mosaic status -p ns-grid -f` shows your solver with expected results.
 
@@ -555,7 +608,7 @@ When you open a pull request, CI runs automatically:
 | Check | What it does |
 |:------|:-------------|
 | **Lint** | `pre-commit` hooks (ruff check, ruff format) |
-| **Test** | `pytest` on Python 3.10 and 3.12 |
+| **Test** | `pytest` on Python 3.10 and 3.12, including the format check of every intervention record |
 | **Validate tesseracts** | Parses every `tesseract_config.yaml` and checks required fields |
 
 These checks run on every push to the PR branch.
@@ -583,6 +636,7 @@ Include the following in your PR description:
 - What solver / method you are adding and a brief description.
 - The output of `mosaic status -p <domain> -f` showing your solver's results.
 - Any exclusions or anomalies you have documented and why.
+- The interventions and deviations you recorded, so a second maintainer can review their level, necessity and evidence.
 
 ---
 
@@ -1098,7 +1152,7 @@ mosaic/tesseracts/diffusion-1d/
 | Check | What it does |
 |:------|:-------------|
 | **Lint** | `pre-commit` hooks (ruff check, ruff format) |
-| **Test** | `pytest` on Python 3.10 and 3.12 |
+| **Test** | `pytest` on Python 3.10 and 3.12, including the format check of every intervention record |
 | **Validate tesseracts** | Parses every `tesseract_config.yaml` and checks required fields |
 
 If your PR touches `mosaic/` code, a maintainer must add a benchmark label (`benchmark:none`, `benchmark:solver`, or `benchmark:all`) before it can merge. See [CONTRIBUTING.md](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md) for the complete workflow.

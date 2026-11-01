@@ -411,13 +411,14 @@ def _rank_gradient(problem: str) -> tuple[list[str], list[tuple]] | None:
     ]
 
 
-def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float]]:
-    """For each solver, return ``(N, mean_s)`` at the largest N it completed.
+def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float, float]]:
+    """Return ``(N, mean_s, first_call_s)`` per solver at the largest N it completed.
 
     Picking the time at the max successful size avoids flattering a solver that
     OOMs early. ``results`` is a flat cost ``results`` list (sweep_value = N).
+    ``first_call_s`` is NaN for results recorded before the harness kept it.
     """
-    out: dict[str, tuple[float, float]] = {}
+    out: dict[str, tuple[float, float, float]] = {}
     for r in results:
         m = r.get("metrics") or {}
         if m.get("status") == "failed":
@@ -427,9 +428,11 @@ def _cost_at_max_n(results: list[dict]) -> dict[str, tuple[float, float]]:
         if not isinstance(mean_s, int | float) or not math.isfinite(mean_s):
             continue
         nf = float(n) if isinstance(n, int | float | str) and str(n) else float("nan")
+        first_s = m.get("first_call_s")
+        first_s = float(first_s) if isinstance(first_s, int | float) else float("nan")
         prev = out.get(r["solver"])
         if prev is None or nf > prev[0]:
-            out[r["solver"]] = (nf, float(mean_s))
+            out[r["solver"]] = (nf, float(mean_s), first_s)
     return out
 
 
@@ -439,25 +442,30 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple]] | None:
     Forward time comes from the ``spatial_cost`` sweep and VJP time from
     ``vjp_cost/by_N``; each is taken at the largest N that solver completed
     (shown in the "at N" column). Forward-only solvers have no VJP entry, which
-    shows as "—". Ranked by forward time (faster wins).
+    shows as "—". Ranked by forward time (faster wins). The forward pass's
+    first call at that N, which includes compilation and setup, is shown next
+    to it and does not affect the ranking.
     """
     fwd = _cost_at_max_n(_load_suite_results(problem, "cost", "spatial_cost"))
     vjp = _cost_at_max_n(_load_suite_results(problem, "cost", "vjp_cost/by_N"))
     if len(fwd) < 2:
         return None
 
-    def _time(v: tuple[float, float] | None) -> str:
+    def _time(v: tuple[float, float, float] | None) -> str:
         # Annotate each time with its own N: forward and VJP can top out at
         # different sizes (a solver may OOM on the heavier backward pass first).
         if not v:
             return "—"
-        n, t = v
+        n, t, _ = v
         n_str = f" @ N={int(n)}" if math.isfinite(n) else ""
         return f"{t:.3g} s{n_str}"
 
+    def _first(v: tuple[float, float, float]) -> str:
+        return f"{v[2]:.3g} s" if math.isfinite(v[2]) else "—"
+
     rows = sorted(fwd.items(), key=lambda t: t[1][1])
-    header = ["Solver", "Forward time", "VJP time"]
-    return header, [(s, _time(fv), _time(vjp.get(s))) for s, fv in rows]
+    header = ["Solver", "Forward time", "Forward first call", "VJP time"]
+    return header, [(s, _time(fv), _first(fv), _time(vjp.get(s))) for s, fv in rows]
 
 
 # final-objective metric name by domain optimization experiment, in priority

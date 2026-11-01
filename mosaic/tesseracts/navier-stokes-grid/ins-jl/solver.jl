@@ -1,8 +1,15 @@
 using IncompressibleNavierStokes
 using Zygote
+using CUDA
+
+# Run on the GPU when the container has one, otherwise on INS.jl's default CPU
+# backend. Inputs are copied to the device once per call and results back.
+const _ON_GPU = CUDA.functional()
+const _BACKEND_KW = _ON_GPU ? (; backend = CUDABackend()) : (;)
+to_device(a) = _ON_GPU ? CuArray(a) : a
 
 # ---------------------------------------------------------------------------
-# Setup cache (indexed by (n, L, ndim))
+# Setup cache (indexed by (n, L, ndim)); holds the current setup only
 # ---------------------------------------------------------------------------
 
 const _SETUP_CACHE = Dict{Tuple{Int,Float64,Int}, Tuple}()
@@ -24,6 +31,7 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
                         (PeriodicBC(), PeriodicBC()),
                     ),
                 ),
+                _BACKEND_KW...,
             )
         else
             setup = Setup(;
@@ -35,9 +43,11 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
                         (PeriodicBC(), PeriodicBC()),
                     ),
                 ),
+                _BACKEND_KW...,
             )
         end
         psolver = psolver_spectral(setup)
+        empty!(_SETUP_CACHE)
         _SETUP_CACHE[key] = (setup, psolver)
     end
     return _SETUP_CACHE[key]
@@ -218,7 +228,7 @@ round-off.
 """
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64)
     T = Float32
-    v0   = T.(v0_np)
+    v0   = to_device(T.(v0_np))
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
 
@@ -239,7 +249,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
     else
         stag_to_coloc_3d(strip_ghosts_3d(state.u, n), n)
     end
-    return T.(v_out)
+    return Array(T.(v_out))
 end
 
 """
@@ -256,8 +266,8 @@ two extra forward rollouts per VJP call) that earlier versions required.
 """
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64)
-    v0   = Float32.(v0_np)
-    cot  = Float32.(cotangent_np)
+    v0   = to_device(Float32.(v0_np))
+    cot  = to_device(Float32.(cotangent_np))
     ndim = size(v0, ndims(v0))
 
     setup, psolver = get_setup_and_psolver(n, L, ndim)
@@ -271,7 +281,7 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
 
     _, back = Zygote.pullback(fwd, v0, Float32(dt), Float32(nu))
     grads = back(cot)
-    grad_v0  = Float32.(grads[1])
+    grad_v0  = Array(Float32.(grads[1]))
     grad_dt  = Float64(something(grads[2], 0.0))
     grad_nu  = Float64(something(grads[3], 0.0))
 

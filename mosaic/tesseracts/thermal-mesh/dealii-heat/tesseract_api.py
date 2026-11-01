@@ -19,6 +19,7 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -146,17 +147,32 @@ def _write_inputs(inputs: InputSchema, wd: Path) -> None:
         json.dump(payload, f)
 
 
+# One solver process (``--serve``) answers every request, so a call does not
+# pay for starting the binary and loading deal.II. Each request still builds
+# its own mesh and linear system from the files in its directory. The lock
+# keeps concurrent requests from interleaving on the pipe.
+_WORKER: subprocess.Popen | None = None
+_WORKER_LOCK = threading.Lock()
+
+
 def _run_solver(wd: Path) -> None:
-    """Invoke the deal.II heat_solver binary."""
-    cmd = [_DEALII_SOLVER, str(wd / "input.json")]
-    result = subprocess.run(
-        cmd, cwd=str(wd), capture_output=True, text=True, check=False
-    )
-    if result.returncode != 0:
+    """Send ``wd/input.json`` to the deal.II heat_solver worker and wait for it."""
+    global _WORKER
+    with _WORKER_LOCK:
+        if _WORKER is None or _WORKER.poll() is not None:
+            _WORKER = subprocess.Popen(
+                [_DEALII_SOLVER, "--serve"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
+        _WORKER.stdin.write(f"{wd / 'input.json'}\n")
+        _WORKER.stdin.flush()
+        reply = _WORKER.stdout.readline().strip()
+    if reply != "ok":
         raise RuntimeError(
-            f"deal.II solver failed:\n"
-            f"STDOUT: {result.stdout[-2000:]}\n"
-            f"STDERR: {result.stderr[-500:]}"
+            f"deal.II heat_solver failed: {reply or f'exit code {_WORKER.wait()}'}"
         )
 
 

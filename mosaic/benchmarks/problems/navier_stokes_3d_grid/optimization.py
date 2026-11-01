@@ -26,7 +26,7 @@ Layout:
   between the kernel body and (previously) the runner.
 
 The inner optimiser primitives ``_run_optim`` (Adam with patience-based
-early stopping) and ``_run_lbfgs`` (L-BFGS with zoom line-search) remain
+early stopping) and ``_run_lbfgs`` (SciPy's L-BFGS-B) remain
 in ``shared/`` since they are reused by topology-optimisation and other
 suites.
 """
@@ -88,8 +88,8 @@ def _max_divergence(u: np.ndarray, domain_extent: float) -> float:
 def _project_divergence_free_jax(u: jax.Array, domain_extent: float) -> jax.Array:
     """JAX-traceable variant of :func:`project_divergence_free`.
 
-    Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS step so the
-    whole iteration is one trace.
+    Used as ``grad_proj_fn`` inside the JIT-compiled L-BFGS value and
+    gradient, so the whole evaluation is one trace.
     """
     nd = u.shape[-1]
     squeeze = u.ndim > nd + 1
@@ -743,9 +743,9 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     The ``run["optimizer"]`` key selects the inner optimiser:
 
       * ``"adam"``       — vanilla Adam (default).
-      * ``"bfgs"``       — L-BFGS with zoom line-search.
-      * ``"bfgs_proj"``  — L-BFGS with the gradient Helmholtz-projected
-        onto the ∇·g = 0 subspace each iteration (keeps the search
+      * ``"bfgs"``       — SciPy's L-BFGS-B.
+      * ``"bfgs_proj"``  — L-BFGS-B with the gradient Helmholtz-projected
+        onto the ∇·g = 0 subspace at every evaluation (keeps the search
         direction compatible with incompressibility for velocity-field
         problems).
     """
