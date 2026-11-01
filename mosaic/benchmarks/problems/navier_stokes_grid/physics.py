@@ -57,8 +57,8 @@ def _periodic_inputs(
     """Periodic-box inputs.
 
     ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver.
-    ``forcing_wavenumber`` adds the Kolmogorov force of that wavenumber and
-    ``forcing_amplitude``, and ``linear_drag`` a drag -αu.
+    ``forcing_wavenumber`` adds the Kolmogorov force (A sin(κy), 0) with
+    A = ``forcing_amplitude``, and ``linear_drag`` adds a drag -αu.
     """
     N = ic.shape[0]
     _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)

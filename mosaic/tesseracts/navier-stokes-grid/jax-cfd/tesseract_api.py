@@ -61,8 +61,8 @@ def cfd_fwd(
     v0.shape[-1]. The result has the same shape as v0.
 
     ``forcing`` and ``linear_drag`` enter the explicit right-hand side that
-    every RK4 stage evaluates, the force averaged onto the faces like v0 and
-    the drag ``-linear_drag * u`` on the current face velocity.
+    every RK4 stage evaluates. The force is averaged onto the faces like v0,
+    and the drag ``-linear_drag * u`` acts on the current face velocity.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:

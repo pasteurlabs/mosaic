@@ -203,8 +203,8 @@ class TestConsensusFromFields:
 class TestPrecomputedExperiments:
     def test_ns_grid_multimode_agreement_and_kolmogorov(self):
         # The Taylor–Green experiments use the analytic solution and
-        # forward/cylinder the DFG 2D-1 literature values; the multimode
-        # agreement needs a stored consensus and forward/kolmogorov its
+        # forward/cylinder the DFG 2D-1 literature values. The multimode
+        # agreement needs a stored consensus, and forward/kolmogorov its
         # converged ground truth.
         assert PRECOMPUTED_EXPERIMENTS["ns-grid"] == [
             "forward/agreement/multimode",

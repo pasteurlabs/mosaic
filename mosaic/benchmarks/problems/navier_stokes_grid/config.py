@@ -332,8 +332,9 @@ problem.add_experiment(
     # A second-order scheme misses this mode by about (κh)²/12 in its
     # diffusion rate, 1.3% at N = 64, while a wrong 2π/L factor, a flipped
     # sign or a force half a cell off (a phase error of κh/2) cost 20% or
-    # more. 5% at N = 64 separates the two; the coarser grid only shows the
-    # order. Not peer-relative: the bound comes from the solution.
+    # more. A 5% bound at N = 64 separates the two, and min_order covers the
+    # rest of the sweep. Both bounds come from the exact solution, not from
+    # the peers.
     status_check=[max_error(0.05, at=64), min_order(0.8)],
 )
 problem.add_experiment(
@@ -345,7 +346,7 @@ problem.add_experiment(
         " ν = 2·10⁻³. Every grid runs at the CFL number of 64² with dt = 0.01"
         " and is scored on the 64² grid. Relative error at t = 4 against the"
         " wall time of one time unit, and relative error per time on each"
-        " grid; medians over the states."
+        " grid, as medians over the states."
     ),
     physics={
         "N": kolmogorov.COARSE_N,
@@ -357,9 +358,9 @@ problem.add_experiment(
     reference=kolmogorov.generate_ground_truth,
     plot=plot_kolmogorov,
     # Space and time are refined together, so a consistent scheme converges
-    # at order 1 or more, as on forward/baseline; 0.8 catches error floors and
-    # non-convergence. Not peer-relative: the bound comes from the scheme's
-    # consistency.
+    # at order 1 or more, as on forward/baseline. A bound of 0.8 catches error
+    # floors and non-convergence. It comes from the scheme's consistency, not
+    # from the peers.
     status_check=[kolmogorov.min_refinement_order(0.8)],
 )
 # Cost
@@ -446,10 +447,10 @@ problem.add_experiment(
     plot=plot_fd_check,
     # The finite differences run the solver in float32, so even an exact VJP
     # meets them only to the rounding and truncation error of the difference
-    # quotient: on the A100 the best ε gives median errors of order 1e-4 to
+    # quotient. On the A100, the best ε gives median errors of order 1e-4 to
     # 1e-3 for the solvers whose VJP is linear in the cotangent, with cosines
     # above 0.9999. A VJP whose adjoint solves stop at an absolute tolerance
-    # is off by tens of percent with a cosine near 0.5. Both bounds sit at
+    # is off by tens of percent, with a cosine near 0.5. Both bounds sit at
     # least a factor of five from either side.
     status_check=[
         min_cosine(0.99),

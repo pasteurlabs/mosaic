@@ -251,13 +251,13 @@ end
 # ---------------------------------------------------------------------------
 
 """
-    ns_apply(v0_np, nu, dt, steps, n, L) -> v_out_np
+    ns_apply(v0_np, nu, dt, steps, n, L; force, drag) -> v_out_np
 
 Forward pass.
   2-D: v0_np (n,n,2) Float32 → returns (n,n,2) Float32
   3-D: v0_np (n,n,n,3) Float32 → returns (n,n,n,3) Float32
 
-Forward-only rollouts use the in-place `solve_unsteady` time stepper (no AD
+Unforced rollouts use the in-place `solve_unsteady` time stepper (no AD
 tape needed), which is several times faster than the non-mutating rollout
 used for the VJP primal. `RKMethods.RK44` applies the same per-stage BC +
 projection as the projected RHS in `ns_forward_*`, so the two paths agree to
@@ -302,7 +302,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
 end
 
 """
-    ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L)
+    ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L; force, drag)
         -> (grad_v0, grad_nu, grad_dt, grad_L)
 
 VJP. Shapes match v0_np. grad_L is always 0.0 (L is structural).

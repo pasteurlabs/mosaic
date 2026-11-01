@@ -2,7 +2,7 @@
 
 ## `forward_kolmogorov.npz`
 
-The ground truth of the Kolmogorov-flow experiments: the flow on [0, 2π)² driven by the force (sin 4y, 0) against linear drag 0.1 at viscosity 2·10⁻³ (`kolmogorov.py` holds the setup).
+Ground truth of the Kolmogorov-flow experiments. It is the flow on [0, 2π)² driven by the force (sin 4y, 0) against linear drag 0.1 at viscosity 2·10⁻³, set up in `kolmogorov.py`.
 
 | Array                                                        | Contents                                              |
 | ------------------------------------------------------------ | ----------------------------------------------------- |

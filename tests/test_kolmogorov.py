@@ -17,9 +17,9 @@ L = ko.DOMAIN_EXTENT
 
 
 def _smooth(n: int, seed: int = 0) -> np.ndarray:
-    """A band-limited divergence-free field at the cell centres of an n-grid."""
+    """A band-limited divergence-free field at the cell centers of an n-grid."""
     rng = np.random.default_rng(seed)
-    x = ko.cell_centres(n)
+    x = ko.cell_centers(n)
     xx, yy = np.meshgrid(x, x, indexing="ij")
     u = np.zeros((n, n))
     v = np.zeros((n, n))
@@ -32,7 +32,7 @@ def _smooth(n: int, seed: int = 0) -> np.ndarray:
 
 @pytest.mark.parametrize("n", [16, 128])
 def test_forcing_resamples_onto_the_forcing_of_another_grid(n):
-    """Cell centres differ between grids, and resampling accounts for that."""
+    """Cell centers differ between grids, and resampling accounts for that."""
     resampled = np.asarray(ko.resample(ko.forcing_field(64), n))
     np.testing.assert_allclose(resampled, ko.forcing_field(n), atol=1e-5)
 
@@ -58,7 +58,7 @@ def test_laminar_velocity_relaxes_to_the_steady_shear_flow():
 def test_vorticity_of_the_force_and_its_self_correlation():
     k = 2 * np.pi * ko.WAVENUMBER / L
     w = np.asarray(ko.vorticity(ko.forcing_field(64)))
-    expected = -k * np.cos(k * ko.cell_centres(64))[None, :] * np.ones((64, 1))
+    expected = -k * np.cos(k * ko.cell_centers(64))[None, :] * np.ones((64, 1))
     np.testing.assert_allclose(w, expected, atol=1e-4)
     field = _smooth(32)
     assert float(ko.vorticity_correlation(field, field)) == pytest.approx(1.0)

@@ -159,10 +159,7 @@ def periodic_fwd(
     _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
     def to_faces(v: jnp.ndarray) -> jnp.ndarray:
-        """Collocated (*spatial, ndim) → face-centred (ndim, *spatial).
-
-        PhiFlow's native CenteredGrid→StaggeredGrid resampling.
-        """
+        """Collocated (*spatial, ndim) → face values (ndim, *spatial), by PhiFlow's resampling."""
         v_arr = jnp.moveaxis(v, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
         channel = math.stack(
             [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],

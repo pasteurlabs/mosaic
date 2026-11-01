@@ -1246,7 +1246,7 @@ def ns2d_solve_tape(
 
     Used only by :func:`vector_jacobian_product` — see :func:`ns2d_solve_forward`
     for the plain-forward path used by :func:`apply`. Steps per time-step:
-        1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)
+        1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u + f - αu)
         2. Pressure Poisson: ∇²p = (1/dt)·∇·u*  (spectral FFT, periodic)
         3. Velocity correction: u^(n+1) = u* - dt·∇p
 

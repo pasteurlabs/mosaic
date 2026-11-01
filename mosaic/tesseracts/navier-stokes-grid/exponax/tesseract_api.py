@@ -128,11 +128,11 @@ def exponax_fwd(
     vorticity is -q.
 
     A ``forcing`` field enters as the injection term of Exponax's Kolmogorov
-    stepper, the spectral curl of the force on the grid as given. Its own
-    ``injection_mode``/``injection_scale`` cannot express the canonical force:
-    Exponax puts sample j at y = j·h, the canonical layout at (j + ½)h, so its
-    sin(κy) is half a cell off. ``linear_drag`` α maps to Exponax's drag λ,
-    which adds λω and so damps for λ < 0.
+    stepper, as the spectral curl of the force on the grid. The stepper's own
+    ``injection_mode``/``injection_scale`` cannot express the canonical force.
+    Exponax puts sample j at y = j·h and the canonical layout at (j + ½)h, so
+    its sin(κy) would be half a cell off. ``linear_drag`` α is subtracted from
+    Exponax's drag λ, which adds λω and so damps for λ < 0.
 
     3D uses the Leray-projected velocity stepper directly.
 
@@ -192,7 +192,8 @@ def exponax_fwd(
                 num_spatial_dims=2, injection_scale=0.0, **stepper_kwargs
             )
             # The force drives q with -curl f. Exponax builds its injection as
-            # a real array; the force's coefficients need their phase.
+            # a real array, which would drop the phase of the force's
+            # coefficients.
             curl = _velocity_to_vorticity(forcing[:, :, 0, :], domain_extent)
             stepper = eqx.tree_at(
                 lambda st: st._integrator._nonlinear_fun.injection,

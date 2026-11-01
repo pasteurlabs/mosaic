@@ -190,7 +190,8 @@ def _sub_steps(inputs: dict) -> int:
     """LBM sub-steps per dt that bring a run to its target Mach number.
 
     The lattice Mach number is Ma = u_max · (dt/dx) / cs with cs = 1/√3,
-    u_max = max|v0| on a periodic box and the peak inflow speed in the channel.
+    u_max = max|v0| on a periodic box (or the force's speed bound, if larger)
+    and the peak inflow speed in the channel.
     k sub-steps of dt/k divide it by k and preserve the physical end time.
     Computed from the concrete primal inputs, since k fixes the traced graph.
     """
@@ -435,8 +436,8 @@ def xlb_fwd(
         obstacle:      Cylinder (``center``, ``radius``, physical units) in the
                        channel, or None for a periodic box.
         inflow_profile: Channel inlet u_x at the cell-center heights, shape (ny,).
-        forcing:       Periodic body force (an acceleration), shape of v0.
-        linear_drag:   Periodic drag coefficient α of a force -αu.
+        forcing:       Body force (an acceleration) on a periodic box, shape of v0.
+        linear_drag:   Drag coefficient α of a force -αu on a periodic box.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
@@ -479,7 +480,7 @@ def xlb_fwd(
         # adds feq(ρ, u + Δu) - feq(ρ, u) after the collision. With the force
         # a - αu per unit mass, the kick per LBM step is Δu = a - αu* at the
         # physical velocity u* = u + Δu/2, solved for u* since the drag depends
-        # on it. Lattice units: a dt²/dx and α dt.
+        # on it. In lattice units, a becomes a·dt²/dx and α becomes α·dt.
         accel = 0.0
         if forcing is not None:
             accel = jnp.moveaxis(forcing[:, :, 0, :], -1, 0).astype(fdtype)
@@ -490,8 +491,8 @@ def xlb_fwd(
             return accel - drag * u_phys
 
         # mosaic-intervention: consistent-initial-populations
-        # Post-collision populations carry u* + Δu/2: half the kick of their
-        # step is already in them.
+        # Post-collision populations already hold half the kick of their
+        # step, so they start at u* + Δu/2.
         f0 = _periodic_populations(u0 + 0.5 * kick(u0), omega, ops)
         # mosaic-intervention-end: consistent-initial-populations
 

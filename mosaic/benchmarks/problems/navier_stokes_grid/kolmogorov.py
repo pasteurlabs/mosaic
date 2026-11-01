@@ -8,14 +8,10 @@ f = (A sin(κy), 0), κ = 2πk/L, and linear drag α. The drag removes the energ
 that the 2D inverse cascade piles up at the largest scales, so the flow
 settles into a statistically steady state.
 
-Every field here uses the canonical layout of the ns-grid solvers: shape
-(N, N, 1, 2) with cell (i, j) centred at ((i + ½)h, (j + ½)h). Resampling
-between grids therefore shifts phases by the offset between cell centres,
-since a coarse cell centre does not coincide with a fine one.
+Every field here uses the canonical layout of the ns-grid solvers, shape
+(N, N, 1, 2) with cell (i, j) centered at ((i + ½)h, (j + ½)h).
 
-This module also holds the ``forward/kolmogorov`` kernel, which runs each
-solver on a ladder of grids from the ground truth's initial states, and its
-status check.
+This module also holds the ``forward/kolmogorov`` kernel and its status check.
 """
 
 from __future__ import annotations
@@ -40,10 +36,9 @@ from .ics import _multimode
 logger = logging.getLogger(__name__)
 
 # ── Setup ────────────────────────────────────────────────────────────────────
-# Chosen in the calibration of the benchmark (PR #267): a chaotic, statistically
-# steady flow that a 64² grid resolves only roughly, missing a 4× finer run by
-# about 2% every 0.1 time units, while the converged truth stays predictable
-# for longer than the scored horizon.
+# A chaotic, statistically steady flow. A 64² grid resolves it only roughly,
+# missing a 4× finer run by about 2% every 0.1 time units, while the converged
+# truth stays predictable for longer than the scored horizon.
 
 DOMAIN_EXTENT = 2 * np.pi
 WAVENUMBER = 4
@@ -81,8 +76,8 @@ FORCING_PHYSICS = {
 # ── Fields ───────────────────────────────────────────────────────────────────
 
 
-def cell_centres(n: int, domain_extent: float = DOMAIN_EXTENT) -> np.ndarray:
-    """Cell-centre coordinates (j + ½)h of an ``n``-cell periodic axis."""
+def cell_centers(n: int, domain_extent: float = DOMAIN_EXTENT) -> np.ndarray:
+    """Cell-center coordinates (j + ½)h of an ``n``-cell periodic axis."""
     return (np.arange(n) + 0.5) * domain_extent / n
 
 
@@ -92,10 +87,10 @@ def forcing_field(
     wavenumber: int = WAVENUMBER,
     amplitude: float = AMPLITUDE,
 ) -> np.ndarray:
-    """The Kolmogorov force (A sin(κy), 0) at the cell centres, (n, n, 1, 2)."""
+    """The Kolmogorov force (A sin(κy), 0) at the cell centers, (n, n, 1, 2)."""
     kappa = 2 * np.pi * wavenumber / domain_extent
     field = np.zeros((n, n, 1, 2), dtype=np.float32)
-    field[..., 0, 0] = amplitude * np.sin(kappa * cell_centres(n, domain_extent))
+    field[..., 0, 0] = amplitude * np.sin(kappa * cell_centers(n, domain_extent))
     return field
 
 
@@ -113,7 +108,7 @@ def laminar_velocity(
 
     The force only depends on y and points along x, so the flow stays a shear
     flow u(y, t) whose advection term vanishes. The forced mode then relaxes
-    at the rate λ = νκ² + α: u = (A/λ)(1 − e^{−λt}) sin(κy), v = 0.
+    at the rate λ = νκ² + α, so u = (A/λ)(1 − e^{−λt}) sin(κy) and v = 0.
     """
     kappa = 2 * np.pi * wavenumber / domain_extent
     rate = viscosity * kappa**2 + drag
@@ -159,17 +154,18 @@ def resample(field: Any, n: int, domain_extent: float = DOMAIN_EXTENT) -> jax.Ar
     """Band-limited resampling of a periodic field onto an ``n``-cell grid.
 
     ``field`` has the two spatial axes first, (N, N, ...), sampled at the cell
-    centres. Coarsening keeps the modes below the target Nyquist frequency,
-    refining pads with zeros; the Nyquist modes of both grids are dropped,
-    since a real field cannot carry the phase shift between the two sets of
-    cell centres on them. Differentiable.
+    centers. The two grids' cell centers do not coincide, so resampling shifts
+    the phases by their offset. Coarsening keeps the modes below the target
+    Nyquist frequency and refining pads with zeros. The Nyquist modes of both
+    grids are dropped because a real field cannot carry that phase shift on
+    them. Differentiable.
     """
     field = jnp.asarray(field)
     size = field.shape[0]
     if size == n:
         return field
     k = _wavenumbers(size, domain_extent)
-    # Cell centres of the two grids are offset by (h_n - h_N)/2.
+    # Cell centers of the two grids are offset by (h_n - h_N)/2.
     shift = np.exp(1j * k * 0.5 * (domain_extent / n - domain_extent / size))
     trailing = (1,) * (field.ndim - 2)
     m = min(size, n) // 2
@@ -220,7 +216,7 @@ def high_correlation_time(
 
 
 def capped_error(state: Any, target: Any) -> float:
-    """Relative L2 error, :data:`DIVERGED_ERROR` for a non-finite state."""
+    """Relative L2 error capped at :data:`DIVERGED_ERROR`, which a non-finite state also gets."""
     state = np.asarray(state)
     if not np.isfinite(state).all():
         return DIVERGED_ERROR
@@ -232,10 +228,10 @@ def capped_error(state: Any, target: Any) -> float:
 # Seeds of the random fields the initial states spin up from.
 GROUND_TRUTH_SEEDS = (5, 6, 7)
 
-# Exponax resolutions and spin-up: a burn-in at BURN_IN_N, then the truth at
-# TRUTH_N with CONVERGENCE_N alongside to show convergence. The initial states
-# are kept band-limited to INITIAL_N, deep in the dissipation range of this
-# flow, which regenerates the smallest scales within a fraction of a time unit.
+# Exponax spins each state up at BURN_IN_N, then runs the truth at TRUTH_N and
+# a CONVERGENCE_N run alongside it to show convergence. The initial states are
+# band-limited to INITIAL_N, which only drops modes deep in the dissipation
+# range. The flow regenerates those within a fraction of a time unit.
 INITIAL_N = 128
 TRUTH_N = 1024
 CONVERGENCE_N = 512
@@ -243,11 +239,11 @@ BURN_IN_N = 512
 BURN_IN_TIME = 100.0
 # Convergence of the truth is followed for three horizons.
 CONVERGENCE_TIME = 12.0
-# Frames of the truth and its convergence check.
+# Interval between the stored frames of the truth and its convergence run.
 TRUTH_FRAME = 0.5
-# Exponax's float32 ETDRK2 needs a CFL number well below 0.25; at 0.1 it is
-# stable at these resolutions. The speed bound is the forced flow's largest,
-# about 7.
+# Exponax's float32 ETDRK2 needs a CFL number well below 0.25 and is stable at
+# 0.1 on these resolutions. The speed bound is about the forced flow's largest
+# speed.
 _TRUTH_CFL = 0.1
 _SPEED_BOUND = 7.0
 
@@ -281,14 +277,9 @@ def generate_ground_truth(
     """Burned-in initial states and the converged trajectories from them.
 
     ``advance(v, dt, steps)`` runs the reference solver with the Kolmogorov
-    force and drag on the grid of ``v`` and returns the state after ``steps``
-    steps of ``dt``. Each seed starts from a random field, spins up for
-    :data:`BURN_IN_TIME` at :data:`BURN_IN_N` and continues at
-    :data:`TRUTH_N`. The run at :data:`CONVERGENCE_N` from the same state
-    measures how long the truth is converged.
-
-    Returns ``initial_<seed>`` at :data:`INITIAL_N`, ``truth_<seed>`` at the
-    times :data:`HORIZON_TIMES` on the coarse grid, and the convergence record.
+    force and drag on the grid of ``v``. Returns ``initial_<seed>`` at
+    :data:`INITIAL_N`, ``truth_<seed>`` at :data:`HORIZON_TIMES` on the coarse
+    grid, and how closely the :data:`CONVERGENCE_N` run tracks the truth.
     """
     out: dict[str, np.ndarray] = {}
     frame_of = {t: round(t / TRUTH_FRAME) - 1 for t in HORIZON_TIMES}
@@ -400,14 +391,11 @@ def _seconds_per_time(per_seed: list[dict], horizon: float) -> float | None:
 
 @kernel(sweep_mode="none", selector_fn=active_solvers)
 def forward(t: Any, ctx: KernelContext) -> dict:
-    """One solver on each grid of the ladder against the ground truth.
+    """Each grid of the ladder, scored on the coarse grid against the ground truth.
 
-    Every grid runs at the CFL number of the coarse configuration, from each
-    seed's burned-in state restricted to that grid, and is scored on the
-    coarse grid at :data:`HORIZON_TIMES`. ``error`` is the finest grid's
-    median error over the seeds at the last time. ``order`` is the observed
-    order of convergence from the coarse grid to the finest at the first
-    time, see :func:`min_refinement_order`.
+    ``error`` is the finest grid's median error over the seeds at the last
+    time. ``order`` is the observed order of convergence from the coarse grid
+    to the finest at the first time.
     """
     phys = dict(ctx.phys)
     n = int(phys.pop("N"))
@@ -463,11 +451,11 @@ def forward(t: Any, ctx: KernelContext) -> dict:
 
 
 def min_refinement_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if a grid from the coarse one up diverged, or if refining it converges slower than ``order``.
+    """Anomaly if the coarse grid or a finer one diverged, or if the observed order is below ``order``.
 
-    The observed order comes from the median errors at the first time, while
-    both are small enough that the flow's chaos amplifies them alike. Grids
-    below the coarse one are reported but not checked: they may be too
+    The order is measured at the first time, while the errors on both grids
+    are still small enough that the flow's chaos amplifies them alike. Grids
+    below the coarse one are reported but not checked, since they may be too
     coarse for the flow.
     """
 

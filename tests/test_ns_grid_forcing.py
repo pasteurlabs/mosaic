@@ -3,18 +3,13 @@
 
 """Body force and linear drag in the periodic ns-grid solvers.
 
-Started from rest, the Kolmogorov force (A sin(κy), 0) keeps the flow a shear
-flow u(y, t). Its advection term vanishes, so the Navier–Stokes equations with
-drag α have the exact solution
+Started from rest, the Kolmogorov force keeps the flow a shear flow with a
+closed-form solution (see ``kolmogorov.laminar_velocity``). One run against it
+checks the amplitude, sign and wavenumber of the force, its placement on
+staggered grids, the sign of the drag and any unit conversion.
 
-    u = (A/λ)(1 − e^{−λt}) sin(κy),  v = 0,  λ = νκ² + α.
-
-One run against it checks the amplitude, sign and wavenumber of the force, its
-placement on staggered grids, the sign of the drag and any unit conversion.
-
-Every test runs against the solver's ``:latest`` image built from this
-checkout and is skipped where that image or Docker is missing. They are never
-built here.
+Every test runs against the solver's ``:latest`` image, which this module
+never builds, and is skipped where that image or Docker is missing.
 """
 
 from __future__ import annotations

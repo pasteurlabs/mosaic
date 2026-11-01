@@ -53,9 +53,9 @@ EXPONAX_EXACT_TGV = Exclusion(
 OPENFOAM_NO_SOURCE_TERM = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
     "this tesseract runs icoFoam, which has no momentum source term, so it "
-    "cannot apply the body force or the drag; OpenFOAM supports both through "
-    "the foamRun incompressibleFluid solver with an fvModel, which is not "
-    "wired up here",
+    "cannot apply the body force or the drag. OpenFOAM's foamRun "
+    "incompressibleFluid solver supports both through an fvModel, but this "
+    "tesseract does not use it",
 )
 EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
@@ -71,8 +71,8 @@ EXPLICIT_CENTRAL_UNSTABLE_CHAIN = Exclusion(
     "advection, which is linearly unstable at the timestep of the chain (see "
     "forward/kolmogorov). Over the chain's calls the unstable modes grow, so "
     "they dominate both the gradient and the finite differences, which then "
-    "do not agree at any ε a float32 run resolves; where they grow fast "
-    "enough, the chain from the ground-truth state diverges",
+    "disagree at every ε a float32 run resolves. Where they grow fast enough, "
+    "the chain from the ground-truth state diverges",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
