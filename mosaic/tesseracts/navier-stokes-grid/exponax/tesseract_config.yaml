@@ -31,12 +31,11 @@ metadata:
       - id: vorticity-velocity-conversion
         level: L2
         necessity: required
-        active: false
         what: >
-          The 2-D path converts the velocity to vorticity with a spectral
-          curl, runs Exponax's vorticity stepper, and converts back with a
-          spectral Biot-Savart inversion, restoring the mean velocity that the
-          vorticity form drops. No experiment on main runs Exponax in 2-D.
+          The 2-D path converts the velocity to Exponax's vorticity variable
+          (q = -curl u) with a spectral curl, runs Exponax's vorticity
+          stepper, and converts back with a spectral Biot-Savart inversion,
+          restoring the mean velocity that the vorticity form drops.
         why:
           ns-2d-periodic:
             consequences: [cannot-express]

@@ -984,10 +984,10 @@ def vector_jacobian_product(
     keys = [k for k, wanted in want.items() if wanted]
     grads: list[torch.Tensor | None] = [None] * len(keys)
     # mosaic-intervention: cotangent-scaling
-    # DEVIATION FROM PICT. PICT's linear solves stop once the RMS of their
-    # residual falls below an absolute tolerance (by default 1e-5 in float32),
-    # and the adjoint solves of its backward pass use the same one. For small
-    # cotangents they stop after few or no iterations, so PICT's VJP is not
+    # PICT's linear solves stop once the RMS of their residual falls below an
+    # absolute tolerance (by default 1e-5 in float32), and the adjoint solves
+    # of its backward pass use the same one. For small cotangents they stop
+    # after few or no iterations, so PICT's VJP is not
     # linear in the cotangent: with cotangents of about 1e-4 per entry, the
     # gradient through a chain of calls is wrong by tens of percent. Here the
     # cotangents are scaled to a largest entry of 1 and the gradients scaled

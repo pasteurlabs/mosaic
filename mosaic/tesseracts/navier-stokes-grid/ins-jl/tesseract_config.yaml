@@ -81,10 +81,10 @@ metadata:
               Zygote cannot differentiate array mutation, so the VJP needs a
               non-mutating rollout; INS.jl's documented way is a loop over its
               non-mutating timestep. No reason is recorded for writing RK4 by
-              hand instead. Keeping the in-place stepper for apply is faster:
-              0.56 s against 2.49 s for the non-mutating rollout at N = 256,
-              100 steps, CPU. The two paths agree to 2.2e-4 (2-D) and 1.0e-4
-              (3-D) in float32.
+              hand instead. Keeping the in-place stepper for apply was faster
+              on the CPU, before the move to the GPU (#307): 0.56 s against
+              2.49 s for the non-mutating rollout at N = 256, 100 steps. The
+              two paths agreed to 2.2e-4 (2-D) and 1.0e-4 (3-D) in float32.
             evidence: >
               https://github.com/agdestein/IncompressibleNavierStokes.jl/blob/v5.0.0/examples/Differentiability.jl;
               #103.
@@ -104,24 +104,56 @@ metadata:
               promoted to Float64 after the first projection, so INS.jl paid
               Float64 cost with float32 inputs and outputs. Float32 matches
               the other float32 solvers; #103 offered keeping Float64 and
-              disclosing it instead. No cost factor was measured separately.
+              disclosing it instead. No cost factor was measured separately,
+              on the CPU or on the GPU.
             evidence: >
               #103, item 3; INS.jl's manual on floating point precision
               (docs/src/manual/backends.md at v5.0.0).
           ns-3d: *float32-reason
         provenance: maintainer-authored
+      - id: cuda-backend
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          With a GPU present, builds the Setup with backend = CUDABackend()
+          and moves the initial state to the device, so the solve and its
+          Zygote pullback run on INS.jl's CUDA backend instead of the default
+          CPU backend.
+        why:
+          ns-2d-periodic:
+            consequences: [too-slow]
+            symptom: >
+              On the CPU, vjp_cost at N = 256 took 9.20 s against 0.96 to
+              2.59 s on a shared A100. Small cases got slower: spatial_cost at
+              N = 64 went from 0.085 s to 0.16 to 0.64 s. Every status and
+              forward error is unchanged.
+            evidence: "#307, notes."
+          ns-3d:
+            consequences: [too-slow]
+            symptom: >
+              On the CPU, vjp_cost at N = 64 took 54.6 s against 1.58 to
+              3.72 s, and 100 steps 47.2 s against 2.38 to 3.15 s. The
+              5120-step horizon_sweep_limits VJP needs 28.3 GB on the device
+              and runs out of memory on the T4.
+            evidence: "#307, notes."
+        provenance: mosaic-team
       - id: julia-cpu-target-generic
         level: L0
         necessity: unknown
         what: >
-          The image sets JULIA_CPU_TARGET=generic, so Julia precompiles for a
-          generic x86-64 CPU rather than the build machine's.
+          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
+          precompiles at build time target a generic x86-64 CPU rather than
+          the build machine's. Code compiled at run time is unaffected.
         why:
           ns-2d-periodic: &target-reason
             consequences: []
             symptom: >
-              No reason recorded (added in #62, "fix all tesseract builds").
-              Whether it slows the compiled solver has not been measured.
+              No reason recorded; present since the initial commit. Julia's
+              docs recommend it where images run on CPUs other than the one
+              that built them. The solver's kernels run on the GPU (#307) and
+              are compiled at run time, so only host-side code from the package
+              images could be slower; not measured.
           ns-3d: *target-reason
         provenance: mosaic-team
     deviations: []

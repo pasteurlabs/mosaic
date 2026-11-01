@@ -149,8 +149,8 @@ def periodic_fwd(
             [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    # Use explicit CG pressure solver to prevent numerical divergence in 3D
-    # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
+    # The same solve as incompressible_rk4's default Solve("CG"), whose
+    # tolerances resolve to 1e-5 in float32.
     _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
     def momentum(vel: StaggeredGrid) -> StaggeredGrid:
@@ -262,8 +262,6 @@ def channel_fwd(
     grid_kwargs = {"x": nx, "y": ny, "bounds": Box(x=nx * dx, y=ny * dx)}
 
     solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
-    # mosaic-intervention: inlined-obstacle-projection
-
     inlet = extrapolation.combine_by_direction(
         normal=extrapolation.ConstantExtrapolation(
             math.tensor(inflow_profile, math.spatial("y"))
@@ -273,6 +271,7 @@ def channel_fwd(
     ext = extrapolation.combine_sides(
         x=(inlet, extrapolation.ZERO_GRADIENT), y=extrapolation.ZERO
     )
+    # mosaic-intervention: inlined-obstacle-projection
     with math.NUMPY:
         accessible = CenteredGrid(
             math.tensor(~solid, math.spatial("x,y")), _CHANNEL_ACCESSIBLE, **grid_kwargs

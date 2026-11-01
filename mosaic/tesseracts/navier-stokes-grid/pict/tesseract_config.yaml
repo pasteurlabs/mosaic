@@ -5,10 +5,10 @@ description: >
   (PISOtorch). VJP w.r.t. v0, inflow_profile, and viscosity flows through the PISO
   time loop via PISOtorch_diff (tracks VELOCITY, BOUNDARY_VELOCITY, and VISCOSITY
   gradients). dt is a Python scalar consumed at construction time; zero gradients
-  are returned for it. Deviation from PICT: the VJP scales the cotangents to a
-  largest entry of 1 before PICT's backward pass and scales the gradients back,
-  because PICT's linear solves stop at an absolute residual and would cut the
-  adjoint solves short for small cotangents.
+  are returned for it. The VJP scales the cotangents to a largest entry of 1
+  before PICT's backward pass and scales the gradients back, because PICT's
+  linear solves stop at an absolute residual and would cut the adjoint solves
+  short for small cotangents. PICT has no releases; this runs commit 72a6e86.
 build_config:
   package_data: []
   target_platform: "linux/amd64"
@@ -89,9 +89,8 @@ metadata:
         necessity: required
         tuned: true
         what: >
-          The periodic runs pass 1e-6 as the advection and pressure solve
-          tolerance instead of PICT's float32 default of 1e-5. The 3-D box uses
-          the same code path.
+          The 2-D periodic runs pass 1e-6 as the advection and pressure solve
+          tolerance instead of PICT's float32 default of 1e-5.
         why:
           ns-2d-periodic:
             consequences: [incorrect-gradient]
@@ -99,8 +98,23 @@ metadata:
               At 1e-5 the residual error of the forward and adjoint solves caps
               fd_check at about 1e-3 for every step size: the reported error is
               8.8e-4 against 5.7e-5 at 1e-6, which becomes an anomaly against
-              the peer median after #282.
-            evidence: "#287, before/after table (ns-3d-grid not checked there)."
+              the peer median after #282. Measured without cotangent-scaling,
+              which alone lowers the error at 1e-5 to 2.7e-4 (#294); the two
+              together are not measured.
+            evidence: "#287, before/after table; #294, A/B table."
+        provenance: mosaic-team
+      - id: periodic-3d-solve-tolerance
+        level: L0
+        necessity: unknown
+        what: >
+          The 3-D periodic box passes the same 1e-6 advection and pressure
+          solve tolerance, through the same code path as the 2-D box.
+        why:
+          ns-3d:
+            consequences: []
+            symptom: >
+              Not measured on ns-3d-grid: #287 compared tolerances on ns-grid
+              only.
         provenance: mosaic-team
       - id: cotangent-scaling
         level: L2
@@ -117,14 +131,18 @@ metadata:
               not linear in the cotangent; single calls with O(1) cotangents,
               which the gradient suite checks, are barely affected. ns-grid
               fd_check at eps = 1 goes from 1.1e-3 to 2.7e-4 with it; every
-              status stays the same.
+              status stays the same. Through a chain of 16 calls with
+              cotangents of about 1e-4, the gradient was off by up to 73%
+              without it. Measured at the earlier solve tolerance of 1e-5,
+              before periodic-solve-tolerance.
             evidence: "#294, A/B table; tests/test_pict_vjp.py."
           ns-3d:
-            consequences: [incorrect-gradient]
+            consequences: []
             symptom: >
-              Statuses unchanged. The recovery's final IC error is 0.0022 to
-              0.0040 with it against 0.0013 to 0.0021 without, both far below
-              the failure threshold; #294 has no verified explanation.
+              Statuses unchanged, and fd_check moves within its spread. The
+              recovery's final IC error is 0.0022 to 0.0040 with it against
+              0.0013 to 0.0021 without, both far below the failure threshold;
+              #294 has no verified explanation.
             evidence: "#294, A/B table."
         upstream: >
           None filed. A relative convergence criterion would need a change to
@@ -133,6 +151,7 @@ metadata:
       - id: warm-start-pressure
         level: L3
         necessity: choice
+        tuned: true
         what: >
           Subclasses PISOtorch_simulation.Simulation and overrides linear_solve
           so that each channel pressure CG solve starts from the same
@@ -147,7 +166,8 @@ metadata:
               Without it the channel forward is 2.5x (10 cells per diameter) to
               4.8x (20 cells per diameter) slower; with it Cd stays within
               0.05%. The code comment gives 2e-5 against a solve from zero at
-              1e-8. No running experiment exercises the differentiable half:
+              1e-8, and at 1e-6 Cd at 20 cells per diameter still drifts by
+              1e-3 over the final 40% of the run. No running experiment exercises the differentiable half:
               PICT is excluded from drag_opt.
             evidence: "#239, summary and notes; comment above pressure_tol in _run_channel."
         upstream: None filed.
@@ -182,17 +202,15 @@ metadata:
           ns-2d-cylinder:
             consequences: [crash]
             symptom: >
-              With the default non_orthogonal=True, CG and BiCGStab break down
-              in the first pressure solve. Whether dropping the correction
+              With the default non_orthogonal=True, CG and float32 BiCGStab
+              break down in the first pressure solve. Whether dropping the correction
               contributes to PICT's Cd sitting about 3% high has not been
               tested.
             evidence: "#239, notes; comment at the _simulate call in _run_channel."
-        upstream: >
-          Not filed yet: an issue on the indefinite pressure matrix with
-          non_orthogonal=True on a multi-block O-grid is drafted and approved.
+        upstream: https://github.com/tum-pbs/PICT/issues/9
         provenance: mosaic-team
       - id: channel-in-cell-units
-        level: L1
+        level: L0
         necessity: unknown
         what: >
           Builds the channel blocks in units of the canonical cell size dx
@@ -203,11 +221,12 @@ metadata:
             consequences: [inaccurate-forward]
             symptom: >
               Not measured. In physical units the same absolute tolerance would
-              mean a different relative accuracy.
+              mean a different relative accuracy. The periodic box gets unit
+              cells from PICT's CreateBlockWithSize without asking.
             evidence: Header comment of the channel section in tesseract_api.py.
         provenance: mosaic-team
       - id: inflow-in-autograd-graph
-        level: L1
+        level: L0
         necessity: unknown
         what: >
           Re-applies the inflow profile to the inlet faces in a PRE callback

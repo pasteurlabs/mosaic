@@ -32,7 +32,7 @@ metadata:
     interventions:
       - id: nodal-misfit-seed
         level: L2
-        necessity: required
+        necessity: unknown
         what: >
           The identification-error gradient seeds the derivative of the
           temperature functional with a hand-built cofunction
@@ -48,7 +48,9 @@ metadata:
               nodal seed, and the rho gradient was 9% off central differences,
               with a conductivity_recovery_bfgs final/initial ratio of 0.00313
               against 0.00020. Whether a vertex quadrature rule would let the
-              nodal sum be written in UFL was not checked.
+              nodal sum be written in UFL, which Firedrake's custom quadrature
+              may allow, was not checked, so it is not known whether the
+              hand-built seed is needed.
             evidence: "#162; #167, summary; #184; current form from #229."
         provenance: contributor
     deviations: []

@@ -68,13 +68,30 @@ metadata:
         level: L0
         necessity: unknown
         what: >
-          The image sets JULIA_CPU_TARGET=generic, so Julia precompiles for a
-          generic x86-64 CPU rather than the build machine's.
+          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
+          precompiles at build time target a generic x86-64 CPU rather than
+          the build machine's. Code compiled at run time is unaffected.
         why:
           structural:
             consequences: []
             symptom: >
-              No reason recorded. Whether it slows the compiled solver has not
-              been measured.
+              No reason recorded; added in #6 ("ensure all Tesseracts build on
+              CI"). Julia's docs recommend it where images run on CPUs other
+              than the one that built them. Whether the precompiled solver code
+              is slower for it has not been measured.
         provenance: mosaic-team
-    deviations: []
+    deviations:
+      - id: nodal-load
+        setups: [structural]
+        what: >
+          The harness gives TopOpt.jl the cantilever load as nodal forces
+          (CLOAD) instead of a traction: the shares that integrating the
+          traction over the bilinear face elements gives each node.
+        consequences: [cannot-express]
+        effect: >
+          None: on the uniform mesh the nodal forces equal the integrated
+          traction.
+        evidence: >
+          TopOpt.jl 0.14.0's INP reader takes surface loads only as a normal
+          pressure (DLOAD P), and the cantilever load is tangential;
+          _traction_solvers in mosaic/benchmarks/problems/structural_mesh/physics.py.

@@ -32,6 +32,7 @@ metadata:
       - id: mumps-forward-solver
         level: L0
         necessity: choice
+        tuned: true
         what: >
           The forward solve passes solver_parameters={"linear_solver":
           "mumps"} instead of using DOLFIN's default LU backend (UMFPACK).
