@@ -115,7 +115,12 @@ problem = Problem(
         "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
         "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
         "exponentially sensitive to perturbations. This is the regime where "
-        "backprop-through-simulation is hardest."
+        "backprop-through-simulation is hardest.\n\n"
+        "The Kolmogorov-flow experiments add a steady body force "
+        "$\\mathbf{f} = (\\sin 4y, 0)$ and a linear drag $-\\alpha\\mathbf{u}$ "
+        "to the right-hand side. The force drives the flow, and the drag removes "
+        "the energy that piles up at the largest scales, so the turbulent flow "
+        "settles into a statistically steady state."
     ),
     bc_description=(
         "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
