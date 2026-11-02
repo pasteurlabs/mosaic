@@ -27,15 +27,14 @@ if TYPE_CHECKING:
 
 JAX_CFD_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; jax-cfd itself has "
-    "non-periodic pressure solvers for channel flows, which are not wired "
-    "up here",
-)
-INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; INS.jl itself supports "
-    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
-    "Brinkman forcing, which are not wired up here",
+    "jax-cfd 0.2.1 cannot express the channel through its API. Its advection "
+    "raises NotImplementedError for any inflow (only no-penetration and "
+    "periodic boundaries are supported), it pads a zero-gradient boundary only "
+    "for cell-centered fields, so the outlet's face-centered u_x cannot have "
+    "one, its boundary values are scalars, so the inlet cannot carry a "
+    "profile, and it has no obstacles. Running it would take a hand-written "
+    "convection, inlet and outlet conditions and obstacle on jax-cfd's grid "
+    "primitives, which this tesseract does not have",
 )
 EXPONAX_PERIODIC_ONLY = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -100,7 +99,6 @@ PHIFLOW_SPARSE_CG_COST = Exclusion(
 )
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
-    "ins_jl": INS_JL_NO_OBSTACLE,
     "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
