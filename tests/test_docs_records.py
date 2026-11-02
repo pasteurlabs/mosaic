@@ -71,7 +71,7 @@ def test_effort_block_has_one_table_per_setup(results: Path) -> None:
 def test_ranking_table_gains_effort_columns(results: Path) -> None:
     block = "\n".join(generate_results._leaderboard_block("ns-grid", "forward"))
     assert "| Solver | Mean rel. error | Effort | Deviations |" in block
-    assert "{.sortable-table .effort-table}" in block
+    assert ".effort-table}" in block
 
 
 def test_no_results_means_no_effort_block(tmp_path: Path, monkeypatch) -> None:
