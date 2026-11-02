@@ -136,7 +136,8 @@ wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-infrastructure on which solver-in-the-loop ML research can build.
+infrastructure on which solver-in-the-loop ML research can build;
+\cref{sec:sil} reports one such study.
 
 % ===========================================================================
 \section{The Mosaic benchmark suite}
@@ -669,6 +670,32 @@ reasons (periodic BCs, penalization incompatibilities;
 on the most practically demanding task, solver selection is constrained
 by setup compatibility before gradient quality enters the picture.
 
+\subsection{Solver-in-the-loop training}
+\label{sec:sil}
+
+To test whether the standalone checks predict how a solver behaves inside a
+training loop, we trained a small periodic CNN to correct each solver's coarse
+Kolmogorov flow ($64^2$) every 0.1 time units, against that solver's own
+$256^2$ run (\cref{app:sil}). Three arms share their training windows, updates
+and initialization: supervised one-interval pairs with no solver in the graph,
+a 16-interval rollout with the gradient stopped at every solver call, and the
+same rollout differentiated through the solver.
+All five solvers that run the flow stably passed every training check, and
+none of the 45 trainings or 270 long rollouts failed. Averaged over three
+seeds, supervised training reached the lowest test error on every solver
+except Exponax, and differentiating through the solver never beat stopping the
+gradient, although it did on individual seeds. Training through the solver
+therefore did not separate the solvers beyond their cost, from 1\,s (JAX-CFD)
+to 27\,s (PICT) per update.
+Chaining does expose the interface: restarting JAX-CFD or INS.jl from the
+cell-centered velocity at every call drifts 13\% from an unbroken run after 16
+calls, so the study passes native solver state between calls.
+The one defect the study surfaced, PICT's adjoint tolerance, is caught as well
+by the chained gradient check (\cref{sec:quality}), which needs neither a
+network nor native state. On this setup the standalone checks predicted
+whether a solver can be trained through, so the study is not part of the
+benchmark. Its code is archived for reproduction.
+
 % ===========================================================================
 \section{Discussion and conclusion}
 \label{sec:conclusion}
@@ -687,6 +714,8 @@ accuracy and conditioning. While more complex tasks may reveal cases
 where gradient quality becomes limiting, the pattern on these benchmarks
 suggests that conditioning is likely a better predictor of
 stability of the optimization or training procedure than pointwise gradient accuracy.
+Training a corrector through the solvers on Kolmogorov flow showed the
+same pattern (\cref{sec:sil}).
 
 \paragraph{Rollout length is the critical scaling parameter}
 Jacobian conditioning degrades with rollout length across all solvers
@@ -715,15 +744,16 @@ finite-difference gradients at optimal perturbation size are a reliable
 reference (\cref{fig:app:fdcheck}), that out-of-the-box solver configurations
 are representative of practitioner experience, and that standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines.
+pipelines, which \cref{sec:sil} supports on one setup.
 The optimization tasks are intentionally low-complexity (laminar flow, linear elasticity);
 results should not be extrapolated to turbulent, long-horizon, or
 nonlinear regimes without further validation.
 All timings come from a single A100 machine; rankings may shift on other hardware.
 Expert tuning of resolution, time step, or preconditioner could narrow
 observed performance gaps.
-We benchmark solver gradients in isolation, without learned components, so
-hybrid pipelines may introduce failure modes not captured here.
+Beyond one solver-in-the-loop study on a periodic flow, we benchmark
+solver gradients without learned components, so other hybrid pipelines
+may introduce failure modes not captured here.
 Results are pinned to specific solver versions; upstream updates may
 change gradient behavior.
 
