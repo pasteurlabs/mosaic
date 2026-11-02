@@ -938,6 +938,7 @@ _MEASURED = {
     "mean",
     "std",
     "trials_s",
+    "first_call_s",
     "wall_time_s",
     "cost_time_s",
     "ram_peak_mib",
