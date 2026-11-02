@@ -1,0 +1,6 @@
+# The root .gitignore excludes *.pdf; figures are tracked as PDF.
+!figures/*.pdf
+
+# PNG previews written by make_figures.py
+figures/*.png
+!figures/pl-labs.png
