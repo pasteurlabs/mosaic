@@ -26,8 +26,9 @@ from dolfin_adjoint import *  # noqa: F403
 # Legacy dolfin-adjoint (e.g. dolfin-adjoint==2019.1.0 from conda-forge, as
 # pinned in tesseract_environment.yaml) does not propagate the forward
 # solve's `solver_parameters` to the adjoint linear solve, which then
-# defaults to UMFPACK and runs out of memory well before mumps would (see
-# pasteurlabs/mosaic#180).
+# defaults to UMFPACK. On this problem that makes the VJP slower (14.6 s
+# against 11.1 s at nx = 128); on the heat problem UMFPACK runs out of memory
+# (pasteurlabs/mosaic#180).
 
 # mosaic-intervention: mumps-adjoint-monkeypatch
 try:
@@ -332,8 +333,9 @@ def _build_reduced_functional(
         bcs.append(bc)
 
     # ---- Solve -------------------------------------------------------------
-    # mumps: UMFPACK (the FEniCS default) runs out of memory at moderate mesh
-    # sizes; the adjoint solve picks this up too (see the mumps patch above).
+    # mumps instead of UMFPACK, the FEniCS default: apply is about 1.15x
+    # faster at nx = 128 (#182). The adjoint solve needs the patch above to
+    # use it too.
     # This `solver_parameters` choice is captured on the Block and reused by
     # every later `Jhat(rho)` replay automatically.
     u_sol = Function(V)

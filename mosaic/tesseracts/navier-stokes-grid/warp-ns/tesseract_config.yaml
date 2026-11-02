@@ -67,7 +67,11 @@ metadata:
               path was fixed in #232; tests/test_warp_ns_fft.py checks it
               against NumPy.
           ns-3d: *bluestein-reason
-        upstream: None filed.
+        upstream: >
+          Not filed. Warp 1.15.0's tile_fft documentation lists any size as
+          supported on GPU builds with libmathdx, which is the default, so the
+          failure in #132 contradicts it; it has not been reduced to a
+          standalone reproducer.
         provenance: mosaic-team
       - id: channel-cg-adjoint
         level: L2
@@ -91,6 +95,7 @@ metadata:
       - id: channel-cg-preconditioner
         level: L2
         necessity: choice
+        tuned: true
         what: >
           Preconditions the channel's pressure CG with the exact inverse of
           the same operator without the cylinder, applied through dense 1-D
@@ -101,7 +106,8 @@ metadata:
             symptom: >
               CG needs about 20 iterations instead of 150 at 10 cells per
               diameter. Run time halves at 10 cells per diameter (drag_opt),
-              breaks even at 20 (forward/cylinder) and doubles at 40.
+              breaks even at 20 (forward/cylinder) and doubles at 40. Measured
+              at the earlier CG tolerance of 1e-5, not at the current 1e-3.
             evidence: "Docstring of _channel_pressure_solver (#239)."
         provenance: mosaic-team
       - id: channel-cg-graph-capture
@@ -121,15 +127,19 @@ metadata:
       - id: channel-cg-tolerance
         level: L0
         necessity: choice
+        tuned: true
         what: >
-          The channel's pressure CG stops at a relative residual of 1e-5, with
-          a cap of 5000 iterations.
+          The channel's pressure CG stops at a relative residual of 1e-3
+          (absolute tolerance 0), with a cap of 5000 iterations.
         why:
           ns-2d-cylinder:
-            consequences: []
+            consequences: [too-slow]
             symptom: >
-              The code comment says a tighter tolerance changes Cd by less
-              than 1e-5 at 10 cells per diameter. Whether a looser one leaves
-              every check unchanged is not recorded.
+              At the earlier 1e-5, forward/cylinder took 21.6 s against
+              15.2 s and drag_opt 407 s against 189 s, on a shared GPU.
+              Against 1e-7, Cd moves by 0.001%, Cl by 0.25% and the pressure
+              drop by 0.015%, and drag_opt's drag reduction by 0.01 points;
+              every status is unchanged. At 1e-2 Cl moves by 5%.
+            evidence: "#308, notes."
         provenance: mosaic-team
     deviations: []
