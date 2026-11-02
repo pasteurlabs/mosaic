@@ -364,7 +364,7 @@ def save_csv(rows: list[dict], path: str | Path) -> None:
     """Write a list of dicts as CSV; creates parent dirs.
 
     Collects the *union* of keys across all rows so that partial rows (e.g.
-    a solver whose ResourceSampler returned no stats) don't truncate the
+    a solver whose memory poller returned no stats) don't truncate the
     header and reject well-populated rows later. Preserves first-row
     ordering, then appends new keys in the order they appear.
     """
