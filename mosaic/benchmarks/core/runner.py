@@ -80,9 +80,8 @@ class WorkerContext:
     """Per-thread context set by :func:`run_with_gpu_pool`.
 
     Suites can read this inside their work callback (passed to
-    ``run_with_gpu_pool``) to discover which GPU they were assigned and
-    which image tag is serving — useful for ResourceSampler / MemoryPoller
-    construction.
+    ``run_with_gpu_pool``) to discover which GPU they were assigned (the
+    device a MemoryPoller samples) and which image tag is serving.
 
     Both fields are ``None`` outside a runner-managed thread. In serial
     mode ``gpu_id`` is the device :func:`_serial_vram_device` picks, ``None``
@@ -963,11 +962,15 @@ def safe_apply_with_state(
     inputs: dict,
     output_key: str,
     state_keys: list[str] | None = None,
+    require_finite: bool = True,
 ) -> tuple[jax.Array | None, dict[str, jax.Array]]:
     """Forward pass returning (primary array, further output arrays).
 
     state_keys: output keys to return as arrays alongside the primary one
                 (e.g. the pressure and body force of an obstacle run).
+    require_finite: treat a non-finite primary array as a failure. Callers
+                that score parts of the array on their own (e.g. the frames
+                of a trajectory) pass False.
 
     Returns (None, {}) on failure.
     """
@@ -986,7 +989,7 @@ def safe_apply_with_state(
             _tl.last_apply_error = error_msg
             return None, {}
         arr = out[output_key]
-        if not jnp.all(jnp.isfinite(arr)):
+        if require_finite and not jnp.all(jnp.isfinite(arr)):
             error_msg = (
                 f"solver output {output_key!r} is not finite ({nonfinite_counts(arr)})"
             )

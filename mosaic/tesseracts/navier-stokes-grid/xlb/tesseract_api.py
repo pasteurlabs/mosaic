@@ -193,19 +193,39 @@ def _sub_steps(inputs: dict) -> int:
     """LBM sub-steps per dt that bring a run to its target Mach number.
 
     The lattice Mach number is Ma = u_max · (dt/dx) / cs with cs = 1/√3,
-    u_max = max|v0| on a periodic box and the peak inflow speed in the channel.
+    u_max = max|v0| on a periodic box (or the force's speed bound, if larger)
+    and the peak inflow speed in the channel.
     k sub-steps of dt/k divide it by k and preserve the physical end time.
     Computed from the concrete primal inputs, since k fixes the traced graph.
     """
     if inputs.get("obstacle") is None:
         v0 = np.asarray(inputs["v0"], dtype=np.float64)
-        u_max = float(np.sqrt((v0**2).sum(axis=-1)).max())
+        u_max = max(float(np.sqrt((v0**2).sum(axis=-1)).max()), _forced_speed(inputs))
         ma_target = _MA_TARGET * min(1.0, _MA_TARGET_N / v0.shape[0])
     else:
         u_max = float(np.max(np.abs(np.asarray(inputs["inflow_profile"]))))
         ma_target = _MA_TARGET
     ma = u_max * float(inputs["dt"]) / float(inputs["dx"]) * math.sqrt(3.0)
     return max(1, math.ceil(ma / ma_target))
+
+
+def _forced_speed(inputs: dict) -> float:
+    """Speed bound for a body force, independent of the flow it drives.
+
+    A steady force F against viscosity and drag drives a laminar flow of at most
+    ‖F‖∞ / (ν κ_min² + α), the amplitude of its largest-scale mode, with
+    κ_min = 2π/L. Sizing the lattice Mach number by it keeps a flow that the
+    force spins up from rest within the sub-step count chosen at the start.
+    """
+    forcing = inputs.get("forcing")
+    if forcing is None:
+        return 0.0
+    kappa_min = 2.0 * math.pi / float(inputs["domain_extent"])
+    damping = inputs["viscosity"] * kappa_min**2 + (inputs.get("linear_drag") or 0.0)
+    return (
+        float(np.sqrt((np.asarray(forcing, np.float64) ** 2).sum(axis=-1)).max())
+        / damping
+    )
 
 
 # mosaic-intervention: consistent-initial-populations
@@ -391,6 +411,9 @@ def xlb_fwd(
     dx: float,
     obstacle: dict | None = None,
     inflow_profile: jnp.ndarray | None = None,
+    forcing: jnp.ndarray | None = None,
+    linear_drag: Any = None,
+    snapshot_every: int | None = None,
     _use_f64: bool = False,
     _sub_k: int = 1,
     **_: Any,
@@ -417,6 +440,10 @@ def xlb_fwd(
         obstacle:      Cylinder (``center``, ``radius``, physical units) in the
                        channel, or None for a periodic box.
         inflow_profile: Channel inlet u_x at the cell-center heights, shape (ny,).
+        forcing:       Body force (an acceleration) on a periodic box, shape of v0.
+        linear_drag:   Drag coefficient α of a force -αu on a periodic box.
+        snapshot_every: On a periodic box, also return the velocity after
+                       every this many timesteps as ``snapshots``.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
@@ -453,8 +480,60 @@ def xlb_fwd(
         # (nx, ny, nz, 3) → (3, nx, ny, nz)
         u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
 
+    def run(body: Any, f0: jnp.ndarray, velocity: Any) -> tuple[Any, Any]:
+        """Final lattice velocity, and the ones every ``snapshot_every`` steps."""
+        if snapshot_every is None:
+            f_final, _ = _checkpointed_scan(body, f0, steps_eff)
+            return velocity(f_final), None
+
+        def chunk(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
+            f, _ = _checkpointed_scan(body, f, snapshot_every * _sub_k)
+            return f, velocity(f)
+
+        _, frames = jax.lax.scan(chunk, f0, None, length=steps // snapshot_every)
+        return frames[-1], frames
+
     out = {}
-    if obstacle is None:
+    frames = None
+    if obstacle is None and (forcing is not None or linear_drag is not None):
+        # mosaic-intervention: exact-difference-forcing
+        # Body force by the exact difference method (Kupershtokh 2004), which
+        # adds feq(ρ, u + Δu) - feq(ρ, u) after the collision. With the force
+        # a - αu per unit mass, the kick per LBM step is Δu = a - αu* at the
+        # physical velocity u* = u + Δu/2, solved for u* since the drag depends
+        # on it. In lattice units, a becomes a·dt²/dx and α becomes α·dt.
+        accel = 0.0
+        if forcing is not None:
+            accel = jnp.moveaxis(forcing[:, :, 0, :], -1, 0).astype(fdtype)
+            accel = accel * scale_eff * dt_eff
+        drag = 0.0 if linear_drag is None else linear_drag * dt_eff
+
+        def kick(u_phys: jnp.ndarray) -> jnp.ndarray:
+            return accel - drag * u_phys
+
+        # mosaic-intervention: consistent-initial-populations
+        # Post-collision populations already hold half the kick of their
+        # step, so they start at u* + Δu/2.
+        f0 = _periodic_populations(u0 + 0.5 * kick(u0), omega, ops)
+        # mosaic-intervention-end: consistent-initial-populations
+
+        # mosaic-intervention: manual-lbm-loop
+        def body(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, None]:
+            f_s = xlb_stream(f)
+            rho_s, u_s = xlb_macro(f_s)
+            feq = xlb_eq(rho_s, u_s)
+            f_post = xlb_bgk(f_s, feq, rho_s, u_s, omega)
+            u_phys = (u_s + 0.5 * accel) / (1.0 + 0.5 * drag)
+            return f_post + xlb_eq(rho_s, u_s + kick(u_phys)) - feq, None
+
+        def velocity(f: jnp.ndarray) -> jnp.ndarray:
+            _rho, u_post = xlb_macro(f)
+            return (u_post - 0.5 * accel) / (1.0 - 0.5 * drag)
+
+        u_out, frames = run(body, f0, velocity)
+        # mosaic-intervention-end: manual-lbm-loop
+        # mosaic-intervention-end: exact-difference-forcing
+    elif obstacle is None:
         # mosaic-intervention: consistent-initial-populations
         f0 = _periodic_populations(u0, omega, ops)
         # mosaic-intervention-end: consistent-initial-populations
@@ -466,9 +545,8 @@ def xlb_fwd(
             feq = xlb_eq(rho_s, u_s)
             return xlb_bgk(f_s, feq, rho_s, u_s, omega), None
 
-        f_final, _ = _checkpointed_scan(body, f0, steps_eff)
+        u_out, frames = run(body, f0, lambda f: xlb_macro(f)[1])
         # mosaic-intervention-end: manual-lbm-loop
-        _rho_f, u_out = xlb_macro(f_final)
     else:
         u_in = inflow_profile.astype(fdtype) * scale_eff
         f_final, force = _channel_run(u0, u_in, omega, steps, _sub_k, dx, obstacle, ops)
@@ -481,18 +559,21 @@ def xlb_fwd(
         out["pressure"] = jnp.where(fluid, p, 0.0)[:, :, None].astype(jnp.float32)
         out["body_force"] = (force * dx**3 / dt_eff**2).astype(jnp.float32)
 
-    if ndim == 2:
-        # (2, nx, ny) → (nx, ny, 1, 2), lattice → physical units
-        result = jnp.moveaxis(u_out, 0, -1)[:, :, None, :] / scale_eff
-    else:
-        # (3, nx, ny, nz) → (nx, ny, nz, 3), lattice → physical units
-        result = jnp.moveaxis(u_out, 0, -1) / scale_eff
+    def to_physical(u: jnp.ndarray) -> jnp.ndarray:
+        if ndim == 2:
+            # (2, nx, ny) → (nx, ny, 1, 2), lattice → physical units
+            result = jnp.moveaxis(u, 0, -1)[:, :, None, :] / scale_eff
+        else:
+            # (3, nx, ny, nz) → (nx, ny, nz, 3), lattice → physical units
+            result = jnp.moveaxis(u, 0, -1) / scale_eff
+        # Cast back to float32 when running in float64 gradient mode so that
+        # outputs always have a consistent dtype regardless of the computation
+        # path.
+        return result.astype(jnp.float32) if _use_f64 else result
 
-    # Cast back to float32 when running in float64 gradient mode so that outputs
-    # always have a consistent dtype regardless of the computation path.
-    if _use_f64:
-        result = result.astype(jnp.float32)
-    out["result"] = result
+    out["result"] = to_physical(u_out)
+    if frames is not None:
+        out["snapshots"] = jax.vmap(to_physical)(frames)
     return out
 
 
@@ -510,8 +591,9 @@ def apply_jit(inputs: dict) -> dict:
 def _concrete_inputs(inputs: InputSchema) -> dict:
     """Inputs as a dict with Python-float viscosity and dt, and the grid spacing."""
     d = inputs.model_dump()
-    for key in ("viscosity", "dt"):
-        d[key] = float(d[key][0])
+    for key in ("viscosity", "dt", "linear_drag"):
+        if d[key] is not None:
+            d[key] = float(d[key][0])
     d["dx"] = inputs.dx
     return d
 
@@ -559,6 +641,9 @@ def abstract_eval(abstract_inputs: Any) -> dict:
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
 
 
@@ -578,12 +663,17 @@ def _diff_apply(sub_k: int, dx: float) -> Any:
 
     def fn(inputs: dict) -> dict:
         fwd_kwargs = dict(inputs)
-        for k in ("v0", "inflow_profile"):
+        for k in ("v0", "inflow_profile", "forcing"):
             if fwd_kwargs.get(k) is not None:
                 fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype)
-        for k in ("viscosity", "dt"):
-            fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype).reshape(())
+        for k in ("viscosity", "dt", "linear_drag"):
+            if fwd_kwargs.get(k) is not None:
+                fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype).reshape(
+                    ()
+                )
         fwd_kwargs["dx"] = dx
+        # snapshots are not differentiable, so the VJP's rollout skips them.
+        fwd_kwargs["snapshot_every"] = None
         return xlb_fwd(
             _use_f64=_USE_F64_DIFF,
             _sub_k=sub_k,

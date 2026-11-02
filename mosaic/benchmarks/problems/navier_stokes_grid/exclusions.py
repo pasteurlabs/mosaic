@@ -49,6 +49,30 @@ EXPONAX_EXACT_TGV = Exclusion(
     "steps rather than shrinking with the grid spacing, so no positive order "
     "can be observed",
 )
+OPENFOAM_NO_SOURCE_TERM = Exclusion(
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract runs icoFoam, which has no momentum source term, so it "
+    "cannot apply the body force or the drag. OpenFOAM's foamRun "
+    "incompressibleFluid solver supports both through an fvModel, but this "
+    "tesseract does not use it",
+)
+EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "the solver advances with explicit Euler and central differences for "
+    "advection, which is linearly unstable unless the timestep is below about "
+    "4ν/u², a bound that does not shrink with the grid spacing. The turbulent "
+    "Kolmogorov flow's speeds put that bound far below the timestep of every "
+    "grid, so the solver diverges on all of them",
+)
+EXPLICIT_CENTRAL_UNSTABLE_CHAIN = Exclusion(
+    ExclusionCategory.UNSTABLE,
+    "the solver advances with explicit Euler and central differences for "
+    "advection, which is linearly unstable at the timestep of the chain (see "
+    "forward/kolmogorov). Over the chain's calls the unstable modes grow, so "
+    "they dominate both the gradient and the finite differences, which then "
+    "disagree at every ε a float32 run resolves. Where they grow fast enough, "
+    "the chain from the ground-truth state diverges",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -81,16 +105,6 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
     "order drops. More correctors remove the floor at a multiple of the wall "
     "time and reverse-mode memory",
 )
-PHIFLOW_SPARSE_CG_COST = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "PhiFlow solves each pressure projection with phiml's conjugate gradient "
-    "on an explicit sparse matrix, as phiml does for every linear solve on a "
-    "backend with sparse tensors, JAX included. JAX runs the sparse "
-    "matrix-vector product as a gather and a scatter-add, about 160 of the "
-    "184 µs per CG iteration at 256², against 14 µs for the same Laplacian "
-    "as a stencil. A projection takes about 300 iterations at 256², and each "
-    "RK4 step four projections",
-)
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
     "exponax": EXPONAX_PERIODIC_ONLY,
@@ -105,21 +119,26 @@ def register(problem: Problem) -> None:
         {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
     )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
+    problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
+    problem.exclude(
+        "forward/kolmogorov",
+        {
+            "openfoam": OPENFOAM_NO_SOURCE_TERM,
+            "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
+        },
+    )
 
     # Cost
     for key in ("cost/spatial_cost", "cost/temporal_cost"):
         problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
-    for key in (
-        "cost/spatial_cost",
-        "cost/temporal_cost",
-        "cost/vjp_cost/by_N",
-        "cost/vjp_cost/by_steps",
-    ):
-        problem.exclude(key, {"phiflow": PHIFLOW_SPARSE_CG_COST})
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
+    problem.exclude(
+        "gradient/chain_fd_check",
+        {"warp_ns": EXPLICIT_CENTRAL_UNSTABLE_CHAIN},
+    )
 
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})

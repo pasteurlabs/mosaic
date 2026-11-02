@@ -428,7 +428,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
 
 
 def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
-    """Anomaly checks for fd_check / source_fd_check.
+    """Anomaly checks for fd_check / source_fd_check / chain_fd_check.
 
     For each solver we compute ``best_rel`` = the minimum across ε of the
     *median-across-directions* rel_error. "Median across directions" is more
@@ -898,6 +898,7 @@ def _refine_for_suite(
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
+        "chain_fd_check",
     ):
         _refine_fd_check(view, cells, checks)
     elif suite == "optimization":
@@ -1093,6 +1094,7 @@ def _collect_metrics_for_suite(
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
+        "chain_fd_check",
     ):
         _collect_fd_metrics(view, cells)
     elif suite == "optimization":

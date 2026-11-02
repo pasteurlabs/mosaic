@@ -75,6 +75,19 @@ def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
     )
 
 
+def fd_eps_sweep(vjp_arr: np.ndarray, fd_per_eps: dict) -> dict:
+    """Per-ε ``rel_error`` per direction, ``cosine`` and ``fd_arr`` of an FD check."""
+    sweep: dict = {}
+    for eps, fd_arr in fd_per_eps.items():
+        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
+        sweep[eps] = {
+            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
+            "cosine": _fd_cosine(fd_arr, vjp_arr),
+            "fd_arr": fd_arr.tolist(),
+        }
+    return sweep
+
+
 _DEFAULT_EPS = [1e0, 1e-1, 1e-2, 1e-3]
 _FD_CHECK_DEFAULT_EPS = [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4]
 
@@ -153,19 +166,11 @@ def fd_check(t: Any, ctx: KernelContext) -> dict:
     nonfinite = _nonfinite_grad_error(g)
     if nonfinite is not None:
         raise ValueError(nonfinite)
-    eps_sweep: dict = {}
-    for eps, fd_arr in fd_per_eps.items():
-        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
-        eps_sweep[eps] = {
-            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
-            "cosine": _fd_cosine(fd_arr, vjp_arr),
-            "fd_arr": fd_arr.tolist(),
-        }
     return {
         "metrics": {
             "ic_scale": ic_scale,
             "vjp_arr": vjp_arr.tolist(),
-            "eps_sweep": eps_sweep,
+            "eps_sweep": fd_eps_sweep(vjp_arr, fd_per_eps),
         },
         "snapshot": np.asarray(g),
         # Override the framework's raw-IC default with the post-make_inputs

@@ -55,7 +55,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.config import Problem
 from mosaic.benchmarks.core.console import console
-from mosaic.benchmarks.core.hardware import ResourceSampler, merge_hardware
+from mosaic.benchmarks.core.hardware import merge_hardware
 from mosaic.benchmarks.core.harness import classify_failure
 from mosaic.benchmarks.core.io import (
     experiment_dir,
@@ -512,20 +512,21 @@ def run_experiment(
                 _shared_extras.setdefault(k, np.asarray(v))
 
         def _call_with_sampler(name: str, t: Any, val: Any) -> dict:
-            """Run one kernel invocation with a cheap before/after VRAM+RAM sampler.
+            """Run one kernel invocation under a :class:`MemoryPoller`.
 
-            The sampler's ``vram_peak_mib`` / ``ram_peak_mib`` get merged into
+            The poller's ``vram_peak_mib`` / ``ram_peak_mib`` get merged into
             the kernel's metrics via :func:`dict.setdefault`, so kernels that
-            already compute their own resource stats (cost suite — true peak
-            via ``run_timed_trials``) take precedence. Sampler overhead is a
-            handful of NVML/psutil calls (~3–5 ms), so we pay it
-            unconditionally; this gives every kernel result a baseline
-            VRAM/RAM read without per-kernel boilerplate.
+            measure their own (the cost suite, over warmup and trials only)
+            take precedence. Each sample is one NVML and one Docker stats
+            query (a few ms) every half second, so every kernel result gets
+            its peak VRAM/RAM without per-kernel boilerplate.
             """
-            with ResourceSampler(gpu_id=current_worker_context().gpu_id) as rs:
+            with MemoryPoller(
+                current_worker_context().gpu_id, container_id_from_tesseract(t)
+            ) as poller:
                 out = kernel_fn(t, _ctx(name, val))
             metrics = out.setdefault("metrics", {})
-            for k, v in rs.summary.items():
+            for k, v in poller.summary.items():
                 if v is not None:
                     metrics.setdefault(k, v)
             return out
