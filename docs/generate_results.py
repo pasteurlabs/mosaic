@@ -1265,7 +1265,10 @@ def write_overview(tree: dict, scores: dict | None) -> None:
     if scores:
         pages = {p: f"results_{_slug(p)}.qmd" for p in scoreboard.PROBLEM_ORDER}
         SCOREBOARD_INCLUDE.write_text(
-            scoreboard.render_overview(scores, pages), encoding="utf-8"
+            views.LEVEL_FILTER_HTML
+            + "\n\n"
+            + scoreboard.render_overview(scores, pages),
+            encoding="utf-8",
         )
         SCORES_JSON.write_text(
             json.dumps(scoreboard.per_solver_summary(scores), indent=1),

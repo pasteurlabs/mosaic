@@ -18,14 +18,13 @@ yourself](getting-started.qmd) on your target hardware.
 :::
 
 ::: {.callout-warning appearance="simple" title="Results reflect the current implementations, not the libraries"}
-Each solver is wrapped in a Tesseract by the Mosaic team or its contributors,
-and some wrappers have had far more tuning than others: solver settings,
-preconditioners, time steps and resolutions. A flag or a slow time here says
-how *this implementation* behaves on *this setup*, not how good the underlying
-software is. Solvers also differ a lot in how much work a setup takes: some
-provide the geometry, boundary conditions and adjoints out of the box, others
-need them written by hand. Before committing to one, try the alternatives
-that pass on your kind of problem.
+Each solver is wrapped in a Tesseract by the Mosaic team or its contributors.
+A flag or a slow time here says how *this implementation* behaves on *this
+setup*, not how good the underlying software is. The **Effort** column shows
+how far each wrapper had to go beyond documented use, and **Deviations** where
+it runs a substitute for part of the setup. Solvers that pass the same checks
+can differ a lot in how much work a new setup takes, so try the alternatives
+before committing to one.
 
 If you maintain or use one of these solvers and can improve its
 configuration, [contributions are welcome](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md).
@@ -45,25 +44,43 @@ For each setup, each solver gets:
   error bound against the reference, a finite-difference agreement bound for
   the gradient, or the fraction of the objective an optimizer must remove. A
   check combines the setup's *gate* experiments for that suite (see the table
-  of states below). Hover a check for the reasons; the list under each table
-  spells them out.
+  of states below). Hover a check for each gate's headline numbers and the
+  reasons for any flag; the list under each table spells the reasons out.
 - **Cost**, forward and VJP: wall-clock time as a multiple of the fastest
   solver *on the same kind of device*, at the largest problem size every
   solver in that group completed. GPU and CPU solvers ran on different
-  machines, so they are compared within their group only. The per-suite
-  tables on each results page give the absolute times.
+  machines, so they are compared within their group only. A **≈** marks a gap
+  to the fastest solver that is no larger than twice the spread (standard
+  deviation) of the two solvers' timed trials, so the two cannot be told apart
+  on this run. Hover a cost for the mean, its spread, the number of trials and
+  the first call, which includes compilation and setup. The per-suite tables
+  on each results page give the absolute times.
 - **Reliability**: how many of the setup's experiments ran cleanly, out of
-  those the solver supports, with flagged, failed and not-run experiments
-  counted separately. This includes diagnostic experiments that are not gates
-  (Jacobian spectra, horizon sweeps, cost sweeps). A cost run flagged only for
-  being slow counts as clean here; its speed shows in the cost columns.
+  those the solver supports, with flagged, failed, blocked and not-run
+  experiments counted separately. This includes diagnostic experiments that
+  are not gates (Jacobian spectra, horizon sweeps, cost sweeps). A cost run
+  flagged only for being slow counts as clean here; its speed shows in the
+  cost columns. **Resource limits** counts the sweeps a solver completed only
+  up to some size or rollout length before running out of memory or time;
+  where those limits lie depends on the hardware.
+- **Effort**: the highest level among the interventions a solver *needs* on
+  that setup, from L0 (documented options) and L1 (undocumented configuration)
+  to L2 (user code on the library's public primitives) and L3 (changes to the
+  solver itself). A filter above the tables hides solvers above the level you
+  are willing to work at yourself.
+- **Deviations**: where a solver runs a substitute for the prescribed setup,
+  such as a different outflow condition, with its effect on the results.
+
+The [Solver Reference](solvers.qmd) lists every intervention with its reason,
+evidence and upstream issue, including those nobody has a reason for yet.
 
 ::: {.ck-legend}
 | State | Meaning |
 |---|---|
 | [✓ Pass]{.ck .ck-pass} | Every gate experiment met its criteria. |
-| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. Where the cause is documented (often a property of the comparison rather than the solver), the explanation is shown with the reason. |
+| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. A superscript *i* means every flag has a documented cause, often a property of the method or of the comparison rather than of the implementation; hover for the explanation. |
 | [✗ Fail]{.ck .ck-fail} | A gate errored or produced no valid result. |
+| [⊘ Blocked]{.ck .ck-blocked} | The gates are excluded for a recorded reason that may be lifted: the solver is unstable on them, they are infeasible within the time or memory budget, an upstream bug stops them, or the wrapper does not implement them yet. The cell names the reason. |
 | [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
 | [· Not run]{.ck .ck-notrun} | Not run in this campaign yet. |
 :::
@@ -76,8 +93,14 @@ application does not need.
 ::: {.callout-note collapse="true" title="Gate experiments per setup"}
 {{< include _gates.qmd >}}
 
-The thresholds behind each check are provisional and will be refined with the
-solver maintainers; they live next to each experiment in
+Some criteria are absolute: an error bound against an analytic solution or a
+converged reference run, an observed order of convergence, or a minimum
+agreement with finite differences. Others compare a solver with the other
+solvers on the same experiment, for example an error more than three times
+the median of its peers. A flag on a relative criterion says that a solver is
+an outlier among its peers, not that it misses an accuracy the task needs. The
+thresholds are provisional and will be refined with the solver maintainers;
+they live next to each experiment in
 `mosaic/benchmarks/problems/<domain>/config.py`.
 :::
 

@@ -483,6 +483,7 @@ _CHECK_WORDS = {
     "pass": "pass",
     "borderline": "borderline",
     "fail": "fail",
+    "blocked": "blocked",
     "na": "not supported",
     "notrun": "not run",
 }

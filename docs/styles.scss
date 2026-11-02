@@ -1429,6 +1429,9 @@ table.ck-table {
 .ck-fail {
   @include ck-tone(var(--m-red));
 }
+.ck-blocked {
+  @include ck-tone(var(--m-plum));
+}
 .ck-na {
   background: var(--m-surface-2);
   color: var(--m-muted);
@@ -1445,8 +1448,21 @@ table.ck-table {
 .rl-fail {
   color: var(--m-red);
 }
+.rl-blocked {
+  color: color-mix(in srgb, var(--m-plum) 85%, var(--m-ink));
+}
 .rl-notrun {
   color: var(--m-muted);
+}
+.rl-limit {
+  color: var(--m-ink-2);
+}
+
+// Marks a borderline check whose every anomaly has a documented cause.
+.ck-explained {
+  margin-left: 0.1rem;
+  font-style: italic;
+  font-weight: 700;
 }
 
 .ck-foot {
@@ -1489,6 +1505,15 @@ table.ck-table {
     .fl-failed {
       color: var(--m-red);
     }
+
+    .fl-blocked {
+      color: color-mix(in srgb, var(--m-plum) 85%, var(--m-ink));
+    }
+
+    p {
+      margin: 0.4rem 0 0;
+      color: var(--m-muted);
+    }
   }
 }
 
@@ -1501,6 +1526,9 @@ table.ck-table {
 }
 .score-chip.ck-chip-fail {
   @include ck-tone(var(--m-red));
+}
+.score-chip.ck-chip-blocked {
+  @include ck-tone(var(--m-plum));
 }
 .score-chip.ck-chip-notrun {
   background: var(--m-surface-2);
