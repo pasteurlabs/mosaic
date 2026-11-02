@@ -92,7 +92,7 @@ metadata:
               slower and changes the gradient by at most 5e-9 relative.
               Checkpointing the blocks without the steps inside them took
               about twice the memory and was no faster.
-            evidence: "#135 (plain scan); EVIDENCE_PR (A100, one container per point)."
+            evidence: "#135 (plain scan); #329 (A100, one container per point)."
           ns-2d-periodic:
             consequences: [too-slow]
             symptom: >
