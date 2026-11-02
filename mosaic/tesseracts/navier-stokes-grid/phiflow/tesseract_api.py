@@ -156,9 +156,24 @@ def periodic_fwd(
             [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    # The same solve as incompressible_rk4's default Solve("CG"), whose
-    # tolerances resolve to 1e-5 in float32.
-    _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
+    # incompressible_rk4's default Solve("CG"), whose tolerances resolve to
+    # 1e-5 in float32, with two changes. The periodic pressure matrix is
+    # singular, and unless the solve states its rank deficiency, phiml adds a
+    # Lagrange multiplier that makes the system indefinite. CG is not
+    # guaranteed to converge on that: at 256², one solve in eight ran to the
+    # 1000-iteration cap or diverged, and the flow went non-finite.
+    # make_incompressible balances the divergence to zero mean, so plain CG on
+    # the singular system converges. The adjoint solve stops at the relative
+    # tolerance only, because its right-hand side scales with the cotangent:
+    # with the absolute tolerance, small cotangents stop it after a few
+    # iterations, short of the projection.
+    _cg_solve = math.Solve(
+        "CG",
+        _CG_TOL,
+        _CG_TOL,
+        rank_deficiency=0,
+        gradient_solve=math.Solve("CG", _CG_TOL, 0.0, rank_deficiency=0),
+    )
 
     def to_faces(v: jnp.ndarray) -> jnp.ndarray:
         """Collocated (*spatial, ndim) → face values (ndim, *spatial), by PhiFlow's resampling."""

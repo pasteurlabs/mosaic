@@ -57,11 +57,73 @@ metadata:
         what: >
           The channel's pressure solve passes math.Solve("CG", ...) instead of
           the "auto" method of make_incompressible's default Solve(). The
-          periodic boxes' solve equals incompressible_rk4's default.
+          periodic boxes' solve uses incompressible_rk4's default method and
+          tolerances.
         why:
           ns-2d-cylinder:
             consequences: []
             symptom: No reason recorded.
+        provenance: mosaic-team
+      - id: periodic-cg-rank-deficiency
+        level: L0
+        necessity: required
+        what: >
+          The periodic boxes' pressure solve passes rank_deficiency=0, so
+          phiml runs CG on the singular pressure system, whose right-hand side
+          make_incompressible balances to zero mean, instead of adding a
+          Lagrange multiplier that makes the system indefinite.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [non-finite, incorrect-gradient, too-slow]
+            symptom: >
+              CG is not guaranteed to converge on an indefinite system, and
+              under jit phiml returns an unconverged solve without raising. At
+              256², 852 of 6400 solves to t = 4 stopped unconverged (128 of
+              them as diverged, with residuals up to 10⁴ times the right-hand
+              side), and two of three states went non-finite on CI. The chain
+              gradient was non-finite on CI and off by 12% at the best ε on
+              the A100. With rank_deficiency=0 every solve converged, in about
+              375 iterations against 570, both checks passed, and
+              forward/kolmogorov took 936 s against 5,585 s.
+            evidence: >
+              forward/kolmogorov and gradient/chain_fd_check of #272; PR
+              description.
+          ns-2d-periodic:
+            consequences: [too-slow]
+            symptom: >
+              No check changed. The cost experiments got 1.3x to 7.5x faster,
+              growing with N, and all four PhiFlow cost anomalies went away.
+            evidence: "#272, PR description."
+          ns-3d:
+            consequences: [too-slow]
+            symptom: >
+              No check changed. The cost experiments got 1.4x to 16x faster,
+              growing with N (15.7x for the VJP at N = 64).
+            evidence: "#272, PR description."
+        provenance: mosaic-team
+      - id: periodic-adjoint-relative-tolerance
+        level: L0
+        necessity: choice
+        what: >
+          The periodic boxes' adjoint pressure solve (the Solve's
+          gradient_solve) stops at a relative residual of 1e-5 only, instead
+          of inheriting the forward solve's absolute tolerance of 1e-5.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [incorrect-gradient]
+            symptom: >
+              The adjoint solve's right-hand side scales with the cotangent.
+              In the chain gradient check, whose cotangents are small, the
+              absolute tolerance stopped the adjoint solves after 0 to 17
+              iterations, against about 100 at the relative tolerance, and
+              the gradient missed the finite differences by 3.6e-3 at the best
+              ε, against 1.1e-4 with the relative tolerance; the peers miss by
+              7e-5 to 2e-3. The check passes either way.
+            evidence: gradient/chain_fd_check of #272; PR description.
+          ns-2d-periodic: &adjoint-tolerance-unmeasured
+            consequences: []
+            symptom: Not measured separately; no check changed.
+          ns-3d: *adjoint-tolerance-unmeasured
         provenance: mosaic-team
       - id: channel-cg-tolerance
         level: L0
