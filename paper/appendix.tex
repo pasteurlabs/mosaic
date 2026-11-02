@@ -537,6 +537,127 @@ First-order methods tolerate this mismatch because they use only gradient direct
 \end{figure}
 
 
+\section{Solver interventions}
+\label{app:interventions}
+
+Mosaic records every departure from a solver's default usage, so that a
+reader can tell a solver used as documented from one whose wrapper works
+around its limitations. This appendix describes the record format and the
+rules around it, and reports an audit of all 19 solver wrappers in the
+repository (commit \texttt{6517f75}, October 2026).
+
+\subsection{Record format}
+
+\begin{table}[h]
+  \centering\small
+  \caption{Intervention levels, assigned by mechanism. Examples are from the
+    audit.}
+  \label{tab:app:ladder}
+  \begin{tabularx}{\linewidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Level} & \textbf{Mechanism} & \textbf{Example} \\
+    \midrule
+    L0 & Documented options & MUMPS as FEniCS's forward linear solver \\
+    L1 & Undocumented settings & An undocumented collision-operator switch threshold in XLB \\
+    L2 & User code on public primitives & A custom pyadjoint block for a nodal misfit in FEniCS \\
+    L3 & Changes to the solver & A monkeypatch of phiml's NumPy backend for 64-bit indices in PhiFlow \\
+    L4 & Unreleased upstream fixes & Not accepted \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Fields}
+Each intervention records what was done, its level (\cref{tab:app:ladder}),
+its necessity (required, a choice among library alternatives, or unknown),
+whether its value was tuned by measurement, and, per setup, why it is
+needed: the consequences of skipping it (the setup cannot be expressed, a
+crash, non-finite output, an inaccurate forward solution, a missing or
+incorrect gradient, an optimizer stall, excessive run time or memory, or
+non-reproducible results), the symptom with a number where one exists, and
+the evidence. Workarounds of upstream bugs link the upstream issue. Fixes to
+Mosaic's own code, failure detection that changes no result, and build
+infrastructure are not recorded. What counts as ordinary use depends on the
+library's abstraction level: writing the assembly loop is ordinary use of
+deal.II, and for a kernel toolkit such as NVIDIA Warp the hand-written solver
+is the baseline, so only interventions made for the benchmark are recorded.
+
+\paragraph{Policies}
+(i) \emph{Choice of scheme.} A solver may run any scheme its library
+offers. A non-default scheme is allowed when an experienced user of this
+kind of simulator would pick it for the problem and a measurement shows its
+gain; it is recorded as an intervention. Whichever scheme runs, its errors
+are artifacts of the method and stay in the results.
+(ii) \emph{Runtime adaptations.} Caches may hold state derived from inputs
+that are not differentiable and from array shapes, never values derived from
+differentiable inputs. One untimed warm-up call precedes the timed calls, and
+its wall time is reported as the first-call cost. The same contract applies
+to every solver.
+(iii) \emph{Setup deviations.} A solver may substitute a documented
+alternative for part of a setup it cannot express if it still passes the
+setup's checks; the deviation is shown with its results.
+(iv) \emph{Tuning.} Tuning is ordinary use and every solver receives it.
+Tolerances are set to the loosest value at which every check of the setup is
+unchanged, framework defaults are only disabled for reasons that reproduce on
+the benchmark hardware, and cost is compared within a device class.
+
+\paragraph{Rules}
+Every solver runs on a released upstream version, or on a pinned commit where
+the project has no releases. Upstream bugs are excluded by default; a
+workaround links the upstream issue and is removed once a release fixes the
+bug. A change to the discrete method itself, as opposed to how it is used,
+creates a separate solver entry. An intervention shown to be unnecessary is
+removed.
+
+\subsection{Audit}
+
+The audit used a first version of the format that recorded only the level.
+\Cref{tab:app:audit} summarizes it.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Interventions found in all 19 solver wrappers, by level, by how
+    well their reason is supported, and by the consequence of skipping
+    them. \emph{Verified}: backed by a test, a measurement, or an upstream
+    issue. \emph{Stated}: asserted in a code comment or pull request.
+    \emph{Inferred}: no reason recorded.}
+  \label{tab:app:audit}
+  \begin{tabular}{@{}lr@{\qquad}lr@{\qquad}lr@{}}
+    \toprule
+    \multicolumn{2}{@{}l}{\textbf{Level}} & \multicolumn{2}{l}{\textbf{Reason}} & \multicolumn{2}{l@{}}{\textbf{Consequence}} \\
+    \midrule
+    L0 & 39 & Verified & 8 & Too slow & 27 \\
+    L1 & 22 & Stated & 50 & Inaccurate forward & 17 \\
+    L2 & 23 & Inferred & 34 & Crash & 14 \\
+    L3 & 8 & & & Cannot express & 9 \\
+       &   & & & Out of memory & 9 \\
+       &   & & & Incorrect gradient & 8 \\
+       &   & & & Other & 8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Findings}
+The same need lands at very different levels across libraries. Running the
+adjoint solve with MUMPS takes an L3 monkeypatch in FEniCS and nothing in
+Firedrake; a nodal-sum misfit gradient takes a 78-line custom block in FEniCS
+and 14 lines of documented API in Firedrake; the drag force is hand-written
+(L2) in PICT and a documented function object in OpenFOAM. Asking for the
+reason behind each intervention surfaced dead code, interventions that turned
+out unnecessary, workarounds of upstream bugs that had never been reported,
+comments whose stated reason did not hold, and departures from library
+default schemes without a recorded measurement. It also showed that the
+level alone is not enough: it conflates how something was done with whether
+it was needed, it hides deviations from the prescribed setup, and what counts
+as ordinary use depends on the library's abstraction level. Necessity, setup
+deviations, and the abstraction-dependent baseline above were added in
+response.
+
+Resolving the findings changed several solvers after the pinned release, for
+example running XLB with its default BGK collision operator, Exponax with its
+default dealiasing, and PhiFlow with the schemes its documentation
+recommends. These changes are published with the continuously updated
+results; the tables in this paper reflect the pinned release.
+
 \section{Solver documentation}
 \label{app:solvers}
 
