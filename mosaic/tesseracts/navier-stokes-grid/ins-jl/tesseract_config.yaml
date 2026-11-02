@@ -123,9 +123,7 @@ metadata:
               is integrated explicitly: at η = dt / 2.5 a run at 20 cells per
               diameter went non-finite. Halving η from dt moved Cd by 0.1% at
               10 cells per diameter.
-            evidence: >
-              Measured while adding the channel, at 10 and 20 cells per
-              diameter on the CPU and an A100; notes in the pull request.
+            evidence: "#325, notes."
         provenance: mosaic-team
       - id: differentiable-inlet
         level: L2
@@ -174,8 +172,7 @@ metadata:
             evidence: >
               ext/CUDSSExt.jl and src/pressure.jl of
               IncompressibleNavierStokes.jl v5.0.0; CUDSS.jl's registry compat
-              (CUDSS 0.7 and later require CUDACore 6); measurements in the
-              pull request's notes.
+              (CUDSS 0.7 and later require CUDACore 6); #325, notes.
         upstream: >
           Not reported. INS.jl's ext/CUDSSExt.jl would need to import CUDA
           (or CUDACore) directly instead of through CUDSS.
@@ -236,8 +233,7 @@ metadata:
               and 5.4 s on an A100. drag_opt's VJP (10 cells per diameter,
               t = 4) took 8.2 s against 3.9 s. Warm calls; the A100 was not
               shared.
-            evidence: >
-              Measured while adding the channel; notes in the pull request.
+            evidence: "#325, notes."
         provenance: mosaic-team
       - id: julia-cpu-target-generic
         level: L0
