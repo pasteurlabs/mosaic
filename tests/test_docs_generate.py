@@ -69,3 +69,48 @@ def test_solver_specs_loaded():
             missing.append(f"{ident}: invalid ad_strategy {s.get('ad_strategy')!r}")
 
     assert not missing, "Solver metadata gaps:\n  " + "\n  ".join(missing)
+
+
+def test_capability_matrix_matches_exclusions():
+    """Matrix cells follow the exclusions but ignore explained anomalies.
+
+    PhiFlow's ns-3d-grid ``forward/agreement`` entry is an explained anomaly,
+    so its forward cell must stay full.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    from docs.generate import collect_capabilities
+
+    matrices = {m["label"]: m for m in collect_capabilities()}
+    assert len(matrices) >= 4
+
+    def row(label: str, name: str) -> dict:
+        return next(r for r in matrices[label]["rows"] if r["name"] == name)
+
+    for label in ("Structural mechanics", "Heat transfer"):
+        dealii = row(label, "deal.II")
+        n_fwd = dealii["cells"]["forward"][1]
+        assert dealii["cells"]["forward"] == (n_fwd, n_fwd)
+        assert dealii["cells"]["gradient"][0] == 0
+        assert dealii["cells"]["optimization"][0] == 0
+        assert 0 < dealii["cells"]["cost"][0] < dealii["cells"]["cost"][1]
+
+    ns3d = "Navier–Stokes (3D)"
+    assert row(ns3d, "OpenFOAM")["cells"]["gradient"][0] == 0
+    phiflow = row(ns3d, "PhiFlow")
+    n_fwd = phiflow["cells"]["forward"][1]
+    assert phiflow["cells"]["forward"] == (n_fwd, n_fwd)
+    assert not phiflow["notes"]
+
+
+def test_solver_cards_list_exclusions():
+    """Exclusions registered in the problem configs appear on solver cards."""
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    from docs.generate import collect_solvers, generate_qmd
+
+    qmd = generate_qmd(collect_solvers())
+    assert "#### Excluded experiments" in qmd
+    assert "structural-mesh · gradient" in qmd
