@@ -872,7 +872,10 @@ def _v1_to_legacy_view(data: dict) -> dict:
 
 
 def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
-    return suite == "gradient" and exp_label.split("/")[0] == "analytic_check"
+    return suite == "gradient" and exp_label.split("/")[0] in (
+        "analytic_check",
+        "analytic_check_nu",
+    )
 
 
 def _refine_for_suite(
