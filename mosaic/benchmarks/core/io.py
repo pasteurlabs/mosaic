@@ -236,7 +236,7 @@ class _NumpyEncoder(json.JSONEncoder):
         # ``reference=<callable>`` for the agreement analytic). Stringify
         # them so ``params.json`` retains the metadata without raising.
         if callable(obj) or isinstance(obj, type):
-            return f"<callable {getattr(obj, '__qualname__', repr(obj))}>"
+            return _callable_label(obj)
         return super().default(obj)
 
     def iterencode(self, o: object, _one_shot: bool = False) -> object:
@@ -687,6 +687,11 @@ def _environment_metadata() -> dict:
 _SCHEDULING_KEYS = {"gpu_ids"}
 
 
+def _callable_label(obj: object) -> str:
+    """The string a callable in ``params`` is saved as in ``result.json``."""
+    return f"<callable {getattr(obj, '__qualname__', repr(obj))}>"
+
+
 def _normalise_for_compare(v: object) -> object:
     """Recursively normalise a value for params equality comparison.
 
@@ -696,9 +701,13 @@ def _normalise_for_compare(v: object) -> object:
     ``params.json`` carries ``["exponax", "jax_cfd"]``. Without
     normalisation the equality check always fails for such params, so the
     merge branch is never reached and existing solver data is overwritten.
+    Callables (``diagnostics``, ``reference``) are saved as a label, so they
+    are compared by that label.
     """
     if isinstance(v, set):
         return sorted(v)
+    if callable(v) or isinstance(v, type):
+        return _callable_label(v)
     if isinstance(v, dict):
         return {k: _normalise_for_compare(val) for k, val in v.items()}
     if isinstance(v, list | tuple):
