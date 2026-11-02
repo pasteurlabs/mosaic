@@ -135,6 +135,7 @@ SETUPS = [
             "gradient": [
                 "gradient/fd_check",
                 "gradient/analytic_check",
+                "gradient/analytic_check_nu",
                 "gradient/param_sweep",
             ],
             "optimization": [],
