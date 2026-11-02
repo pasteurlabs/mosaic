@@ -64,12 +64,26 @@ def _to_numpy(jl_arr: Any) -> np.ndarray:
     return np.asarray(jl_arr).copy()
 
 
+def _body_force(inputs: InputSchema) -> dict[str, Any]:
+    """Keyword arguments for the body force and drag, empty when there are none.
+
+    Both are 2-D only (the canonical schema rejects them in 3-D).
+    """
+    kwargs: dict[str, Any] = {}
+    if inputs.forcing is not None:
+        kwargs["force"] = _to_julia(np.asarray(inputs.forcing)[:, :, 0, :])
+    if inputs.linear_drag is not None:
+        kwargs["drag"] = float(inputs.linear_drag[0])
+    return kwargs
+
+
 def _run(
     v0: np.ndarray,
     viscosity: float,
     dt: float,
     steps: int,
     domain_extent: float,
+    **body_force: Any,
 ) -> np.ndarray:
     """Forward pass.
 
@@ -91,6 +105,7 @@ def _run(
                 int(steps),
                 int(nx),
                 float(domain_extent),
+                **body_force,
             )
         )  # (nx, ny, 2)
         return result[:, :, np.newaxis, :]  # (nx, ny, 1, 2)
@@ -115,6 +130,7 @@ def _vjp(
     dt: float,
     steps: int,
     domain_extent: float,
+    **body_force: Any,
 ) -> dict:
     """VJP: cotangent w.r.t. result -> gradients w.r.t. v0, viscosity, dt, domain_extent."""
     nx = v0.shape[0]
@@ -132,6 +148,7 @@ def _vjp(
             int(steps),
             int(nx),
             float(domain_extent),
+            **body_force,
         )
         grad_v0_2d = _to_numpy(result[0])
         grad_nu = float(result[1])
@@ -228,12 +245,29 @@ def apply(inputs: InputSchema) -> OutputSchema:
     """Run the forward incompressible Navier-Stokes simulation."""
     if inputs.obstacle is not None:
         return _channel_apply(inputs)
+    if inputs.snapshot_every is not None:
+        # 2-D only (the canonical schema rejects it in 3-D).
+        v0 = np.asarray(inputs.v0)
+        frames = _to_numpy(
+            jl.ns_apply(
+                _to_julia(v0[:, :, 0, :]),
+                float(inputs.viscosity[0]),
+                float(inputs.dt[0]),
+                int(inputs.steps),
+                int(v0.shape[0]),
+                float(inputs.domain_extent),
+                snapshot_every=int(inputs.snapshot_every),
+                **_body_force(inputs),
+            )
+        )[:, :, :, np.newaxis, :].astype(np.float32)  # (frames, nx, ny, 1, 2)
+        return {"result": frames[-1], "snapshots": frames}
     result = _run(
         np.asarray(inputs.v0),
         float(inputs.viscosity[0]),
         float(inputs.dt[0]),
         inputs.steps,
         inputs.domain_extent,
+        **_body_force(inputs),
     )
     return {"result": result.astype(np.float32)}
 
@@ -262,6 +296,7 @@ def vector_jacobian_product(
         float(inputs.dt[0]),
         inputs.steps,
         inputs.domain_extent,
+        **_body_force(inputs),
     )
     return {key: grads[key] for key in vjp_inputs if key in grads}
 
@@ -269,18 +304,23 @@ def vector_jacobian_product(
 def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     """Return output shapes and dtypes without running the solver.
 
-    With an obstacle, also ``pressure`` and ``body_force``.
+    With an obstacle, also ``pressure`` and ``body_force``; with
+    ``snapshot_every``, also ``snapshots``.
     """
     raw = abstract_inputs.model_dump()
 
     v0 = raw["v0"]
     if isinstance(v0, dict) and "shape" in v0 and "dtype" in v0:
-        out = {"result": {"shape": v0["shape"], "dtype": v0["dtype"]}}
+        shape, dtype = list(v0["shape"]), v0["dtype"]
     else:
         arr = np.asarray(v0)
-        out = {"result": {"shape": list(arr.shape), "dtype": str(arr.dtype)}}
+        shape, dtype = list(arr.shape), str(arr.dtype)
+    out = {"result": {"shape": shape, "dtype": dtype}}
+    if raw["snapshot_every"] is not None:
+        frames = raw["steps"] // raw["snapshot_every"]
+        out["snapshots"] = {"shape": [frames, *shape], "dtype": dtype}
     if abstract_inputs.obstacle is not None:
-        nx, ny = out["result"]["shape"][:2]
+        nx, ny = shape[:2]
         out["pressure"] = {"shape": [nx, ny, 1], "dtype": "float32"}
         out["body_force"] = {"shape": [abstract_inputs.steps, 2], "dtype": "float32"}
     return out

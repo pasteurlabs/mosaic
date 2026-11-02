@@ -34,10 +34,11 @@ metadata:
         what: >
           The 2-D path converts the velocity to Exponax's vorticity variable
           (q = -curl u) with a spectral curl, runs Exponax's vorticity
-          stepper, and converts back with a spectral Biot-Savart inversion,
-          restoring the mean velocity that the vorticity form drops.
+          stepper, and converts back with a spectral Biot-Savart inversion.
+          The mean velocity, which the vorticity form drops, is carried
+          separately, under the mean force and drag when there are any.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &vorticity-velocity-conversion-periodic
             consequences: [cannot-express]
             symptom: >
               The benchmark's state is velocity, and Exponax 0.2.0's velocity
@@ -47,5 +48,30 @@ metadata:
             evidence: >
               https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/stepper/_navier_stokes.py
               (num_spatial_dims checks).
+          ns-2d-kolmogorov: *vorticity-velocity-conversion-periodic
+        provenance: mosaic-team
+      - id: canonical-force-injection
+        level: L3
+        necessity: required
+        what: >
+          With a body force, the 2-D path sets the injection term inside
+          Exponax's KolmogorovFlowVorticity stepper (the private
+          _integrator._nonlinear_fun.injection) to the spectral curl of the
+          force, as complex coefficients.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [cannot-express]
+            symptom: >
+              Exponax 0.2.0 builds the injection from injection_mode and
+              injection_scale as a real coefficient on one mode, which samples
+              sin(κy) at y = j·h. The canonical force is sampled at
+              (j + ½)h, so the public options put it half a cell off, a phase
+              error of κh/2 or about 20% of the laminar Kolmogorov solution at
+              N = 64.
+            evidence: >
+              https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/nonlin_fun/_vorticity_convection.py
+              (the injection term);
+              tests/test_ns_grid_forcing.py::test_laminar_kolmogorov_transient;
+              #272.
         provenance: mosaic-team
     deviations: []

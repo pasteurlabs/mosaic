@@ -204,19 +204,16 @@ def test_setups_follow_the_intervention_module(
             _row("forward/kolmogorov", {s: _cell("failed") for s in SOLVERS}),
         ],
     )
-    without = scoreboard.compute(tmp_path, META)
-    assert "ns-2d-kolmogorov" not in {s["key"] for s in without["setups"]}
-
-    setups = dict(iv.SETUPS)
-    setups["ns-2d-kolmogorov"] = iv.Setup(
-        "ns-2d-kolmogorov", "ns-grid", "Kolmogorov", claims=("forward/kolmogorov",)
-    )
-    monkeypatch.setattr(iv, "SETUPS", setups)
     data = scoreboard.compute(tmp_path, META)
     tgv = _solver(_setup(data, "ns-2d-periodic"), "XLB")
     kolmogorov = _solver(_setup(data, "ns-2d-kolmogorov"), "XLB")
     assert tgv["checks"]["forward"]["state"] == "pass"
     assert kolmogorov["checks"]["forward"]["state"] == "fail"
+
+    setups = {k: v for k, v in iv.SETUPS.items() if k != "ns-2d-kolmogorov"}
+    monkeypatch.setattr(iv, "SETUPS", setups)
+    without = scoreboard.compute(tmp_path, META)
+    assert "ns-2d-kolmogorov" not in {s["key"] for s in without["setups"]}
 
 
 def test_cost_follows_the_device_results_were_measured_on(tmp_path: Path) -> None:
