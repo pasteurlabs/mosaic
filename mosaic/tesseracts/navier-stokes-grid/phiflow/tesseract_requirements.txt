@@ -1,4 +1,6 @@
 phiflow==3.4.0
+# phiflow 3.4.0 requires phiml>=1.14.0 with no upper bound.
+phiml==1.16.1
 jax[cuda12]==0.10.0
 equinox==0.13.8
 ../../../mosaic_shared

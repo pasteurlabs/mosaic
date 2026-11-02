@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import altair as alt
 import numpy as np
@@ -32,6 +33,11 @@ METRIC_ERR = "relative FD error"
 METRIC_COS = "1 − cos(∇AD, ∇FD)"
 
 
+def _finite(v: Any) -> bool:
+    """Whether ``v`` is a finite number; non-finite values are stored as None."""
+    return isinstance(v, int | float) and math.isfinite(v)
+
+
 def fd_check(ctx: Ctx) -> alt.TopLevelMixin | None:
     """Rel. FD error and 1 − cos vs ε, one panel each, log–log."""
     from mosaic.benchmarks.problems.shared.plots.style import resolve_solver_alias
@@ -46,14 +52,18 @@ def fd_check(ctx: Ctx) -> alt.TopLevelMixin | None:
             continue
         for eps, entry in (sdata.get("eps_sweep") or {}).items():
             re = entry["rel_error"]
-            vals = [
-                v for v in (re if isinstance(re, list) else [re]) if math.isfinite(v)
-            ]
+            vals = [v for v in (re if isinstance(re, list) else [re]) if _finite(v)]
             if vals:
                 rows.append((solver, float(eps), METRIC_ERR, float(np.mean(vals))))
-            rows.append(
-                (solver, float(eps), METRIC_COS, max(1 - float(entry["cosine"]), 1e-9))
-            )
+            if _finite(entry["cosine"]):
+                rows.append(
+                    (
+                        solver,
+                        float(eps),
+                        METRIC_COS,
+                        max(1 - float(entry["cosine"]), 1e-9),
+                    )
+                )
     if not rows:
         return None
     df = pd.DataFrame(rows, columns=["solver", "eps", "metric", "value"])

@@ -249,6 +249,25 @@ class TestOptimizationPeerPipeline:
         assert all(c.status == OK for c in cells.values())
 
 
+@pytest.mark.parametrize("sweep_key", ["N", "nx"])
+def test_cost_peer_outlier_is_flagged_on_any_resolution_sweep(sweep_key: str) -> None:
+    """Mesh problems sweep ``nx`` rather than ``N`` and are gated the same way."""
+    times = {"a": 1.0, "b": 1.0, "slow": 100.0}
+    data = {
+        "schema_version": 1,
+        "sweep": {"key": sweep_key, "values": ["4", "8"]},
+        "results": [
+            {"solver": s, "sweep_value": v, "metrics": {"mean": t}}
+            for s, t in times.items()
+            for v in ("4", "8")
+        ],
+    }
+    cells = {s: Cell(OK) for s in times}
+    _refine_for_suite("cost", "spatial_cost", data, cells, [max_peer_k(20.0)])
+    assert cells["slow"].status == ANOMALY
+    assert cells["a"].status == OK
+
+
 class TestMedianKMinority:
     """``median_k`` needs half the valid points, and half rounds up.
 
@@ -351,6 +370,15 @@ class TestForwardPipeline:
 
     def test_no_checks_is_a_noop(self) -> None:
         assert all(c.status == OK for c in self._run([]).values())
+
+    def test_analytic_gradient_check_takes_the_same_checks(self) -> None:
+        """``gradient/analytic_check`` records forward-shaped errors per sweep point."""
+        cells = {s: Cell(OK) for s in self.DATA["by_solver"]}
+        _refine_for_suite(
+            "gradient", "analytic_check", self.DATA, cells, [median_k(3.0)]
+        )
+        assert cells["outlier"].status == ANOMALY
+        assert cells["peer_a"].status == OK
 
     def test_points_no_peer_reached_do_not_raise_the_bar(self) -> None:
         """A point only one solver reached must not count toward the majority.
@@ -511,3 +539,10 @@ class TestLookupCheckPrecedence:
 
     def test_no_config_means_no_checks(self) -> None:
         assert _lookup_check(self._problem({}), "forward", "agreement/tgv") == []
+
+
+def test_max_error_at_one_sweep_value():
+    summary = ForwardSummary(errs_by_pval={"32": 0.08, "64": 0.02, "128": 0.005})
+    assert max_error(0.05)(summary) is not None
+    assert max_error(0.05, at=64)(summary) is None
+    assert max_error(0.01, at=64)(summary) is not None

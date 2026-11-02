@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Gradient suite plots: FD check, parameter / horizon sweeps, Jacobian SVD."""
+"""Gradient suite plots: FD and analytic checks, parameter / horizon sweeps, Jacobian SVD."""
 
 from __future__ import annotations
 
@@ -42,6 +42,21 @@ def plot_fd_check(
         save,
     )
     return out.get("fd_check")
+
+
+def plot_analytic_check(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    exp_key: str = "analytic_check",
+    **_kw: Any,
+) -> Any:
+    """``analytic_check.png``: error and 1 − cos vs the exact gradient."""
+    out = _render(
+        cfg, f"{exp_key}{suffix}", {"analytic_check": sweeps.analytic_check}, save
+    )
+    return out.get("analytic_check")
 
 
 def plot_param_sweep(

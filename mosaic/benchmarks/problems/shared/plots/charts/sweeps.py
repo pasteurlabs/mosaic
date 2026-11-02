@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Gradient-suite sweep charts: parameter, horizon and Jacobian-spectrum sweeps."""
+"""Gradient-suite sweep charts: analytic check, parameter, horizon and Jacobian-spectrum sweeps."""
 
 from __future__ import annotations
 
@@ -164,6 +164,71 @@ def best_eps_vs_param(ctx: Ctx) -> alt.TopLevelMixin | None:
         width=560,
         height=220,
         title=f"Gradient accuracy vs {x_label}: lower is better",
+    )
+
+
+# ── analytic_check ───────────────────────────────────────────────────────────
+
+_ANALYTIC_ERR = "relative error vs exact ∇J"
+_ANALYTIC_COS = "1 − cos(∇AD, ∇exact)"
+
+
+def analytic_check(ctx: Ctx) -> alt.TopLevelMixin | None:
+    """Gradient error and 1 − cosine against the exact gradient vs the sweep parameter."""
+    data = ctx.result()
+    if data is None:
+        return None
+    sweep_key = (data.get("sweep") or {}).get("key", "param")
+    x_label = _SWEEP_LABELS.get(sweep_key, sweep_key)
+
+    rows = []
+    for entry in data.get("results", []):
+        m = entry.get("metrics")
+        if not (isinstance(m, dict) and m.get("valid") is True):
+            continue
+        name, k = entry["solver"], float(entry["sweep_value"])
+        err, cos = _finite(m.get("error")), _finite(m.get("cosine"))
+        if math.isfinite(err):
+            rows.append((name, k, _ANALYTIC_ERR, err))
+        if math.isfinite(cos):
+            rows.append((name, k, _ANALYTIC_COS, max(1 - cos, 1e-9)))
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["solver", "param", "metric", "value"])
+    enc = solver_encodings(df["solver"])
+    df = enc.relabel(df)
+
+    xs = sorted(df["param"].unique())
+    pick = legend_pick()
+    zoom = alt.selection_interval(bind="scales", encodings=["x"])
+    lines = solver_lines(
+        None,
+        enc,
+        x=alt.X(
+            "param:Q",
+            scale=log_scale(domain=_pad_log(xs[0], xs[-1], 0.05)),
+            axis=alt.Axis(values=xs, format="~g", title=x_label, grid=False),
+        ),
+        y=alt.Y("value:Q", scale=log_scale(), axis=log_axis(None)),
+        tooltip=[
+            alt.Tooltip("solver:N"),
+            alt.Tooltip("param:Q", title=x_label.split()[0], format="~g"),
+            alt.Tooltip("metric:N"),
+            alt.Tooltip("value:Q", format=".3e"),
+        ],
+        pick=pick,
+    )
+    return (
+        alt.layer(lines, data=df)
+        .add_params(pick, zoom)
+        .properties(width=300, height=220)
+        .facet(
+            column=alt.Column(
+                "metric:N", sort=[_ANALYTIC_ERR, _ANALYTIC_COS], title=None
+            )
+        )
+        .resolve_scale(y="independent")
+        .properties(title="Gradient check vs the exact gradient: lower is better")
     )
 
 
@@ -744,6 +809,7 @@ def jacobian_svd_comparison(ctx: Ctx) -> alt.TopLevelMixin | None:
 
 
 BUILDERS = {
+    "analytic_check": analytic_check,
     "best_eps_vs_param": best_eps_vs_param,
     "horizon_sweep": horizon_sweep,
     "horizon_sweep_limits": horizon_sweep_limits,

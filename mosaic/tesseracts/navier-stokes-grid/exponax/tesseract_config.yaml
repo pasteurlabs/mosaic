@@ -1,7 +1,7 @@
 name: exponax_navier_stokes_grid
 version: "0.1.0"
 description: >
-  Exponential time-differencing Runge–Kutta (ETDRK) spectral integrator for 3D
+  Exponential time-differencing Runge–Kutta (ETDRK) spectral integrator for 2D and 3D
   Navier–Stokes, enforcing incompressibility to machine precision by construction. Gradients
   via JAX source-transformation AD
 build_config:
@@ -24,3 +24,28 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://fkoehler.site/exponax/"
+    # What it took to run Exponax here, beyond expressing the setup with
+    # Exponax's steppers. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: vorticity-velocity-conversion
+        level: L2
+        necessity: required
+        what: >
+          The 2-D path converts the velocity to Exponax's vorticity variable
+          (q = -curl u) with a spectral curl, runs Exponax's vorticity
+          stepper, and converts back with a spectral Biot-Savart inversion,
+          restoring the mean velocity that the vorticity form drops.
+        why:
+          ns-2d-periodic:
+            consequences: [cannot-express]
+            symptom: >
+              The benchmark's state is velocity, and Exponax 0.2.0's velocity
+              steppers (NavierStokesVelocity, KolmogorovFlowVelocity) accept
+              only three spatial dimensions; in 2-D it offers the vorticity
+              form only.
+            evidence: >
+              https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/stepper/_navier_stokes.py
+              (num_spatial_dims checks).
+        provenance: mosaic-team
+    deviations: []

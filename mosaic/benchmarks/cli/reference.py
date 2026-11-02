@@ -16,9 +16,10 @@ solution, not a peer average that would share their common-mode bias.
 Two modes:
 
 1. **From existing results** (``--from-results``): reads field snapshots
-   from a ``mosaic-results/`` directory and extracts the consensus
-   arrays. Fast, no solver runs needed — just needs prior results.
-   (Consensus experiments only; converged references must be run.)
+   from a ``mosaic-results/`` directory and recomputes the trimmed mean
+   from every solver's stored output. Fast, no solver runs needed — just
+   needs prior results. (Consensus experiments only; converged references
+   must be run.)
 
 2. **By running solvers** (default): builds + runs the solver(s) for the
    target experiments and writes the NPZ — trimmed mean for consensus
@@ -37,8 +38,9 @@ from mosaic.benchmarks.core.console import console
 from mosaic.benchmarks.core.reference import (
     PRECOMPUTED_EXPERIMENTS,
     ConvergedSpec,
+    consensus_from_fields,
     converged_spec,
-    extract_references_from_fields,
+    reference_path,
     save_reference,
     spectral_downsample,
 )
@@ -128,6 +130,12 @@ def _generate_from_results(
             exps = [e for e in exps if e in exp_filter]
 
         for exp_key in exps:
+            if converged_spec(domain, exp_key) is not None:
+                console.print(
+                    f"  [yellow]SKIP[/] {domain}/{exp_key}: converged reference, "
+                    "generate it by running the reference solver"
+                )
+                continue
             # The fields.npz lives at:
             #   results_dir/<domain>/<suite>/<exp_name>/fields.npz
             suite, _, exp_name = exp_key.partition("/")
@@ -150,13 +158,22 @@ def _generate_from_results(
                 )
                 continue
 
-            refs = extract_references_from_fields(fields_path, n_sweep)
+            from mosaic.benchmarks.problems import get_config
+
+            solver_names = [s.name for s in get_config(domain).solvers]
+            refs = consensus_from_fields(fields_path, solver_names, n_sweep)
             if not refs:
                 console.print(
                     f"  [yellow]SKIP[/] {domain}/{exp_key}: "
-                    "no consensus arrays found in fields.npz"
+                    "fewer than two solver outputs in fields.npz"
                 )
                 continue
+            if len(refs) < n_sweep:
+                missing = sorted(set(range(n_sweep)) - set(refs))
+                console.print(
+                    f"  [yellow]WARN[/] {domain}/{exp_key}: sweep indices {missing} "
+                    "have fewer than two solver outputs and get no reference"
+                )
 
             # Read sweep values from the fields.npz for provenance.
             sweep_values = _read_sweep_values(fields_path)
@@ -403,6 +420,54 @@ def _generate_converged(
     _save(cfg, exp_key, refs, sweep_values)
 
 
+def _generate_trajectories(
+    cfg: object, exp_key: str, run: dict, spec: ConvergedSpec
+) -> None:
+    """Converged reference built by the experiment's own generator.
+
+    ``run["reference"]`` is called with ``advance(v, dt, steps)``, which runs
+    the reference solver on ``v``'s grid with the experiment's physics, and
+    returns the arrays to store. One GPU container serves every call, since
+    a generator runs the solver many times, at resolutions a CPU cannot reach.
+    """
+    from dataclasses import replace
+
+    import numpy as np
+
+    from mosaic.benchmarks.core.resources import container_memory_args
+    from mosaic.benchmarks.core.runner import (
+        _tracked_tesseract,
+        build_all,
+        get_last_apply_error,
+        safe_apply,
+    )
+
+    solver = next((s for s in cfg.solvers if s.name == spec.solver), None)
+    if solver is None:
+        console.print(f"    [red]✗[/] reference solver {spec.solver!r} not found")
+        return
+    console.print(f"    Building {spec.solver}...")
+    tags = build_all(replace(cfg, solvers=[solver]))
+    phys = {**run.get("physics", {}), "domain_extent": cfg.domain_extent}
+    docker_args = ["--no-healthcheck", *container_memory_args()]
+    with _tracked_tesseract(tags[solver.name], ["all"], docker_args) as t:
+
+        def advance(v: np.ndarray, dt: float, steps: int) -> np.ndarray:
+            inputs = cfg.make_inputs(
+                solver.name, v, **{**phys, "dt": dt, "steps": steps}
+            )
+            out = safe_apply(t, inputs, cfg.output_key)
+            if out is None:
+                raise RuntimeError(get_last_apply_error() or "apply failed")
+            return np.asarray(out)
+
+        arrays = run["reference"](advance, log=lambda m: console.print(f"    {m}"))
+    path = reference_path(cfg.name, exp_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, **arrays)
+    console.print(f"    [green]OK[/] {len(arrays)} array(s) → {path}")
+
+
 def _save(cfg: object, exp_key: str, refs: dict, sweep_values: list) -> None:
     """Persist generated references, or report that none were produced."""
     if refs:
@@ -434,10 +499,14 @@ def _generate_by_running(
 
         for exp_key in exps:
             console.print(f"  [bold]{domain}/{exp_key}[/]")
+            spec = converged_spec(domain, exp_key)
+            run = _experiment_run(cfg, exp_key)
+            if spec is not None and run and callable(run.get("reference")):
+                _generate_trajectories(cfg, exp_key, run, spec)
+                continue
             rp = _experiment_run_params(cfg, exp_key)
             if rp is None:
                 continue
-            spec = converged_spec(domain, exp_key)
             if spec is not None:
                 _generate_converged(cfg, exp_key, rp, spec)
             else:

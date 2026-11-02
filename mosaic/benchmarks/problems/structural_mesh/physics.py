@@ -42,7 +42,9 @@ def _cantilever_bcs(
     corner_load=False:
       Full right face load in load_axis direction (−z default, or ±y).
       jax_fem   → traction F/(Ly·Lz) in load_axis direction
-      topopt_jl → nodal force F/n_right in load_axis direction
+      topopt_jl → the consistent nodal forces of that traction on the bilinear
+                  face elements: F/(ny·nz) at interior nodes, half at edge
+                  nodes, a quarter at corner nodes (Neumann groups 1–3)
 
     corner_load=True:
       One-element patch at a corner of the right face (x=Lx).
@@ -60,7 +62,8 @@ def _cantilever_bcs(
 
     # Solvers that apply Neumann BCs via surface integration in the weak form
     # (FEniCS, Firedrake, JAX-FEM, deal.II, torch-fem) need traction [force/area].
-    # Node-force solvers (TopOpt.jl) split force evenly across right-face nodes.
+    # Node-force solvers (TopOpt.jl) get the nodal forces that integration
+    # produces on the uniform hex mesh.
     # Solver discovery does not infer this; new solvers must be listed here.
     _traction_solvers = {
         "jax_fem",
@@ -96,13 +99,24 @@ def _cantilever_bcs(
             force_vec = np.array([[0.0, 0.0, z_sign * force]], dtype=np.float32)
     else:
         right = points[:, 0] > (Lx - tol)
-        n_mask[right] = 1
-        n_right = int(right.sum())
-        force = F_total / (Ly * Lz) if use_traction else F_total / n_right
-        if load_axis == "y":
-            force_vec = np.array([[0.0, force, 0.0]], dtype=np.float32)  # +y lateral
-        else:  # "z"
-            force_vec = np.array([[0.0, 0.0, -force]], dtype=np.float32)  # −z downward
+        # +y lateral or −z downward
+        direction = np.array([0.0, 1.0, 0.0] if load_axis == "y" else [0.0, 0.0, -1.0])
+        if use_traction:
+            n_mask[right] = 1
+            force_vec = (F_total / (Ly * Lz) * direction)[None].astype(np.float32)
+        else:
+            # Each face element passes a quarter of its share F/(ny·nz) to each
+            # of its four nodes, so a node's force scales with the number of
+            # face elements it touches: 4 inside, 2 on an edge, 1 at a corner.
+            on_y_edge = (points[:, 1] < tol) | (points[:, 1] > Ly - tol)
+            on_z_edge = (points[:, 2] < tol) | (points[:, 2] > Lz - tol)
+            n_touching = np.where(on_y_edge, 1, 2) * np.where(on_z_edge, 1, 2)
+            for group, touching in enumerate((4, 2, 1), start=1):
+                n_mask[right & (n_touching == touching)] = group
+            share = F_total / (ny * nz)
+            force_vec = (
+                share * np.array([1.0, 0.5, 0.25])[:, None] * direction
+            ).astype(np.float32)
 
     return MeshBC(
         dirichlet=MeshDirichletBC(mask=d_mask, values=None),

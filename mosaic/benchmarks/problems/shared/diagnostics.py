@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shared diagnostic functions for fluid-velocity ``DIAGNOSTICS`` dicts.
+"""Shared fluid-velocity helpers for ``DIAGNOSTICS`` dicts and divergence-free projection.
 
 Used by both ``navier_stokes_grid`` (2D, shape ``(N, N, 1, 2)``) and
 ``navier_stokes_3d_grid`` (3D, shape ``(N, N, N, 3)``); the functions
@@ -61,6 +61,38 @@ def energy_spectrum(arr: jax.Array, **_: Any) -> dict:
         [float(E_hat[(k - 0.5 <= K) & (k + 0.5 > K)].sum()) for k in k_bins]
     )
     return {"k": k_bins.tolist(), "E_k": E_k.tolist()}
+
+
+def project_divergence_free(u: np.ndarray, domain_extent: float) -> np.ndarray:
+    """Helmholtz-project a periodic velocity field onto ∇·u = 0.
+
+    Spectral projection: û_df_i = û_i − k_i (k·û) / |k|²
+    Handles both 2D (N, N, 1, 2) and 3D (N, N, N, 3) shapes.
+    """
+    nd = u.shape[-1]
+    squeeze = u.ndim > nd + 1  # True for (N,N,1,2); False for (N,N,N,3)
+    v = u.reshape((*u.shape[:nd], nd)) if squeeze else u
+
+    N = v.shape[0]
+    # Physical wavenumbers for a periodic box of size domain_extent.
+    k1d = np.fft.fftfreq(N) * N * (2.0 * np.pi / domain_extent)
+    grids = np.meshgrid(*([k1d] * nd), indexing="ij")  # nd arrays, each (N,...,N)
+    k2 = sum(k**2 for k in grids)
+    k2_safe = np.where(k2 == 0.0, 1.0, k2)  # avoid ÷0 at k=0
+
+    spatial_axes = tuple(range(nd))
+    v_hat = np.fft.fftn(v, axes=spatial_axes)  # (..., nd), complex
+
+    k_dot_u = sum(grids[i] * v_hat[..., i] for i in range(nd))  # scalar field
+
+    v_hat_df = np.stack(
+        [v_hat[..., i] - grids[i] * k_dot_u / k2_safe for i in range(nd)],
+        axis=-1,
+    )
+
+    v_df = np.fft.ifftn(v_hat_df, axes=spatial_axes).real
+    v_df = v_df.reshape(u.shape) if squeeze else v_df
+    return v_df.astype(u.dtype)
 
 
 #: Default DIAGNOSTICS dict for fluid grid problems. Both 2D and 3D.

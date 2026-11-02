@@ -9,7 +9,7 @@ finite-difference gradient checks, which compare ``apply`` against the VJP.
 The input is deliberately not divergence-free: the initial projection then
 changes the field, which is where the two paths used to diverge.
 
-Runs ``ns_solver.jl`` from this checkout inside an existing INS.jl image
+Runs ``solver.jl`` from this checkout inside an existing INS.jl image
 (building one takes too long for a unit test); skipped when there is none.
 """
 
@@ -26,14 +26,14 @@ _IMAGE = "ins_navier_stokes_grid:latest"
 _SRC_DIR = (
     Path(__file__).parents[1]
     / "mosaic"
-    / "mosaic_shared"
-    / "problems"
-    / "navier_stokes_grid"
+    / "tesseracts"
+    / "navier-stokes-grid"
+    / "ins-jl"
 )
 
 _SCRIPT = """
 using IncompressibleNavierStokes, LinearAlgebra, Random
-include("/src/ns_solver.jl")
+include("/src/solver.jl")
 n, L, nu, dt, steps = 8, 2pi, 0.01, 0.05, 3
 for (ndim, fwd) in ((2, ns_forward_2d), (3, ns_forward_3d))
     v0 = randn(Xoshiro(0), Float32, ntuple(_ -> n, ndim)..., ndim)

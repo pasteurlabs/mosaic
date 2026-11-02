@@ -23,6 +23,7 @@ from typing import Any
 import jax.numpy as jnp
 import numpy as np
 
+from mosaic.benchmarks.core.cell_filter import filter_solvers
 from mosaic.benchmarks.core.experiment import (
     KernelContext,
     _build_result_envelope,
@@ -154,11 +155,15 @@ def _agreement_aggregate(
             idx = int(idx_str)
             outputs_per_val[sweep_values[idx]][name] = np.asarray(arr)
 
+    exp_key = _kw.get("exp_key", "agreement")
+    suite = _kw.get("suite", "forward")
+    ref_key = f"{suite}/{exp_key}"
+
     # Augment with cached arrays for solvers not re-run this invocation.
     cached_for_val = load_cached_field_snapshots(
         out_dir / snapshot_filename,
         sweep_values,
-        skip_solvers=tags,
+        skip_solvers=set(filter_solvers(ref_key, list(tags))),
         shared_prefixes=("sweep_values", "solver_names", "ic", "consensus", "x_axis"),
     )
     for v, cache in cached_for_val.items():
@@ -182,10 +187,6 @@ def _agreement_aggregate(
 
     # Collect per-(solver, sweep_value) results
     flat_results: list[dict] = []
-
-    exp_key = _kw.get("exp_key", "agreement")
-    suite = _kw.get("suite", "forward")
-    ref_key = f"{suite}/{exp_key}"
 
     # Designated precomputed experiments ship a converged reference that is the
     # intended ground truth; it takes precedence over the runtime analytic

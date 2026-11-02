@@ -19,9 +19,12 @@ Timing semantics (apply to every experiment in this module):
     for a millisecond presentation.
   * ``trials_s`` carries the raw per-trial elapsed times so distributional
     statistics can be recomputed without rerunning.
-  * Each (solver, sweep-point) pair does one unreported warmup call before
-    the trial loop — absorbs per-solver JIT compilation, first-touch CUDA
-    kernel caching, and scan-unroll tracing.
+  * Each (solver, sweep-point) pair does one warmup call before the trial
+    loop — absorbs per-solver JIT compilation, first-touch CUDA kernel
+    caching, and scan-unroll tracing. Its time is recorded as
+    ``first_call_s`` and is not part of ``mean``. Sweep points share a
+    container, so work a solver does once for all sizes lands in the first
+    point's ``first_call_s`` only.
   * Each entry also records ``vram_peak_mib`` and ``ram_peak_mib`` (peak GPU
     VRAM and container RAM during the trial batch).
   * A per-trial wall-clock limit of ``_SPATIAL_WALL_S`` seconds is enforced.
@@ -140,20 +143,6 @@ def _cost_aggregate(
 ) -> dict:
     """Build unified result envelope for cost experiments."""
     flat_results = _flatten_by_solver(by_solver, sweep_key)
-    # Add empty entries for solvers not in by_solver
-    present = {e["solver"] for e in flat_results}
-    for s in cfg.solvers:
-        if s.name not in present:
-            if sweep_key:
-                for val in sweep_values:
-                    flat_results.append(
-                        {"solver": s.name, "sweep_value": str(val), "metrics": {}}
-                    )
-            else:
-                flat_results.append(
-                    {"solver": s.name, "sweep_value": None, "metrics": {}}
-                )
-
     extras: dict = {"hardware": get_hardware_info()}
     if os.environ.get("CI"):
         extras["_isolation_note"] = _CI_ISOLATION_NOTE
@@ -224,9 +213,9 @@ def _vjp_cost_aggregate(
 def spatial_cost(t: Any, ctx: KernelContext) -> dict:
     """Forward-pass wall-clock timing at one (solver, N) point.
 
-    Returns ``{"metrics": {mean, std, trials_s, vram_peak_mib, ram_peak_mib},
-    "stop_sweep": bool}``; on failure / wall-limit-hit, the metrics dict
-    carries the failure shape and ``stop_sweep=True``.
+    Returns ``{"metrics": {mean, std, trials_s, first_call_s, vram_peak_mib,
+    ram_peak_mib}, "stop_sweep": bool}``; on failure / wall-limit-hit, the
+    metrics dict carries the failure shape and ``stop_sweep=True``.
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     return _timed_kernel(t, ctx, timed_call=lambda: t.apply(inputs))

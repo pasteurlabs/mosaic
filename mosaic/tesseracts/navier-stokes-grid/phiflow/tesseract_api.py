@@ -34,6 +34,7 @@ from phiml.backend._numpy_backend import NumPyBackend
 from pydantic import model_validator
 from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_paths
 
+# mosaic-intervention: int64-sparse-indices
 _numpy_ravel_multi_index = NumPyBackend.ravel_multi_index
 
 
@@ -56,6 +57,7 @@ def _ravel_multi_index_int64(
 
 
 NumPyBackend.ravel_multi_index = _ravel_multi_index_int64
+# mosaic-intervention-end: int64-sparse-indices
 
 
 class InputSchema(
@@ -78,15 +80,16 @@ class OutputSchema(
 
 
 # The periodic pressure solve stops at a relative and absolute residual of
-# 1e-7, the loosest tolerance whose results match a fully converged solve.
-# phiflow's default 1e-5 leaves enough noise in the loss that the ns-3d
-# recovery stalls at ~3x the IC error. Much tighter (1e-10) is below float32's
-# residual floor, so CG runs to max_iterations at 2-3x the cost without
-# improving any result.
-_CG_TOL = 1e-7
-# The channel's pressure solve stops at phiflow's default 1e-5, which gives the
-# same Cd as 1e-7 to four digits at 10 and 20 cells per diameter.
-_CHANNEL_CG_TOL = 1e-5
+# 1e-5, phiml's default in float32. Tightening it to 1e-7 changes no check
+# (forward errors move by less than 0.15%, the ns-3d recovery reaches the same
+# IC error) and makes each solve up to 1.8x slower, since 1e-7 is close to
+# float32's residual floor.
+_CG_TOL = 1e-5
+# The channel's pressure solve stops at 1e-2 (relative and absolute), the
+# loosest at which Cd, Cl and the pressure drop stay within 0.1% of a 1e-7
+# solve at 10 and 20 cells per diameter, and drag_opt ends at the same drag.
+# At 1e-1 the Cd error at 10 cells per diameter moves by 4%.
+_CHANNEL_CG_TOL = 1e-2
 
 
 def periodic_fwd(
@@ -98,8 +101,9 @@ def periodic_fwd(
 ) -> jnp.ndarray:
     """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
-    Explicit-Euler central-difference advection and diffusion followed by a CG
-    pressure projection. Dimensionality is inferred from v0.shape[-1]
+    2nd-order central-difference advection and diffusion integrated with
+    phiflow's ``fluid.incompressible_rk4``, which projects every stage with a
+    CG pressure solve. Dimensionality is inferred from v0.shape[-1]
     (2 → 2D, 3 → 3D).
 
     Args:
@@ -145,19 +149,35 @@ def periodic_fwd(
             [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    # Use explicit CG pressure solver to prevent numerical divergence in 3D
-    # at step counts ≥ 20 (default solver produces NaN in 3D; 2D unaffected).
+    # The same solve as incompressible_rk4's default Solve("CG"), whose
+    # tolerances resolve to 1e-5 in float32.
     _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
 
-    def step(face_arr: jnp.ndarray, _: None) -> tuple[jnp.ndarray, None]:
+    def momentum(vel: StaggeredGrid) -> StaggeredGrid:
+        return advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
+            vel, viscosity, order=2
+        )
+
+    # phiflow's documented pairing for accurate periodic flow: finite
+    # differences under incompressible_rk4 instead of operator splitting
+    # ("Higher-Order Simulations" in its fluid simulation guide). The pressure
+    # gradient matches the 2nd-order stencils. The scheme carries the pressure
+    # from step to step; each step makes four CG pressure projections.
+    def step(
+        carry: tuple[jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray], None]:
+        face_arr, p_arr = carry
         vel = faces_to_staggered(face_arr)
-        # Explicit Euler with 2nd-order central differences on the advective
-        # form (advect.differential), which JAX differentiates without
-        # interpolation.
-        vel = vel + dt * advect.differential(vel, vel)
-        vel = diffuse.explicit(vel, viscosity, dt)
-        vel, _ = fluid.make_incompressible(vel, (), solve=_cg_solve)
-        return staggered_to_faces(vel), None
+        p = CenteredGrid(
+            math.tensor(p_arr, math.spatial(spatial_str)),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        vel, p = fluid.incompressible_rk4(
+            momentum, vel, p, dt, pressure_order=2, pressure_solve=_cg_solve
+        )
+        return (staggered_to_faces(vel), p.values.native(spatial_str)), None
 
     # Convert IC from collocated to staggered face values once using PhiFlow's
     # native CenteredGrid→StaggeredGrid resampling.  The scan carry then stays
@@ -178,7 +198,8 @@ def periodic_fwd(
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
     # through the loop — both forward and VJP are safe inside lax.scan.
-    face_final, _ = jax.lax.scan(step, face_init, None, length=steps)
+    p_init = jnp.zeros(face_init.shape[1:], face_init.dtype)
+    (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
 
     # Convert final face values back to collocated once.
     vel_final = faces_to_staggered(face_final)
@@ -222,8 +243,9 @@ def channel_fwd(
 ) -> dict[str, jnp.ndarray]:
     """Run the 2-D DFG channel: profile inlet, outflow, no-slip walls, cylinder.
 
-    The same explicit-Euler central-difference step as the periodic box, with
-    phiflow's wind-tunnel boundaries and the cylinder as a staircase of the
+    Operator splitting with phiflow's default semi-Lagrangian self-advection,
+    explicit diffusion and a CG pressure projection (``incompressible_rk4``
+    takes no obstacles). Wind-tunnel boundaries, and the cylinder as a staircase of the
     cells whose center lies strictly inside it. Every face touching a solid cell
     is held at zero velocity, and the pressure is solved in the fluid cells only.
 
@@ -240,7 +262,6 @@ def channel_fwd(
     grid_kwargs = {"x": nx, "y": ny, "bounds": Box(x=nx * dx, y=ny * dx)}
 
     solid = solid_cells(nx, ny, dx, obstacle["center"], obstacle["radius"])
-
     inlet = extrapolation.combine_by_direction(
         normal=extrapolation.ConstantExtrapolation(
             math.tensor(inflow_profile, math.spatial("y"))
@@ -250,6 +271,7 @@ def channel_fwd(
     ext = extrapolation.combine_sides(
         x=(inlet, extrapolation.ZERO_GRADIENT), y=extrapolation.ZERO
     )
+    # mosaic-intervention: inlined-obstacle-projection
     with math.NUMPY:
         accessible = CenteredGrid(
             math.tensor(~solid, math.spatial("x,y")), _CHANNEL_ACCESSIBLE, **grid_kwargs
@@ -268,6 +290,7 @@ def channel_fwd(
     open_x = jnp.asarray(open_faces.vector["x"].values.numpy("x,y"))
     open_y = jnp.asarray(open_faces.vector["y"].values.numpy("x,y"))
     fluid_cells = jnp.asarray(~solid)
+    # mosaic-intervention-end: inlined-obstacle-projection
 
     def to_grid(ux: jnp.ndarray, uy: jnp.ndarray) -> StaggeredGrid:
         components = {
@@ -278,12 +301,16 @@ def channel_fwd(
             math.stack(components, math.dual("vector")), ext, **grid_kwargs
         )
 
+    # mosaic-intervention: inlined-obstacle-projection
+    # mosaic-intervention: body-force-output
     def close(vel: StaggeredGrid) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Zero the faces touching the cylinder and return the momentum removed."""
         ux = vel.vector["x"].values.native("x,y")
         uy = vel.vector["y"].values.native("x,y")
         removed = jnp.stack([(ux * (1 - open_x)).sum(), (uy * (1 - open_y)).sum()])
         return ux * open_x, uy * open_y, removed * dx**2
+
+    # mosaic-intervention-end: inlined-obstacle-projection
 
     def pressure_force(p: jnp.ndarray) -> jnp.ndarray:
         """Pressure on the faces between fluid and solid cells, from the fluid side."""
@@ -294,12 +321,15 @@ def channel_fwd(
         fy = ((p[:, :-1] - p[:, 1:]) * shut_y).sum()
         return jnp.stack([fx, fy]) * dx
 
+    # mosaic-intervention-end: body-force-output
+
     def step(
         carry: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], _: None
     ) -> tuple[tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         ux, uy, p_prev = carry
         vel = to_grid(ux, uy)
-        vel = vel + dt * advect.differential(vel, vel)
+        vel = advect.semi_lagrangian(vel, vel, dt)
+        # mosaic-intervention: inlined-obstacle-projection
         ux, uy, removed = close(vel)
         vel = diffuse.explicit(to_grid(ux, uy), viscosity, dt)
         ux, uy, removed_viscous = close(vel)
@@ -317,6 +347,7 @@ def channel_fwd(
             "upwind": None,
             "correct_skew": False,
         }
+        # mosaic-intervention: channel-pressure-warm-start
         p_guess = Field(
             div.geometry,
             math.tensor(p_prev * dt, math.spatial("x,y")),
@@ -331,12 +362,16 @@ def channel_fwd(
             *laplace_args,
             **laplace_kwargs,
         )
+        # mosaic-intervention-end: channel-pressure-warm-start
         grad = field.spatial_gradient(
             p_dt, ext, at="face", order=2, scheme="green-gauss"
         )
         vel = vel - grad * open_faces
+        # mosaic-intervention-end: inlined-obstacle-projection
         p = p_dt.values.native("x,y") / dt
+        # mosaic-intervention: body-force-output
         force = (removed + removed_viscous) / dt + pressure_force(p)
+        # mosaic-intervention-end: body-force-output
         ux = vel.vector["x"].values.native("x,y")
         uy = vel.vector["y"].values.native("x,y")
         return (ux, uy, p), force

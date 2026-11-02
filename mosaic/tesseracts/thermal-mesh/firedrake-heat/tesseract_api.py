@@ -448,7 +448,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     cells = np.asarray(hm.faces[: hm.n_faces], dtype=np.int64)
     rho_values = np.asarray(inputs.rho[: hm.n_faces], dtype=np.float64)
     source_values = np.asarray(inputs.source[: hm.n_faces], dtype=np.float64)
-    target_temp = np.asarray(inputs.target_temperature, dtype=np.float32)
+    target_temp = np.asarray(inputs.target_temperature, dtype=np.float64)
 
     bc = inputs.boundary_conditions
     dm = np.asarray(bc.dirichlet.mask if bc.dirichlet else [])
@@ -476,9 +476,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
         p_exp=inputs.p_exp,
     )
 
-    T_f32 = T_nodes.astype(np.float32)
-    n = min(len(T_f32), len(target_temp))
-    id_error = np.float32(np.sum((T_f32[:n] - target_temp[:n]) ** 2))
+    n = min(len(T_nodes), len(target_temp))
+    id_error = np.float32(np.sum((T_nodes[:n] - target_temp[:n]) ** 2))
 
     return OutputSchema(
         thermal_compliance=np.float32(J_val),
@@ -555,6 +554,7 @@ def vector_jacobian_product(
         grad_rho += dC_drho * cot_compliance
         grad_source += dC_dsource * cot_compliance
 
+    # mosaic-intervention: nodal-misfit-seed
     cot_id_error = float(cotangent_vector.get("identification_error", 0.0))
     if cot_id_error != 0.0:
         # I = Σ_nodes (T - T_target)², so the temperature adjoint is seeded
@@ -570,6 +570,7 @@ def vector_jacobian_product(
         dI_drho, dI_dsource = _gradient_pair(entry["That"], entry, n_cells, dI_dT)
         grad_rho += dI_drho * cot_id_error
         grad_source += dI_dsource * cot_id_error
+    # mosaic-intervention-end: nodal-misfit-seed
 
     result: dict[str, Any] = {}
     if want_rho:

@@ -72,6 +72,12 @@ from mosaic.benchmarks.core.harness import (
         ("RuntimeError", "cudaErrorMemoryAllocation", "OOM"),
         ("XlaRuntimeError", "Failed to allocate 8.00GiB for buffer", "OOM"),
         ("Exception", "Killed by OOM killer", "OOM"),
+        # CUDA.jl's OutOfGPUMemoryError, as raised through juliacall.
+        (
+            "Exception",
+            "juliacall.JuliaError: Out of GPU memory trying to allocate 207.969 KiB",
+            "OOM",
+        ),
         # Timeout: matched by exception name
         ("TimeoutError", "deadline exceeded", "timeout"),
         ("WatchdogTimeout", "", "timeout"),
@@ -349,6 +355,52 @@ def test_run_timed_trials_records_first_elapsed_only_on_first_trial():
     assert result.first_elapsed == result.times[0]
     # Trial 0 sleeps 50ms, trials 1-2 sleep 0 — first_elapsed should be the slowest
     assert result.first_elapsed >= 0.04
+
+
+def test_run_timed_trials_records_warmup_elapsed_outside_trials():
+    """The warmup's elapsed time is kept separately and is not a trial."""
+    durations = iter([0.05, 0.0, 0.0, 0.0])  # warmup, trial-0, trial-1, trial-2
+
+    def fn():
+        time.sleep(next(durations))
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.succeeded
+    assert result.warmup_elapsed >= 0.04
+    assert len(result.times) == 3
+    assert max(result.times) < 0.04
+    rec = result.as_record()
+    assert rec["first_call_s"] == result.warmup_elapsed
+    assert rec["mean"] < 0.04
+
+
+def test_run_timed_trials_warmup_failure_has_no_first_call():
+    """A warmup that raises leaves no first-call time to report."""
+
+    def fn():
+        raise RuntimeError("boom during warmup")
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    assert result.warmup_elapsed is None
+    assert "first_call_s" not in result.as_record()
+
+
+def test_run_timed_trials_trial_failure_keeps_first_call():
+    """A failure after the warmup still reports the warmup's time."""
+    calls = iter([None, RuntimeError("boom in trial")])
+
+    def fn():
+        exc = next(calls)
+        if exc is not None:
+            raise exc
+
+    result = run_timed_trials(fn, n_trials=3, wall_limit_s=10.0)
+
+    rec = result.as_record()
+    assert rec["status"] == "failed"
+    assert rec["first_call_s"] == result.warmup_elapsed
 
 
 def test_run_timed_trials_timeout_classification():

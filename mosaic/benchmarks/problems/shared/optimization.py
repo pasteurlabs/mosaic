@@ -33,6 +33,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+import scipy.optimize
 
 
 def _append_aux(aux_history: dict | None, aux: Any) -> None:
@@ -90,8 +91,7 @@ def _run_optim(
     provides the dict, primitive populates it).
 
     ``clip_fn`` (e.g. ``lambda x: jnp.clip(x, x_min, 1.0)``) is applied to
-    ``x`` after each Adam update so the iterate stays in the feasible set
-    — matches the projection contract used by :func:`_run_lbfgs`.
+    ``x`` after each Adam update so the iterate stays in the feasible set.
 
     Returns ``(final_x, losses, diag)`` where ``losses`` is the per-iter
     scalar-loss list and ``diag`` is a dict with optional diagnostic
@@ -100,6 +100,7 @@ def _run_optim(
       * ``grad_norms``: per-iter ``‖∇L‖₂``
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
+      * ``converged``:  whether the patience-based early stop fired
 
     Raises ``FloatingPointError`` as soon as the loss is NaN/Inf.
     """
@@ -142,38 +143,8 @@ def _run_optim(
             log_fn(i + 1, loss_val)
         if no_improve >= patience:
             break
+    diag["converged"] = no_improve >= patience
     return x, losses, diag
-
-
-def _outside_domain_if_nonfinite(loss_fn: Any) -> Any:
-    """Wrap ``loss_fn`` so a point whose value or gradient is not usable reads as +inf.
-
-    optax's zoom linesearch treats an infinite value as outside the domain and
-    backtracks. A trial step with a finite value but an infinite gradient, or
-    one large enough that its dot products overflow (e.g. a float32 adjoint
-    that blew up while the forward did not), was instead accepted. It then
-    put inf into L-BFGS's history and every later step was NaN. The gradient
-    counts as usable when its squared norm is finite. Where value and
-    gradient are usable the wrapper returns them unchanged.
-    """
-
-    def value_and_grad(x: Any) -> tuple:
-        value, grad = jax.value_and_grad(loss_fn)(x)
-        grad_sq = sum(jnp.vdot(g, g) for g in jax.tree.leaves(grad))
-        finite = jnp.isfinite(value) & jnp.isfinite(grad_sq)
-        value = jnp.where(finite, value, jnp.inf)
-        grad = jax.tree.map(lambda g: jnp.where(finite, g, jnp.zeros_like(g)), grad)
-        return value, grad
-
-    @jax.custom_vjp
-    def wrapped(x: Any) -> Any:
-        return value_and_grad(x)[0]
-
-    def bwd(grad: Any, cotangent: Any) -> tuple:
-        return (jax.tree.map(lambda g: cotangent * g, grad),)
-
-    wrapped.defvjp(value_and_grad, bwd)
-    return wrapped
 
 
 def _run_lbfgs(
@@ -185,7 +156,7 @@ def _run_lbfgs(
     *,
     has_aux: bool = False,
     aux_history: dict | None = None,
-    clip_fn: Any = None,
+    bounds: tuple[float, float] | None = None,
     record_diagnostics: bool = False,
     div_fn: Any = None,
     snap_interval: int = 0,
@@ -196,108 +167,121 @@ def _run_lbfgs(
     log_interval: int = 10,
     grad_proj_fn: Any = None,
 ) -> tuple:
-    """L-BFGS with zoom line-search.
+    """SciPy's L-BFGS-B on a single array ``init_x``.
 
-    When ``has_aux=True``, ``loss_fn(x) → (scalar_loss, aux_dict)``; we
-    wrap to a scalar for optax's line-search, but reuse
-    ``jax.value_and_grad(loss_fn, has_aux=True)`` so each iteration only
-    computes one forward pass (the value/aux pair shares trace work). Aux
-    values land in ``aux_history`` exactly as in :func:`_run_optim`.
+    When ``has_aux=True``, ``loss_fn(x)`` returns ``(scalar_loss, aux_dict)``
+    and the aux values land in ``aux_history`` as in :func:`_run_optim`.
+    ``bounds=(lo, hi)`` bounds every entry of ``x``. ``grad_proj_fn`` is
+    applied to every gradient L-BFGS-B sees, e.g. to project velocity fields
+    onto the divergence-free subspace.
 
-    ``clip_fn`` projects ``x`` back into the feasible set after each
-    update (e.g. ``jnp.clip(x, x_min, 1.0)`` for density fields).
-    ``grad_proj_fn``, when provided, is called on the gradient (numpy)
-    before the L-BFGS update — used by velocity-field optimisation to
-    project onto the divergence-free subspace (Helmholtz).
+    L-BFGS-B iterates in float64 and ``loss_fn`` receives ``x`` in
+    ``init_x``'s dtype. It stops after ``max_iters`` iterations, when the
+    gradient's 2-norm falls below 1e-7, or when its line search fails from an
+    empty history. SciPy's own gradient test is off: it bounds the largest
+    entry, which on a large ``x`` fires orders of magnitude earlier.
 
-    The ``lr``, ``patience``, ``record_diagnostics``, and ``div_fn``
-    parameters are accepted but ignored, so call sites that pass them
-    work without modification.
+    A trial point with a non-finite loss or gradient is reported as the loss
+    at the current iterate plus its magnitude, which the line search always
+    rejects. Reporting ``inf`` would make L-BFGS-B stop and claim convergence.
+    The reported value scales with the loss: one far above it makes the line
+    search shrink the step until ``x`` no longer changes at ``loss_fn``'s
+    precision, and the run then ends as converged. Evaluations are
+    cached by ``x`` at ``loss_fn``'s precision, so a restart from an accepted
+    iterate reuses its value without asking the solver again.
 
-    Returns ``(final_x, losses, diag)`` where ``diag`` is
-    ``{"grad_norms": [...]}``. Shape matches :func:`_run_optim`, and so does
-    the ``FloatingPointError`` on a NaN/Inf loss.
+    ``lr``, ``patience``, ``record_diagnostics`` and ``div_fn`` are accepted
+    and ignored, so call sites can pass the same arguments as to
+    :func:`_run_optim`.
+
+    Returns ``(final_x, losses, diag)``. ``losses`` and ``diag["grad_norms"]``
+    cover ``init_x`` and every iterate, ending at ``final_x``.
+    ``diag["converged"]`` is false when the run hit ``max_iters`` or the line
+    search failed. Raises ``FloatingPointError`` when the loss at ``init_x``
+    is not finite.
     """
-    if has_aux:
+    shape, dtype = init_x.shape, init_x.dtype
+    vg = jax.value_and_grad(loss_fn, has_aux=has_aux)
 
-        def _scalar_loss(x: Any) -> Any:
-            return loss_fn(x)[0]
-
-        vg = jax.value_and_grad(loss_fn, has_aux=True)
-    else:
-        _scalar_loss = loss_fn
-        vg = jax.value_and_grad(loss_fn)
-    _linesearch_loss = _outside_domain_if_nonfinite(_scalar_loss)
-
-    import os
-
-    _mosaic_lbfgs_diag = os.environ.get("MOSAIC_LBFGS_DIAG", "0") == "1"
-
-    def _probe(label: str, i: int) -> None:
-        if not _mosaic_lbfgs_diag:
-            return
-        # POSIX-only, so imported only when the diagnostic is asked for.
-        import resource
-
-        rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        try:
-            live = len(jax.live_arrays())
-        except Exception:
-            live = -1
-        print(
-            f"[lbfgs-diag] iter={i:3d} {label:10s} RSS={rss_kb / 1024:.1f}MiB live_arrays={live}"
-        )
-
-    solver = optax.lbfgs()
-
-    # Wrap one full L-BFGS step in a single jit. This is critical: the
-    # default linesearch (``scale_by_zoom_linesearch``) builds a fresh
-    # ``functools.partial`` body for its ``jax.lax.while_loop`` every
-    # call, and the while_loop trace cache keys off body identity. Driving
-    # the loop in Python therefore re-traces the linesearch every iter,
-    # accumulating compiled XLA modules until the host runs out of memory.
-    # JIT-ing the whole step gives the linesearch a stable identity inside
-    # one cached trace — recompilation happens once per (x.shape, dtype).
-    def _step_body(x: Any, opt_state: Any) -> tuple:
+    @jax.jit
+    def value_and_grad(x: Any) -> tuple:
         if has_aux:
             (value, aux), grad = vg(x)
         else:
-            value, grad = vg(x)
-            aux = None
+            (value, grad), aux = vg(x), None
         if grad_proj_fn is not None:
             grad = grad_proj_fn(grad)
-        grad_norm = jnp.linalg.norm(grad.ravel())
-        updates, opt_state = solver.update(
-            grad, opt_state, x, value=value, grad=grad, value_fn=_linesearch_loss
-        )
-        x = optax.apply_updates(x, updates)
-        if clip_fn is not None:
-            x = clip_fn(x)
-        return x, opt_state, value, grad_norm, aux
+        return value, grad, aux
 
-    step = jax.jit(_step_body)
+    def to_x(z: np.ndarray) -> np.ndarray:
+        return z.reshape(shape).astype(dtype)
 
-    opt_state = solver.init(init_x)
-    x = init_x
+    # Evaluations since the last accepted iterate, plus that iterate.
+    evals: dict[bytes, tuple] = {}
+
+    def evaluate(z: np.ndarray) -> tuple:
+        key = to_x(z).tobytes()
+        if key not in evals:
+            value, grad, aux = value_and_grad(jnp.asarray(to_x(z)))
+            value = float(value)
+            grad = np.asarray(grad, dtype=np.float64).ravel()
+            finite = math.isfinite(value) and np.all(np.isfinite(grad))
+            evals[key] = (value, grad, aux, finite)
+        return evals[key]
+
+    def objective(z: np.ndarray) -> tuple:
+        value, grad, _, finite = evaluate(z)
+        if not finite:
+            return losses[-1] + abs(losses[-1]), np.zeros_like(grad)
+        return value, grad
+
     losses: list[float] = []
     grad_norms: list[float] = []
-    _probe("init", -1)
-    for i in range(max_iters):
-        x, opt_state, value, grad_norm, aux = step(x, opt_state)
+    last_z: list[np.ndarray] = []
+
+    def record(z: np.ndarray) -> None:
+        entry = evaluate(z)
+        evals.clear()
+        evals[to_x(z).tobytes()] = entry
+        value, grad, aux, _ = entry
+        i = len(losses)
+        _check_finite_loss(value, i)
         if has_aux:
             _append_aux(aux_history, aux)
-        grad_norms.append(float(grad_norm))
-        loss_val = float(value)
-        _check_finite_loss(loss_val, i)
-        losses.append(loss_val)
-        _probe("after-step", i)
-        if snap_interval > 0 and (i + 1) % snap_interval == 0:
+        losses.append(value)
+        grad_norms.append(float(np.linalg.norm(grad)))
+        last_z[:] = [z.copy()]
+        if i == 0:
+            return
+        if snap_interval > 0 and i % snap_interval == 0:
+            x = to_x(z)
             if history is not None:
-                history.append(np.asarray(x))
+                history.append(x)
             if snap_error_fn is not None and error_history is not None:
-                error_history.append(snap_error_fn(np.asarray(x)))
-        if log_fn is not None and (i + 1) % log_interval == 0:
-            log_fn(i + 1, loss_val)
+                error_history.append(snap_error_fn(x))
+        if log_fn is not None and i % log_interval == 0:
+            log_fn(i, value)
+
+    z0 = np.asarray(init_x, dtype=np.float64).ravel()
+    record(z0)
+
+    def callback(intermediate_result: scipy.optimize.OptimizeResult) -> None:
+        record(intermediate_result.x)
         if grad_norms[-1] < 1e-7:
-            break
-    return x, losses, {"grad_norms": grad_norms}
+            raise StopIteration
+
+    res = scipy.optimize.minimize(
+        objective,
+        z0,
+        jac=True,
+        method="L-BFGS-B",
+        bounds=None if bounds is None else scipy.optimize.Bounds(*bounds),
+        callback=callback,
+        options={"maxiter": max_iters, "gtol": 0.0, "ftol": 0.0},
+    )
+    # L-BFGS-B does not call back on the iterate at which it converges.
+    if not np.array_equal(res.x, last_z[0]):
+        record(res.x)
+    converged = res.success or grad_norms[-1] < 1e-7
+    diag = {"grad_norms": grad_norms, "converged": bool(converged)}
+    return jnp.asarray(to_x(res.x)), losses, diag

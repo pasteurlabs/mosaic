@@ -90,6 +90,38 @@ def filter_resumable_solvers(
     return [s for s in solver_names if s not in done]
 
 
+_SNAP_SEP = "::"
+
+
+def write_partial_snapshots(out_dir: Path, name: str, snaps: dict) -> None:
+    """Checkpoint *name*'s snapshot arrays to ``<out_dir>/result_partial.npz``."""
+    from .io import save_npz_merged
+
+    save_npz_merged(
+        out_dir / "result_partial.npz",
+        {f"{name}{_SNAP_SEP}{k}": v for k, v in snaps.items()},
+    )
+
+
+def load_partial_solvers(out_dir: Path, names: list[str]) -> tuple[dict, dict]:
+    """Return ``(by_solver, snapshots)`` checkpointed for *names*, for ``--continue``."""
+    from .io import try_load_json, try_load_npz
+
+    data = try_load_json(out_dir / "result_partial.json") or {}
+    top = data.get("by_solver") if isinstance(data, dict) else None
+    by_solver = {
+        n: top[n]
+        for n in names
+        if isinstance(top, dict) and isinstance(top.get(n), dict)
+    }
+    snapshots: dict[str, dict] = {}
+    for key, arr in try_load_npz(out_dir / "result_partial.npz").items():
+        name, _, suffix = key.partition(_SNAP_SEP)
+        if name in by_solver:
+            snapshots.setdefault(name, {})[suffix] = arr
+    return by_solver, snapshots
+
+
 def done_solvers_in_partial(partial_path: Path) -> set[str]:
     """Return solver names provably complete in *partial_path*.
 

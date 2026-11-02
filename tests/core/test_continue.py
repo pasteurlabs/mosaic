@@ -90,6 +90,32 @@ class ContinueFlagTests(unittest.TestCase):
         )
         self.assertEqual(called, ["exp_b"])
 
+    def test_continue_reruns_cells_selected_by_only(self) -> None:
+        """--only failed --continue reruns the selected cells of a finished experiment."""
+        from mosaic.benchmarks.core import cell_filter
+
+        cfg = _make_cfg(self.tmp_root / "tess")
+        suite = "fake_suite"
+        for name in ("exp_a", "exp_b"):
+            exp_dir = self.results_root / cfg.name / suite / name
+            exp_dir.mkdir(parents=True)
+            (exp_dir / "result.json").write_text("{}")
+
+        called: list[str] = []
+        cell_filter.set_active({(f"{suite}/exp_a", "dummy"): True})
+        try:
+            run_suite(
+                cfg,
+                tags={},
+                experiments=self._experiments(called),
+                suite_name=suite,
+                plots=False,
+                skip_completed=True,
+            )
+        finally:
+            cell_filter.set_active(None)
+        self.assertEqual(called, ["exp_a"])
+
     def test_continue_off_runs_both(self) -> None:
         """Without --continue, an existing result.json does NOT skip."""
         cfg = _make_cfg(self.tmp_root / "tess")

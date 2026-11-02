@@ -23,6 +23,23 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+
+def _load_views():
+    """Load docs/intervention_views.py whether this runs as a script or a module."""
+    import importlib.util
+
+    name = "_mosaic_intervention_views"
+    if name not in sys.modules:
+        path = Path(__file__).resolve().parent / "intervention_views.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+views = _load_views()
 TESSERACTS = ROOT / "mosaic" / "tesseracts"
 OUTPUT = Path(__file__).resolve().parent / "solvers.qmd"
 
@@ -69,39 +86,38 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
         if label and not _CATEGORY_LABELS.get(domain_dir):
             _CATEGORY_LABELS[domain_dir] = label
 
-        # cfg.exclusions is keyed by ``<experiment>``→``<solver_name>``→
-        # ``Exclusion``. Pivot to a per-solver view so the docs template
-        # can render one section per solver.
-        per_solver_excl: dict[str, dict[str, dict]] = {}
-        per_solver_anom: dict[str, dict[str, dict]] = {}
-        for exp_key, by_solver in cfg.exclusions.items():
-            for sname, exc in by_solver.items():
-                payload = {"category": exc.category.value, "reason": exc.reason}
-                target = (
-                    per_solver_anom
-                    if exc.category.value == "anomaly_explained"
-                    else per_solver_excl
-                )
-                target.setdefault(sname, {})[exp_key] = payload
-
         for spec in cfg.solvers:
             key = (domain_dir, spec.dir)
-            exc_dict = per_solver_excl.get(spec.name, {})
-            anom_dict = per_solver_anom.get(spec.name, {})
-            _SOLVER_SPECS[key] = {
-                "name": spec.name,
-                "scheme": spec.scheme,
-                "backend_lang": spec.backend,
-                "ad_strategy": spec.ad_strategy,
-                "description": spec.description,
-                "doc_url": spec.doc_url,
-                "family": spec.family,
-                "uses_gpu": spec.uses_gpu,
-                "differentiable": spec.differentiable,
-                "internal_dtype": spec.internal_dtype,
-                "exclusions": exc_dict,
-                "explained_anomalies": anom_dict,
-            }
+            entry = _SOLVER_SPECS.setdefault(
+                key,
+                {
+                    "name": spec.name,
+                    "scheme": spec.scheme,
+                    "backend_lang": spec.backend,
+                    "ad_strategy": spec.ad_strategy,
+                    "description": spec.description,
+                    "doc_url": spec.doc_url,
+                    "family": spec.family,
+                    "uses_gpu": spec.uses_gpu,
+                    "differentiable": spec.differentiable,
+                    "internal_dtype": spec.internal_dtype,
+                    "exclusions": {},
+                    "explained_anomalies": {},
+                },
+            )
+            # cfg.exclusions is keyed by ``spec.key``→``<experiment key>``→
+            # ``Exclusion``. Several Problems can share a tesseract dir (and
+            # thus a solver card), so entries are grouped by problem name.
+            for exp_key, exc in cfg.exclusions.get(spec.key, {}).items():
+                target = (
+                    entry["explained_anomalies"]
+                    if exc.category.value == "anomaly_explained"
+                    else entry["exclusions"]
+                )
+                target.setdefault(prob, {})[exp_key] = {
+                    "category": exc.category.value,
+                    "reason": exc.reason,
+                }
     return _SOLVER_SPECS
 
 
@@ -109,6 +125,107 @@ def _get_spec(physics: str, backend: str) -> dict | None:
     """Get SolverSpec data for a given physics/backend pair."""
     specs = _load_solver_specs()
     return specs.get((physics, backend))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Capability matrix (solver × suite, derived from the problem exclusions)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Suites shown as matrix columns, in display order. ``ics`` only generates
+# initial conditions and says nothing about what a solver can do.
+_MATRIX_SUITES = ["forward", "gradient", "cost", "optimization"]
+
+_EXCLUSION_CATEGORY_LABELS = {
+    # Same words as the check states on the Results pages.
+    "categorical": "not supported",
+    "infeasible": "infeasible",
+    "not_implemented": "not implemented",
+    "unstable": "unstable",
+    "upstream_bug": "upstream bug",
+    "wip": "work in progress",
+    "unspecified": "unspecified",
+}
+
+
+def collect_capabilities() -> list[dict]:
+    """Build one solver × suite matrix per Problem from its exclusions.
+
+    Each cell counts the experiments with ``params`` that the solver runs in
+    full, using the runner's :func:`exclusion_lookup`. An exclusion on a
+    sub-key, such as a single IC, also takes the experiment out of the count.
+    """
+    try:
+        from docs.generate_results import PROBLEM_LABELS
+        from mosaic.benchmarks.core.utils import exclusion_lookup
+        from mosaic.benchmarks.problems import PROBLEMS, get_config
+    except ImportError:
+        return []
+
+    # Match the order of the Results pages and put unlabeled problems last.
+    order = list(PROBLEM_LABELS)
+    problems = sorted(
+        PROBLEMS, key=lambda p: order.index(p) if p in order else len(order)
+    )
+    matrices = []
+    for prob in problems:
+        try:
+            cfg = get_config(prob)
+        except Exception:  # noqa: S112 — skip problems that don't import in the docs env
+            continue
+        experiments: dict[str, list[str]] = {}
+        for exp_key, exp in cfg.experiments.items():
+            suite, _, exp_name = exp_key.partition("/")
+            if suite in _MATRIX_SUITES and exp.params:
+                experiments.setdefault(suite, []).append(exp_name)
+        suites = [s for s in _MATRIX_SUITES if s in experiments]
+
+        rows = []
+        for spec in cfg.solvers:
+            excl = {
+                k: e
+                for k, e in cfg.exclusions.get(spec.key, {}).items()
+                if e.category.value != "anomaly_explained"
+            }
+            cells = {}
+            unsupported = {}
+            for suite in suites:
+                n_total = len(experiments[suite])
+                n_run = sum(
+                    1
+                    for exp_name in experiments[suite]
+                    if exclusion_lookup(excl, suite, exp_name) is None
+                    and not any(k.startswith(f"{suite}/{exp_name}/") for k in excl)
+                )
+                cells[suite] = (n_run, n_total)
+                unsupported[suite] = sum(
+                    1
+                    for exp_name in experiments[suite]
+                    if (hit := exclusion_lookup(excl, suite, exp_name)) is not None
+                    and hit[1].category.value == "categorical"
+                )
+            notes: dict[str, list[str]] = {}
+            for k, e in excl.items():
+                label = _EXCLUSION_CATEGORY_LABELS.get(
+                    e.category.value, e.category.value
+                )
+                notes.setdefault(label, []).append(k)
+            rows.append(
+                {
+                    "name": spec.name,
+                    "anchor": f"{cfg.tesseract_dir.name}-{spec.dir}",
+                    "cells": cells,
+                    "unsupported": unsupported,
+                    "notes": notes,
+                }
+            )
+        matrices.append(
+            {
+                "label": PROBLEM_LABELS.get(prob, prob),
+                "suites": suites,
+                "rows": rows,
+            }
+        )
+    return matrices
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -275,6 +392,8 @@ def load_solver(path: Path) -> dict | None:
     # The YAML metadata.mosaic block is the authoritative per-container
     # source; SolverSpec is used only as a fallback when a key is missing.
     yaml_mosaic = (config.get("metadata") or {}).get("mosaic") or {}
+    setups = views.iv.DOMAIN_SETUPS.get(physics, ())
+    record, _ = views.iv.parse_record(yaml_mosaic, setups or None)
 
     return {
         "name": config.get("name", f"{physics}/{backend}"),
@@ -309,6 +428,8 @@ def load_solver(path: Path) -> dict | None:
         or (spec["internal_dtype"] if spec else ""),
         "exclusions": spec["exclusions"] if spec else {},
         "explained_anomalies": spec["explained_anomalies"] if spec else {},
+        "record": record,
+        "setups": setups,
     }
 
 
@@ -523,11 +644,14 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
         lines.append("::: {.callout-note}")
         lines.append("#### Excluded experiments")
         lines.append("")
-        for key, val in solver["exclusions"].items():
-            reason = val.get("reason", val) if isinstance(val, dict) else val
-            lines.append(f"- **{key}**: {reason}")
+        for problem, by_key in solver["exclusions"].items():
+            for key, val in by_key.items():
+                lines.append(f"- **{problem} · {key}**: {val['reason']}")
         lines.append(":::")
         lines.append("")
+
+    # Intervention record: a summary line plus a collapsible detail table.
+    lines += views.developer_block(solver.get("record"), solver.get("setups", ()))
 
     # Schema tables
     lines += [
@@ -542,6 +666,58 @@ def render_solver(solver: dict, scores: dict | None = None) -> str:
         "",
     ]
 
+    return "\n".join(lines)
+
+
+def _render_cell(n_run: int, n_total: int, n_unsupported: int = 0) -> str:
+    if n_run == n_total:
+        return "✓"
+    if n_unsupported == n_total:
+        return "—"
+    return f"{n_run}/{n_total}"
+
+
+def render_capabilities(matrices: list[dict]) -> str:
+    lines = [
+        "## Capability matrix",
+        "",
+        (
+            "These tables show which benchmark suites each solver runs, based on "
+            "the exclusions in the problem configs. ✓ means the solver runs every "
+            "experiment in the suite, — means the method cannot run any of them "
+            "(not supported, as on the Results pages), and *k*/*n* means it runs "
+            "*k* of the suite's *n* experiments in full; the others are not "
+            "supported or excluded for a reason that may be lifted. **Notes** lists "
+            "the excluded experiment keys by category, and each solver name links "
+            "to its card, which gives the reasons."
+        ),
+        "",
+    ]
+    for matrix in matrices:
+        suites = matrix["suites"]
+        lines += [
+            f"### {matrix['label']}",
+            "",
+            "| Solver | " + " | ".join(s.capitalize() for s in suites) + " | Notes |",
+            "|---|" + ":-:|" * len(suites) + "---|",
+        ]
+        for row in matrix["rows"]:
+            cells = [
+                _render_cell(*row["cells"][s], row["unsupported"].get(s, 0))
+                for s in suites
+            ]
+            notes = "; ".join(
+                f"{label}: " + ", ".join(f"`{k}`" for k in keys)
+                for label, keys in row["notes"].items()
+            )
+            lines.append(
+                # Keeps names like "OpenFOAM" from breaking mid-word in the
+                # narrow first column.
+                f"| [{row['name']}](#{row['anchor']}){{.text-nowrap}} | "
+                + " | ".join(cells)
+                + f" | {notes} |"
+            )
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -586,13 +762,21 @@ def render_toolbar(categories: dict[str, list[dict]]) -> str:
     )
 
 
-def generate_qmd(categories: dict[str, list[dict]]) -> str:
+def generate_qmd(
+    categories: dict[str, list[dict]], capabilities: list[dict] | None = None
+) -> str:
     frontmatter = "---\ntitle: Solver Reference\ntoc: false\n---\n\n"
     header = (
         f"Each solver card shows its numerical scheme, AD strategy, and "
-        f"Tesseract schema; per-(solver, problem) exclusions and explained "
-        f"anomalies come from the problem configs and are listed alongside. "
-        f"Click **Details** on any solver to see its field tables. "
+        f"Tesseract schema, and lists the experiments it is excluded from in "
+        f"each problem config. "
+        f"Each card also says what it took to run the solver here: the "
+        f"**effort** per setup (the highest level among the interventions it "
+        f"needs, L0 documented use to L3 changes to the solver), and under "
+        f"**Interventions and deviations** every intervention with its reason, "
+        f"evidence and upstream issue, the setup deviations, and the "
+        f"interventions nobody has a reason for yet. "
+        f"Click **Details** on any solver to see all of this and its field tables. "
         f"The \u2202 column marks fields that support automatic differentiation "
         f"(VJP/JVP).\n\n"
         f"::: {{.legend-note}}\n"
@@ -620,6 +804,7 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
     sections = "\n\n".join(
         render_category(cat, solvers, scores) for cat, solvers in categories.items()
     )
+    matrix = render_capabilities(capabilities) + "\n" if capabilities else ""
     return (
         frontmatter
         + header
@@ -627,7 +812,8 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         + render_toolbar(categories)
         + "::: {#solver-catalog}\n\n"
         + sections
-        + "\n:::\n:::\n"
+        + "\n:::\n:::\n\n"
+        + matrix
     )
 
 
@@ -641,7 +827,7 @@ def main() -> None:
     if not categories:
         sys.exit(f"No solvers found under {TESSERACTS}")
 
-    new_qmd = generate_qmd(categories)
+    new_qmd = generate_qmd(categories, collect_capabilities())
     OUTPUT.write_text(new_qmd, encoding="utf-8")
     total = sum(len(v) for v in categories.values())
     print(f"Generated {OUTPUT} ({total} solvers, {len(categories)} categories)")
