@@ -31,12 +31,6 @@ JAX_CFD_NO_OBSTACLE = Exclusion(
     "non-periodic pressure solvers for channel flows, which are not wired "
     "up here",
 )
-INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; INS.jl itself supports "
-    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
-    "Brinkman forcing, which are not wired up here",
-)
 EXPONAX_PERIODIC_ONLY = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "a Fourier pseudo-spectral method represents only periodic fields, so it "
@@ -100,7 +94,6 @@ PHIFLOW_SPARSE_CG_COST = Exclusion(
 )
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
-    "ins_jl": INS_JL_NO_OBSTACLE,
     "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
