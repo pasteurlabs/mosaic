@@ -20,6 +20,13 @@ from pathlib import Path
 
 import yaml
 
+# The GPU memory settings every JAX solver runs with (docs/tutorial.qmd,
+# "GPU memory settings"): no preallocation, and the same cap for all.
+JAX_GPU_ENV = {
+    "XLA_PYTHON_CLIENT_PREALLOCATE": "false",
+    "XLA_PYTHON_CLIENT_MEM_FRACTION": "0.95",
+}
+
 errors: list[str] = []
 configs = sorted(Path("mosaic/tesseracts").rglob("tesseract_config.yaml"))
 
@@ -60,6 +67,13 @@ for p in configs:
             val = mosaic_meta.get(bool_field)
             if val is not None and not isinstance(val, bool):
                 errors.append(f"{p}: mosaic.{bool_field}={val!r} must be a boolean")
+        if mosaic_meta.get("backend") == "jax" and mosaic_meta.get("uses_gpu", True):
+            env = doc.get("env") or {}
+            for key, want in JAX_GPU_ENV.items():
+                if env.get(key) != want:
+                    errors.append(
+                        f"{p}: env.{key} must be {want!r} for a JAX GPU solver"
+                    )
     except Exception as e:
         errors.append(f"{p}: {e}")
 
