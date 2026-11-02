@@ -409,8 +409,9 @@ def run_experiment(
 
         if sweep_mode == "limits" and gpu_ids is None:
             console.print(
-                f"  [yellow]WARN[/] {exp_key}: gpu_ids not set — solvers share all "
-                "GPUs. Pass --gpu-ids 0 1 2 3 for isolated per-GPU OOM measurements."
+                f"  [yellow]WARN[/] {exp_key}: no --gpus given — each solver sees "
+                "every GPU. Pass --gpus to pin each solver to one GPU for per-GPU "
+                "OOM limits."
             )
 
         # Compute out_dir early so filter_resumable_solvers and
