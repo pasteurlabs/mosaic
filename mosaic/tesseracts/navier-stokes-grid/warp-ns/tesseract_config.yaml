@@ -45,6 +45,7 @@ metadata:
               The earlier version was 15 to 30x slower in forward and VJP,
               measured by direct apply and VJP calls on an A100.
             evidence: "#132; https://github.com/NVIDIA/warp/discussions/1636."
+          ns-2d-kolmogorov: *rewrite-reason
           ns-3d: *rewrite-reason
         provenance: maintainer-advised
       - id: bluestein-non-pow2-fft
@@ -66,6 +67,7 @@ metadata:
               #132; section comment in tesseract_api.py. The scaling of this
               path was fixed in #232; tests/test_warp_ns_fft.py checks it
               against NumPy.
+          ns-2d-kolmogorov: *bluestein-reason
           ns-3d: *bluestein-reason
         upstream: >
           Not filed. Warp 1.15.0's tile_fft documentation lists any size as

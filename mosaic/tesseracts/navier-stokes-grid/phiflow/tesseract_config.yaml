@@ -47,6 +47,7 @@ metadata:
             evidence: >
               https://github.com/pasteurlabs/mosaic/issues/155; #232, table;
               docstring of _ravel_multi_index_int64.
+          ns-2d-kolmogorov: *int64-reason
           ns-3d: *int64-reason
         upstream: https://github.com/tum-pbs/PhiML/pull/16 (open)
         provenance: mosaic-team
@@ -107,6 +108,7 @@ metadata:
             evidence: >
               #288; https://tum-pbs.github.io/PhiFlow/Fluid_Simulation.html
               ("Higher-Order Simulations").
+          ns-2d-kolmogorov: *rk4-reason
           ns-3d: *rk4-reason
         provenance: mosaic-team
       - id: inlined-obstacle-projection

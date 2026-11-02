@@ -38,7 +38,7 @@ metadata:
           The mean velocity, which the vorticity form drops, is carried
           separately, under the mean force and drag when there are any.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &vorticity-velocity-conversion-periodic
             consequences: [cannot-express]
             symptom: >
               The benchmark's state is velocity, and Exponax 0.2.0's velocity
@@ -48,6 +48,7 @@ metadata:
             evidence: >
               https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/stepper/_navier_stokes.py
               (num_spatial_dims checks).
+          ns-2d-kolmogorov: *vorticity-velocity-conversion-periodic
         provenance: mosaic-team
       - id: canonical-force-injection
         level: L3
@@ -58,7 +59,7 @@ metadata:
           _integrator._nonlinear_fun.injection) to the spectral curl of the
           force, as complex coefficients.
         why:
-          ns-2d-periodic:
+          ns-2d-kolmogorov:
             consequences: [cannot-express]
             symptom: >
               Exponax 0.2.0 builds the injection from injection_mode and

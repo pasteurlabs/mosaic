@@ -47,6 +47,7 @@ metadata:
               Comment above _USE_F64_DIFF;
               https://github.com/pasteurlabs/mosaic/issues/125 (open) proposes
               measuring float32 against fd_check.
+          ns-2d-kolmogorov: *float64-reason
           ns-2d-cylinder: *float64-reason
           ns-3d: *float64-reason
         provenance: mosaic-team
@@ -66,6 +67,7 @@ metadata:
               removed. Whether the remaining operators need it has not been
               checked.
             evidence: Docstring of _make_ops at 6517f75.
+          ns-2d-kolmogorov: *init-reason
           ns-2d-cylinder: *init-reason
           ns-3d: *init-reason
         upstream: None filed.
@@ -84,12 +86,13 @@ metadata:
               A plain scan stores every step's populations for the reverse
               pass: 110 GB at N = 64 against a 0.3 GB forward.
             evidence: "Docstring of _checkpointed_scan; #135."
-          ns-2d-periodic:
+          ns-2d-periodic: &sqrt-checkpointing-periodic
             consequences: [too-slow]
             symptom: >
               #135 says it fixes some of XLB's VJP slowness in 2-D. No number
               is recorded.
             evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
+          ns-2d-kolmogorov: *sqrt-checkpointing-periodic
         provenance: mosaic-team
       - id: channel-checkpointing
         level: L0
@@ -114,7 +117,7 @@ metadata:
           Chapman-Enskog non-equilibrium part (Mei et al. 2006), instead of
           the equilibrium at density 1.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &consistent-initial-populations-periodic
             consequences: [inaccurate-forward]
             symptom: >
               Equilibrium-only populations leave out pressure and viscous
@@ -123,6 +126,7 @@ metadata:
               0.031 to 0.035 without them and 6e-4 to 8e-4 with them, against
               a peer median of 2.4e-3.
             evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
+          ns-2d-kolmogorov: *consistent-initial-populations-periodic
           ns-3d:
             consequences: [inaccurate-forward]
             symptom: >
@@ -146,6 +150,7 @@ metadata:
               the reason. Nothing was measured, and whether XLB's stepper works
               under scan and reverse mode was not recorded.
             evidence: Initial commit (c47498a) description.
+          ns-2d-kolmogorov: *loop-reason
           ns-3d: *loop-reason
         provenance: mosaic-team
       - id: exact-difference-forcing
@@ -157,7 +162,7 @@ metadata:
           semi-implicitly at the half-force velocity. The initial populations
           and the output velocity are shifted by half a kick.
         why:
-          ns-2d-periodic:
+          ns-2d-kolmogorov:
             consequences: [cannot-express]
             symptom: >
               XLB 0.3.1's ExactDifference operator takes one constant force
@@ -207,7 +212,7 @@ metadata:
         provenance: mosaic-team
     deviations:
       - id: ma-targeted-substepping
-        setups: [ns-2d-periodic, ns-2d-cylinder, ns-3d]
+        setups: [ns-2d-periodic, ns-2d-kolmogorov, ns-2d-cylinder, ns-3d]
         what: >
           Each prescribed step runs as k = ceil(Ma / Ma_target) LBM steps of
           dt / k, never coarser than prescribed. Ma_target is 0.1, lowered in

@@ -52,6 +52,11 @@ def test_experiments_map_to_setups() -> None:
     assert views.iv.setup_of("ns-grid", "forward/agreement/tgv").key == (
         "ns-2d-periodic"
     )
+    for exp in ("forward/kolmogorov", "forward/kolmogorov_laminar"):
+        assert views.iv.setup_of("ns-grid", exp).key == "ns-2d-kolmogorov"
+    assert views.iv.setup_of("ns-grid", "gradient/chain_fd_check").key == (
+        "ns-2d-kolmogorov"
+    )
     assert views.iv.setup_of("ns-3d-grid", "cost/spatial_cost").key == "ns-3d"
     assert views.iv.setup_of("unknown-problem", "forward/x") is None
 

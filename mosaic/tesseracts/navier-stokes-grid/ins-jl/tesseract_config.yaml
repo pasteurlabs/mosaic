@@ -92,6 +92,7 @@ metadata:
             evidence: >
               https://github.com/agdestein/IncompressibleNavierStokes.jl/blob/v5.0.0/examples/Differentiability.jl;
               #103.
+          ns-2d-kolmogorov: *rollout-reason
           ns-3d: *rollout-reason
         provenance: mosaic-team
       - id: float32-setup
@@ -113,6 +114,7 @@ metadata:
             evidence: >
               #103, item 3; INS.jl's manual on floating point precision
               (docs/src/manual/backends.md at v5.0.0).
+          ns-2d-kolmogorov: *float32-reason
           ns-3d: *float32-reason
         provenance: maintainer-authored
       - id: cuda-backend
@@ -125,7 +127,7 @@ metadata:
           Zygote pullback run on INS.jl's CUDA backend instead of the default
           CPU backend.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &cuda-backend-periodic
             consequences: [too-slow]
             symptom: >
               On the CPU, vjp_cost at N = 256 took 9.20 s against 0.96 to
@@ -133,6 +135,7 @@ metadata:
               N = 64 went from 0.085 s to 0.16 to 0.64 s. Every status and
               forward error is unchanged.
             evidence: "#307, notes."
+          ns-2d-kolmogorov: *cuda-backend-periodic
           ns-3d:
             consequences: [too-slow]
             symptom: >
@@ -158,6 +161,7 @@ metadata:
               that built them. The solver's kernels run on the GPU (#307) and
               are compiled at run time, so only host-side code from the package
               images could be slower; not measured.
+          ns-2d-kolmogorov: *target-reason
           ns-3d: *target-reason
         provenance: mosaic-team
     deviations: []
