@@ -80,9 +80,8 @@ class WorkerContext:
     """Per-thread context set by :func:`run_with_gpu_pool`.
 
     Suites can read this inside their work callback (passed to
-    ``run_with_gpu_pool``) to discover which GPU they were assigned and
-    which image tag is serving — useful for ResourceSampler / MemoryPoller
-    construction.
+    ``run_with_gpu_pool``) to discover which GPU they were assigned (the
+    device a MemoryPoller samples) and which image tag is serving.
 
     Both fields are ``None`` outside a runner-managed thread. In serial
     mode ``gpu_id`` is the device :func:`_serial_vram_device` picks, ``None``
