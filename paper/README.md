@@ -1,15 +1,17 @@
 # Mosaic paper
 
-LaTeX source of _Mosaic: A Benchmark Suite for Differentiable Physics Solvers_, in two variants that share figures and bibliography:
+LaTeX source of _Mosaic: A Benchmark Suite for Differentiable Physics Solvers_, in two variants built from the same content:
 
-- `main.tex`: NeurIPS 2026 Evaluations & Datasets Track submission (anonymized, with checklist).
-- `pasteurlabs/main.tex`: preprint with author information.
+- `neurips.tex`: NeurIPS 2026 Evaluations & Datasets Track submission (anonymized, with checklist).
+- `preprint.tex`: preprint with author information, styled by `pasteurlabs.sty`.
+
+Both wrap the shared `abstract.tex`, `body.tex` and `appendix.tex`, and set the template, title block, bibliography and float placement themselves. Content that differs between the variants is wrapped in `\ifpreprint ... \else ... \fi`. The NeurIPS wrapper appends the period to run-in `\paragraph` titles, so write them without one.
 
 ## Building
 
 ```bash
-latexmk -pdf -cd paper/main.tex
-latexmk -pdf -cd paper/pasteurlabs/main.tex
+latexmk -pdf -cd paper/neurips.tex
+latexmk -pdf -cd paper/preprint.tex
 ```
 
 A standard TeX Live installation covers both. The preprint additionally uses the `libertine`, `newtx`, `sourcesanspro`, `inconsolata` and `orcidlink` packages.
