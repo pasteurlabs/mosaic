@@ -332,7 +332,7 @@ def horizon_sweep_limits(t: Any, ctx: KernelContext) -> dict:
     Intended to be run with one GPU per solver so OOM reflects a single GPU
     budget::
 
-        mosaic gradient ns-3d-grid --experiments horizon_sweep_limits --gpu-ids 0 1 2 3
+        mosaic run -p ns-3d-grid -e gradient/horizon_sweep_limits --gpus 0,1,2,3
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     g = _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key)
