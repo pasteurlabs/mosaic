@@ -53,12 +53,15 @@ def cfd_fwd(
     domain_extent: float,
     forcing: jnp.ndarray | None = None,
     linear_drag: float | None = None,
+    snapshot_every: int | None = None,
     **_kwargs: Any,
-) -> jax.Array:
+) -> dict[str, jax.Array]:
     """Compute the final velocity field of the incompressible Navier-Stokes equations.
 
     Supports 2D and 3D on a fully periodic domain, inferred from
-    v0.shape[-1]. The result has the same shape as v0.
+    v0.shape[-1]. ``result`` has the same shape as v0, and with
+    ``snapshot_every`` the rollout's states after every ``snapshot_every``
+    steps are also returned as ``snapshots``.
 
     ``forcing`` and ``linear_drag`` enter the explicit right-hand side that
     every RK4 stage evaluates. The force is averaged onto the faces like v0,
@@ -139,23 +142,28 @@ def cfd_fwd(
 
     rollout_fn = cfd.funcutils.trajectory(step_fn, steps)
     _, trajectory = rollout_fn(v_grid)
-    stag_components = [trajectory[i].array.data[-1] for i in range(ndim)]
 
-    # --- interpolate back to collocated grid ---
-    coloc_components = [
-        interp_to_coloc(stag_components[i], own_axis=i) for i in range(ndim)
-    ]
-    result = jnp.stack(coloc_components, axis=-1)
+    def to_coloc(frame: int | slice) -> jax.Array:
+        """Staggered trajectory frame(s) → collocated (..., *spatial, 1?, ndim)."""
+        components = [
+            interp_to_coloc(trajectory[i].array.data[frame], own_axis=i - ndim)
+            for i in range(ndim)
+        ]
+        v = jnp.stack(components, axis=-1)
+        if ndim == 2:
+            v = v[..., None, :]  # (..., nx, ny, 2) → (..., nx, ny, 1, 2)
+        return v
 
-    if ndim == 2:
-        result = result[:, :, None, :]  # (nx, ny, 2) → (nx, ny, 1, 2)
-    return result
+    out = {"result": to_coloc(-1)}
+    if snapshot_every is not None:
+        out["snapshots"] = to_coloc(slice(snapshot_every - 1, None, snapshot_every))
+    return out
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled jax-cfd forward pass."""
-    return {"result": cfd_fwd(**inputs)}
+    return cfd_fwd(**inputs)
 
 
 def _unpack_scalars(d: dict) -> dict:
@@ -178,8 +186,9 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict:
     """Compute the vector-Jacobian product for jax-cfd via autodiff."""
+    # snapshots are not differentiable, so the VJP's rollout skips them.
     return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
+        _unpack_scalars(inputs.model_dump(exclude={"snapshot_every"})),
         tuple(vjp_inputs),
         tuple(vjp_outputs),
         cotangent_vector,
@@ -200,7 +209,11 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict:
         arr = jnp.asarray(v0)
         v0_shape = arr.shape
         v0_dtype = str(arr.dtype)
-    return {"result": {"shape": v0_shape, "dtype": v0_dtype}}
+    out = {"result": {"shape": v0_shape, "dtype": v0_dtype}}
+    if raw["snapshot_every"] is not None:
+        frames = raw["steps"] // raw["snapshot_every"]
+        out["snapshots"] = {"shape": (frames, *v0_shape), "dtype": v0_dtype}
+    return out
 
 
 @eqx.filter_jit

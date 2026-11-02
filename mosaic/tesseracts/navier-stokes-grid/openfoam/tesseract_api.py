@@ -1014,6 +1014,8 @@ def apply(inputs: InputSchema) -> OutputSchema:
             "openfoam runs icoFoam, which has no momentum source term, so it "
             "cannot apply forcing or linear_drag"
         )
+    if inputs.snapshot_every is not None:
+        raise NotImplementedError("openfoam does not return snapshots")
     if inputs.obstacle is not None:
         return _run_channel(inputs)
 

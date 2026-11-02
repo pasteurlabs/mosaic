@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
 
 import numpy as np
@@ -95,10 +96,32 @@ def _context(phys: dict) -> SimpleNamespace:
     )
 
 
+def _snapshots_of(state_at: Callable[[dict, int], np.ndarray | None]):
+    """A fake ``safe_apply_with_state`` returning ``state_at(inputs, frame)`` per snapshot.
+
+    A frame for which ``state_at`` returns None fails the whole call.
+    """
+
+    def fake(t, inputs, key, require_finite=True):
+        assert key == "snapshots" and not require_finite
+        assert inputs["steps"] % inputs["snapshot_every"] == 0
+        frames = [
+            state_at(inputs, i)
+            for i in range(inputs["steps"] // inputs["snapshot_every"])
+        ]
+        if any(f is None for f in frames):
+            return None, {}
+        return np.stack(frames), {}
+
+    return fake
+
+
 def test_forward_scores_every_grid(monkeypatch):
     """A solver that returns its input scores 0.1 at every time and grid."""
     monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
-    monkeypatch.setattr(ko, "safe_apply", lambda t, inputs, key: inputs["v0"])
+    monkeypatch.setattr(
+        ko, "safe_apply_with_state", _snapshots_of(lambda inputs, i: inputs["v0"])
+    )
     phys = {"N": 16, "dt": 0.01, "grids": [64, 16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
     assert [r["grid"] for r in metrics["runs"]] == [16, 32, 64]
@@ -115,8 +138,10 @@ def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
     monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
     monkeypatch.setattr(
         ko,
-        "safe_apply",
-        lambda t, inputs, key: None if inputs["v0"].shape[0] == 32 else inputs["v0"],
+        "safe_apply_with_state",
+        _snapshots_of(
+            lambda inputs, i: None if inputs["v0"].shape[0] == 32 else inputs["v0"]
+        ),
     )
     phys = {"N": 16, "dt": 0.01, "grids": [16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
@@ -125,6 +150,21 @@ def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
     assert metrics["error"] == ko.DIVERGED_ERROR
     verdict = ko.min_refinement_order(0.8)(_summary(metrics))
     assert verdict is not None and "diverged on 32²" in verdict[1]
+
+
+def test_forward_keeps_the_times_before_a_run_diverges(monkeypatch):
+    """A run that is non-finite only at the last time is scored up to it."""
+    monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
+
+    def state_at(inputs, i):
+        return inputs["v0"] * (np.nan if i == 3 else 1.0)
+
+    monkeypatch.setattr(ko, "safe_apply_with_state", _snapshots_of(state_at))
+    phys = {"N": 16, "dt": 0.01, "grids": [16, 32], "nu": 0.01}
+    run = ko.forward(None, _context(phys))["metrics"]["runs"][0]
+    assert run["median_errors"][:3] == pytest.approx([1 / 9] * 3, rel=1e-3)
+    assert run["median_errors"][3] == ko.DIVERGED_ERROR
+    assert run["diverged"] and "t = 4" in run["per_seed"][0]["failure"]
 
 
 def _summary(metrics: dict) -> ForwardSummary:

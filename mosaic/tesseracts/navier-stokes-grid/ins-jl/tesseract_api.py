@@ -182,6 +182,22 @@ def _vjp(
 
 def apply(inputs: InputSchema) -> OutputSchema:
     """Run the forward incompressible Navier-Stokes simulation."""
+    if inputs.snapshot_every is not None:
+        # 2-D only (the canonical schema rejects it in 3-D).
+        v0 = np.asarray(inputs.v0)
+        frames = _to_numpy(
+            jl.ns_apply(
+                _to_julia(v0[:, :, 0, :]),
+                float(inputs.viscosity[0]),
+                float(inputs.dt[0]),
+                int(inputs.steps),
+                int(v0.shape[0]),
+                float(inputs.domain_extent),
+                snapshot_every=int(inputs.snapshot_every),
+                **_body_force(inputs),
+            )
+        )[:, :, :, np.newaxis, :].astype(np.float32)  # (frames, nx, ny, 1, 2)
+        return {"result": frames[-1], "snapshots": frames}
     result = _run(
         np.asarray(inputs.v0),
         float(inputs.viscosity[0]),
@@ -222,6 +238,12 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
 
     v0 = raw["v0"]
     if isinstance(v0, dict) and "shape" in v0 and "dtype" in v0:
-        return {"result": {"shape": v0["shape"], "dtype": v0["dtype"]}}
-    arr = np.asarray(v0)
-    return {"result": {"shape": list(arr.shape), "dtype": str(arr.dtype)}}
+        shape, dtype = list(v0["shape"]), v0["dtype"]
+    else:
+        arr = np.asarray(v0)
+        shape, dtype = list(arr.shape), str(arr.dtype)
+    out = {"result": {"shape": shape, "dtype": dtype}}
+    if raw["snapshot_every"] is not None:
+        frames = raw["steps"] // raw["snapshot_every"]
+        out["snapshots"] = {"shape": [frames, *shape], "dtype": dtype}
+    return out

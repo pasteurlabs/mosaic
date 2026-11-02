@@ -170,24 +170,30 @@ function initial_state(v0::AbstractArray, setup, psolver, n::Int)
 end
 
 # mosaic-intervention: hand-written-rk4-rollout
+"""
+One classic RK4 step of the projected right-hand side `rhs`.
+
+rhs (create_right_hand_side) applies the periodic BCs to its input and
+projects its output, so no ghost refresh is needed between stages; the
+state's own ghost entries go stale but are never read and are stripped at
+the end.
+"""
+function rk4_step(u, rhs, p, dt::Real)
+    k1 = rhs(u, p, 0.0)
+    k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
+    k3 = rhs(u .+ (dt/2) .* k2, p, 0.0)
+    k4 = rhs(u .+ dt .* k3, p, 0.0)
+    return u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+end
+
 """2-D forward: v0 (n,n,2) → v_out (n,n,2)."""
 function ns_forward_2d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
     p = (; viscosity = nu)
     u = initial_state(v0, setup, psolver, n)
-
-    # rhs (create_right_hand_side) applies the periodic BCs to its input and
-    # projects its output, so no ghost refresh is needed between stages; the
-    # state's own ghost entries go stale but are never read and are stripped
-    # at the end.
     for _ in 1:steps
-        k1 = rhs(u, p, 0.0)
-        k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
-        k3 = rhs(u .+ (dt/2) .* k2, p, 0.0)
-        k4 = rhs(u .+ dt .* k3, p, 0.0)
-        u = u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+        u = rk4_step(u, rhs, p, dt)
     end
-
     return stag_to_coloc_2d(strip_ghosts_2d(u, n), n)
 end
 
@@ -196,17 +202,28 @@ function ns_forward_3d(v0::AbstractArray, rhs, setup, psolver,
                        nu::Real, dt::Real, steps::Int, n::Int)
     p = (; viscosity = nu)
     u = initial_state(v0, setup, psolver, n)
-
-    # See ns_forward_2d for why no per-stage ghost refresh is needed.
     for _ in 1:steps
-        k1 = rhs(u, p, 0.0)
-        k2 = rhs(u .+ (dt/2) .* k1, p, 0.0)
-        k3 = rhs(u .+ (dt/2) .* k2, p, 0.0)
-        k4 = rhs(u .+ dt .* k3, p, 0.0)
-        u = u .+ (dt/6) .* (k1 .+ 2 .* k2 .+ 2 .* k3 .+ k4)
+        u = rk4_step(u, rhs, p, dt)
     end
-
     return stag_to_coloc_3d(strip_ghosts_3d(u, n), n)
+end
+
+"""
+2-D forward that also keeps the velocity after every `every` steps:
+v0 (n,n,2) → host array (steps ÷ every, n, n, 2). Not differentiated.
+"""
+function ns_snapshots_2d(v0::AbstractArray, rhs, setup, psolver,
+                         nu::Real, dt::Real, steps::Int, every::Int, n::Int)
+    p = (; viscosity = nu)
+    u = initial_state(v0, setup, psolver, n)
+    frames = Array{eltype(u)}(undef, steps ÷ every, n, n, 2)
+    for step in 1:steps
+        u = rk4_step(u, rhs, p, dt)
+        if step % every == 0
+            frames[step ÷ every, :, :, :] = Array(stag_to_coloc_2d(strip_ghosts_2d(u, n), n))
+        end
+    end
+    return frames
 end
 # mosaic-intervention-end: hand-written-rk4-rollout
 
@@ -253,11 +270,15 @@ end
 # ---------------------------------------------------------------------------
 
 """
-    ns_apply(v0_np, nu, dt, steps, n, L; force, drag) -> v_out_np
+    ns_apply(v0_np, nu, dt, steps, n, L; force, drag, snapshot_every) -> v_out_np
 
 Forward pass.
   2-D: v0_np (n,n,2) Float32 → returns (n,n,2) Float32
   3-D: v0_np (n,n,n,3) Float32 → returns (n,n,n,3) Float32
+
+With `snapshot_every > 0` (2-D only), returns the velocity after every
+`snapshot_every` steps instead, (steps ÷ snapshot_every, n, n, 2), from the
+same RK4 loop as the forced run; the last frame is the final velocity.
 
 Unforced rollouts use the in-place `solve_unsteady` time stepper (no AD
 tape needed), which is several times faster than the non-mutating rollout
@@ -266,11 +287,22 @@ projection as the projected RHS in `ns_forward_*`, so the two paths agree to
 round-off.
 """
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64;
-                  force = nothing, drag::Float64 = 0.0)
+                  force = nothing, drag::Float64 = 0.0, snapshot_every::Int = 0)
     T = Float32
     v0   = to_device(T.(v0_np))
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
+
+    if snapshot_every > 0
+        rhs = forced_rhs(
+            create_right_hand_side(setup, psolver),
+            staggered_force(force, setup, psolver, n),
+            drag,
+        )
+        return ns_snapshots_2d(
+            v0, rhs, setup, psolver, T(nu), T(dt), steps, snapshot_every, n
+        )
+    end
 
     if !isnothing(force) || drag != 0
         # A body force or drag runs the same RK4 loop as the VJP, so that both

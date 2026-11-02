@@ -100,7 +100,8 @@ def periodic_fwd(
     domain_extent: float,
     forcing: jnp.ndarray | None = None,
     linear_drag: float | None = None,
-) -> jnp.ndarray:
+    snapshot_every: int | None = None,
+) -> dict[str, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
     2nd-order central-difference advection and diffusion integrated with
@@ -117,9 +118,12 @@ def periodic_fwd(
         forcing: Body force at the cell centers, shape of v0. It is resampled
             to the faces like v0 and added to the momentum rate.
         linear_drag: Coefficient α of a drag -αu in the momentum rate.
+        snapshot_every: Also return the velocity after every this many steps.
 
     Returns:
-        Final velocity at the cell centers, same shape as v0.
+        ``result``, the final velocity at the cell centers, same shape as v0,
+        and with ``snapshot_every`` the ``snapshots``
+        (steps // snapshot_every, *v0.shape).
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
@@ -233,21 +237,37 @@ def periodic_fwd(
     # so the backward pass does an adjoint solve rather than differentiating
     # through the loop — both forward and VJP are safe inside lax.scan.
     p_init = jnp.zeros(face_init.shape[1:], face_init.dtype)
-    (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
 
-    # Convert final face values back to collocated once.
-    vel_final = faces_to_staggered(face_final)
-    centered_final = CenteredGrid(vel_final, ext, bounds=bounds, **grid_kwargs)
-    v_final = jnp.stack(
-        [centered_final.vector[i].values.native(spatial_str) for i in range(ndim)],
-        axis=0,
+    def to_centers(face_arr: jnp.ndarray) -> jnp.ndarray:
+        """Face values → collocated velocity, same shape as the input v0."""
+        centered = CenteredGrid(
+            faces_to_staggered(face_arr), ext, bounds=bounds, **grid_kwargs
+        )
+        v = jnp.stack(
+            [centered.vector[i].values.native(spatial_str) for i in range(ndim)],
+            axis=-1,
+        )
+        if ndim == 2:
+            # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
+            v = v[:, :, None, :]
+        return v
+
+    if snapshot_every is None:
+        (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
+        # Convert final face values back to collocated once.
+        return {"result": to_centers(face_final)}
+
+    def chunk(
+        carry: tuple[jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        carry, _ = jax.lax.scan(step, carry, None, length=snapshot_every)
+        return carry, carry[0]
+
+    _, faces = jax.lax.scan(
+        chunk, (face_init, p_init), None, length=steps // snapshot_every
     )
-
-    result = jnp.moveaxis(v_final, 0, -1)  # (ndim, *spatial) → (*spatial, ndim)
-    if ndim == 2:
-        # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
-        result = result[:, :, None, :]
-    return result
+    snapshots = jax.vmap(to_centers)(faces)
+    return {"result": snapshots[-1], "snapshots": snapshots}
 
 
 # Boundary types of the DFG channel with a zero inlet velocity. The masks and
@@ -443,7 +463,7 @@ def apply_jit(inputs: dict) -> dict:
             inputs["obstacle"],
             inputs["inflow_profile"],
         )
-    result = periodic_fwd(
+    return periodic_fwd(
         inputs["v0"],
         inputs["viscosity"],
         inputs["dt"],
@@ -451,8 +471,8 @@ def apply_jit(inputs: dict) -> dict:
         inputs["domain_extent"],
         inputs["forcing"],
         inputs["linear_drag"],
+        inputs["snapshot_every"],
     )
-    return {"result": result}
 
 
 _SCALAR_KEYS = ("viscosity", "dt", "linear_drag")
@@ -478,8 +498,9 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute the vector-Jacobian product via JAX autodiff."""
+    # snapshots are not differentiable, so the VJP's rollout skips them.
     return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
+        _unpack_scalars(inputs.model_dump() | {"snapshot_every": None}),
         tuple(vjp_inputs),
         tuple(vjp_outputs),
         cotangent_vector,
@@ -487,13 +508,16 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
+    """Shapes of ``result`` (as v0), with an obstacle pressure and body_force, and snapshots."""
     v0_info = abstract_inputs.v0
     shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
     out = {"result": {"shape": shape, "dtype": "float32"}}
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
 
 

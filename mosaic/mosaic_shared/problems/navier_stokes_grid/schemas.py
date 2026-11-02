@@ -140,6 +140,14 @@ class InputSchema(BaseModel):
             "momentum equation. 2-D periodic boxes only."
         ),
     )
+    snapshot_every: int | None = Field(
+        default=None,
+        description=(
+            "If set, also return the velocity after every snapshot_every steps "
+            "as ``snapshots``, so one run yields several times of a trajectory. "
+            "steps must be a multiple of it. 2-D periodic boxes only."
+        ),
+    )
 
     @property
     def extent(self) -> tuple[float, ...]:
@@ -205,6 +213,18 @@ class InputSchema(BaseModel):
                 f"forcing has shape {tuple(self.forcing.shape)}, expected "
                 f"{tuple(self.v0.shape)} to match v0"
             )
+        if self.snapshot_every is not None:
+            if not bc.is_fully_periodic or self.obstacle is not None:
+                raise ValueError(
+                    "snapshot_every requires a periodic box without an obstacle"
+                )
+            if self.v0.shape[-1] != 2:
+                raise ValueError("snapshot_every is only defined in 2-D")
+            if self.snapshot_every < 1 or self.steps % self.snapshot_every:
+                raise ValueError(
+                    f"snapshot_every must be a positive divisor of steps "
+                    f"({self.steps}), got {self.snapshot_every}"
+                )
         return self
 
 
@@ -231,5 +251,14 @@ class OutputSchema(BaseModel):
             "Force of the fluid on the obstacle per unit depth and density, "
             "shape (steps, ndim): row k is (F_x, F_y) at t = (k + 1) dt. "
             "Positive along +x and +y, so a flow in +x gives F_x > 0."
+        ),
+    )
+    snapshots: Array[(None, None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Velocity at the cell centers after every snapshot_every steps, "
+            "shape (steps / snapshot_every, nx, ny, 1, 2); the last equals "
+            "result. Returned only when the inputs set snapshot_every. Not "
+            "differentiable."
         ),
     )

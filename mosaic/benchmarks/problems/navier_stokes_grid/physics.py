@@ -52,6 +52,7 @@ def _periodic_inputs(
     forcing_wavenumber: int | None = None,
     forcing_amplitude: float = 1.0,
     linear_drag: float | None = None,
+    snapshot_every: int | None = None,
     **_: Any,
 ) -> dict:
     """Periodic-box inputs.
@@ -59,6 +60,7 @@ def _periodic_inputs(
     ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver.
     ``forcing_wavenumber`` adds the Kolmogorov force (A sin(κy), 0) with
     A = ``forcing_amplitude``, and ``linear_drag`` adds a drag -αu.
+    ``snapshot_every`` asks for the velocity after every that many steps.
     """
     N = ic.shape[0]
     _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
@@ -75,6 +77,8 @@ def _periodic_inputs(
         )
     if linear_drag is not None:
         inputs["linear_drag"] = jnp.array([linear_drag], dtype=jnp.float32)
+    if snapshot_every is not None:
+        inputs["snapshot_every"] = snapshot_every
     return inputs
 
 

@@ -27,7 +27,7 @@ import numpy as np
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.reference import reference_path
-from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply_with_state
 from mosaic.benchmarks.core.status_checks import CheckOutcome, ForwardSummary
 from mosaic.benchmarks.core.utils import active_solvers, l2_error_rel
 
@@ -338,37 +338,41 @@ def initial_state(truth: dict, seed: int, n: int) -> np.ndarray:
 # ── forward/kolmogorov ───────────────────────────────────────────────────────
 
 
+Run = Callable[[np.ndarray, int, int], np.ndarray | None]
+
+
 def _rollout_errors(
-    run: Callable[[np.ndarray, int], np.ndarray | None],
+    run: Run,
     v0: np.ndarray,
     dt: float,
     times: tuple[float, ...],
     targets: list[np.ndarray],
     n_score: int,
 ) -> dict[str, Any]:
-    """Error and wall time against ``targets`` at ``times``, each from ``v0``.
+    """Error against ``targets`` at ``times`` from one run of ``v0``, and its wall time.
 
-    Each time is its own call from the initial state, so solvers that keep
-    their own staggered or lattice state never round-trip through the
-    canonical grid. After a non-finite state the remaining times are scored
-    as diverged without running, and their wall time is NaN.
+    ``times`` are multiples of the first. The run returns the state at each
+    of them as a snapshot, so solvers that keep their own staggered or
+    lattice state never round-trip through the canonical grid. From the first
+    non-finite snapshot on, the times are scored as diverged.
     """
-    errors: list[float] = []
-    seconds: list[float] = []
+    every = round(times[0] / dt)
+    if not np.allclose(times, every * dt * np.arange(1, len(times) + 1)):
+        raise ValueError(f"times {times} are not multiples of the first")
+    started = time.perf_counter()
+    snapshots = run(v0, every * len(times), every)
+    seconds = time.perf_counter() - started
     failure = None
-    for t_end, target in zip(times, targets, strict=True):
-        state = None
-        if not failure:
-            started = time.perf_counter()
-            state = run(v0, round(t_end / dt))
-            seconds.append(time.perf_counter() - started)
-        else:
-            seconds.append(float("nan"))
-        if state is None:
-            failure = failure or (get_last_apply_error() or "non-finite state")
+    if snapshots is None:
+        failure = get_last_apply_error() or "the run returned no snapshots"
+    errors: list[float] = []
+    for i, (t_end, target) in enumerate(zip(times, targets, strict=True)):
+        if not failure and not np.isfinite(snapshots[i]).all():
+            failure = f"solver output is not finite at t = {t_end:g}"
+        if failure:
             errors.append(DIVERGED_ERROR)
             continue
-        errors.append(capped_error(resample(state, n_score), target))
+        errors.append(capped_error(resample(snapshots[i], n_score), target))
     return {"errors": errors, "seconds": seconds, "failure": failure}
 
 
@@ -379,13 +383,13 @@ def _check_ground_truth(truth: dict, seeds: tuple[int, ...]) -> None:
 
 
 def _seconds_per_time(per_seed: list[dict], horizon: float) -> float | None:
-    """Wall time of one time unit, from each seed's longest call.
+    """Wall time of one time unit, from each seed's run.
 
-    The first seed's calls include compilation and warm-up, so it only counts
+    The first seed's run includes compilation and warm-up, so it only counts
     when it is the only seed.
     """
     warm = per_seed[1:] or per_seed
-    values = [s["seconds"][-1] / horizon for s in warm if not s["failure"]]
+    values = [s["seconds"] / horizon for s in warm if not s["failure"]]
     return float(np.median(values)) if values else None
 
 
@@ -412,9 +416,16 @@ def forward(t: Any, ctx: KernelContext) -> dict:
     for grid in grids:
         step = dt * n / grid
 
-        def run(v0: np.ndarray, steps: int, _step: float = step) -> np.ndarray | None:
-            inputs = ctx.make_inputs(ctx.name, v0, dt=_step, steps=steps, **phys)
-            return safe_apply(t, inputs, ctx.output_key)
+        def run(
+            v0: np.ndarray, steps: int, every: int, _step: float = step
+        ) -> np.ndarray | None:
+            inputs = ctx.make_inputs(
+                ctx.name, v0, dt=_step, steps=steps, snapshot_every=every, **phys
+            )
+            snapshots, _ = safe_apply_with_state(
+                t, inputs, "snapshots", require_finite=False
+            )
+            return None if snapshots is None else np.asarray(snapshots)
 
         per_seed = []
         for seed in seeds:

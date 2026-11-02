@@ -1408,10 +1408,14 @@ def ns2d_solve_forward(
     device: str = "cpu",
     forcing_np: np.ndarray | None = None,
     linear_drag: float | None = None,
-) -> np.ndarray:
+    snapshot_every: int | None = None,
+) -> dict[str, np.ndarray]:
     """Forward-only periodic 2-D incompressible NS by Chorin projection, no gradients.
 
     [2D-only function]
+
+    Returns ``result`` (N, N, 1, 2), and with ``snapshot_every`` also the
+    velocity after every ``snapshot_every`` steps as ``snapshots``.
 
     Same physics as :func:`ns2d_solve_tape`, but structurally distinct: no
     ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong velocity buffers
@@ -1448,6 +1452,11 @@ def ns2d_solve_forward(
     div_star_c = wp.zeros((n, n), dtype=wp.vec2f, device=device)
     poisson_ws = _poisson_workspace_2d(n, device)
 
+    def collocated(i: int) -> np.ndarray:
+        ux, uy = vel_bufs_x[i].numpy(), vel_bufs_y[i].numpy()
+        return np.stack([ux, uy], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
+
+    snapshots = []
     src, dst = 0, 1
     for _step_i in range(steps):
         wp.launch(
@@ -1496,10 +1505,13 @@ def ns2d_solve_forward(
             device=device,
         )
         src, dst = dst, src
+        if snapshot_every is not None and (_step_i + 1) % snapshot_every == 0:
+            snapshots.append(collocated(src))
 
-    ux_out = vel_bufs_x[src].numpy()
-    uy_out = vel_bufs_y[src].numpy()
-    return np.stack([ux_out, uy_out], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
+    out = {"result": collocated(src)}
+    if snapshot_every is not None:
+        out["snapshots"] = np.stack(snapshots)
+    return out
 
 
 def ns2d_vjp(
@@ -2602,17 +2614,18 @@ def apply(inputs: InputSchema) -> OutputSchema:
         result = ns3d_solve_forward(
             v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
         )
-    else:
-        result = ns2d_solve_forward(
-            v0,
-            nu,
-            dt,
-            inputs.steps,
-            inputs.domain_extent,
-            device=device,
-            **_body_force_args(inputs),
-        )
-    return OutputSchema(result=result)
+        return OutputSchema(result=result)
+    out = ns2d_solve_forward(
+        v0,
+        nu,
+        dt,
+        inputs.steps,
+        inputs.domain_extent,
+        device=device,
+        snapshot_every=inputs.snapshot_every,
+        **_body_force_args(inputs),
+    )
+    return OutputSchema(**out)
 
 
 def _body_force_args(inputs: InputSchema) -> dict[str, Any]:
@@ -2783,4 +2796,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     if d["obstacle"] is not None:
         out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
         out["body_force"] = {"shape": (d["steps"], 2), "dtype": "float32"}
+    if d["snapshot_every"] is not None:
+        frames = d["steps"] // d["snapshot_every"]
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
