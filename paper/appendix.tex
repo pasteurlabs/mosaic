@@ -6,18 +6,14 @@
 Mosaic is released under the Apache~2.0 license (individual solver backends
 retain their upstream licenses). The repository, documentation, and
 reproduction instructions are available at
-\repourl.
+\url{https://github.com/pasteurlabs/mosaic}.
 
-\ifpreprint
 The paper corresponds to the tag
 \href{https://github.com/pasteurlabs/mosaic/tree/v0.1%2Bpaper-repro}{\texttt{v0.1+paper-repro}}
 which contains all code, plotting scripts,
-\else
-The paper corresponds to the tagged release linked above which contains all code,
-\fi
 solver wrappers, and a pinned dependency lockfile sufficient for full
 reproduction. Two reproduction paths are supported. Figures can be
-regenerated from the result archive \ifpreprint linked in the repository README\else attached to the tagged release\fi{} without
+regenerated from the result archive linked in the repository README without
 re-running any solver. Alternatively, the full experiment suite can be
 re-run from scratch; this requires Docker and, for GPU solvers, an NVIDIA
 GPU with the NVIDIA Container Toolkit. The lockfile pins every transitive
@@ -29,7 +25,7 @@ paths are in the repository README.
 
 Each solver backend is a \emph{Tesseract}~\cite{haefner2025tesseract}: a
 Docker container that exposes a typed forward map (\texttt{apply}), shape
-inference (\texttt{abstract\_eval}), and optionally a\ifpreprint\else\ reverse-mode\fi{} VJP
+inference (\texttt{abstract\_eval}), and optionally a VJP
 (\texttt{vector\_jacobian\_product}) over Pydantic schemas. The container
 boundary isolates solver-specific dependencies (JAX, PyTorch, Julia, C++,
 Warp) from one another and from the evaluation harness.
@@ -290,7 +286,7 @@ Three solvers (JAX-CFD, INS.jl, Warp-NS) produce invalid results on this geometr
 \end{figure}
 
 \paragraph{Physical accuracy sweeps}
-For the two fluid domains, \cref{fig:app:pa_ns2d,fig:app:pa_ns3d} show \ifpreprint resolution~$N$, viscosity~$\nu$, and rollout length\else all three sweep dimensions (resolution~$N$, viscosity~$\nu$, rollout length)\fi{} against three physical metrics.
+For the two fluid domains, \cref{fig:app:pa_ns2d,fig:app:pa_ns3d} show resolution~$N$, viscosity~$\nu$, and rollout length against three physical metrics.
 F2 uses the $[0,8]\times[0,2]$ cylinder-channel at Re\,=\,20, sweeping $N\in\{16,32,64,128\}$, $\nu\in\{0.001,0.005,0.01,0.05,0.1\}$, and up to 100 steps.
 F3 uses the $[0,2\pi]^3$ TGV box at $N=16$, sweeping $\nu\in\{0.001,0.01,0.05,0.1\}$ and up to 50 steps.
 \textbf{Analytic TGV error} is the relative $\ell_2$ error against the Taylor--Green vortex closed-form solution. Lower is better, with values below $10^{-2}$ indicating good accuracy.
@@ -375,13 +371,9 @@ The optimal perturbation size~$\varepsilon$ also drifts with horizon, reinforcin
   \centering
   \includegraphics[width=\linewidth]{figures/horizon_sweep.pdf}
   \caption{Gradient quality vs.\ rollout length (2D NS).
-    \ifpreprint
     Left: gradient norm over rollout length.
     Middle: best-achievable FD relative error at each horizon.
-    \else
-    Left: best-achievable FD relative error at each horizon.
-    \fi
-    Right: optimal perturbation size~$\varepsilon$.
+    Right: $1-{}$cosine similarity at the best~$\varepsilon$.
     Solvers with poor Jacobian conditioning degrade fastest with increasing rollout length.}
   \label{fig:app:horizon}
 \end{figure}

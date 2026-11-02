@@ -2,10 +2,10 @@
 
 LaTeX source of _Mosaic: A Benchmark Suite for Differentiable Physics Solvers_, in two variants built from the same content:
 
-- `neurips.tex`: NeurIPS 2026 Evaluations & Datasets Track submission (anonymized, with checklist).
-- `preprint.tex`: preprint with author information, styled by `pasteurlabs.sty`.
+- `neurips.tex`: NeurIPS 2026 Evaluations & Datasets Track camera-ready version, with checklist.
+- `preprint.tex`: preprint, styled by `pasteurlabs.sty`.
 
-Both wrap the shared `abstract.tex`, `body.tex` and `appendix.tex`, and set the template, title block, bibliography and float placement themselves. Content that differs between the variants is wrapped in `\ifpreprint ... \else ... \fi`. The NeurIPS wrapper appends the period to run-in `\paragraph` titles, so write them without one.
+Both wrap the shared `abstract.tex`, `body.tex` and `appendix.tex`, and set the template, title block, bibliography and float placement themselves. If content has to differ between the variants, for example to meet the NeurIPS page limit, wrap it in `\ifpreprint ... \else ... \fi`. The NeurIPS wrapper appends the period to run-in `\paragraph` titles, so write them without one.
 
 ## Building
 

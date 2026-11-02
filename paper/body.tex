@@ -13,21 +13,7 @@
 \section{Introduction}
 \label{sec:intro}
 
-\ifpreprint
-% The problem: opaque effort, hidden incompatibilities
-A growing number of physics solvers now advertise gradient support,
-spanning multiple languages, AD frameworks, and numerical methods.
-Yet the practical cost of obtaining correct, usable gradients from any
-of these solvers is opaque. Solvers range from turnkey applications to
-composable frameworks and low-level kernel toolkits, each demanding
-different expertise and integration effort. Runtime overhead, gradient accuracy, and numerical conditioning
-have not been systematically measured, and solver-specific constraints
-(periodic-only boundary conditions,
-incompatible penalization schemes, stability limits) surface only after
-a practitioner has committed to a particular solver.
-
 % Why it matters: differentiable solvers enable a broad family of techniques
-
 Differentiable solvers enable topology
 optimization~\cite{bendsoe2003topology}, aerodynamic shape
 optimization~\cite{jameson1988aerodynamic}, optimal
@@ -38,15 +24,6 @@ Differentiating through ODE integrators~\cite{chen2018neural,rackauckas2021unive
 and renderers~\cite{kato2020differentiable} is now routine, but PDE
 solvers are more complex, less standardized, and their gradient
 properties far less understood.
-\else
-% Why it matters: differentiable solvers enable a broad family of techniques
-
-Differentiable solvers enable superior optimization within topology
-optimization~\cite{bendsoe2003topology}, aerodynamic shape
-optimization~\cite{jameson1988aerodynamic}, optimal
-control~\cite{bewley2001dns}, and solver-in-the-loop ML
-training~\cite{kochkov2021machine, um2020sol} by backpropagating
-through a numerical simulation's forward pass.
 
 % The problem: opaque effort, hidden incompatibilities
 A growing number of physics solvers advertise gradient support,
@@ -55,14 +32,10 @@ Yet the practical cost of obtaining correct, usable gradients from any
 of these solvers is opaque. Solvers range from turnkey applications to
 composable frameworks and low-level kernel toolkits, each demanding
 different expertise and integration effort. Runtime overhead, gradient accuracy, and numerical conditioning
-have not been systematically measured. Solver-specific constraints
+have not been systematically measured, and solver-specific constraints
 (periodic-only boundary conditions,
 incompatible penalization schemes, stability limits) surface only after
-a practitioner has committed to a particular solver. Differentiating through ODE integrators~\cite{chen2018neural,rackauckas2021universal}
-and renderers~\cite{kato2020differentiable} is now routine, but PDE
-solvers are more complex, less standardized, and their gradient
-properties far less understood.
-\fi
+a practitioner has committed to a particular solver.
 
 Learned surrogates and physics foundation models offer an alternative
 path but require per-domain training data, introduce approximation
@@ -71,34 +44,17 @@ families~\cite{pathak2022fourcastnet, bodnar2024aurora}.
 Decades of engineering have produced solvers that practitioners
 trust for forward simulation. What is missing is not the solvers
 themselves, which exist in abundance, but a standardized way to
-access, compare, and trust their
-\ifpreprint
-gradients.
-\else
-gradients to truly unlock the potential of solver-in-the-loop research.
-\fi
+access, compare, and trust their gradients.
 
 We introduce \textit{Mosaic}, an extensible benchmark suite that
-\ifpreprint
-tests solver gradients in isolation, on standalone optimization
-\else
 provides a uniform interface to a diverse set of differentiable solvers
 across multiple physical domains, with benchmark tasks that are designed
 to systematically isolate issues with solver gradients. An initial set of
 tasks focuses on standalone optimization
-\fi
 problems without learned components, where finite differences provide
 ground truth and the solver's gradient mechanism is the only variable
-under test.
-\ifpreprint
-The primary contribution is the benchmark infrastructure itself, not the
-empirical results from any single instantiation. Researchers can use
-Mosaic to evaluate which solver fits their problem, build
-solver-in-the-loop pipelines on top of the
-\else
-Mosaic enables researchers to evaluate which solver fits their problem,
+under test. Mosaic enables researchers to evaluate which solver fits their problem,
 build ML and optimization pipelines on top of the
-\fi
 uniform interface, and stress-test failure modes before
 committing to a particular stack. Our contributions are:
 %
@@ -109,7 +65,7 @@ committing to a particular stack. Our contributions are:
     \cref{tab:domains}). Each solver is wrapped behind a uniform
     forward/gradient API regardless of language or AD strategy, so
     researchers can run and compare real solvers without
-    \ifpreprint solver-specific\else backend-specific\fi{} expertise.
+    solver-specific expertise.
   \item A \textbf{standardized evaluation protocol} measuring gradient
     accuracy, computational cost, Jacobian conditioning, setup
     compatibility, and end-to-end optimization convergence.
@@ -120,13 +76,8 @@ committing to a particular stack. Our contributions are:
     with a negative control that isolates AD bugs from chaotic physics.
   \item An \textbf{open-source release} of all solver interfaces, evaluation
     code, and templates, extensible to new solvers and domains, with
-    \ifpreprint
-    continuous re-evaluation designed to keep published results current
-    \else
     CI-based re-evaluation infrastructure that can keep published results
-    current
-    \fi
-    as solvers improve.
+    current as solvers improve.
 \end{enumerate}
 
 % ===========================================================================
@@ -150,7 +101,7 @@ Hand-derived adjoints are fast but tied to a fixed set of objectives,
 requiring new derivations whenever the control variable or loss function
 changes. Algorithmic AD removes this constraint at the price of higher
 memory or computational cost, a tradeoff whose magnitude has remained
-largely anecdotal. Mosaic measures \ifpreprint it\else this tradeoff\fi{} empirically across solver families.
+largely anecdotal. Mosaic measures this tradeoff empirically across solver families.
 
 \paragraph{Learned surrogates and physics foundation models}
 Neural operator surrogates~\cite{kovachki2023neural,li2021fourier,lu2021learning},
@@ -177,26 +128,14 @@ The PhiFlow benchmark~\cite{holl2024phiflow} compares AD backends within
 a single framework, not across independent solver implementations.
 preCICE~\cite{bungartz2016precice} standardizes solver coupling but
 provides no gradient interface.
-\ifpreprint\else
 
-\fi
-The closest analogue in design philosophy is
-\ifpreprint OpenAI Gym\else Gymnasium\fi~\cite{brockman2016openai}, which standardized access to RL
+The closest analogue in design philosophy is OpenAI Gym~\cite{brockman2016openai}, which standardized access to RL
 environments behind a uniform \texttt{step}/\texttt{reset} interface.
-\ifpreprint
 Gym ships no RL algorithms, yet the standardized interface enabled a
-\else
-Gymnasium's standardized interface enabled a
-\fi
 wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
-\ifpreprint
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-\else
-backends are simulators behind a standardized forward and gradient interface.
-The benchmark ships no ML components itself but provides the
-\fi
 infrastructure on which solver-in-the-loop ML research can build.
 
 % ===========================================================================
@@ -222,37 +161,26 @@ optimization, topology optimization, inverse problems) that require
 gradients for efficient solution, are supported by multiple backends
 for cross-solver comparison, and contain no learned components so solver
 gradients can be validated in isolation. Tasks are intentionally simpler
-than state-of-the-art \ifpreprint challenges: complexity\else challenges, as the complexity\fi{} in the physics would
+than state-of-the-art challenges: complexity in the physics would
 confound the gradient properties we aim to isolate, so any failure can
 be attributed to the solver's gradient mechanism rather than to an
 ill-posed optimization problem. The heat domain (H) additionally serves
-as a negative \ifpreprint control: its\else control. Its\fi{} forward problem is smooth and elliptic, so
+as a negative control: its forward problem is smooth and elliptic, so
 any gradient failure on H is attributable to an AD bug rather than to
 chaotic dynamics. The inversion itself is poorly conditioned (its
 Hessian spans about eight orders of magnitude), which affects how fast
 optimizers converge rather than whether gradients are correct.
-\ifpreprint
-
-\fi
 The four domains form a difficulty progression
 (\cref{tab:domains,fig:domains}; full specifications in the
 supplementary material).
-\ifpreprint\else
 
-\fi
 \begin{table}[t]
   \centering\small
   \caption{Physical domains and optimization tasks. The backend count
     includes forward-only references; per-solver details are in
     \cref{tab:solvers}.}
   \label{tab:domains}
-  % Column widths differ between venues.
-  \ifpreprint
-    \newcolumntype{L}{>{\hsize=0.95\hsize}X}\newcolumntype{R}{>{\hsize=1.05\hsize}X}
-  \else
-    \newcolumntype{L}{X}\newcolumntype{R}{X}
-  \fi
-  \begin{tabularx}{\linewidth}{cLRlll}
+  \begin{tabularx}{\linewidth}{c>{\hsize=0.95\hsize}X>{\hsize=1.05\hsize}Xlll}
     \toprule
     \textbf{ID} & \textbf{Domain}
       & \multicolumn{2}{c}{\textbf{Optimization task}} & \textbf{Backends} \\
@@ -281,8 +209,6 @@ supplementary material).
 
 \begin{figure}[t]
   \centering
-  % Panel layout differs between venues.
-  \ifpreprint
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain4_heat.pdf}
@@ -304,31 +230,9 @@ supplementary material).
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=.85\linewidth]{figures/domain2a_3d_ic_recovery.pdf}
-    \caption{\textbf{F3}\,: 3D periodic box --- initial condition recovery.}
-    \label{fig:domain_f3}
-  \end{subfigure}
-  \else
-  \begin{subfigure}[t]{0.48\linewidth}
-    \includegraphics[width=\linewidth]{figures/domain4_heat.pdf}
-    \caption{\textbf{H}\,: Steady-state heat conduction --- conductivity inversion.}
-    \label{fig:domain_h}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.48\linewidth}
-    \includegraphics[width=\linewidth]{figures/domain3_structures.pdf}
-    \caption{\textbf{S}\,: Cantilever beam --- compliance minimization (SIMP).}
-    \label{fig:domain_s}
-  \end{subfigure}\\[0.5em]
-  \begin{subfigure}[t]{0.48\linewidth}
-    \includegraphics[width=\linewidth]{figures/domain1_2d_fluids.pdf}
-    \caption{\textbf{F2}\,: 2D cylinder flow --- inflow optimization.}
-    \label{fig:domain_f2}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.48\linewidth}
-    \includegraphics[width=.9\linewidth]{figures/domain2a_3d_ic_recovery.pdf}
     \caption{\textbf{F3}\,: 3D periodic box --- initial condition (IC) recovery.}
     \label{fig:domain_f3}
   \end{subfigure}
-  \fi
   \caption{Benchmark tasks across the four physical domains in Mosaic,
     ordered by difficulty.
     Each panel shows the control variable, the physical process,
@@ -351,7 +255,7 @@ community adds solvers, improves configurations, and extends to new
 domains.
 
 \paragraph{Solver interface and extensibility}
-Each solver is\ifpreprint\else\ wrapped as\fi{} a containerized component exposing two entry points,
+Each solver is wrapped as a containerized component exposing two entry points,
 \texttt{apply(inputs)\,$\rightarrow$\,outputs} and
 \texttt{vector\_jacobian\_product(inputs, cotangents)\,$\rightarrow$\,vjp}.
 The container isolates all dependencies (language, libraries, GPU
@@ -385,8 +289,8 @@ VJP) and never inspects solver internals.
 
 \begin{description}\itemsep2pt
   \item[Setup compatibility.] For each solver--task pair, we record
-    whether the solver \ifpreprint produces a\else is able to produce the corresponding\fi{} gradient, fails numerically, or is
-    structurally unable to \ifpreprint represent\else implement\fi{} the task (\cref{sec:optimization}).
+    whether the solver produces a gradient, fails numerically, or is
+    structurally unable to represent the task (\cref{sec:optimization}).
   \item[Gradient accuracy.] Central finite differences through each
     solver's own forward pass serve as the reference. We
     evaluate directional derivatives along $K$ random perturbation
@@ -394,25 +298,14 @@ VJP) and never inspects solver internals.
     $\ell_2$ error for all problems. For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
     inspect its singular value spectrum.
-  \item[Performance.]
-    \ifpreprint
-    Primal and VJP wall-clock time, their ratio, and
-    peak (V)RAM consumption, measured on each solver's intended hardware
-    \else
-    We measure primal and VJP wall-clock time, their
+  \item[Performance.] We measure primal and VJP wall-clock time, their
     ratio, and peak (V)RAM consumption on each solver's intended hardware
-    \fi
     target across three to four problem sizes (grid resolutions or cell counts).
     The VJP time is the cost of one gradient from scratch, a forward plus an
     adjoint pass (\cref{app:effort}).
     All timings are averaged over 3 runs after 1 warmup iteration
     (to pre-populate JIT caches and stabilize memory allocation).
-  \item[Forward accuracy.]
-    \ifpreprint
-    Resolution sweep against a reference solver,
-    \else
-    We compare accuracy across resolutions against a reference solver and verify
-    \fi
+  \item[Forward accuracy.] We compare accuracy across resolutions against a reference solver and verify
     adherence to physical laws where applicable (e.g., solenoidal
     velocity). Where an analytical solution exists (F2, F3),
     precision is additionally measured against it.
@@ -432,15 +325,9 @@ along three axes: \emph{AD strategy} (autodiff, tape-based discrete
 adjoints, hand-derived/kernel adjoints), \emph{numerical method} (projection-based, lattice Boltzmann,
 finite-volume, spectral, finite elements with both direct and iterative
 linear solvers), and \emph{solver abstraction level}.
-\ifpreprint
 These range from self-contained \emph{applications} (OpenFOAM),
 through \emph{frameworks} that handle discretization and AD (FEniCS,
 PhiFlow, JAX-CFD), to \emph{kernel toolkits} (NVIDIA Warp) where the
-\else
-These range from self-contained applications (OpenFOAM),
-through frameworks that handle discretization and AD (FEniCS,
-PhiFlow, JAX-CFD), to kernel toolkits (NVIDIA Warp) where the
-\fi
 Mosaic wrapper \emph{is} the solver. Abstraction level determines
 available gradient strategies and per-setup effort
 (\cref{app:solvers}).
@@ -455,7 +342,7 @@ available gradient strategies and per-setup effort
     \toprule
     \textbf{Solver} & \textbf{\shortstack[l]{Language /\\AD framework}}
       & \textbf{Strategy}
-      & \textbf{\shortstack[l]{\ifpreprint Discret-\else Discr-\fi\\ization}} & \textbf{Numerics}
+      & \textbf{\shortstack[l]{Discret-\\ization}} & \textbf{Numerics}
       & \textbf{GPU} & \textbf{Domains} \\
     \midrule
     JAX-CFD~\cite{kochkov2021machine}
@@ -504,7 +391,7 @@ available gradient strategies and per-setup effort
     FE\,=\,finite elements;
     LBM\,=\,lattice Boltzmann method.
     \textit{Numerics:}
-    PISO\,=\,pressure-implicit \ifpreprint\else with \fi splitting of operators;
+    PISO\,=\,pressure-implicit with splitting of operators;
     PIMPLE\,=\,merged PISO-SIMPLE;
     BDF1\,=\,1st-order backward differentiation;
     ETDRK\,=\,exponential time-differencing Runge--Kutta;
@@ -559,12 +446,7 @@ PyTorch) consistently require zero per-variable extra lines, while hand-written
 adjoint implementations carry substantially higher overhead.
 The boundary is not always sharp: INS.jl uses Zygote reverse-mode AD yet
 still requires over 470 shared lines of gradient-specific code,
-\ifpreprint
-illustrating that AD framework support does not always translate into
-turnkey gradients.
-\else
 a reminder that AD framework support does not guarantee turnkey gradients.
-\fi
 
 
 \begin{table}
@@ -680,15 +562,9 @@ magnitude across solvers and with rollout length and viscosity; see
 \cref{app:gradient} for the full per-domain U-shape curves and
 discussion.
 
-\ifpreprint
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
 spectra on the 3D periodic NS problem. Conditioning varies dramatically
-\else
-While gradient accuracy is uniformly high, Jacobian conditioning varies dramatically.
-\Cref{fig:conditioning} reports conditioning via normalized SVD
-spectra on the 3D periodic NS problem. Conditioning differs
-\fi
 across solvers at the same resolution, reflecting the numerical method
 rather than the AD strategy: the same governing equations discretized
 with lattice Boltzmann versus pressure projection yield radically
@@ -722,7 +598,7 @@ resolution (\cref{tab:merged}; full scaling curves in \cref{app:cost}),
 but speed and generality are entangled: the fastest backends
 (Exponax, JAX-CFD) support only periodic boundaries and no solid
 obstacles, while solvers that handle the full F2 drag task (XLB, PICT)
-are up to ${\sim}200\times$ \ifpreprint slower.\else slower than those periodic-only backends.\fi{} Cost comparisons are therefore meaningful only
+are up to ${\sim}200\times$ slower. Cost comparisons are therefore meaningful only
 within the set of solvers that can represent a given task (\cref{sec:optimization}).
 
 At larger resolutions and longer rollouts, memory becomes the binding
@@ -782,13 +658,7 @@ Gradient accuracy, computational cost, Jacobian conditioning, and setup
 compatibility all vary across solvers, across domains, and across
 operating regimes within a single domain. Yet these differences do not
 affect optimization outcomes uniformly. Based on the four benchmark
-tasks evaluated here, we highlight five practitioner-facing
-\ifpreprint
-observations.
-\else
-observations, and expect many more to emerge as the benchmark grows in
-scope and depth.
-\fi
+tasks evaluated here, we highlight five practitioner-facing observations.
 
 \paragraph{Gradient quality is often good enough; the real bottlenecks
 lie elsewhere}
@@ -797,7 +667,7 @@ converge to equivalent optima despite order-of-magnitude differences in
 accuracy and conditioning. While more complex tasks may reveal cases
 where gradient quality becomes limiting, the pattern on these benchmarks
 suggests that conditioning is likely a better predictor of
-\ifpreprint training stability\else stability of the optimization or training procedure\fi{} than pointwise gradient accuracy.
+stability of the optimization or training procedure than pointwise gradient accuracy.
 
 \paragraph{Rollout length is the critical scaling parameter}
 Jacobian conditioning degrades with rollout length across all solvers
@@ -820,42 +690,24 @@ additional implementation work. Reverse-mode AD through modern
 frameworks (JAX, PyTorch) produces gradients accurate enough for
 optimization at a fraction of the implementation cost.
 
-\ifpreprint
-\paragraph{What Mosaic enables beyond this evaluation}
-Mosaic's uniform interface makes each backend a drop-in differentiable
-simulator for solver-in-the-loop or hybrid physics-ML workflows,
-and the template mechanism lets the benchmark grow with the community.
-
 \paragraph{Limitations}
 The evaluation rests on three assumptions: that central
 finite-difference gradients at optimal perturbation size are a reliable
 reference (\cref{fig:app:fdcheck}), that out-of-the-box solver configurations
 are representative of practitioner experience, and that standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines. Gradient quality may differ on untested setups; the
-template mechanism is the mitigation. We benchmark solver gradients in
-isolation, without learned components, so hybrid pipelines may introduce
-failure modes not captured here. Results are pinned to specific solver
-versions; upstream updates may change gradient behavior.
-
-\else
-\paragraph{Limitations}
-The evaluation assumes that central finite differences at optimal
-perturbation size are a reliable gradient reference
-(\cref{fig:app:fdcheck}), that out-of-the-box configurations are
-representative, and that standalone optimization tasks proxy gradient
-quality in broader pipelines.
+pipelines.
 Tasks are intentionally low-complexity (laminar flow, linear elasticity);
 results should not be extrapolated to turbulent, long-horizon, or
 nonlinear regimes without further validation.
-All timings use one A100 GPU; rankings may shift on other hardware.
+All timings come from a single A100 machine; rankings may shift on other hardware.
 Expert tuning of resolution, time step, or preconditioner could narrow
 observed performance gaps.
-We benchmark gradients in isolation, without learned components, so
-hybrid pipelines may introduce additional failure modes.
-Results are pinned to specific solver versions.
+We benchmark solver gradients in isolation, without learned components, so
+hybrid pipelines may introduce failure modes not captured here.
+Results are pinned to specific solver versions; upstream updates may
+change gradient behavior.
 
-\fi
 
 \paragraph{Future work}
 Natural extensions include additional domains (multiphysics, compressible

@@ -1,8 +1,8 @@
 \documentclass{article}
 
 \PassOptionsToPackage{numbers, compress}{natbib}
-% NeurIPS 2026 Evaluations & Datasets Track (double-blind)
-\usepackage[eandd]{neurips_2026}
+% NeurIPS 2026 Evaluations & Datasets Track, camera-ready
+\usepackage[eandd, final]{neurips_2026}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -25,7 +25,6 @@
 % Shared sources branch on \ifpreprint for venue-specific content.
 \newif\ifpreprint
 \preprintfalse
-\newcommand{\repourl}{\url{https://anonymous.4open.science/r/mosaic-bench}}
 
 \makeatletter
 % NeurIPS run-in paragraph titles end with a period.
@@ -40,7 +39,9 @@
 \title{Mosaic: A Benchmark Suite for Differentiable Physics Solvers}
 
 \author{%
-  Anonymous Authors
+  Andrin Rehmann \qquad Heiko Zimmermann \qquad Dion H\"afner \\
+  Pasteur Labs, Brooklyn, NY, USA \\
+  \texttt{dion.haefner@simulation.science}
 }
 
 \begin{document}
