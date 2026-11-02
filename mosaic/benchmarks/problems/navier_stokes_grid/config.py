@@ -50,6 +50,7 @@ from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_fre
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
     analytic_check,
+    analytic_param_check,
     fd_check,
     jacobian_svd,
     param_sweep,
@@ -72,7 +73,13 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from . import chain, cylinder, kolmogorov
 from .exclusions import register as _register_exclusions
-from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
+from .ics import (
+    _multimode,
+    _tgv,
+    _tgv_analytic,
+    _tgv_analytic_dJ_dnu,
+    _tgv_analytic_grad,
+)
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt, plot_kolmogorov
@@ -487,6 +494,25 @@ problem.add_experiment(
     # Provisional. In-process CPU runs at N=32 and nu = 0.01 gave errors of
     # 0.019 (jax-cfd, PhiFlow), 0.005 (Warp-NS) and 0.035 (XLB). INS.jl and
     # PICT have not been measured.
+    status_check=[median_k(3.0), max_error(0.1)],
+)
+problem.add_experiment(
+    "gradient/analytic_check_nu",
+    analytic_param_check,
+    plot_description=(
+        "Relative error of each solver's derivative of"
+        " $J = \\sum \\lvert\\mathbf{u}(T)\\rvert^2$ with respect to the viscosity"
+        " for the TGV, against the exact $dJ/d\\nu = -4T\\,J$ with"
+        " $J = e^{-4\\nu T} \\sum \\lvert\\mathbf{u}_0\\rvert^2$ on the grid."
+        " The error includes the forward discretization error."
+    ),
+    ic={"name": "tgv", "seed": 0},
+    physics={"N": 32, "dt": 0.05, "steps": 20, "nu": [0.001, 0.005, 0.01, 0.02, 0.05]},
+    wrt="viscosity",
+    reference=_tgv_analytic_dJ_dnu,
+    plot=plot_analytic_check,
+    # Provisional: the same thresholds as gradient/analytic_check, which this
+    # check has not been run against on every solver yet.
     status_check=[median_k(3.0), max_error(0.1)],
 )
 problem.add_experiment(

@@ -140,11 +140,13 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
     A plain ``jax.lax.scan`` stores every step's populations for the reverse
     pass, so reverse-mode VJP memory grows as ``steps × q × N^d`` — quartic in
     N here (steps scale ∝ N), which OOMs the trajectory long before the forward
-    does (110 GB at N=64 vs a 0.3 GB forward).  We split the scan into
-    ``outer × inner ≈ √steps`` blocks and wrap the inner block in
-    ``jax.checkpoint``: only the ``√steps`` block-boundary carries are kept, and
-    each block is recomputed once during the backward pass.  Peak AD memory
-    drops from O(steps) to O(√steps) at the cost of one extra forward per block.
+    does.  We split the scan into ``outer × inner ≈ √steps`` blocks and wrap
+    each block in ``jax.checkpoint``: the reverse pass keeps only the
+    ``outer`` block-boundary populations and recomputes a block from its start
+    when it reaches it.  Inside a block, each step is checkpointed as well, so
+    the recomputed block stores its ``inner`` step inputs rather than every
+    intermediate of every step.  Peak AD memory is O(√steps) populations, at
+    the cost of two extra forward passes.
 
     The pure forward pass is unaffected — ``jax.checkpoint`` only recomputes
     when a backward pass actually differentiates through it.
@@ -157,6 +159,7 @@ def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
 
     ckpt_body = jax.checkpoint(body)
 
+    @jax.checkpoint
     def block(carry: jnp.ndarray, _: Any):
         c, ys = jax.lax.scan(ckpt_body, carry, None, length=inner)
         return c, ys

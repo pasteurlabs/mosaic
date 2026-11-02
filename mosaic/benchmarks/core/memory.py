@@ -81,6 +81,17 @@ def _docker_client():
 # ── Single-shot queries ──────────────────────────────────────────────────────
 
 
+def gpu_count() -> int:
+    """Number of NVIDIA GPUs visible via NVML, 0 on any failure."""
+    nvml = _nvml_ready()
+    if nvml is None:
+        return 0
+    try:
+        return nvml.nvmlDeviceGetCount()
+    except Exception:
+        return 0
+
+
 def sample_vram_mib(gpu_id: int | str) -> float | None:
     """Used VRAM on one GPU, in MiB, via NVML.
 

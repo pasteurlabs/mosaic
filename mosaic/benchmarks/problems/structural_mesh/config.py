@@ -258,12 +258,15 @@ _MESH_PHYS = {
 # trace the wall-clock scaling curve; a per-trial wall limit truncates the
 # sweep gracefully for any solver that gets too slow at the high end.
 _COST_NX = [4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128]
+# The spread between trials is largest at the mesh solvers' shortest cost
+# points (tens of milliseconds), so these suites time 10 trials instead of 3.
+_COST_TRIALS = {"n_trials": 10}
 problem.add_experiment(
     "cost/spatial_cost",
     spatial_cost,
     plot_description="Forward-pass wall-clock time vs mesh resolution $N$ at one assembly step.",
     physics={**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
-    cost={"n_trials": 3},
+    cost=_COST_TRIALS,
     plot=plot_cost,
 )
 problem.add_experiment(
@@ -275,7 +278,7 @@ problem.add_experiment(
         "collapses to one point)."
     ),
     physics={**_MESH_PHYS, "nx": 8, "steps": [1]},
-    cost={"n_trials": 3},
+    cost=_COST_TRIALS,
     plot=plot_cost,
 )
 problem.add_experiment(
@@ -286,12 +289,12 @@ problem.add_experiment(
         {
             "name": "by_N",
             "physics": {**_MESH_PHYS, "steps": 1, "nx": _COST_NX},
-            "cost": {"n_trials": 3},
+            "cost": _COST_TRIALS,
         },
         {
             "name": "by_steps",
             "physics": {**_MESH_PHYS, "nx": 8, "steps": [1]},
-            "cost": {"n_trials": 3},
+            "cost": _COST_TRIALS,
         },
     ],
     plot=plot_cost,

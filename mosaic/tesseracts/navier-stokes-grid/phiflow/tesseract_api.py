@@ -535,6 +535,6 @@ def vjp_jit(
     )
     grads = vjp_func(cotangent_vector)[0]
     # Scalar physics params (viscosity, dt, etc.) are unpacked to Python floats
-    # before the VJP, so their gradients come back as 0D arrays.  Tesseract
-    # expects shape (1,) to match the input schema; reshape any 0D grad here.
-    return jax.tree.map(jnp.atleast_1d, grads)
+    # before the VJP, so their gradients come back as 0D float64 arrays.
+    # Tesseract expects the input schema's shape (1,) and float32.
+    return jax.tree.map(lambda g: jnp.atleast_1d(g).astype(jnp.float32), grads)

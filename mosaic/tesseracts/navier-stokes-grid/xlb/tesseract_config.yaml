@@ -77,20 +77,29 @@ metadata:
         necessity: required
         what: >
           Runs the time loop as nested jax.lax.scan blocks of about sqrt(steps)
-          steps with jax.checkpoint on the inner block, so reverse mode keeps
-          only the block-boundary populations.
+          steps, with jax.checkpoint on each block and on each step inside it.
+          Reverse mode keeps the block-boundary populations and, while it
+          works through a block, that block's step inputs.
         why:
           ns-3d:
             consequences: [out-of-memory]
             symptom: >
-              A plain scan stores every step's populations for the reverse
-              pass: 110 GB at N = 64 against a 0.3 GB forward.
-            evidence: "Docstring of _checkpointed_scan; #135."
+              #135 gives 110 GB at N = 64 for a plain scan, against a 0.3 GB
+              forward. Checkpointing each step but not the blocks still keeps
+              every step's populations: on an A100 80 GB, the 3-D TGV VJP at
+              N = 48 took 67 GB at 1000 steps and ran out of memory at 2000,
+              against 5.6 GB at both with the blocks checkpointed. At 50
+              steps, N = 96 took 69 GB against 12 GB, and N = 128 ran out of
+              memory against 38 GB. The block checkpoint makes the VJP 2-14%
+              slower and changes the gradient by at most 5e-9 relative.
+              Checkpointing the blocks without the steps inside them took
+              about twice the memory and was no faster.
+            evidence: "#135 (plain scan); #329 (A100, one container per point)."
           ns-2d-periodic: &sqrt-checkpointing-periodic
             consequences: [too-slow]
             symptom: >
               #135 says it fixes some of XLB's VJP slowness in 2-D. No number
-              is recorded.
+              is recorded, and the block checkpoint has not been timed in 2-D.
             evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
           ns-2d-kolmogorov: *sqrt-checkpointing-periodic
         provenance: mosaic-team
@@ -98,8 +107,8 @@ metadata:
         level: L0
         necessity: unknown
         what: >
-          The channel runs its time loop through the same sqrt-checkpointed
-          scan as the periodic boxes.
+          The channel runs its time loop through the same block- and
+          step-checkpointed scan as the periodic boxes.
         why:
           ns-2d-cylinder:
             consequences: []

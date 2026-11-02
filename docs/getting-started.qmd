@@ -95,7 +95,7 @@ mosaic run -p thermal-mesh --suites optimization
 | `--no-build` | Skip container builds (use existing images) |
 | `--no-plots` | Skip plot generation |
 | `--plots-only` | Regenerate plots from existing results |
-| `--gpus 0,1,2` | Distribute solvers across multiple GPUs |
+| `--gpus 0,1,2` | Distribute solvers across multiple GPUs. Each solver's peak VRAM is read from the GPU it is pinned to; without `--gpus` it is read only when exactly one GPU is visible. |
 | `--only <state[,…]>` | Re-run only cells matching one of `failed,anom,missing,stale,excluded` (skips fresh-ok). Combinable. |
 
 ## Running everything

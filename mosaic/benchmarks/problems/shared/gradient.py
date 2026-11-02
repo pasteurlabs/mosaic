@@ -229,6 +229,48 @@ def analytic_check(t: Any, ctx: KernelContext) -> dict:
     }
 
 
+@kernel(sweep_mode="default", catch_label="VJP failed")
+def analytic_param_check(t: Any, ctx: KernelContext) -> dict:
+    """One sweep point of an analytic check of the gradient w.r.t. a scalar input.
+
+    ``ctx.run["wrt"]`` names the input (e.g. ``"viscosity"``), and
+    ``ctx.run["reference"]`` gives the exact derivative of ``sum(output**2)``
+    w.r.t. it as ``reference(ic, t=t_end, **physics)``, receiving the physics
+    keys it names. Since the reference is the continuum derivative, the error
+    also contains the solver's discretization error.
+
+    ``signed_error`` is the relative error of the solver's derivative
+    ``grad``, positive where it exceeds the ``reference``, and ``error`` its
+    magnitude.
+    """
+    wrt = ctx.run["wrt"]
+    reference = ctx.run["reference"]
+    inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    base_ic = np.asarray(inputs[ctx.ic_key], dtype=np.float64)
+    t_end = float(np.asarray(inputs["dt"])[0]) * int(inputs["steps"])
+    params = inspect.signature(reference).parameters
+    extra = {k: ctx.phys[k] for k in params if k in ctx.phys and k not in ("ic", "t")}
+    ref = float(reference(base_ic, t=t_end, **extra))
+
+    g = _vjp_grad(t, inputs, ctx.output_key, wrt)
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        return {
+            "metrics": {"status": "failed", "failure_type": "nan", "error": nonfinite}
+        }
+    grad = float(np.sum(np.asarray(g, dtype=np.float64)))
+    signed = grad / ref - 1.0
+    return {
+        "metrics": {
+            "valid": True,
+            "error": abs(signed),
+            "signed_error": signed,
+            "grad": grad,
+            "reference": ref,
+        },
+    }
+
+
 @kernel(sweep_mode="default", horizons_shared=True, catch_label="VJP failed")
 def param_sweep(t: Any, ctx: KernelContext) -> dict:
     """One sweep point for a parameter sweep: grad_norm + per-eps mean/std/cosine.
@@ -295,7 +337,7 @@ def horizon_sweep_limits(t: Any, ctx: KernelContext) -> dict:
     Intended to be run with one GPU per solver so OOM reflects a single GPU
     budget::
 
-        mosaic gradient ns-3d-grid --experiments horizon_sweep_limits --gpu-ids 0 1 2 3
+        mosaic run -p ns-3d-grid -e gradient/horizon_sweep_limits --gpus 0,1,2,3
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     g = _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key)
