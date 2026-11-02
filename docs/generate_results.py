@@ -488,7 +488,12 @@ def _rank_cost(problem: str) -> tuple[list[str], list[tuple], str] | None:
     def _first(v: tuple[float, float, float]) -> str:
         return f"{v[2]:.3g} s" if math.isfinite(v[2]) else "—"
 
+    # The device the forward times were measured on, else the one configured.
     gpu = {n: m.get("gpu", True) for n, m in _solver_meta().get(problem, {}).items()}
+    hardware = scoreboard.hardware(
+        scoreboard.cost_result(RESULTS_DIR, problem, "spatial_cost")
+    )
+    gpu |= {n: bool(record.get("gpus")) for n, record in hardware.items()}
     rows = sorted(fwd.items(), key=lambda t: (not gpu.get(t[0], True), t[1][1]))
     header = ["Solver", "Device", "Forward time", "Forward first call", "VJP time"]
     return (

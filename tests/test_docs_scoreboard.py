@@ -153,10 +153,11 @@ def test_resource_limits_are_listed_but_not_failures(periodic: dict) -> None:
     phiflow = _solver(periodic, "PhiFlow")
     assert phiflow["reliability"]["limits"] == 1
     assert phiflow["reliability"]["failed"] == 0
+    # Without a result file there is no sweep key to name.
     assert phiflow["limits"] == [("gradient/horizon_sweep", "5120")]
     html = scoreboard.render_setup(periodic)
     assert "Resource limits (1)" in html
-    assert "from sweep value 5120" in html
+    assert "from 5120" in html
 
 
 def test_gradient_check_shows_fd_and_analytic_side_by_side(periodic: dict) -> None:
@@ -216,3 +217,27 @@ def test_setups_follow_the_intervention_module(
     kolmogorov = _solver(_setup(data, "ns-2d-kolmogorov"), "XLB")
     assert tgv["checks"]["forward"]["state"] == "pass"
     assert kolmogorov["checks"]["forward"]["state"] == "fail"
+
+
+def test_cost_follows_the_device_results_were_measured_on(tmp_path: Path) -> None:
+    """Results from before a move to the GPU are compared with the CPU solvers."""
+    _snapshot(tmp_path, [_row("cost/spatial_cost", {s: _cell() for s in SOLVERS})])
+    d = tmp_path / "ns-grid" / "cost" / "spatial_cost"
+    d.mkdir(parents=True)
+    t4 = {"gpus": ["Tesla T4, 16384 MiB"], "cpu": "EPYC"}
+    data = {
+        "results": [
+            _timing(s, t, 0.01) for s, t in zip(SOLVERS, (1.0, 2.0, 4.0), strict=True)
+        ],
+        "extras": {"hardware_by_solver": {"PhiFlow": t4, "XLB": t4, "PICT": {}}},
+    }
+    (d / "result.json").write_text(json.dumps(data))
+    setup = _setup(scoreboard.compute(tmp_path, META), "ns-2d-periodic")
+    pict = _solver(setup, "PICT")
+    assert not pict["gpu"]
+    assert pict["device_mismatch"]
+    assert pict["cost"]["Forward cost"]["ratio"] == 1.0
+    assert _solver(setup, "XLB")["cost"]["Forward cost"]["ratio"] == 2.0
+    html = scoreboard.render_setup(setup)
+    assert "measured on Tesla T4" in html
+    assert "CPU run</span>" in html

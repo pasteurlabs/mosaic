@@ -1458,6 +1458,18 @@ table.ck-table {
   color: var(--m-ink-2);
 }
 
+// Marks a solver whose cost results ran on another device class than it targets.
+.ck-device {
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  border: 1px dashed var(--m-border-strong);
+  border-radius: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--m-muted);
+  cursor: help;
+}
+
 // Marks a borderline check whose every anomaly has a documented cause.
 .ck-explained {
   margin-left: 0.1rem;

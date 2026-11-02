@@ -49,7 +49,9 @@ For each setup, each solver gets:
 - **Cost**, forward and VJP: wall-clock time as a multiple of the fastest
   solver *on the same kind of device*, at the largest problem size every
   solver in that group completed. GPU and CPU solvers ran on different
-  machines, so they are compared within their group only. A **≈** marks a gap
+  machines, so they are compared within their group only; a solver sits in
+  the group its cost results were measured on, and a note marks results that
+  ran on another device than the solver now targets. A **≈** marks a gap
   to the fastest solver that is no larger than twice the spread (standard
   deviation) of the two solvers' timed trials, so the two cannot be told apart
   on this run. Hover a cost for the mean, its spread, the number of trials and

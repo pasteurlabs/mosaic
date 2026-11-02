@@ -336,7 +336,7 @@ def _check(cells: list[tuple[str, dict]]) -> dict:
 # ── Cost ─────────────────────────────────────────────────────────────────────
 
 
-def _cost_result(results_dir: Path, problem: str, exp: str) -> dict:
+def cost_result(results_dir: Path, problem: str, exp: str) -> dict:
     path = results_dir / problem / "cost" / exp / "result.json"
     if not path.exists():
         return {}
@@ -368,11 +368,33 @@ def _times_by_n(data: dict) -> dict[str, dict[float, dict]]:
     return out
 
 
-def _gpu_model(data: dict) -> str:
-    """The GPU a cost result was measured on, or "" when it is not one model."""
-    gpus = ((data.get("extras") or {}).get("hardware") or {}).get("gpus") or []
-    models = {str(g).split(",")[0].strip() for g in gpus}
-    return models.pop() if len(models) == 1 else ""
+def hardware(data: dict) -> dict[str, dict]:
+    """Per solver, the hardware its cost results were measured on.
+
+    Merged results keep one record per solver, since the jobs ran on
+    different machines; a single run has one record for all of them.
+    """
+    extras = data.get("extras") or {}
+    if extras.get("hardware_by_solver"):
+        return extras["hardware_by_solver"]
+    single = extras.get("hardware")
+    if not single:
+        return {}
+    return {r["solver"]: single for r in data.get("results", []) or []}
+
+
+def _sweep_point(results_dir: Path, problem: str, label: str, value) -> str:
+    """``N=64`` for a sweep value, or the bare value without a sweep key."""
+    path = results_dir / problem / label / "result.json"
+    try:
+        key = (json.loads(path.read_text(encoding="utf-8")).get("sweep") or {})["key"]
+    except Exception:
+        return str(value)
+    return f"{key}={value}"
+
+
+def _gpu_names(record: dict) -> set[str]:
+    return {str(g).split(",")[0].strip() for g in record.get("gpus") or []}
 
 
 def _relative_cost(
@@ -449,19 +471,29 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
 
         has_cost = any(r["suite"] == "cost" for r in rows)
         cost: dict[str, dict[str, dict]] = {}
+        # Each solver is compared within the device class its cost results
+        # were measured on, which can differ from its config when the results
+        # predate a move to the GPU. Without a hardware record the config
+        # decides.
+        configured = {n: bool(meta.get(n, {}).get("gpu", True)) for n in names}
+        measured: dict[str, bool] = {}
         gpu_models: set[str] = set()
         if has_cost:
-            for label, exp in COST_PASSES:
-                data = _cost_result(results_dir, problem, exp)
-                if model := _gpu_model(data):
-                    gpu_models.add(model)
+            passes = [
+                (label, cost_result(results_dir, problem, exp))
+                for label, exp in COST_PASSES
+            ]
+            for _, data in reversed(passes):  # the forward pass wins
+                for n, record in hardware(data).items():
+                    if n in configured:
+                        measured[n] = bool(record.get("gpus"))
+            for label, data in passes:
+                for n, record in hardware(data).items():
+                    if measured.get(n):
+                        gpu_models |= _gpu_names(record)
                 times = _times_by_n(data)
                 for gpu in (True, False):
-                    group = [
-                        n
-                        for n in names
-                        if bool(meta.get(n, {}).get("gpu", True)) is gpu
-                    ]
+                    group = [n for n in names if measured.get(n, configured[n]) is gpu]
                     for s, v in _relative_cost(times, group).items():
                         cost.setdefault(s, {})[label] = v
 
@@ -512,7 +544,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 if k in ("anomaly", "failed", "blocked", "notrun")
             ]
             limits = [
-                (lab, str(c["resource_frontier"]))
+                (lab, _sweep_point(results_dir, problem, lab, c["resource_frontier"]))
                 for lab, _, c in kinds
                 if c.get("resource_frontier")
             ]
@@ -521,7 +553,12 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 {
                     "name": m.get("display") or name,
                     "anchor": m.get("anchor", ""),
-                    "gpu": bool(m.get("gpu", True)),
+                    "gpu": measured.get(name, configured[name]),
+                    # Cost measured on a different device class than the
+                    # solver's config targets, e.g. results that predate a
+                    # move to the GPU.
+                    "device_mismatch": name in measured
+                    and measured[name] is not configured[name],
                     "checks": checks,
                     "cost": cost.get(name, {}),
                     "reliability": reliability,
@@ -700,8 +737,16 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         ]
         for r in rows:
             href = f"solvers.qmd#{r['anchor']}" if r["anchor"] else "solvers.qmd"
+            mismatch = (
+                '<span class="ck-device" title="This solver targets the '
+                f"{'CPU' if gpu else 'GPU'}, but its cost results were measured "
+                f'on the {"GPU" if gpu else "CPU"}; they predate the change.">'
+                f"{'GPU' if gpu else 'CPU'} run</span>"
+                if r["device_mismatch"]
+                else ""
+            )
             trs.append(
-                f'<tr><th scope="row" class="ck-solver"><a href="{href}">{_esc(r["name"])}</a></th>'
+                f'<tr><th scope="row" class="ck-solver"><a href="{href}">{_esc(r["name"])}</a>{mismatch}</th>'
                 + "".join(_check_td(r["checks"][s]) for s in suites)
                 + "".join(_cost_td(r["cost"].get(c)) for c in cost_cols)
                 + _rel_td(r["reliability"])
@@ -739,7 +784,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
             )
     limit_items = [
         f"<li><strong>{_esc(r['name'])}</strong> · <code>{_esc(lab)}</code> · "
-        f"from sweep value {_esc(frontier)}</li>"
+        f"from {_esc(frontier)}</li>"
         for r in setup["rows"]
         for lab, frontier in r["limits"]
     ]
@@ -755,7 +800,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     details = ""
     if flag_items:
         details += (
-            f'<details class="ck-flags"><summary>Why cells are flagged ({len(flag_items)})</summary>'
+            f'<details class="ck-flags"><summary>Flags and exclusions ({len(flag_items)})</summary>'
             f"<ul>{''.join(flag_items)}</ul></details>"
         )
     if limit_items:
