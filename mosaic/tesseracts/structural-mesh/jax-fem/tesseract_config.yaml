@@ -15,6 +15,9 @@ build_config:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:
