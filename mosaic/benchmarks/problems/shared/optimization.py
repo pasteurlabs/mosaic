@@ -49,15 +49,31 @@ def _append_aux(aux_history: dict | None, aux: Any) -> None:
         aux_history.setdefault(label, []).append(float(val))
 
 
-def _iters_to_best(losses: list[float]) -> int:
-    """Number of iterations taken until the lowest loss in ``losses``.
+# Share of a run's total improvement after which its loss counts as levelled off.
+PLATEAU_FRACTION = 0.95
+
+
+def _iters_to_plateau(losses: list[float], fraction: float = PLATEAU_FRACTION) -> int:
+    """Number of iterations until the loss levels off.
 
     ``losses[0]`` is the loss at the initial iterate and ``losses[k]`` the loss
-    after ``k`` iterations, so a lowest loss at ``losses[42]`` gives 42, and 0
-    means that no iteration improved on the initial loss. Ties go to the
-    earliest iteration.
+    after ``k`` iterations. The result is the first ``k`` at which the best
+    loss so far has made ``fraction`` of the improvement the whole run makes,
+    from ``losses[0]`` to the lowest loss. The improvement is measured on a
+    log scale when every loss is positive, so that a loss falling by several
+    decades counts each decade alike, and on a linear scale otherwise. The
+    best-so-far loss keeps noise from moving the result, and the threshold
+    moves little with a small last improvement, unlike the iteration of the
+    lowest loss. 0 means that no iteration improved on the initial loss, and a
+    value near the end of the run means that the loss was still falling.
     """
-    return int(np.argmin(losses))
+    best = np.minimum.accumulate(np.asarray(losses, dtype=float))
+    if np.all(best > 0):
+        best = np.log(best)
+    total = best[0] - best[-1]
+    if total <= 0:
+        return 0
+    return int(np.argmax(best[0] - best >= fraction * total))
 
 
 def _check_finite_loss(loss_val: float, i: int) -> None:
@@ -112,10 +128,10 @@ def _run_optim(
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
       * ``converged``:  whether the patience-based early stop fired
-      * ``iters_to_best``: :func:`_iters_to_best` of ``losses``, the plain
-        minimum regardless of ``min_rel_improvement``. ``losses[k]`` is the
-        loss after ``k`` updates, and the iterate after the last update is
-        not evaluated, so it never counts as the best.
+      * ``iters_to_plateau``: :func:`_iters_to_plateau` of ``losses``, which
+        is independent of ``min_rel_improvement`` and ``patience``.
+        ``losses[k]`` is the loss after ``k`` updates, and the iterate after
+        the last update is not evaluated.
 
     Raises ``FloatingPointError`` as soon as the loss is NaN/Inf.
     """
@@ -159,7 +175,7 @@ def _run_optim(
         if no_improve >= patience:
             break
     diag["converged"] = no_improve >= patience
-    diag["iters_to_best"] = _iters_to_best(losses)
+    diag["iters_to_plateau"] = _iters_to_plateau(losses)
     return x, losses, diag
 
 
@@ -213,7 +229,7 @@ def _run_lbfgs(
     Returns ``(final_x, losses, diag)``. ``losses`` and ``diag["grad_norms"]``
     cover ``init_x`` and every iterate, ending at ``final_x``.
     ``diag["converged"]`` is false when the run hit ``max_iters`` or the line
-    search failed. ``diag["iters_to_best"]`` is :func:`_iters_to_best` of
+    search failed. ``diag["iters_to_plateau"]`` is :func:`_iters_to_plateau` of
     ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
     is not finite.
     """
@@ -303,6 +319,6 @@ def _run_lbfgs(
     diag = {
         "grad_norms": grad_norms,
         "converged": bool(converged),
-        "iters_to_best": _iters_to_best(losses),
+        "iters_to_plateau": _iters_to_plateau(losses),
     }
     return jnp.asarray(to_x(res.x)), losses, diag
