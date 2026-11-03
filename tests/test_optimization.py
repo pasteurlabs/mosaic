@@ -11,7 +11,11 @@ import numpy as np
 import pytest
 
 from mosaic.benchmarks.core.harness import classify_failure
-from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
+from mosaic.benchmarks.problems.shared.optimization import (
+    _iters_to_best,
+    _run_lbfgs,
+    _run_optim,
+)
 
 
 @pytest.mark.parametrize("optim_fn", [_run_optim, _run_lbfgs])
@@ -146,3 +150,35 @@ def test_lbfgs_reports_convergence():
     assert diag["converged"] and len(losses) < 50
     _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=2)
     assert not diag["converged"] and len(losses) == 3
+
+
+def test_iters_to_best_counts_iterations_after_the_initial_loss():
+    assert _iters_to_best([3.0, 2.0, 1.0, 1.5]) == 2
+    assert _iters_to_best([1.0, 2.0, 3.0]) == 0
+    assert _iters_to_best([3.0, 1.0, 2.0, 1.0]) == 1
+
+
+def test_adam_records_iters_to_best():
+    """Adam overshoots a 1-D quadratic, so the lowest loss comes before the last."""
+    _, losses, diag = _run_optim(lambda x: jnp.sum(x**2), jnp.ones(1), 0.5, 40, 40)
+    best = diag["iters_to_best"]
+    assert 0 < best < len(losses) - 1
+    assert losses[best] == min(losses)
+    assert all(loss > losses[best] for loss in losses[:best])
+
+
+def test_adam_iters_to_best_is_zero_when_no_iteration_improves():
+    """A gradient of the wrong sign makes Adam climb the loss."""
+
+    def uphill(x):
+        q = jnp.sum(x**2)
+        return jax.lax.stop_gradient(2 * q) - q
+
+    _, losses, diag = _run_optim(uphill, jnp.ones(1), 0.1, 5, 5)
+    assert losses[-1] > losses[0]
+    assert diag["iters_to_best"] == 0
+
+
+def test_lbfgs_records_iters_to_best():
+    _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
+    assert diag["iters_to_best"] == int(np.argmin(losses)) > 0

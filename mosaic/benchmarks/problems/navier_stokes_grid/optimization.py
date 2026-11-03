@@ -37,7 +37,7 @@ from mosaic.benchmarks.core.io import (
     save_npz_merged,
 )
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
-from mosaic.benchmarks.problems.shared.optimization import _run_optim
+from mosaic.benchmarks.problems.shared.optimization import _iters_to_best, _run_optim
 
 from . import cylinder
 
@@ -121,7 +121,10 @@ def _drag_build_solver_entry(
 ) -> dict:
     """Assemble a single solver's drag-opt result dict (used for partial + final).
 
-    ``drags`` is the drag coefficient Cd at each iteration.
+    ``drags`` is the drag coefficient Cd at each iteration. The loss is
+    proportional to Cd, so ``iters_to_best`` is :func:`_iters_to_best` of
+    ``drags``, which includes the Cd of the final profile once the kernel has
+    appended it.
     """
     entry = {
         "drags": drags,
@@ -133,6 +136,7 @@ def _drag_build_solver_entry(
             else 0.0
         ),
         "n_iters": n_iters_total,
+        "iters_to_best": _iters_to_best(drags) if drags else None,
         "converged": converged,
         "grad_norms": grad_norms,
     }
