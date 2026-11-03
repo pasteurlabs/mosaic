@@ -150,6 +150,18 @@ def test_scaffold_creates_files(tmp_path):
         assert not (pkg / name).exists(), f"unexpected scaffolded file: {name}"
 
 
+def test_scaffold_refuses_an_existing_domain(tmp_path):
+    """Scaffolding a name that is taken leaves the existing files alone."""
+    tpl = load_template("ns-periodic")
+    target = tmp_path / "mosaic"
+    created = scaffold_domain("test-domain", tpl, target_dir=target)
+    created["problem_config"].write_text("edited\n", encoding="utf-8")
+
+    with pytest.raises(FileExistsError, match="test_domain"):
+        scaffold_domain("test-domain", tpl, target_dir=target)
+    assert created["problem_config"].read_text(encoding="utf-8") == "edited\n"
+
+
 def test_scaffold_generates_valid_python(tmp_path):
     """Generated problem config must be syntactically valid Python."""
     tpl = load_template("ns-periodic")
