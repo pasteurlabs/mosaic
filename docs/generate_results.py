@@ -97,9 +97,9 @@ SETUP_TAGLINES = {
         "chaotic, in a 2D box without walls."
     ),
     "ns-2d-cylinder": (
-        "Optimize the inflow of a 2D channel flow to minimize drag on a "
-        "cylinder, which needs walls, an obstacle and inflow and outflow "
-        "boundaries."
+        "Optimize the inflow of a 2D channel to minimize drag on a cylinder, "
+        "which requires solvers to handle walls, an obstacle, an inflow and an "
+        "outflow."
     ),
     "ns-2d-kolmogorov": (
         "Forced 2D turbulence that settles into a statistically steady state, "
@@ -127,9 +127,9 @@ SETUP_DESCRIPTIONS = {
         "The nonlinear advection term "
         "$\\nabla\\cdot(\\mathbf{u}\\otimes\\mathbf{u})$ transfers energy across "
         "scales. At low $\\nu$ the flow develops turbulent cascades and a positive "
-        "Lyapunov exponent, so long-horizon gradients become exponentially "
-        "sensitive to perturbations, which makes backpropagation through the "
-        "simulation hardest in this regime."
+        "Lyapunov exponent. Long-horizon gradients then become exponentially "
+        "sensitive to perturbations, so backpropagation through the simulation "
+        "is hardest in this regime."
     ),
     "ns-2d-cylinder": (
         "The channel follows the Sch\u00e4fer\u2013Turek DFG 2D-1 benchmark at "
@@ -151,8 +151,8 @@ SETUP_BCS = {
         "The Sch\u00e4fer\u2013Turek DFG 2D-1 channel "
         "$[0, 2.2] \\times [0, 0.41]$ with a cylinder of diameter 0.1 at "
         "$(0.2, 0.2)$, a parabolic inflow of mean speed 0.2 on the left, a "
-        "zero-gradient outflow at $p=0$ on the right, and no-slip walls. With "
-        "$\\nu = 10^{-3}$, $Re = 20$."
+        "zero-gradient outflow at $p=0$ on the right, and no-slip walls. The "
+        "viscosity $\\nu = 10^{-3}$ gives $Re = 20$."
     ),
 }
 
@@ -166,11 +166,11 @@ RESULTS_PROVENANCE = (
     "device: GPU-capable solvers on a Tesla T4 GPU node, CPU-only solvers "
     "(OpenFOAM, deal.II, FEniCS, Firedrake, TopOpt.jl) on a separate CPU node. "
     "Each benchmark job has its virtual machine to itself, but the hardware "
-    "and the load on the host can differ between runs, so wall-clock times "
-    "vary from run to run. Read them for relative scaling between solvers "
-    "rather than as absolute timings. Accuracy and gradient metrics change "
-    "little between hardware, although float32 arithmetic differs between "
-    "devices and chaotic rollouts amplify small differences. For numbers that "
+    "and the load on the host can change from run to run, so wall-clock times "
+    "vary. Read them for relative scaling between solvers rather than as "
+    "absolute timings. Accuracy and gradient metrics change little across "
+    "hardware, although float32 arithmetic is not identical across devices "
+    "and chaotic rollouts amplify small discrepancies. For numbers that "
     "reflect *your* setup, [run the benchmark yourself](getting-started.qmd) "
     "on your target hardware."
 )
@@ -202,7 +202,7 @@ SUITE_DESCRIPTIONS = {
         "**Can you optimize through it?** Optimization experiments run a "
         "gradient-based optimizer on each solver's own gradients. A gradient "
         "can pass the finite-difference check and still fail to drive an "
-        "optimization loop, so these complete the picture."
+        "optimization loop."
     ),
     "cost": (
         "**What does it cost?** Wall-clock time and peak memory of the forward "
@@ -701,13 +701,12 @@ _SUITE_RANK_CAPTIONS = {
     "gradient points the right way.",
     "cost": "Forward and VJP wall-clock time, each at the largest problem size N "
     "the solver completed for that pass, with GPU solvers first and each group "
-    "sorted by forward time. The VJP time is one gradient from scratch, a "
-    "forward plus an adjoint pass, and VJP / forward is their ratio at the "
+    "sorted by forward time. The VJP time covers one gradient from scratch "
+    "(a forward plus an adjoint pass), and VJP / forward is their ratio at the "
     "largest N both passes completed. Forward-only solvers have no VJP entry. "
     "Peak memory is the device memory in use for solvers measured on a GPU "
     "(CUDA context and allocator pools included) and the solver container's "
-    "memory for those measured on a CPU, at the same N as the time. See the "
-    "note on how these results were produced before comparing across devices.",
+    "memory for those measured on a CPU, at the same N as the time.",
     "optimization": "Sorted by the final objective reached within the iteration "
     "budget (lower is better). Iterations to plateau counts the optimizer "
     "iterations until the best loss so far had made 95% of the run's total "
@@ -990,7 +989,7 @@ def _params_block(
             if not params:
                 continue
             sweep = _sweep_line(params)
-            lines += ["", f"**{name.replace('_', ' ').title()}**"]
+            lines += ["", f"**`{name}`**"]
             if sweep:
                 lines += ["", sweep]
             lines += [

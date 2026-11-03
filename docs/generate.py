@@ -587,7 +587,7 @@ def render_domain(category: str, solvers: list[dict], scores: dict) -> str:
     intro = (
         f"The solvers in this domain share the schema in "
         f"[`{schema}`]({_REPO_URL}/blob/main/{schema})"
-        + (f" and serve {setups}." if setups else ".")
+        + (f" and are benchmarked on {setups}." if setups else ".")
     )
     body = "\n".join(render_solver(s, scores) for s in solvers)
     return f"## {category} {{#{domain}}}\n\n{intro}\n\n{body}"
@@ -612,11 +612,18 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         (
             "A solver's intervention record lists everything done to run it "
             "beyond calling the library as intended, with the reason and "
-            "evidence for each item, and the places where it runs a substitute "
-            "for the prescribed setup, called deviations. Its effort on a setup "
-            "is the highest level among the interventions that setup requires. "
+            "evidence for each item. What counts as intended use depends on the "
+            "solver's abstraction level, which is running a program as "
+            "documented (`application`), expressing the setup through a "
+            "library's API (`framework`) or building on its primitives "
+            "(`kernel-toolkit`). The record also lists the solver's deviations, "
+            "the places where it runs a substitute for the prescribed setup. "
+            "The solver's effort on a setup is the highest level among the "
+            "interventions marked `required` there, and "
             "[How to read the results](results.qmd#how-to-read-the-results) "
-            "explains the levels."
+            "explains the levels. Contributions are welcome on every item, since "
+            "an upstream fix or a better configuration can lower a solver's "
+            "effort."
         ),
         "",
     ]

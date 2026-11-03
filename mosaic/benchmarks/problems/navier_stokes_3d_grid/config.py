@@ -118,12 +118,12 @@ problem = Problem(
         "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
         "with viscosity $\\nu$ as the primary control parameter. Unlike 2D, the 3D "
         "equations admit *vortex stretching*, which amplifies vorticity and brings on "
-        "chaos far sooner: the chaos horizon is $T^\\ast \\approx 8\\text{–}16$ versus "
+        "chaos far sooner. The chaos horizon is $T^\\ast \\approx 8\\text{–}16$ versus "
         "$T^\\ast > 64$ in 2D (at $\\nu=10^{-3}$, $N=16$). As a result gradient norms "
         "*grow* along the rollout here rather than decaying as they do in 2D."
     ),
     bc_description=(
-        "Triply-periodic cubic domain $[0, 2\\pi]^3$ (the flow wraps around on all "
+        "Triply periodic cubic domain $[0, 2\\pi]^3$ (the flow wraps around on all "
         "three axes). Incompressibility $\\nabla\\cdot\\mathbf{u}=0$ is enforced by a "
         "pressure projection at each time step. No walls or inflow/outflow boundaries."
     ),

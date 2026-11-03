@@ -16,7 +16,7 @@ A run passes through five stages:
 
 The problem registry in [`mosaic/benchmarks/problems/__init__.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/__init__.py) imports every problem package under `mosaic/benchmarks/problems/` (its `config.py`, or a single module) and registers each module-level `problem` that is a [`Problem`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py), keyed by `Problem.name`. That name is what `-p` selects. A package that fails to import is skipped with a logged warning, so a problem missing from `mosaic status` usually means an import error in its package.
 
-Each problem's `config.py` builds its solver list with `discover_solvers(<domain directory>)`. It scans `mosaic/tesseracts/<domain>/*/tesseract_config.yaml` for a `metadata.mosaic` block with a `name` and builds one `SolverSpec` per solver, keyed by the directory name with hyphens replaced by underscores. The same pass parses the intervention record and checks it against the setups the domain serves. The config then applies plot styles from `solver_styles.py`, sets per-solver `input_overrides`, and registers exclusions, which the existing problems keep in an `exclusions.py`. Two problems can share a domain, as `ns-grid` and `ns-3d-grid` share `navier-stokes-grid`, and each then discovers the same solvers.
+Each problem's `config.py` builds its solver list with `discover_solvers(<domain directory>)`, which scans `mosaic/tesseracts/<domain>/*/tesseract_config.yaml` for a `metadata.mosaic` block with a `name` and builds one `SolverSpec` per solver, keyed by the directory name with hyphens replaced by underscores. The same pass parses the intervention record and checks it against the setups the domain serves. The config then applies plot styles from `solver_styles.py`, sets per-solver `input_overrides`, and registers exclusions, which the existing problems keep in an `exclusions.py`. Two problems can share a domain, as `ns-grid` and `ns-3d-grid` share `navier-stokes-grid`, and each then discovers the same solvers.
 
 Experiments are registered with `problem.add_experiment(key, kernel, ...)`, which stores an `Experiment` in `problem.experiments` under `<suite>/<experiment>`, with one entry per variant (`<suite>/<experiment>/<variant>`) when the registration fans out. Initial conditions registered with `add_ic` appear as `ics/<name>`. [Add a domain](add-domain.qmd#registering-experiments) describes the arguments.
 
@@ -32,11 +32,11 @@ Every experiment registered with a kernel runs through `run_experiment` in [`mos
 4. optionally passes the collected outputs to the kernel's aggregate function, which computes quantities across solvers, such as the consensus reference of the `agreement` kernel;
 5. writes `result.json`.
 
-Without `--gpus`, solvers run one at a time. With a list of GPUs, `run_with_gpu_pool` runs one solver per GPU in parallel. While an experiment runs, finished solvers are written to `result_partial.json`, so that `--continue` can skip them after an interruption. `--only` selects cells by their current state, using the status pipeline described below. `--debug` caps problem sizes (`_debug_run` in `utils.py`) and writes to `<experiment>_debug/` directories.
+Without `--gpus`, solvers run one at a time. With a list of GPUs, `run_with_gpu_pool` runs one solver per GPU in parallel. While an experiment runs, the results of finished solvers are written to `result_partial.json`, so that `--continue` can skip them after an interruption. `--only` selects cells by their current state, using the status pipeline described below. `--debug` caps problem sizes (`_debug_run` in `utils.py`) and writes to `<experiment>_debug/` directories.
 
 ## `result.json`
 
-Each experiment writes `mosaic-results/<problem>/<suite>/<experiment>[_debug]/result.json`. The root directory can be changed with `-o` or the `MOSAIC_RESULTS_DIR` environment variable. The file follows schema version 1, built by `_build_result_envelope` in `experiment.py`:
+Each experiment writes `mosaic-results/<problem>/<suite>/<experiment>[_debug]/result.json`. The root directory can be changed with `-o` or the `MOSAIC_RESULTS_DIR` environment variable. The file follows schema version 1 and is built by `_build_result_envelope` in `experiment.py`:
 
 - `experiment` names the suite and experiment, and its `domain` field holds the problem name.
 - `params` is the run configuration, and `sweep` the swept key and its values.
@@ -48,7 +48,7 @@ When a later run uses the same physics parameters, `save_experiment` merges its 
 
 ## Setups
 
-A setup is a problem statement that results are reported for. The setups are defined in `SETUPS` in [`mosaic/benchmarks/core/interventions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/interventions.py). Each belongs to one problem and may claim experiments by key prefix. `setup_of(problem, experiment)` returns the setup that claims an experiment, or else the problem's setup without claims. `ns-grid`, for example, has three setups. `ns-2d-cylinder` claims `forward/cylinder` and `optimization/drag_opt`, `ns-2d-kolmogorov` claims the Kolmogorov experiments, and `ns-2d-periodic` owns the rest.
+A setup is a problem statement that results are reported for. The setups are defined in `SETUPS` in [`mosaic/benchmarks/core/interventions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/interventions.py). Each belongs to one problem and may claim experiments by key prefix. `setup_of(problem, experiment)` returns the setup that claims an experiment, or else the problem's setup without claims. For example, `ns-grid` has three setups: `ns-2d-cylinder` claims `forward/cylinder` and `optimization/drag_opt`, `ns-2d-kolmogorov` claims the Kolmogorov experiments, and `ns-2d-periodic` owns the rest.
 
 `DOMAIN_SETUPS` lists the setups each domain's solvers can serve, and intervention records may only name those. Effort is computed per setup by `InterventionRecord.effort(setup)`. The docs generators use `setup_of` to give each setup its own results page.
 
@@ -66,8 +66,8 @@ A setup is a problem statement that results are reported for. The setups are def
 
 The row is built in five steps:
 
-1. **Classify** each solver from the `results` list. Running out of memory or time at the larger sweep values after valid smaller ones does not fail the cell. The status pipeline records the first value that failed as the solver's resource frontier instead. A solver whose container failed to start is marked `failed`.
-2. **Apply the status checks.** `_lookup_check` takes the most specific source among the experiment's inline `status_check`, `Problem.status_checks[<suite>/<experiment>]` and `Problem.status_checks[<suite>]`, and the most specific one replaces the others. Suite-specific functions then turn `ok` cells that fail a check into `anomaly`. They exist for the forward and cost suites, the optimization suite, and the finite-difference and analytic gradient checks, so a `status_check` on another gradient experiment has no effect.
+1. **Classify** each solver from the `results` list. If a solver runs out of memory or time at larger sweep values after producing valid results at smaller ones, the cell does not fail. Instead, the pipeline records the first value that failed as the solver's resource frontier. A solver whose container failed to start is marked `failed`.
+2. **Apply the status checks.** `_lookup_check` uses the most specific of the experiment's inline `status_check`, `Problem.status_checks[<suite>/<experiment>]` and `Problem.status_checks[<suite>]`, and ignores the others. Suite-specific functions then turn `ok` cells that fail a check into `anomaly`. They exist for the forward and cost suites, the optimization suite, and the finite-difference and analytic gradient checks, so a `status_check` on another gradient experiment has no effect.
 3. **Mark stale cells.** A cell is stale (shown as `*`) when the solver's directory or the kernel's source has changed since the result was written. Staleness is a flag on the cell, separate from its state.
 4. **Apply exclusions.** An exclusion overrides whatever the result file says, with the same longest-prefix lookup that the runner uses to skip solvers.
 5. **Attach explanations.** An `ANOMALY_EXPLAINED` exclusion adds its text to an `anomaly` cell without changing the state. If the cell is `ok`, the explanation is reported as unused.

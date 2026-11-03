@@ -4,9 +4,9 @@ title: Add a solver
 
 A solver wraps one library as a Tesseract under the directory of an existing domain. Once its directory is in place, the harness discovers it and runs it against every experiment of the problems that use that domain. This page walks through every step, from the directory layout to the pull request. To add a new family of solvers with its own canonical schema, see [Add a domain](add-domain.qmd).
 
-The running example adds a solver called `my-spectral-solver` to the `navier-stokes-grid` domain. Its physics is deliberately minimal. It only applies viscous decay in Fourier space, which takes one line and keeps the focus on how a solver plugs into Mosaic.
+The running example adds a solver called `my-spectral-solver` to the `navier-stokes-grid` domain. Its physics is deliberately minimal, a single line of viscous decay in Fourier space, so that the page can focus on how a solver plugs into Mosaic.
 
-You need a development install of Mosaic (see [Setup](contributing.qmd#setup), which links the [install steps](getting-started.qmd#install)) and a running Docker daemon. An NVIDIA GPU is only needed if your solver runs on one.
+You need a running Docker daemon and a development install of Mosaic, as described in [Setup](contributing.qmd#setup) and the [install steps](getting-started.qmd#install). An NVIDIA GPU is only needed if your solver runs on one.
 
 ## How Mosaic builds on Tesseract
 
@@ -65,7 +65,7 @@ metadata:
     doc_url: "https://github.com/yourname/my-spectral-solver"
 ```
 
-The top-level keys (`name`, `version`, `description`, `build_config`, `env`) belong to tesseract-core and are documented in [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) repository has more worked configurations. Mosaic adds two conventions. `name` becomes the Docker image name and follows the pattern `<solver>_<domain>`, with underscores. `description` is also the solver's summary in the [solver reference](solvers.qmd), so keep it to one or two sentences on the method and how gradients are computed.
+The top-level keys (`name`, `version`, `description`, `build_config`, `env`) belong to tesseract-core and are documented in [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) repository has more worked configurations. Mosaic adds conventions for two of these keys. `name` becomes the Docker image name and follows the pattern `<solver>_<domain>`, with underscores. `description` is also the solver's summary in the [solver reference](solvers.qmd), so keep it to one or two sentences on the method and how gradients are computed.
 
 ### The `metadata.mosaic` block
 
@@ -87,7 +87,7 @@ tesseract-core ignores this block, since it sits under the free-form `metadata` 
 
 Discovery only needs `name`. CI also requires `backend`, and `mosaic validate-domain` checks that every solver has a `backend` and a `scheme`, so set all three.
 
-[]{#gpu-memory-settings} **GPU memory settings.** Every JAX solver that runs on a GPU sets `XLA_PYTHON_CLIENT_PREALLOCATE: "false"` and `XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"` in its `env`, and CI rejects one that doesn't. By default, XLA reserves 75% of the device when it starts. The measured peak memory would then be that reservation instead of what the solver uses, and the solver would run out of memory at 75% of the device. Torch, Julia and Warp solvers have no such cap. The settings are part of how Mosaic measures and apply equally to every JAX solver, so they are not interventions.
+[]{#gpu-memory-settings} **GPU memory settings.** Every JAX solver that runs on a GPU sets `XLA_PYTHON_CLIENT_PREALLOCATE: "false"` and `XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"` in its `env`, and CI rejects one that doesn't. Without them, XLA reserves 75% of the device at startup, so the measured peak memory would reflect that reservation instead of what the solver uses, and the solver would run out of memory at 75% of the device. Torch, Julia and Warp solvers have no such cap. The settings are part of how Mosaic measures and apply equally to every JAX solver, so they are not interventions.
 
 ### The intervention record
 
@@ -114,7 +114,7 @@ Each intervention has these fields:
 - `provenance`: `mosaic-team`, `contributor`, `maintainer-authored` or `maintainer-advised`.
 - Optionally `upstream` (a link to the upstream issue, or why there is none), `tuned`, and `active: false` for code that no experiment exercises.
 
-Evidence is required above `L0` unless the necessity is `unknown`, and for every setting picked by measuring alternatives (`tuned: true`), such as a tolerance, linear solver, preconditioner, device or parallel layout. If you don't know why an intervention is needed, say `necessity: unknown` instead of guessing. This includes a setup on which the intervention was never measured. Since necessity applies to the whole entry, that setup then gets an entry of its own.
+Evidence is required above `L0` unless the necessity is `unknown`, and for every setting picked by measuring alternatives (`tuned: true`), such as a tolerance, linear solver, preconditioner, device or parallel layout. If you don't know why an intervention is needed, say `necessity: unknown` instead of guessing. The same holds for a setup on which the intervention was never measured, and since necessity applies to the whole entry, such a setup gets an entry of its own.
 
 The effort a solver needs on a setup is the highest level among its active, required interventions there, and `L0` if there are none. The results pages show it next to the checks (see [how to read the results](results.qmd#how-to-read-the-results)), and the [solver reference](solvers.qmd) lists every intervention with its reason and evidence. Record `L0` changes too, so that readers can see which options were set and why.
 
@@ -154,7 +154,7 @@ The test suite checks every record and its markers (`tests/core/test_interventio
 
 ## 3. Implement `tesseract_api.py`
 
-The structure of this file comes from tesseract-core. It defines the `InputSchema` and `OutputSchema` Pydantic models, `apply`, and optionally `abstract_eval` and `vector_jacobian_product`. The signatures and rules of each endpoint are documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html). What Mosaic adds is that the schemas subclass the domain's canonical schemas, so every solver in the domain reads and writes the same fields.
+The structure of this file comes from tesseract-core. It defines the `InputSchema` and `OutputSchema` Pydantic models, `apply`, and optionally `abstract_eval` and `vector_jacobian_product`. The signatures and rules of each endpoint are documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html). Mosaic only requires that the schemas subclass the domain's canonical schemas, so that every solver in the domain reads and writes the same fields.
 
 ### Subclass the canonical schemas
 
@@ -208,9 +208,9 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Solver outputs; `result` carries the cotangent during VJP."""
 ```
 
-The validator matters as much as the field list. The canonical schema also describes 3D boxes, channel flows with an obstacle, and a body force with linear drag, and a solver must raise on any input it doesn't implement instead of quietly solving a different problem. This example only handles a 2D periodic box without forcing. `check_periodic` rejects channel boundary conditions and obstacles, and a solver that also runs the cylinder channel calls `check_periodic_or_channel` from the same module instead. Experiments the solver can't run also get [exclusions](#exclusions-and-overrides).
+The validator is as important as the field list. The canonical schema also describes 3D boxes, channel flows with an obstacle, and a body force with linear drag, and a solver must raise an error on any input it doesn't implement instead of quietly solving a different problem. This example handles only a 2D periodic box without forcing. `check_periodic` rejects channel boundary conditions and obstacles. A solver that also runs the cylinder channel calls `check_periodic_or_channel` from the same module instead. Experiments the solver can't run also need [exclusions](#exclusions-and-overrides).
 
-Give every input field a default, as the canonical schemas do, so that the solver runs with empty inputs. The smoke test in step 5 relies on that.
+Give every input field a default, as the canonical schemas do, so that the solver runs with empty inputs, as the smoke test in step 5 requires.
 
 ### `apply`
 
@@ -261,7 +261,7 @@ Scalar physics parameters such as `viscosity` and `dt` arrive as one-element arr
 
 ### `abstract_eval`
 
-`abstract_eval` returns the output shapes and dtypes without running the solver. The harness calls solvers through tesseract-jax, which uses it for shape inference, and every Mosaic solver implements it. Array fields of `abstract_inputs` are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` and `"dtype"` keys, so handle both:
+`abstract_eval` returns the output shapes and dtypes without running the solver. The harness calls solvers through tesseract-jax, which uses it for shape inference, so every Mosaic solver implements it. Array fields of `abstract_inputs` are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` and `"dtype"` keys, so handle both:
 
 ```python
 def abstract_eval(abstract_inputs):
@@ -309,7 +309,7 @@ def vector_jacobian_product(
 The arguments are defined by the [endpoint contract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#vector-jacobian-product).
 
 ::: {.callout-tip}
-A solver without gradients sets `differentiable: false` and leaves out `vector_jacobian_product`. The gradient suite, the VJP cost experiment and the optimization suite then skip it, while the forward and cost suites run as usual. `gradient/fd_check` compares each solver's VJP with finite differences of its own forward pass, so it has nothing to check for a solver without a VJP.
+A solver without gradients sets `differentiable: false` and leaves out `vector_jacobian_product`. The gradient suite, the VJP cost experiment and the optimization suite then skip it, while the forward suite and the rest of the cost suite run as usual.
 :::
 
 ## 4. Write `tesseract_requirements.txt`
@@ -335,7 +335,7 @@ Build the container with [`tesseract build`](https://docs.pasteurlabs.ai/project
 tesseract build mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
 ```
 
-This builds an image named `my_spectral_solver_navier_stokes_grid:latest`. The first build downloads base images and installs dependencies, which takes a few minutes, and later builds reuse Docker's layer cache.
+This builds an image named `my_spectral_solver_navier_stokes_grid:latest`. The first build downloads base images and installs dependencies, which takes a few minutes. Later builds reuse Docker's layer cache.
 
 Then call `apply` with empty inputs, so that every field takes its default. For `navier-stokes-grid`, the default `v0` is a 64×64 random vortex field.
 
@@ -352,7 +352,7 @@ You should see `Shape: (64, 64, 1, 2), finite: True`. If the call fails, the usu
 
 ## 6. Run the benchmark
 
-Plug the solver into the harness. `-s` selects solvers by their display name (`metadata.mosaic.name`), matched case-insensitively, and `--no-build` reuses the image you just built. Start with a quick forward run at reduced problem size:
+Next, run the solver through the harness. `-s` selects solvers by their display name (`metadata.mosaic.name`), matched case-insensitively, and `--no-build` reuses the image you just built. Start with a quick forward run at reduced problem size:
 
 ```bash
 mosaic run -p ns-grid --suites forward -s "My Spectral" --debug --no-build
@@ -364,7 +364,7 @@ mosaic run -p ns-grid --suites forward -s "My Spectral" --debug --no-build
 mosaic run -p ns-grid --suites forward -s "My Spectral" --no-build
 ```
 
-This runs every forward experiment registered in [`navier_stokes_grid/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/navier_stokes_grid/config.py), from the Taylor–Green resolution sweep to the cylinder channel and the Kolmogorov flow. Results land in `mosaic-results/ns-grid/forward/`.
+This runs every forward experiment registered in [`navier_stokes_grid/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/navier_stokes_grid/config.py), from the Taylor–Green resolution sweep to the cylinder channel and the Kolmogorov flow. The results are written to `mosaic-results/ns-grid/forward/`.
 
 To check the gradient, run the finite-difference check, which compares the VJP with central finite differences along random directions:
 
@@ -372,7 +372,7 @@ To check the gradient, run the finite-difference check, which compares the VJP w
 mosaic run -p ns-grid -e gradient/fd_check -s "My Spectral" --no-build
 ```
 
-Whether a result passes is decided by the experiment's `status_check` in the same `config.py`. For `gradient/fd_check`, it combines a minimum cosine similarity, a maximum relative error and a test for outliers among the solvers (`min_cosine`, `max_rel_err` and `rel_err_peer_outlier`).
+The experiment's `status_check` in the same `config.py` decides whether a result passes. For `gradient/fd_check`, it combines a minimum cosine similarity, a maximum relative error and a test for outliers among the solvers (`min_cosine`, `max_rel_err` and `rel_err_peer_outlier`).
 
 To run every suite, leave out `--suites` and `-e`:
 
@@ -450,7 +450,7 @@ MY_STAGGERED_ROUND_TRIP = Exclusion(
 problem.exclude("forward/baseline", {"my_staggered_solver": MY_STAGGERED_ROUND_TRIP})
 ```
 
-The solver still runs, and its cell stays an anomaly. `mosaic status` adds the explanation next to the measured reason and marks the cell 🟠ⁱ, and the results pages show the check as borderline with the explanation attached. If the cell passes its checks, it stays ok, and `mosaic status` lists the explanation as unused so that it can be removed. Describe the mechanism instead of quoting measured numbers, since the report already shows the live values and quoted numbers go stale. A bug that should be fixed belongs in a GitHub issue.
+The solver still runs, and its cell stays an anomaly. `mosaic status` adds the explanation next to the measured reason and marks the cell 🟠ⁱ, and the results pages show the check as borderline with the explanation attached. If the cell passes its checks, it stays ok, and `mosaic status` lists the explanation as unused so that it can be removed. Describe the mechanism instead of quoting measured numbers, since the report already shows the live values and quoted numbers go stale. If the cause is a bug that should be fixed, open a GitHub issue instead.
 
 ## 9. Register a plot style
 
@@ -470,6 +470,6 @@ Before you open the pull request, check that:
 4. Experiments the solver can't run have exclusions, in every problem that uses the domain.
 5. The solver has an entry in `SOLVER_STYLES`.
 
-CI lints the code, runs the tests on Python 3.12 and 3.14, which include the check of every intervention record and its markers, and validates every `tesseract_config.yaml`. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), usually `benchmark:solver`, which benchmarks the solvers whose directories changed. The results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
+CI runs the [checks](contributing.qmd#ci-checks) that every pull request gets, including the test of every intervention record and its markers. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), usually `benchmark:solver`, which benchmarks the solvers whose directories changed. The results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
 
 In the pull request description, say which library and method the solver wraps, list the exclusions and explained anomalies you declared and why, and summarize the interventions and deviations you recorded, so that a second maintainer can review their level, necessity and evidence.

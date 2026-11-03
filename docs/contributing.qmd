@@ -2,7 +2,7 @@
 title: Contributing guide
 ---
 
-Mosaic grows as people add solvers, tune the ones it has, and extend it to new domains. This page explains how to set up a development environment, which path fits your contribution, and what happens after you open a pull request. Every contributor also signs the Contributor License Agreement and follows the code of conduct, both linked from [`CONTRIBUTING.md`](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md).
+Mosaic grows as people add solvers, tune the ones it has, and extend it to new domains. This page explains how to set up a development environment, which path fits your contribution, and what happens after you open a pull request. All contributors sign the Contributor License Agreement and follow the code of conduct, both linked from [`CONTRIBUTING.md`](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md).
 
 ## Setup {#setup}
 
@@ -47,7 +47,7 @@ You can change a solver's behavior in three places:
 - **Input overrides** in the problem package (`mosaic/benchmarks/problems/<package>/config.py`, via `_SOLVERS["<solver>"].input_overrides`), which set solver-specific values for input fields, such as `inner_steps` for JAX-CFD on `ns-3d-grid`.
 - **Schema defaults** in the solver's `InputSchema` subclass in `tesseract_api.py`.
 
-Each change goes into the `interventions` list under `metadata.mosaic` with its level, necessity and reason per setup. Set `tuned: true` when you picked a value by measuring alternatives, for example a tolerance, linear solver, preconditioner or device. A tuned intervention needs `evidence`, which links to the measurement it was tuned on. If a change makes the solver run a substitute for the prescribed setup, record it under `deviations` instead. [Add a solver](add-solver.qmd) describes the fields, and the test suite checks every record.
+Record each change in the `interventions` list under `metadata.mosaic`. Set `tuned: true` when you picked a value by measuring alternatives, such as a tolerance, linear solver, preconditioner or device, and link the measurement under `evidence`. If a change makes the solver run a substitute for the prescribed setup, record it under `deviations` instead. [The intervention record](add-solver.qmd#the-intervention-record) describes every field, and the test suite checks each record.
 
 Before you ask for CI time, check that the solver still runs with a quick forward pass at reduced problem size:
 
@@ -55,15 +55,15 @@ Before you ask for CI time, check that the solver still runs with a quick forwar
 mosaic run -p <problem> --suites forward -s "<Display Name>" --debug
 ```
 
-`-s` takes the solver's display name (`metadata.mosaic.name`), matched case-insensitively. The full comparison comes from CI. Once a maintainer applies the `benchmark:solver` label, the benchmark re-runs the changed solver and [the PR benchmark comment](#the-pr-benchmark-comment) shows how its results moved against the `main` baseline. Reviewers look for improvements without regressions on the other setups the solver runs, and for an intervention record that matches the change.
+`-s` takes the solver's display name (`metadata.mosaic.name`), matched case-insensitively. CI then runs the full comparison. Once a maintainer applies the `benchmark:solver` label, it re-runs the changed solver, and [the PR benchmark comment](#the-pr-benchmark-comment) shows how its results moved against the `main` baseline. Reviewers look for improvements without regressions on the other setups the solver runs, and for an intervention record that matches the change.
 
 ### Change the harness
 
-The harness is the code that runs experiments and reports results, mainly the CLI in `mosaic/benchmarks/cli/` and the runner and status pipeline in `mosaic/benchmarks/core/`. [Architecture](architecture.qmd) explains how a run flows through it. Add or update tests under `tests/` alongside the change. A harness change can alter results for every solver, so the maintainer reviewing it picks the [benchmark label](#benchmark-labels) to match, usually `benchmark:all` if the change could alter results and `benchmark:none` if it can't.
+The harness is the code that runs experiments and reports results, mainly the CLI in `mosaic/benchmarks/cli/` and the runner and status pipeline in `mosaic/benchmarks/core/`. [Architecture](architecture.qmd) explains how a run flows through it. Add or update tests under `tests/` alongside the change. Since a harness change can alter results for every solver, the maintainer reviewing it picks the [benchmark label](#benchmark-labels) accordingly, usually `benchmark:all`, or `benchmark:none` if the change can't affect results.
 
 ## Pull request workflow
 
-Open the pull request against `main` and fill in the template. CI starts right away. Benchmarks run once a maintainer applies a benchmark label, which also works for pull requests from forks.
+Open the pull request against `main` and fill in the template. CI starts right away, while benchmarks wait until a maintainer applies a benchmark label, which also works for pull requests from forks.
 
 ### CI checks
 
@@ -89,7 +89,7 @@ Benchmarks need GPU runners and take a long time, so they run on demand. A pull 
 
 More than one benchmark label fails the run. Release pull requests always run the full benchmark and need no label. The exact rules are in the `plan` job of [`benchmark.yml`](https://github.com/pasteurlabs/mosaic/blob/main/.github/workflows/benchmark.yml).
 
-With `benchmark:none`, CI still renders the docs, and a failed render blocks the merge. Every pull request gets a docs preview on Read the Docs, populated with the merged pull request and baseline results, so you can check how your change looks on the results pages.
+With `benchmark:none`, CI still renders the docs, and a failed render blocks the merge. Every pull request gets a docs preview on Read the Docs, populated with the pull request's results overlaid on the baseline, so you can check how your change looks on the results pages.
 
 ### The PR benchmark comment {#the-pr-benchmark-comment}
 
@@ -100,10 +100,10 @@ CI posts a single comment on the pull request and updates it on every run. It li
 - **Timing**, in a separate section marked as indicative. The benchmark jobs run on GitHub-hosted runners whose hardware and load can differ between runs, so wall-clock times vary. A large move in a consistent direction is more meaningful than the exact percentage.
 - **Resource-frontier shifts**, meaning changes in the sweep size at which a solver first runs out of memory or time. A ceiling that comes at a smaller size than in the baseline is a scaling regression, and one that moves further out is an improvement. In limit sweeps such as `horizon_sweep_limits`, which exist to find where a solver stops working, a failure after a successful point marks the frontier, and only a failure at the first point fails the cell.
 
-A coverage banner at the top states what ran. Under `benchmark:solver`, only the changed solvers re-run on the problems that contain them, so "no regressions" means no regressions among what was measured, and the other cells come from the baseline unchanged. A pull request that runs no benchmarks still gets a one-line verdict, so an empty comment is never mistaken for a clean pass.
+A coverage banner at the top states what ran. Under `benchmark:solver`, only the changed solvers re-run on the problems that contain them, so "no regressions" means no regressions among what was measured, and the other cells come from the baseline unchanged. A pull request that runs no benchmarks still gets a one-line verdict, so that an empty comment isn't mistaken for a clean pass.
 
 ::: {.callout-note}
-Frontier tracking depends on the solver container reporting a `failure_type` of `OOM` or `timeout`. A container that dies from memory pressure but reports a generic error counts as a crash, which is a hard `fail`. A mislabeled out-of-memory error therefore shows up as a louder regression, which is the safer direction. It also means that the frontier signal is best-effort and won't catch every out-of-memory failure. For a container that died, the failure record and the report show the exit code Docker recorded and the last lines of the container's log, which is the place to look for the cause.
+Frontier tracking depends on the solver container reporting a `failure_type` of `OOM` or `timeout`. A container that dies from memory pressure but reports a generic error counts as a crash, which is a hard `fail`. A mislabeled out-of-memory error therefore shows up as a louder regression, which errs on the safe side, but it also means that the frontier signal is best-effort and may miss some out-of-memory failures. When a container dies, the failure record and the report show the exit code that Docker recorded and the last lines of the container's log, which are the place to look for the cause.
 :::
 
 ## Conventions {#conventions}
@@ -128,7 +128,7 @@ The types are:
 - `security` for a fix to a security issue.
 - `test` for adding or fixing tests.
 
-The scope is optional. The linter accepts `harness` (the benchmark harness and CLI), `solver` (solvers), `domain` (domains and problems) and `deps` (dependencies), as listed in [`conventional-pr-linter.yml`](https://github.com/pasteurlabs/mosaic/blob/main/.github/workflows/conventional-pr-linter.yml). A pull request that needs a new scope adds it there.
+The linter accepts the scopes `harness` (the benchmark harness and CLI), `solver` (solvers), `domain` (domains and problems) and `deps` (dependencies), as listed in [`conventional-pr-linter.yml`](https://github.com/pasteurlabs/mosaic/blob/main/.github/workflows/conventional-pr-linter.yml). A pull request that needs a new scope adds it there.
 
 Mark a breaking change with an exclamation mark after the type or scope (`feat(harness)!: ...`), or with a `BREAKING CHANGE:` trailer in the message.
 

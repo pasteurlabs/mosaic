@@ -364,7 +364,7 @@ problem.add_experiment(
     "optimization/topopt",
     topopt,
     plot_description=(
-        "SIMP topology optimisation on a $16\\times2\\times8$ cantilever beam with Adam (lr=0.05): "
+        "SIMP topology optimization on a $16\\times2\\times8$ cantilever beam with Adam (lr=0.05): "
         "compliance $C = \\mathbf{F}^\\top \\mathbf{u}$ and density field evolution under a "
         "50% volume-fraction constraint."
     ),

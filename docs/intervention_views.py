@@ -209,12 +209,7 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
         "::: {.callout-note}",
         "#### Interventions and deviations",
         "",
-        (
-            f"Abstraction level: **{record.abstraction}**. The effort level counts "
-            "only interventions marked `required`. Each item is an invitation to "
-            "contribute, since an upstream fix or a better configuration moves the "
-            "solver down the ladder."
-        ),
+        f"Abstraction level: **{record.abstraction}**.",
         "",
     ]
     active = [i for i in record.interventions if i.active]

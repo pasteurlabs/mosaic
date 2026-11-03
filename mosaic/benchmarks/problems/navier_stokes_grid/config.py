@@ -111,19 +111,19 @@ problem = Problem(
     name="ns-grid",
     category_label="Navier–Stokes (grid)",
     description=(
-        "**Incompressible fluid flow in 2D.** We solve the 2D incompressible "
-        "Navier–Stokes equations "
+        "**Incompressible fluid flow in 2D.** We solve and differentiate through "
+        "the 2D incompressible Navier–Stokes equations "
         "$\\partial_t \\mathbf{u} + (\\mathbf{u}\\cdot\\nabla)\\mathbf{u} "
         "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
-        "with the kinematic viscosity $\\nu$ as the primary control parameter, "
-        "and differentiate through the simulation. The problem has three setups: "
+        "with the kinematic viscosity $\\nu$ as the primary control parameter. "
+        "The problem has three setups: "
         "a doubly periodic box, a channel flow past a cylinder, and a forced "
         "Kolmogorov flow."
     ),
     # The channel past a cylinder has boundary conditions of its own, which its
     # results page shows instead (``SETUP_BCS`` in docs/generate_results.py).
     bc_description=(
-        "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
+        "Doubly periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
         "edge), with incompressibility $\\nabla\\cdot\\mathbf{u}=0$ enforced by a "
         "pressure projection at each time step."
     ),

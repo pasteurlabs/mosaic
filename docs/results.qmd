@@ -18,7 +18,7 @@ costs relative to its peers, and what it took to make it run. The
 These are **example results**, produced automatically on GitHub-hosted runners
 and refreshed on every release. Wall-clock times vary between runs, so read
 them for relative scaling between solvers. Accuracy and gradient metrics change
-little between hardware. For numbers that reflect *your* setup, [run the
+little across hardware. For numbers that reflect *your* setup, [run the
 benchmark yourself](getting-started.qmd) on your target hardware.
 :::
 
@@ -86,15 +86,15 @@ For each setup, each solver gets the following.
   wrapped setup differs from the prescribed one, so read the two together.
 
 Effort and deviation cells link to the solver's record, which lists every
-intervention with its reason, evidence and upstream issue, including those
-nobody has a reason for yet.
+intervention with its reason, evidence and upstream issue, including
+interventions whose reason is not yet known.
 
 ::: {.ck-legend}
 | State | Meaning |
 |---|---|
 | [✓ Pass]{.ck .ck-pass} | Every gate experiment met its criteria. |
 | [✓ Partial]{.ck .ck-pass} | The gates that ran met their criteria, but not all of them ran. |
-| [! Borderline]{.ck .ck-borderline} | A gate was flagged: it ran, but missed its criteria. An *i* means every flag has a documented cause, often a property of the method or of the comparison rather than of the implementation. It links to the notes below the table. |
+| [! Borderline]{.ck .ck-borderline} | A gate was flagged, meaning it ran but missed its criteria. An *i* means every flag has a documented cause, often a property of the method or of the comparison rather than of the implementation, and links to the notes below the table. |
 | [✗ Fail]{.ck .ck-fail} | A gate errored or produced no valid result. |
 | [⊘ Blocked]{.ck .ck-blocked} | The gates are excluded for a recorded reason that may be lifted: the solver is unstable on them, they are infeasible within the time or memory budget, an upstream bug stops them, or the wrapper does not implement them yet. The cell names the reason. |
 | [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
@@ -133,10 +133,10 @@ other lines than the setup. The [solver reference](solvers.qmd) lists each
 solver's discretization, backend and AD strategy, which lets you group solvers
 that share numerical characteristics. The experiment explorer below collects
 the plots of every experiment, and comparing a setup's gradient checks with its
-optimization outcomes shows how far gradient quality predicts optimization
-performance. For your own analysis, every release attaches its full result tree
-to the [GitHub release](https://github.com/pasteurlabs/mosaic/releases) as
-`mosaic-results-<version>.zip`. The [paper](paper.qmd) is a worked example of
+optimization outcomes can show how far gradient quality predicts optimization
+performance. For your own analysis, the full result tree of every release is
+attached to its [GitHub release](https://github.com/pasteurlabs/mosaic/releases)
+as `mosaic-results-<version>.zip`. The [paper](paper.qmd) is a worked example of
 this kind of investigation.
 
 ## Experiment explorer {#explorer}

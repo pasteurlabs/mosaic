@@ -2,7 +2,7 @@
 title: Add a domain
 ---
 
-A domain is a family of solvers that share one canonical schema and one directory under `mosaic/tesseracts/`. Adding one takes four pieces: the canonical schema, a problem package that registers the experiments (the name you pass to `-p`), the setup that results are reported for, and at least one solver. The [terminology](index.qmd#terminology) on the Overview page explains how domains, problems and setups relate.
+A domain is a family of solvers that share one canonical schema and one directory under `mosaic/tesseracts/`. Adding one requires four pieces: the canonical schema, a problem package that registers the experiments (the name you pass to `-p`), the setup that results are reported for, and at least one solver. The [terminology](index.qmd#terminology) on the Overview page explains how domains, problems and setups relate.
 
 This page builds a domain for the 1D diffusion equation, called `diffusion-1d`. The solver step is condensed, since [Add a solver](add-solver.qmd) covers it in full. Read that page first if Tesseract endpoints (`apply`, `abstract_eval`, `vector_jacobian_product`) are new to you.
 
@@ -24,7 +24,7 @@ mosaic templates
   Use --show <name> for full details.
 ```
 
-`mosaic templates --show <name>` prints a template's schema module, output and IC keys, default physics parameters and suggested experiments per suite. The template sets these defaults and suggestions in the generated files, and you replace the rest by hand.
+`mosaic templates --show <name>` prints a template's schema module, output and IC keys, default physics parameters and suggested experiments per suite. The generated files contain these defaults and suggestions, and you fill in the rest by hand.
 
 | Template | Best for |
 |:---------|:---------|
@@ -54,7 +54,7 @@ mosaic/benchmarks/problems/diffusion_1d/
   config.py        # IC generator, make_inputs, Problem, experiment TODOs
 ```
 
-`config.py` holds the whole problem definition. The `Problem` instance is wired up, while the IC generator, `make_inputs` and the experiments are stubs, with the template's suggested experiments listed as `# TODO:` comments. A small domain can keep everything in this one file. The existing problems split theirs into modules such as `ics.py`, `physics.py` and `exclusions.py` as they grew.
+`config.py` holds the whole problem definition. The scaffold creates the `Problem` instance, while the IC generator, `make_inputs` and the experiments are stubs, with the template's suggested experiments listed as `# TODO:` comments. A small domain can keep everything in this one file. The existing problems split theirs into modules such as `ics.py`, `physics.py` and `exclusions.py` as they grew.
 
 Validating right away fails, because there is no solver yet and the empty `OutputSchema` has no `result` field:
 
@@ -142,7 +142,7 @@ A few decisions shape this schema:
 
 - Fields that the harness differentiates through are wrapped in [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability). Here that is `u0`, `alpha` and `dt`. The step count and the domain length set up the problem and carry no gradient.
 - [`Array`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema) shapes use `None` for dimensions that vary at runtime, such as the grid size, and integers for fixed ones. Scalar physics parameters are one-element arrays, `Array[(1,), Float32]`.
-- Every input field has a default (`default_factory` for arrays), so that a solver runs with empty inputs, which the smoke test relies on.
+- Every input field has a default (`default_factory` for arrays), so that a solver runs with empty inputs, as the smoke test requires.
 - `result` is the field the harness compares across solvers. The `Problem` names it as `output_key`.
 
 ::: {.callout-tip}
@@ -303,7 +303,7 @@ The file has five parts:
 - **Solver discovery and the `Problem`**. `discover_solvers` finds the solvers under `mosaic/tesseracts/diffusion-1d/`, and `apply_styles` gives each its plot style.
 - **The experiments**, registered with `problem.add_experiment(...)`.
 
-`forward/baseline` uses the shared `agreement` kernel. It scores each solver against the analytic reference when one solves the experiment's IC, and against the consensus of the solvers otherwise. That is why the baseline starts from the sine IC. With a single solver and no analytic reference, there is nothing to score against, and the cells stay unscored.
+`forward/baseline` uses the shared `agreement` kernel. It scores each solver against the analytic reference when one exists for the experiment's IC, and against the consensus of the solvers otherwise. The baseline therefore starts from the sine IC, since with a single solver and no analytic reference there would be nothing to score against, and the cells would stay unscored.
 
 ### Registering experiments
 
@@ -320,7 +320,7 @@ The file has five parts:
 
 For kernels that sweep, a list inside a dict argument, such as `physics={"N": [16, 32, 64]}`, becomes the sweep axis, and the harness runs every value. Kernels that don't sweep, such as `fd_check`, receive lists unchanged, which is how `eps_values` reaches the kernel. The docstring of [`Problem.add_experiment`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py) has the full rules.
 
-Plots are [Altair](https://altair-viz.github.io/) charts. A plot function passes chart builders to `render` in `mosaic.benchmarks.problems.shared.plots.charts.common`, which writes each chart as `<name>.png` and as `<name>.vl.json`, which the results pages draw interactively. `thermal_mesh/plots.py` is a short example.
+Plots are [Altair](https://altair-viz.github.io/) charts. A plot function passes chart builders to `render` in `mosaic.benchmarks.problems.shared.plots.charts.common`, which writes each chart as `<name>.png` and as `<name>.vl.json`. The results pages draw the latter interactively. `thermal_mesh/plots.py` is a short example.
 
 When a solver can't run an experiment, register an exclusion with `problem.exclude(key, {solver_key: Exclusion(...)})`, as [Add a solver](add-solver.qmd#exclusions-and-overrides) describes. The existing problems collect these in an `exclusions.py`.
 
@@ -345,7 +345,7 @@ DOMAIN_SETUPS: dict[str, tuple[str, ...]] = {
 
 A setup without `claims` owns every experiment of its problem that no other setup claims. A problem with several setups gives the others `claims`, as `ns-grid` does for the cylinder and Kolmogorov experiments, and `setup_of(problem, experiment)` resolves which setup an experiment belongs to.
 
-To show the setup on the results pages, add it to `SETUPS` in `docs/scoreboard.py`, which also names the experiments whose status decides each check, give it a one-line description in `SETUP_TAGLINES` in `docs/generate_results.py`, and add its page (`docs/results_<setup>.qmd`, with dashes in the key replaced by underscores) to the Results menu in `_quarto.yml`. A maintainer can help with this step.
+To show the setup on the results pages, add it to `SETUPS` in `docs/scoreboard.py`, which also names the experiments whose status decides each check. Then give it a one-line description in `SETUP_TAGLINES` in `docs/generate_results.py`, and add its page (`docs/results_<setup>.qmd`, with dashes in the key replaced by underscores) to the Results menu in `_quarto.yml`. A maintainer can help with this step.
 
 ## 6. Add a reference solver
 
@@ -496,6 +496,6 @@ mosaic/benchmarks/core/interventions.py           # the new setup
 mosaic/benchmarks/problems/shared/plots/solver_styles.py   # the solver's plot style
 ```
 
-CI lints the code, runs the tests on Python 3.12 and 3.14, validates every problem config and every `tesseract_config.yaml`, and checks every intervention record. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), and the results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
+CI runs the [checks](contributing.qmd#ci-checks) that every pull request gets. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), and the results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
 
 In the pull request description, say what physics the domain adds and why it makes a useful benchmark, describe the canonical interface (what goes in and what comes out), and point out design decisions that reviewers should know about, such as the output key, the IC generators and the experiment parameters.

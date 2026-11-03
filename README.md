@@ -23,17 +23,17 @@ If you optimize or train _through_ a simulation, the solver has to return a corr
 - **Fit for purpose**: whether the forward solution matches a trusted reference, whether the gradient agrees with finite differences, and whether a gradient-based optimizer makes progress through the solver. Reliability counts how many experiments ran cleanly, and deviations record where a solver runs a substitute for part of the prescribed setup.
 - **Cost**: wall-clock time and peak memory of the forward and VJP calls, and the development effort it took to make the solver run the setup, from L0 (nothing beyond expected tweaks) to L3 (changing the solver itself).
 
-Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container with a uniform `apply` / `vjp` interface, so a single harness can compare solvers across languages and AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints). Every solver, its numerics and its intervention record are listed in the [solver reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/solvers.html).
+Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container with a uniform `apply` / `vjp` interface, so a single harness can compare solvers across languages and AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints). The [solver reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/solvers.html) lists every solver with its numerics and its intervention record.
 
 ## 📊 Results
 
 **[Browse the benchmark results →](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results.html)**
 
-The results overview shows the checks, cost, effort and deviations of every solver on every setup, refreshed on each release. Each setup has its own page with every plot. For findings drawn from these results, see the [paper page](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/paper.html).
+The results overview, refreshed on each release, shows the checks, cost, effort and deviations of every solver on every setup. Each setup has its own page with every plot. For findings drawn from these results, see the [paper page](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/paper.html).
 
 ## 📖 Documentation
 
-Two versions are published. You most likely want [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/), which tracks the latest release, where all solvers were benchmarked in the same run. [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may combine results from different runs.
+Two versions are published. You most likely want [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/), which tracks the latest release and shows results from a single run of all solvers. [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may combine results from different runs.
 
 - [Overview](https://docs.pasteurlabs.ai/projects/mosaic/stable/)
 - [Results](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results.html)
@@ -50,7 +50,7 @@ Two versions are published. You most likely want [stable](https://docs.pasteurla
 
 ## Run the benchmark
 
-Mosaic needs Python ≥ 3.11 and Docker. Linux with Docker Engine, an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) runs every solver. Without a GPU, `--gpus none` restricts a run to the CPU-only solvers. macOS and Windows are not supported, because Docker Desktop can't pass an NVIDIA GPU through to containers and not every solver image is known to build on ARM hosts.
+Mosaic needs Python ≥ 3.11 and Docker. To run every solver, you need Linux with Docker Engine, an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Without a GPU, `--gpus none` restricts a run to the CPU-only solvers. macOS and Windows are not supported ([why](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html#requirements)).
 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
@@ -85,11 +85,11 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     grad_v0 = jax.grad(loss)(inputs["v0"])
 ```
 
-[Use a solver in your code](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/standalone.html) explains the inputs and outputs, PyTorch, running without Docker, mesh solvers and GPUs.
+[Use a solver in your code](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/standalone.html) covers the inputs and outputs, PyTorch, running without Docker, mesh solvers and GPUs.
 
 ## Contribute
 
-Mosaic is designed to grow with its community. There are three main ways in, roughly by scope:
+Mosaic is designed to grow with its community. There are three main ways to contribute, roughly in order of scope:
 
 - **Tune an existing solver** and record what you changed in its intervention record. See [tuning an existing solver](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/contributing.html#tuning-an-existing-solver).
 - **Add a solver** to an existing domain, with three files under `mosaic/tesseracts/<domain>/<solver-name>/`. See [Add a solver](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/add-solver.html).

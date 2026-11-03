@@ -2,13 +2,13 @@
 title: Run the benchmark
 ---
 
-This page covers installing Mosaic, running the benchmark and reading its output. Running it locally reproduces the [results](results.qmd) on your own hardware, which is the most accurate measurement for your setup. To contribute a solver or a change, start with the [contributing guide](contributing.qmd) once you have a first run working.
+This page covers installing Mosaic, running the benchmark and reading its output. Running it locally reproduces the [results](results.qmd) on your own hardware, which gives numbers that reflect your setup. To contribute a solver or a change, start with the [contributing guide](contributing.qmd) once you have a first run working.
 
 ## Requirements {#requirements}
 
-Mosaic runs every solver inside a Docker container. Linux (x86-64) with [Docker Engine](https://docs.docker.com/engine/install/), an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html), with Docker configured to use the `nvidia` runtime, runs every solver. Without a GPU, `--gpus none` restricts a run to the CPU-only solvers, and `mosaic run` skips the GPU solvers by itself when it detects no GPU.
+Mosaic runs every solver inside a Docker container. To run all of them, you need Linux (x86-64) with [Docker Engine](https://docs.docker.com/engine/install/), an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html), with Docker configured to use the `nvidia` runtime. Without a GPU, `--gpus none` restricts a run to the CPU-only solvers, and `mosaic run` skips the GPU solvers automatically when it detects no GPU.
 
-macOS (including Apple Silicon) and Windows are not supported. Docker Desktop can't pass an NVIDIA GPU through to containers, and not every solver image is known to build on ARM hosts. `mosaic run` prints a warning when it detects an unsupported platform. On Windows, the closest setup to a Linux host is Docker Engine and the NVIDIA Container Toolkit inside a WSL 2 distribution, though our CI does not cover it.
+macOS (including Apple Silicon) and Windows are not supported, because Docker Desktop can't pass an NVIDIA GPU through to containers, and not every solver image is known to build on ARM hosts. `mosaic run` prints a warning when it detects an unsupported platform. On Windows, the closest setup to a Linux host is Docker Engine and the NVIDIA Container Toolkit inside a WSL 2 distribution, though our CI does not cover it.
 
 You also need:
 
@@ -57,7 +57,7 @@ mosaic run
 Without options, `mosaic run` builds every solver image and runs every suite of every problem.
 
 ::: {.callout-warning}
-A full run can take many hours on a machine with a modern GPU, and much longer on CPU only. The solver images take dozens of GB on disk. Consider starting with a single problem (`mosaic run -p thermal-mesh`) to validate your setup before committing the time and storage.
+A full run can take many hours on a machine with a modern GPU, and much longer on CPU only. Consider starting with a single problem (`mosaic run -p thermal-mesh`) to validate your setup before committing the time and [disk space](#requirements).
 :::
 
 If you have several GPUs, `--gpus 0,1` runs one solver on each listed GPU in parallel. Without `--gpus`, solvers run one at a time, and each container can see every GPU.
@@ -92,7 +92,7 @@ mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
 mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
 ```
 
-Names are the display names from the [solver reference](solvers.qmd), matched case-insensitively, so `xlb` and `XLB` both work. A name in a flat list that no problem has aborts the run with a "Did you mean…?" hint before any image is built. In a per-problem map, unknown names are skipped with a warning.
+Names are the display names from the [solver reference](solvers.qmd), matched case-insensitively, so `xlb` and `XLB` both work. If a name in a flat list matches no solver in any problem, the run aborts with a "Did you mean…?" hint before any image is built. In a per-problem map, unknown names are skipped with a warning.
 
 A few more options change how a run behaves:
 
@@ -121,7 +121,7 @@ mosaic run -s PhiFlow --only failed       # one solver's failed cells
 
 The states are `failed`, `anom` (flagged by a check), `missing`, `stale` and `excluded`. Combine several with commas, and narrow further with `-p`, `--suites`, `-e` and `-s`.
 
-If a long run is killed partway through, for example by an out-of-memory error or a reboot, `--continue` resumes it. It skips experiments whose `result.json` already exists. Within an experiment that was interrupted, it also skips the solvers already recorded in its `result_partial.json`, which the harness writes after each solver finishes.
+If a long run is killed partway through, for example by an out-of-memory error or a reboot, `--continue` resumes it by skipping experiments whose `result.json` already exists. Within an experiment that was interrupted, it also skips the solvers already recorded in its `result_partial.json`, which the harness writes after each solver finishes.
 
 ```bash
 mosaic run --continue                     # resume everything
@@ -173,9 +173,9 @@ The [results overview](results.qmd#how-to-read-the-results) explains what the ch
 
 ### Container start failures
 
-A solver whose container fails to start, for example because of a broken image, a missing CUDA runtime or an import error inside its API module, shows up as a `failed` cell, and `mosaic status -f` gives the underlying error. Once the container is fixed, retry with `mosaic run --only failed`.
+If a solver's container fails to start, for example because of a broken image, a missing CUDA runtime or an import error in its API module, the solver shows up as a `failed` cell, and `mosaic status -f` gives the underlying error. Once the container is fixed, retry with `mosaic run --only failed`.
 
-When a container dies during a run, the failure reason in `mosaic status -f` includes how the container exited and the last lines of its log, which is the first place to look for the cause.
+When a container dies during a run, the failure reason in `mosaic status -f` includes how the container exited and the last lines of its log, which are the first place to look for the cause.
 
 ### "No known GPU vendor" errors
 
@@ -199,7 +199,7 @@ A solver call that runs longer than the HTTP timeout (1200 s by default, set wit
 
 3D fluid problems at high resolution can exceed the available RAM or VRAM. Out-of-memory kills show up in `dmesg`, in `docker logs` and in the failure reason in `mosaic status -f`.
 
-How much memory a run needs at once depends on `--gpus`. Without it, solvers run one at a time. With `--gpus 0,1`, one solver runs on each listed GPU at the same time, so several containers share the host's RAM. To reduce memory pressure, list fewer GPUs or omit the flag, and use `--debug` for smaller problem sizes. Each container's memory is capped at a fraction of the host's RAM (90% by default), which you can change with `MOSAIC_CONTAINER_MEM_FRACTION`, or remove by setting it to 0.
+With [`--gpus 0,1`](#full-run), solvers run in parallel and their containers share the host's RAM. To reduce memory pressure, list fewer GPUs or omit the flag, and use `--debug` for smaller problem sizes. Each container's memory is capped at a fraction of the host's RAM (90% by default), which you can change with `MOSAIC_CONTAINER_MEM_FRACTION`, or remove by setting it to 0.
 
 ## Getting help
 

@@ -16,7 +16,7 @@ title: ""
 
 ## What Mosaic measures {#what-mosaic-measures}
 
-If you train a model or run an optimizer through a simulation, the solver has to return a correct prediction (the *forward* pass) and a usable gradient of that prediction with respect to your inputs (the vector–Jacobian product, VJP). A solver that runs fast and predicts accurately is of little use for gradient-based work if its VJP is wrong, noisy or ill-conditioned, so Mosaic checks both. Every solver is asked to compute an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$ on each setup it supports, and the results answer three questions:
+If you train a model or run an optimizer through a simulation, the solver has to return a correct prediction (the *forward* pass) and a usable gradient of that prediction with respect to your inputs (the vector–Jacobian product, VJP). A solver that runs fast and predicts accurately is of little use for gradient-based work if its VJP is wrong, noisy or ill-conditioned, so Mosaic checks both. On each setup it supports, every solver computes an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and the results answer three questions:
 
 ::: {.axis-row}
 ::: {.axis-card style="--tile: var(--m-indigo)"}
@@ -36,22 +36,22 @@ Comparisons across solvers that share a discretization or AD strategy, or betwee
 :::
 :::
 
-The [results overview](results.qmd) reports the first two for every solver on every setup. Patterns are not a column of their own. The overview's section on [investigating patterns](results.qmd#investigating-patterns) points at the data and the solver metadata to start from, and the [paper](paper.qmd) is a worked example.
+The [results overview](results.qmd) reports the first two for every solver on every setup. Patterns have no column of their own, but the overview's section on [investigating patterns](results.qmd#investigating-patterns) suggests where to start in the data and the solver metadata. The [paper](paper.qmd) is a worked example.
 
 ### Effort and deviations
 
-A check that passes says little about how much work it took to get there. Every solver therefore keeps an intervention record in its `tesseract_config.yaml`, listing everything that was done beyond using the library as intended, with the reason on each setup, the evidence and any upstream issue. The effort a solver needs on a setup is the highest level among the interventions it requires there:
+A check that passes says little about how much work it took to get there. Every solver therefore has an intervention record in its `tesseract_config.yaml` that lists everything done beyond using the library as intended, with the reason on each setup, the evidence and any upstream issue. The effort a solver needs on a setup is the highest level among the interventions it requires there:
 
-- **L0**, nothing beyond expected tweaks, meaning the public API with its defaults or documented options, such as a solver tolerance.
-- **L1**, undocumented configuration.
-- **L2**, user code on the library's public primitives.
-- **L3**, changing the solver itself.
+- **L0**: nothing beyond expected tweaks, meaning the public API with its defaults or documented options such as a solver tolerance.
+- **L1**: undocumented configuration.
+- **L2**: user code on the library's public primitives.
+- **L3**: changes to the solver itself.
 
 Deviations record where a solver runs a substitute for part of the prescribed setup, such as a different outflow condition, together with the effect on its results. Effort and deviations sit next to the checks on every results page, and the [solver reference](solvers.qmd) lists each intervention in full.
 
 ## Setups {#setups}
 
-Results are reported per setup, one problem statement with its own experiments and checks. A solver that handles one setup need not handle another, so setups are never averaged. Each card links to the setup's results page, and its chips link to the solvers that run it.
+Results are reported per setup, meaning one problem statement with its own experiments and checks. A solver that handles one setup need not handle another, so setups are never averaged. Each card links to the setup's results page, and its chips link to the solvers that run it.
 
 ::: {.domain-grid}
 ::: {.domain-card}
@@ -160,7 +160,7 @@ Backend
 
 ## Evaluation protocol {#evaluation-protocol}
 
-Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), so it can compare solvers built on incompatible AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints) without a shared dependency. The protocol is solver-agnostic. It only uses `apply` and `vjp`, and never inspects how a solver computes its gradient.
+Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), so it can compare solvers built on incompatible AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints) without a shared dependency. The protocol is solver-agnostic, since it only uses `apply` and `vjp` and never inspects how a solver computes its gradient.
 
 The settings of every experiment (grid sizes, sweep ranges, finite-difference steps, iteration caps and pass criteria) live next to it in the problem configurations under [`mosaic/benchmarks/problems/`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/benchmarks/problems), and each [results page](results.qmd) describes the experiments of its setup.
 

@@ -665,7 +665,7 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
         f"{_short(lab)}: {txt}" for lab, m in chk["metrics"] if (txt := _metric_text(m))
     ]
     if iters is not None:
-        tip.append(f"Loss levelled off after {iters:.0f} iterations")
+        tip.append(f"Loss leveled off after {iters:.0f} iterations")
     tip += [f"{_short(lab)}: {why}" for lab, _, why in chk["reasons"] if why]
     extra = (
         f'<span class="ck-part">{chk["n_run"]} of {chk["n_gates"]} run</span>'

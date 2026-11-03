@@ -18,7 +18,7 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 
 ### For solver PRs
 
-- [ ] `metadata.mosaic` in `tesseract_config.yaml` sets at least `name` and `backend`
+- [ ] `metadata.mosaic` in `tesseract_config.yaml` sets at least `name`, `backend` and `scheme`
 - [ ] `tesseract build mosaic/tesseracts/<domain>/<solver>` succeeds
 - [ ] `mosaic run -p <problem> --suites forward -s "<Display Name>" --debug` completes
 - [ ] The intervention record (`abstraction`, `interventions`, `deviations`) is filled in, with markers around L2 and L3 code

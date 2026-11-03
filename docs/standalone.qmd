@@ -16,7 +16,7 @@ pip install tesseract-jax             # or: pip install tesseract-torch
 
 There are two ways to load a solver.
 
-**From a built image.** This works for every solver, whatever language it is written in, and pins all of its dependencies. [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) builds the image once, named after the `name` field in the solver's `tesseract_config.yaml` and tagged `latest`:
+**From a built image.** This works for every solver, whatever language it is written in, and pins all of its dependencies. [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) builds the image once. The image is named after the `name` field in the solver's `tesseract_config.yaml` and tagged `latest`:
 
 ```bash
 tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
@@ -37,7 +37,7 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
 t = Tesseract.from_tesseract_api("mosaic/tesseracts/navier-stokes-grid/exponax/tesseract_api.py")
 ```
 
-This needs the solver's dependencies, listed in its `tesseract_requirements.txt`, installed in your environment. That is practical for solvers built on pip-installable Python libraries. Solvers that need a separate toolchain, system packages or a conda environment, such as OpenFOAM, deal.II, FEniCS, Firedrake and JAX-FEM, are easier to use from the image.
+This requires the solver's dependencies, listed in its `tesseract_requirements.txt`, to be installed in your environment, which is practical for solvers built on pip-installable Python libraries. Solvers that need a separate toolchain, system packages or a conda environment, such as OpenFOAM, deal.II, FEniCS, Firedrake and JAX-FEM, are easier to use from the image.
 
 ## Inputs and outputs
 
@@ -47,11 +47,11 @@ The inputs and outputs follow the canonical schema of the solver's domain, defin
 
 A solver may add inputs of its own on top of the canonical schema, and it declares which inputs and outputs it can differentiate. The [solver reference](solvers.qmd) lists both for every solver. On a loaded solver, `t.available_endpoints` lists the endpoints it implements, and `t.openapi_schema` returns its full schema.
 
-OpenFOAM and the two deal.II solvers are forward-only. They implement `apply` but no `vector_jacobian_product`, so you can run them but not differentiate through them.
+OpenFOAM and the two deal.II solvers are forward-only. They implement `apply` but not `vector_jacobian_product`, so you can run them but cannot differentiate through them.
 
 ## Differentiate through a solver
 
-With tesseract-jax, `apply_tesseract` calls the solver as a JAX function that works with `jax.grad` and `jax.jit`. A gradient calls the solver's `vector_jacobian_product` endpoint:
+With tesseract-jax, `apply_tesseract` calls the solver as a JAX function that works with `jax.grad` and `jax.jit`, and taking a gradient calls the solver's `vector_jacobian_product` endpoint:
 
 ```python
 import jax
