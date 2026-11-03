@@ -14,7 +14,9 @@ What the numbers mean:
 
 * VRAM is NVML's used memory of the whole device, not of one process. It
   includes the CUDA context and whatever the solver's allocator holds in
-  its pools, and anything else running on the same GPU.
+  its pools, and anything else running on the same GPU. It excludes the
+  memory the driver reserves for itself (768 MiB on an A100 80 GB with
+  driver 580), which is what ``nvidia-smi`` shows as "Used".
 * RAM is the solver container's memory as ``docker stats`` reports it: the
   cgroup's usage minus its inactive page cache. The harness process is not
   part of it.
@@ -106,6 +108,10 @@ def gpu_count() -> int:
 def sample_vram_mib(gpu_id: int | str) -> float | None:
     """Used VRAM on one GPU, in MiB, via NVML.
 
+    Uses the v2 memory query, whose ``used`` leaves out driver-reserved
+    memory; the v1 query counts it as used, so a CPU-only solver would read
+    several hundred MiB. Drivers without v2 fall back to v1.
+
     Returns ``None`` on any failure (no NVIDIA driver, invalid ``gpu_id``,
     NVML error) so callers degrade gracefully.
     """
@@ -114,7 +120,11 @@ def sample_vram_mib(gpu_id: int | str) -> float | None:
         return None
     try:
         handle = nvml.nvmlDeviceGetHandleByIndex(int(gpu_id))
-        return nvml.nvmlDeviceGetMemoryInfo(handle).used / (1024 * 1024)
+        try:
+            info = nvml.nvmlDeviceGetMemoryInfo(handle, version=nvml.nvmlMemory_v2)
+        except Exception:
+            info = nvml.nvmlDeviceGetMemoryInfo(handle)
+        return info.used / (1024 * 1024)
     except Exception:
         return None
 
