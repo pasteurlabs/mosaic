@@ -128,6 +128,7 @@ def _run_optim(
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
       * ``converged``:  whether the patience-based early stop fired
+      * ``n_iters``:    the number of Adam updates, ``len(losses)``
       * ``iters_to_plateau``: :func:`_iters_to_plateau` of ``losses``, which
         is independent of ``min_rel_improvement`` and ``patience``.
         ``losses[k]`` is the loss after ``k`` updates, and the iterate after
@@ -175,6 +176,7 @@ def _run_optim(
         if no_improve >= patience:
             break
     diag["converged"] = no_improve >= patience
+    diag["n_iters"] = len(losses)
     diag["iters_to_plateau"] = _iters_to_plateau(losses)
     return x, losses, diag
 
@@ -227,10 +229,11 @@ def _run_lbfgs(
     :func:`_run_optim`.
 
     Returns ``(final_x, losses, diag)``. ``losses`` and ``diag["grad_norms"]``
-    cover ``init_x`` and every iterate, ending at ``final_x``.
-    ``diag["converged"]`` is false when the run hit ``max_iters`` or the line
-    search failed. ``diag["iters_to_plateau"]`` is :func:`_iters_to_plateau` of
-    ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
+    cover ``init_x`` and every iterate, ending at ``final_x``, so
+    ``diag["n_iters"]``, the number of iterations, is one less than their
+    length. ``diag["converged"]`` is false when the run hit ``max_iters`` or
+    the line search failed. ``diag["iters_to_plateau"]`` is
+    :func:`_iters_to_plateau` of ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
     is not finite.
     """
     shape, dtype = init_x.shape, init_x.dtype
@@ -319,6 +322,7 @@ def _run_lbfgs(
     diag = {
         "grad_norms": grad_norms,
         "converged": bool(converged),
+        "n_iters": len(losses) - 1,
         "iters_to_plateau": _iters_to_plateau(losses),
     }
     return jnp.asarray(to_x(res.x)), losses, diag
