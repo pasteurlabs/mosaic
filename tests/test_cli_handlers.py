@@ -261,3 +261,18 @@ def test_run_genuine_typo_still_fails_fast(stop_before_run):
     assert not isinstance(result.exception, _StopBeforeRun)
     assert "Unknown solver 'TopOptt.jl'" in result.output
     assert "TopOpt.jl" in result.output  # "did you mean" suggestion
+
+
+# ── status ────────────────────────────────────────────────────────────────────
+
+
+def test_status_unknown_format_is_a_usage_error(monkeypatch, tmp_path):
+    """`status --format markdown` errors instead of printing the rich table."""
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    result = runner.invoke(
+        app, ["status", "-p", "thermal-mesh", "--format", "markdown"]
+    )
+    assert result.exit_code == 2
+    assert "markdown" in result.output
