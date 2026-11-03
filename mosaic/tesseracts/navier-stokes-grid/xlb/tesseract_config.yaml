@@ -9,6 +9,7 @@ build_config:
   package_data: []
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:
@@ -47,6 +48,7 @@ metadata:
               Comment above _USE_F64_DIFF;
               https://github.com/pasteurlabs/mosaic/issues/125 (open) proposes
               measuring float32 against fd_check.
+          ns-2d-kolmogorov: *float64-reason
           ns-2d-cylinder: *float64-reason
           ns-3d: *float64-reason
         provenance: mosaic-team
@@ -66,6 +68,7 @@ metadata:
               removed. Whether the remaining operators need it has not been
               checked.
             evidence: Docstring of _make_ops at 6517f75.
+          ns-2d-kolmogorov: *init-reason
           ns-2d-cylinder: *init-reason
           ns-3d: *init-reason
         upstream: None filed.
@@ -75,28 +78,38 @@ metadata:
         necessity: required
         what: >
           Runs the time loop as nested jax.lax.scan blocks of about sqrt(steps)
-          steps with jax.checkpoint on the inner block, so reverse mode keeps
-          only the block-boundary populations.
+          steps, with jax.checkpoint on each block and on each step inside it.
+          Reverse mode keeps the block-boundary populations and, while it
+          works through a block, that block's step inputs.
         why:
           ns-3d:
             consequences: [out-of-memory]
             symptom: >
-              A plain scan stores every step's populations for the reverse
-              pass: 110 GB at N = 64 against a 0.3 GB forward.
-            evidence: "Docstring of _checkpointed_scan; #135."
-          ns-2d-periodic:
+              #135 gives 110 GB at N = 64 for a plain scan, against a 0.3 GB
+              forward. Checkpointing each step but not the blocks still keeps
+              every step's populations: on an A100 80 GB, the 3-D TGV VJP at
+              N = 48 took 67 GB at 1000 steps and ran out of memory at 2000,
+              against 5.6 GB at both with the blocks checkpointed. At 50
+              steps, N = 96 took 69 GB against 12 GB, and N = 128 ran out of
+              memory against 38 GB. The block checkpoint makes the VJP 2-14%
+              slower and changes the gradient by at most 5e-9 relative.
+              Checkpointing the blocks without the steps inside them took
+              about twice the memory and was no faster.
+            evidence: "#135 (plain scan); #329 (A100, one container per point)."
+          ns-2d-periodic: &sqrt-checkpointing-periodic
             consequences: [too-slow]
             symptom: >
               #135 says it fixes some of XLB's VJP slowness in 2-D. No number
-              is recorded.
+              is recorded, and the block checkpoint has not been timed in 2-D.
             evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
+          ns-2d-kolmogorov: *sqrt-checkpointing-periodic
         provenance: mosaic-team
       - id: channel-checkpointing
         level: L0
         necessity: unknown
         what: >
-          The channel runs its time loop through the same sqrt-checkpointed
-          scan as the periodic boxes.
+          The channel runs its time loop through the same block- and
+          step-checkpointed scan as the periodic boxes.
         why:
           ns-2d-cylinder:
             consequences: []
@@ -114,7 +127,7 @@ metadata:
           Chapman-Enskog non-equilibrium part (Mei et al. 2006), instead of
           the equilibrium at density 1.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &consistent-initial-populations-periodic
             consequences: [inaccurate-forward]
             symptom: >
               Equilibrium-only populations leave out pressure and viscous
@@ -123,6 +136,7 @@ metadata:
               0.031 to 0.035 without them and 6e-4 to 8e-4 with them, against
               a peer median of 2.4e-3.
             evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
+          ns-2d-kolmogorov: *consistent-initial-populations-periodic
           ns-3d:
             consequences: [inaccurate-forward]
             symptom: >
@@ -146,7 +160,28 @@ metadata:
               the reason. Nothing was measured, and whether XLB's stepper works
               under scan and reverse mode was not recorded.
             evidence: Initial commit (c47498a) description.
+          ns-2d-kolmogorov: *loop-reason
           ns-3d: *loop-reason
+        provenance: mosaic-team
+      - id: exact-difference-forcing
+        level: L2
+        necessity: required
+        what: >
+          Periodic runs with a body force or drag apply the exact difference
+          method by hand in the manual LBM loop, with the drag evaluated
+          semi-implicitly at the half-force velocity. The initial populations
+          and the output velocity are shifted by half a kick.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [cannot-express]
+            symptom: >
+              XLB 0.3.1's ExactDifference operator takes one constant force
+              vector ("currently we are limited to a single force vector not a
+              spatially dependent forcing field"), so it cannot apply the
+              Kolmogorov force sin(κy) or a drag that depends on the velocity.
+            evidence: >
+              https://github.com/Autodesk/XLB/blob/v0.3.1/xlb/operator/force/exact_difference_force.py;
+              tests/test_ns_grid_forcing.py; #272.
         provenance: mosaic-team
       - id: channel-boundary-conditions
         level: L2
@@ -187,11 +222,13 @@ metadata:
         provenance: mosaic-team
     deviations:
       - id: ma-targeted-substepping
-        setups: [ns-2d-periodic, ns-2d-cylinder, ns-3d]
+        setups: [ns-2d-periodic, ns-2d-kolmogorov, ns-2d-cylinder, ns-3d]
         what: >
           Each prescribed step runs as k = ceil(Ma / Ma_target) LBM steps of
           dt / k, never coarser than prescribed. Ma_target is 0.1, lowered in
-          proportion to 1/N above N = 64 on periodic boxes.
+          proportion to 1/N above N = 64 on periodic boxes. With a body force,
+          Ma uses the larger of max|v0| and a bound on the speed the force can
+          drive, so a flow it spins up from rest stays within the target.
         consequences: [cannot-express]
         effect: >
           LBM ties the time step to the grid through the lattice Mach number,

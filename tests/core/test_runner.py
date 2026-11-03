@@ -7,12 +7,14 @@ Covers behaviour reachable without a real Tesseract container:
 - the ``MOSAIC_TESSERACT_TIMEOUT`` env-var contract,
 - ``safe_apply`` / ``safe_apply_with_state`` error handling (missing output
   key, non-finite arrays, exception propagation, TimeoutError messaging,
-  per-thread error storage cleared on success), and
-- the pure helper ``image_tags_no_build``.
+  per-thread error storage cleared on success),
+- the pure helper ``image_tags_no_build``, and
+- which GPU a serial ``run_with_gpu_pool`` samples VRAM on.
 """
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import threading
 
@@ -826,3 +828,47 @@ def test_tracked_tesseract_tracks_the_served_container_by_name(monkeypatch):
     with runner._tracked_tesseract("solver:latest", None, None):
         assert "tesseract-abc123" in runner._live_containers
     assert "tesseract-abc123" not in runner._live_containers
+
+
+# ── Serial runs: which GPU's memory is sampled ────────────────────────────────
+
+
+@pytest.fixture
+def serial_gpu_ids(monkeypatch):
+    """Run ``run_with_gpu_pool`` serially on a host with *n* GPUs; return each solver's ``gpu_id``."""
+
+    @contextlib.contextmanager
+    def fake_tesseract(_tag, _gpus, _args):
+        yield object()
+
+    monkeypatch.setattr(runner, "_tracked_tesseract", fake_tesseract)
+
+    def run(n_gpus: int, gpu_ids: list[str] | None) -> list:
+        monkeypatch.setattr(runner, "gpu_count", lambda: n_gpus)
+        runner._serial_vram_device.cache_clear()
+        seen: list = []
+        runner.run_with_gpu_pool(
+            ["a", "b"],
+            {"a": "a:latest", "b": "b:latest"},
+            lambda _name, _t: seen.append(runner.current_worker_context().gpu_id),
+            gpu_ids=gpu_ids,
+        )
+        return seen
+
+    yield run
+    runner._serial_vram_device.cache_clear()
+
+
+def test_serial_run_samples_the_only_gpu(serial_gpu_ids):
+    assert serial_gpu_ids(1, None) == [0, 0]
+
+
+def test_serial_run_with_several_gpus_samples_none_and_warns(serial_gpu_ids, capsys):
+    assert serial_gpu_ids(2, None) == [None, None]
+    assert "VRAM is not recorded" in capsys.readouterr().out
+
+
+def test_cpu_only_and_gpu_less_serial_runs_sample_no_gpu(serial_gpu_ids, capsys):
+    assert serial_gpu_ids(1, []) == [None, None]
+    assert serial_gpu_ids(0, None) == [None, None]
+    assert "VRAM is not recorded" not in capsys.readouterr().out

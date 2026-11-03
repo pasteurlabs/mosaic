@@ -105,6 +105,16 @@ SETUPS: dict[str, Setup] = {
             "Channel flow past a cylinder",
             claims=("forward/cylinder", "optimization/drag_opt"),
         ),
+        Setup(
+            "ns-2d-kolmogorov",
+            "ns-grid",
+            "Forced Kolmogorov flow (2D)",
+            claims=(
+                "forward/kolmogorov",
+                "forward/kolmogorov_laminar",
+                "gradient/chain_fd_check",
+            ),
+        ),
         Setup("ns-3d", "ns-3d-grid", "Triply periodic box (3D)"),
         Setup("structural", "structural-mesh", "Linear-elastic cantilever"),
         Setup("heat", "thermal-mesh", "Steady conduction in a slab"),
@@ -113,7 +123,12 @@ SETUPS: dict[str, Setup] = {
 
 # Setups each tesseract directory under mosaic/tesseracts/ can serve.
 DOMAIN_SETUPS: dict[str, tuple[str, ...]] = {
-    "navier-stokes-grid": ("ns-2d-periodic", "ns-2d-cylinder", "ns-3d"),
+    "navier-stokes-grid": (
+        "ns-2d-periodic",
+        "ns-2d-cylinder",
+        "ns-2d-kolmogorov",
+        "ns-3d",
+    ),
     "structural-mesh": ("structural",),
     "thermal-mesh": ("heat",),
 }

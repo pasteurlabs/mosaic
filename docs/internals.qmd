@@ -25,7 +25,7 @@ Each solver backend is described by a `SolverSpec` dataclass:
 | `image_tag` | `str \| None` | `<image_name>:latest`, populated by `discover_solvers()` |
 | `input_overrides` | `dict` | Per-solver default overrides merged into `cfg.make_inputs` for this solver |
 
-Per-(solver, problem) exclusions and anomaly annotations are *not* stored on `SolverSpec` — they live on the `Problem` (`problem.exclusions[key][solver_name] = Exclusion(...)`, registered via `problem.exclude(key, {solver_name: Exclusion(...)})`).
+Per-(solver, problem) exclusions and anomaly annotations live on the `Problem` rather than on `SolverSpec`. `problem.exclude(key, {solver_key: Exclusion(...)})` stores them as `problem.exclusions[solver_key][key]`, where `solver_key` is `SolverSpec.key` (e.g. `ins_jl`), not the display name.
 
 ## `Problem`
 

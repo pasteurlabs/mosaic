@@ -26,11 +26,15 @@
     const limit = RANK[max] === undefined ? RANK.L3 : RANK[max];
     document.querySelectorAll(".effort-table table").forEach((table) => {
       const col = effortColumn(table);
-      if (col < 0 || !table.tBodies[0]) return;
-      Array.from(table.tBodies[0].rows).forEach((row) => {
-        const cell = row.cells[col];
-        const rank = cell ? RANK[cell.textContent.trim()] : undefined;
-        row.hidden = rank !== undefined && rank > limit;
+      if (col < 0) return;
+      // The setup check tables have one body per device class; their group
+      // header rows have a single cell and are never hidden.
+      Array.from(table.tBodies).forEach((body) => {
+        Array.from(body.rows).forEach((row) => {
+          const cell = row.cells[col];
+          const rank = cell ? RANK[cell.textContent.trim()] : undefined;
+          row.hidden = rank !== undefined && rank > limit;
+        });
       });
     });
   }

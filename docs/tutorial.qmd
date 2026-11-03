@@ -92,8 +92,9 @@ description: >
 
 build_config:
   package_data: []
-  custom_build_steps:
-    - "ENV XLA_PYTHON_CLIENT_PREALLOCATE=false"
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:
@@ -129,7 +130,9 @@ Standard tesseract-core build options.
 | Field | Purpose |
 |:------|:--------|
 | `package_data` | Extra files to copy into the container (e.g. model weights). Usually `[]`. |
-| `custom_build_steps` | Extra `Dockerfile` directives run during the build. Useful for environment variables (e.g. XLA flags) or system packages (`RUN apt-get install ...`). |
+| `custom_build_steps` | Extra `Dockerfile` directives run during the build, e.g. system packages (`RUN apt-get install ...`). |
+
+The top-level `env:` key sets environment variables in the image. Every JAX solver sets the two above; see [the GPU memory settings](#gpu-memory-settings) below.
 
 The full schema (extra packages, base images, sandboxed-build options) is documented at [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). For more worked configurations — non-Python runtimes, custom base images, package installation patterns — browse the [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) example repository.
 
@@ -192,7 +195,9 @@ metadata:
     deviations: []
 ```
 
-Not recorded: fixes to Mosaic's own wrapper code (including runtime settings that only keep an embedded runtime working inside the Python wrapper, such as Julia's under juliacall), settings that only let solvers share the benchmark machine (such as JAX's GPU memory preallocation and fraction), code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
+Not recorded: fixes to Mosaic's own wrapper code (including runtime settings that only keep an embedded runtime working inside the Python wrapper, such as Julia's under juliacall), the GPU memory settings below, code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
+
+[]{#gpu-memory-settings} **GPU memory settings.** Every JAX solver sets `XLA_PYTHON_CLIENT_PREALLOCATE: "false"` and `XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"` in its `env:`, and CI rejects a JAX GPU solver without them. By default XLA reserves 75% of the device when it starts, so the measured peak memory would be that reservation rather than what the solver uses, and the solver would run out of memory at 75% of the device. Torch, Julia and Warp solvers have no such cap. The settings are part of how Mosaic measures and apply equally to every JAX solver, so they are not interventions.
 
 `L2` and `L3` code is wrapped in marker comments (`//` in C and C++), outside import blocks:
 

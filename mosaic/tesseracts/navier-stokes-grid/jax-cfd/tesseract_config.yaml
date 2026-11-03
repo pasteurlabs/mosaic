@@ -9,7 +9,7 @@ build_config:
   package_data: []
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
-  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.6"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:
@@ -38,7 +38,7 @@ metadata:
           semi_implicit_navier_stokes instead of its defaults, van Leer
           advection with forward Euler.
         why:
-          ns-2d-periodic:
+          ns-2d-periodic: &central-advection-rk4-periodic
             consequences: [inaccurate-forward]
             symptom: >
               With the default scheme the Taylor-Green errors were 1.3e-2 to
@@ -49,6 +49,7 @@ metadata:
               RK2 in the PR's probes, hence RK4. The forward pass is 2 to 3
               times slower.
             evidence: "#225, before/after and scheme tables (merged through #232)."
+          ns-2d-kolmogorov: *central-advection-rk4-periodic
           ns-3d:
             consequences: []
             symptom: >
@@ -59,5 +60,27 @@ metadata:
           https://github.com/google/jax-cfd/issues/259 asked which advection
           scheme the maintainers would pick; no reply, and the project says
           it is no longer maintained.
+        provenance: mosaic-team
+      - id: summed-forcing
+        level: L2
+        necessity: required
+        what: >
+          Adds the body force and the linear drag in one forcing function
+          passed to semi_implicit_navier_stokes, in place of jax-cfd's
+          sum_forcings.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [crash]
+            symptom: >
+              sum_forcings adds the terms with equations.sum_fields, which
+              calls jax.tree_map. The pinned JAX 0.10.0 no longer has
+              jax.tree_map, so combining the force and the drag through the
+              library would raise an AttributeError. This comes from reading
+              both sources and was not run.
+            evidence: >
+              https://github.com/google/jax-cfd/blob/0.2.1/jax_cfd/base/equations.py
+              (sum_fields); #272.
+        upstream: >
+          No issue filed: the project says it is no longer maintained.
         provenance: mosaic-team
     deviations: []

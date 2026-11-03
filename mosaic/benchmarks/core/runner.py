@@ -8,6 +8,7 @@ from __future__ import annotations
 import atexit
 import concurrent.futures
 import contextlib
+import functools
 import json
 import logging
 import os
@@ -66,6 +67,7 @@ from .console import (  # noqa: E402
     print_skip,
     print_warn,
 )
+from .memory import gpu_count  # noqa: E402
 from .resources import container_memory_args  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -78,12 +80,12 @@ class WorkerContext:
     """Per-thread context set by :func:`run_with_gpu_pool`.
 
     Suites can read this inside their work callback (passed to
-    ``run_with_gpu_pool``) to discover which GPU they were assigned and
-    which image tag is serving — useful for ResourceSampler / MemoryPoller
-    construction.
+    ``run_with_gpu_pool``) to discover which GPU they were assigned (the
+    device a MemoryPoller samples) and which image tag is serving.
 
-    Both fields are ``None`` when no GPU pool is active (e.g. serial mode
-    or when called outside a runner-managed thread).
+    Both fields are ``None`` outside a runner-managed thread. In serial
+    mode ``gpu_id`` is the device :func:`_serial_vram_device` picks, ``None``
+    when there is no single one.
     """
 
     gpu_id: int | str | None
@@ -798,6 +800,25 @@ def solver_sweep(
 # ── GPU pool dispatch ─────────────────────────────────────────────────────────
 
 
+@functools.cache
+def _serial_vram_device() -> int | None:
+    """The GPU whose memory a serial run samples, when no ``--gpus`` pins one.
+
+    Serial containers see every GPU. With exactly one visible, that is the
+    device the solver uses. With several, a solver may use any of them, so
+    none is sampled and VRAM goes unrecorded; warn once instead.
+    """
+    n = gpu_count()
+    if n == 1:
+        return 0
+    if n > 1:
+        print_warn(
+            f"{n} GPUs visible and none chosen: VRAM is not recorded in serial "
+            "runs. Pass --gpus to pin each solver to one GPU."
+        )
+    return None
+
+
 def run_with_gpu_pool(
     solver_names: list[str],
     tags: dict[str, str],
@@ -807,7 +828,8 @@ def run_with_gpu_pool(
 ) -> None:
     """Open one Tesseract per solver and call fn(name, t).
 
-    When gpu_ids is None, runs serially with gpus=["all"] (all GPUs available).
+    When gpu_ids is None, runs serially with gpus=["all"] (all GPUs available)
+    and records VRAM on the GPU :func:`_serial_vram_device` picks.
     When gpu_ids is [] (empty list), runs serially with gpus=None (CPU-only mode,
     no GPU flags — for --gpus none / CPU-only hosts).
     When gpu_ids is given (non-empty), runs solvers in parallel; each container
@@ -843,9 +865,10 @@ def run_with_gpu_pool(
         # gpu_ids=None  → no --gpus flag, use all GPUs (gpus=["all"])
         # gpu_ids=[]    → --gpus none/cpu, CPU-only host (gpus=None, no GPU flags)
         _gpus = None if gpu_ids == [] else ["all"]
+        _gpu_id = None if gpu_ids == [] else _serial_vram_device()
         for name in solver_names:
             _tl.image_tag = tags[name]
-            _tl.gpu_id = None  # all GPUs available
+            _tl.gpu_id = _gpu_id
             try:
                 with _tracked_tesseract(tags[name], _gpus, _NO_HC) as t:
                     fn(name, t)
@@ -939,11 +962,15 @@ def safe_apply_with_state(
     inputs: dict,
     output_key: str,
     state_keys: list[str] | None = None,
+    require_finite: bool = True,
 ) -> tuple[jax.Array | None, dict[str, jax.Array]]:
     """Forward pass returning (primary array, further output arrays).
 
     state_keys: output keys to return as arrays alongside the primary one
                 (e.g. the pressure and body force of an obstacle run).
+    require_finite: treat a non-finite primary array as a failure. Callers
+                that score parts of the array on their own (e.g. the frames
+                of a trajectory) pass False.
 
     Returns (None, {}) on failure.
     """
@@ -962,7 +989,7 @@ def safe_apply_with_state(
             _tl.last_apply_error = error_msg
             return None, {}
         arr = out[output_key]
-        if not jnp.all(jnp.isfinite(arr)):
+        if require_finite and not jnp.all(jnp.isfinite(arr)):
             error_msg = (
                 f"solver output {output_key!r} is not finite ({nonfinite_counts(arr)})"
             )

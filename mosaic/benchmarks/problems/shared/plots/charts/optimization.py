@@ -68,8 +68,8 @@ def _rho_to_2d(
 
 # ── Drag optimisation (ns-grid) ──────────────────────────────────────────────
 
-# Solvers in the paper panels, in display order (aliases).
-_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "warp_ns"]
+# Solvers in the drag-optimization panels, in display order (aliases).
+_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "warp_ns", "ins_jl"]
 _INITIAL = "Initial"
 
 

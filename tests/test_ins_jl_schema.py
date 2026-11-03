@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""INS.jl's input schema accepts periodic flows and rejects obstacle flows.
+"""INS.jl's input schema accepts periodic boxes and the DFG channel, and rejects the rest.
 
 The tesseract loads Julia at import, so ``juliacall`` is stubbed out. Only the
 pydantic schema is exercised here.
@@ -14,11 +14,10 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from .helpers import channel_inputs
+from .helpers import channel_inputs, unsupported_bcs
 
 _API = (
     Path(__file__).resolve().parents[1]
@@ -43,19 +42,11 @@ def test_periodic_inputs_validate(input_schema):
     input_schema()
 
 
-@pytest.mark.parametrize(
-    "overrides",
-    [
-        {},
-        # Periodic BCs with an obstacle are rejected too.
-        {
-            "v0": np.zeros((41, 41, 1, 2), dtype=np.float32),
-            "boundary_conditions": {},
-            "inflow_profile": None,
-            "domain_extent": 0.41,
-        },
-    ],
-)
-def test_obstacle_inputs_raise(input_schema, overrides):
-    with pytest.raises(ValidationError, match="fully periodic"):
-        input_schema(**{**channel_inputs(10), **overrides})
+def test_channel_inputs_validate(input_schema):
+    input_schema(**channel_inputs(10))
+
+
+@unsupported_bcs
+def test_unsupported_inputs_raise(input_schema, change):
+    with pytest.raises(ValidationError, match=r"INS\.jl supports"):
+        input_schema(**{**channel_inputs(10), **change})
