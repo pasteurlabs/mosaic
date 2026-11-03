@@ -1,16 +1,16 @@
-# The whole site is rendered everywhere \u2014 local `quarto render`/`preview`, PR
-# previews (benchmark.yml), and post-merge (publish-results.yml). PRs used to
-# render a results-only profile, but that hid prose changes on doc PRs, so the
-# split was dropped: there is now a single page set and navbar, defined here.
+# The whole site is rendered everywhere (local `quarto render`/`preview`, PR
+# previews in benchmark.yml, and post-merge in publish-results.yml) from the
+# single page set and navbar defined here.
 project:
   type: website
   output-dir: _site
   pre-render:
-    # The Results overview includes (scoreboard, experiment explorer) and the
-    # per-solver scores shown on the solver cards are gitignored; regenerate
-    # them from mosaic-results/ (placeholders when it is absent). Runs first so
-    # generate.py can pick up docs/_scores.json.
-    - python docs/generate_results.py --overview-only
+    # The results pages (one per setup), the Results overview includes
+    # (scoreboard, experiment explorer) and the per-solver scores used by the
+    # solver reference are gitignored; regenerate them from mosaic-results/
+    # (placeholders when it is absent). Runs first so generate.py can pick up
+    # docs/_scores.json.
+    - python docs/generate_results.py
     # docs/solvers.qmd is auto-generated from each tesseract_config.yaml's
     # metadata.mosaic block. It's gitignored, so regenerate it on every
     # render/preview to keep navbar links live and the catalog up to date.
@@ -21,53 +21,67 @@ project:
     - "mosaic-results/**/*.vl.json"
   render:
     - docs/index.qmd
-    - docs/getting-started.qmd
-    - docs/standalone.qmd
-    - docs/internals.qmd
-    - docs/solvers.qmd
-    - docs/tutorial.qmd
     - docs/results.qmd
     - docs/results_*.qmd
+    - docs/solvers.qmd
+    - docs/getting-started.qmd
+    - docs/standalone.qmd
+    - docs/contributing.qmd
+    - docs/add-solver.qmd
+    - docs/add-domain.qmd
+    - docs/architecture.qmd
+    - docs/paper.qmd
 
 website:
   title: Mosaic
   repo-url: https://github.com/pasteurlabs/mosaic
   repo-actions: [edit, issue]
   navbar:
-    # Ordered as a progression: understand -> run -> see results -> look up ->
-    # use -> extend. Results is moved to last so it's extra visible.
+    # Results come right after the overview, since most visitors of a
+    # benchmark come for them. Then looking up a solver, running the benchmark,
+    # using a solver, extending Mosaic, and the paper.
     left:
       - text: Overview
         file: docs/index.qmd
-      - text: Getting Started
-        file: docs/getting-started.qmd
-      - text: Solver Reference
-        file: docs/solvers.qmd
-      - text: Use Solvers Elsewhere
-        file: docs/standalone.qmd
-      - text: Contribute
-        menu:
-          - text: Add a Backend
-            file: docs/tutorial.qmd
-          - text: How it works
-            file: docs/internals.qmd
       - text: Results
         menu:
           - text: Overview
             file: docs/results.qmd
-          - text: Navier-Stokes (2D)
-            file: docs/results_ns_grid.qmd
-          - text: Navier-Stokes (3D)
-            file: docs/results_ns_3d_grid.qmd
-          - text: Structural Mechanics
-            file: docs/results_structural_mesh.qmd
-          - text: Heat Transfer
-            file: docs/results_thermal_mesh.qmd
+          - text: Periodic box (2D)
+            file: docs/results_ns_2d_periodic.qmd
+          - text: Channel flow past a cylinder (2D)
+            file: docs/results_ns_2d_cylinder.qmd
+          - text: Forced Kolmogorov flow (2D)
+            file: docs/results_ns_2d_kolmogorov.qmd
+          - text: Triply periodic box (3D)
+            file: docs/results_ns_3d.qmd
+          - text: Linear-elastic cantilever
+            file: docs/results_structural.qmd
+          - text: Steady conduction in a slab
+            file: docs/results_heat.qmd
+      - text: Solvers
+        file: docs/solvers.qmd
+      - text: Run the benchmark
+        file: docs/getting-started.qmd
+      - text: Use a solver in your code
+        file: docs/standalone.qmd
+      - text: Contribute
+        menu:
+          - text: Contributing guide
+            file: docs/contributing.qmd
+          - text: Add a solver
+            file: docs/add-solver.qmd
+          - text: Add a domain
+            file: docs/add-domain.qmd
+          - text: Architecture
+            file: docs/architecture.qmd
+      - text: Paper
+        file: docs/paper.qmd
     right:
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
   page-footer:
-    center: "Built with [Quarto](https://quarto.org) · [Mosaic](https://github.com/pasteurlabs/mosaic)"
+    center: "[Mosaic](https://github.com/pasteurlabs/mosaic) is built with [Quarto](https://quarto.org)."
 
 execute:
   enabled: false
@@ -96,5 +110,3 @@ format:
       - docs/mosaic-ui.html
       # Interactive Vega-Lite charts on the results pages.
       - docs/charts.html
-      # Effort filter for the setup and ranking tables on the results pages.
-      - docs/effort-filter.html
