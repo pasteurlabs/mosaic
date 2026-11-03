@@ -90,6 +90,10 @@ def status(
     PR-friendly snapshot; pair [bold]--format md[/] with
     [bold]--diff-against[/] to render a regression/improvement diff.
     """
+    if format not in ("rich", "md", "json"):
+        raise typer.BadParameter(
+            f"{format!r} is not one of 'rich', 'md', 'json'.", param_hint="'--format'"
+        )
     if output_dir is not None:
         os.environ[RESULTS_DIR_ENV] = str(output_dir.resolve())
 

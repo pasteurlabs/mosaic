@@ -169,8 +169,8 @@ metadata:
               4.8x (20 cells per diameter) slower; with it Cd stays within
               0.05%. The code comment gives 2e-5 against a solve from zero at
               1e-8, and at 1e-6 Cd at 20 cells per diameter still drifts by
-              1e-3 over the final 40% of the run. No running experiment exercises the differentiable half:
-              PICT is excluded from drag_opt.
+              1e-3 over the final 40% of the run. drag_opt runs the
+              differentiable half; its effect there has not been measured.
             evidence: "#239, summary and notes; comment above pressure_tol in _run_channel."
         upstream: None filed.
         provenance: mosaic-team
@@ -239,8 +239,9 @@ metadata:
             symptom: >
               Per the code comment, a profile set once is not in the autograd
               graph that PISOtorch_diff records, so the inflow_profile gradient
-              would come back as zeros. Not reproduced; only drag_opt uses this
-              gradient, and PICT is excluded from it.
+              would come back as zeros. Not reproduced. drag_opt uses this
+              gradient, and with it PICT lowers Cd by 47% in 44 iterations
+              (A100).
             evidence: Comment in _pre_step in _run_channel.
         provenance: mosaic-team
       - id: body-force-integration

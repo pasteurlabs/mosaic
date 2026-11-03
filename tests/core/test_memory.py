@@ -4,6 +4,8 @@
 """Unit tests for the memory poller and its single-shot queries.
 
 Covers:
+- ``sample_vram_mib``: excludes driver-reserved memory (NVML v2), with a v1
+  fallback for drivers without it.
 - ``sample_container_ram_mib``: ``docker stats`` arithmetic (usage minus
   inactive page cache) on cgroup v1 and v2 payloads.
 - ``MemoryPoller``: records the peak, samples once more on exit, and leaves a
@@ -14,10 +16,16 @@ Covers:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from mosaic.benchmarks.core import harness, memory
-from mosaic.benchmarks.core.memory import MemoryPoller, sample_container_ram_mib
+from mosaic.benchmarks.core.memory import (
+    MemoryPoller,
+    sample_container_ram_mib,
+    sample_vram_mib,
+)
 
 MIB = 1024 * 1024
 
@@ -45,6 +53,39 @@ def _patch_docker(monkeypatch, memory_stats: dict) -> _FakeContainer:
     container = _FakeContainer(memory_stats)
     monkeypatch.setattr(memory, "_docker_client", lambda: _FakeClient(container))
     return container
+
+
+# ── sample_vram_mib ───────────────────────────────────────────────────────────
+
+_V2 = object()
+
+
+def _patch_nvml(monkeypatch, *, v2: bool) -> None:
+    """NVML whose v1 ``used`` counts 768 MiB of driver-reserved memory."""
+
+    def get_memory_info(_handle, version=None):
+        if version is _V2:
+            if not v2:
+                raise RuntimeError("NVML_ERROR_FUNCTION_NOT_FOUND")
+            return SimpleNamespace(used=10 * MIB, reserved=768 * MIB)
+        return SimpleNamespace(used=778 * MIB)
+
+    nvml = SimpleNamespace(
+        nvmlMemory_v2=_V2,
+        nvmlDeviceGetHandleByIndex=lambda _i: "h",
+        nvmlDeviceGetMemoryInfo=get_memory_info,
+    )
+    monkeypatch.setattr(memory, "_nvml_ready", lambda: nvml)
+
+
+def test_vram_excludes_driver_reserved_memory(monkeypatch):
+    _patch_nvml(monkeypatch, v2=True)
+    assert sample_vram_mib(0) == pytest.approx(10.0)
+
+
+def test_vram_falls_back_to_v1_without_v2(monkeypatch):
+    _patch_nvml(monkeypatch, v2=False)
+    assert sample_vram_mib(0) == pytest.approx(778.0)
 
 
 # ── sample_container_ram_mib ──────────────────────────────────────────────────

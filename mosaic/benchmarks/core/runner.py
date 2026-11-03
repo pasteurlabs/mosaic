@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import queue
+import signal
 import subprocess
 import sys
 import threading
@@ -67,7 +68,7 @@ from .console import (  # noqa: E402
     print_skip,
     print_warn,
 )
-from .memory import gpu_count  # noqa: E402
+from .memory import container_id_from_tesseract, gpu_count  # noqa: E402
 from .resources import container_memory_args  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -198,12 +199,79 @@ def _tracked_tesseract(tag: str, gpus: object, docker_args: object):
     try:
         yield t
     finally:
+        # restart_container may have replaced the container started here.
+        container_name = container_id_from_tesseract(t)
         try:
             t.__exit__(None, None, None)
         finally:
             if container_name:
                 with _live_containers_lock:
                     _live_containers.discard(container_name)
+
+
+# ── Dead containers ───────────────────────────────────────────────────────────
+#
+# A server that dies mid-request becomes a ``container_died`` failure (see
+# harness.classify_failure), and the client learns nothing more about why.
+# Docker keeps the stopped container until teardown, together with its exit
+# code and logs, so those are read before the container is replaced. Without a
+# new container, the later points of a sweep would fail on the closed port
+# without running.
+
+_CONTAINER_LOG_TAIL_LINES = 30
+# The client can see the connection drop before Docker has recorded the exit.
+_CONTAINER_EXIT_WAIT_S = 5.0
+
+
+def _describe_exit(state: dict) -> str:
+    """One line on how a container stopped, from its ``docker inspect`` state."""
+    code = state.get("ExitCode")
+    text = f"container exited with code {code}"
+    # Exit codes above 128 mean the process was killed by signal (code - 128).
+    if isinstance(code, int) and code > 128:
+        with contextlib.suppress(ValueError):
+            text += f" ({signal.Signals(code - 128).name})"
+    if state.get("OOMKilled"):
+        text += ", killed by Docker for exceeding its memory limit"
+    if state.get("Error"):
+        text += f"; Docker reported: {state['Error']}"
+    return text
+
+
+def container_death_report(t: Tesseract) -> dict[str, str] | None:
+    """Return how ``t``'s container stopped and the last lines it logged.
+
+    The keys are ``container_exit`` and ``container_log``. Returns ``None``
+    for a Tesseract with no container (``inprocess:`` tags).
+    """
+    try:
+        container = t.container_info()
+    except (RuntimeError, AttributeError):
+        return None
+    try:
+        container.wait(timeout=_CONTAINER_EXIT_WAIT_S)
+    except TimeoutError:
+        container_exit = (
+            f"container still running {_CONTAINER_EXIT_WAIT_S:.0f} s "
+            "after the connection dropped"
+        )
+    else:
+        container.reload()
+        container_exit = _describe_exit(container.attrs.get("State", {}))
+    log_tail = t.server_logs().splitlines()[-_CONTAINER_LOG_TAIL_LINES:]
+    return {"container_exit": container_exit, "container_log": "\n".join(log_tail)}
+
+
+def restart_container(t: Tesseract) -> None:
+    """Serve ``t`` in a new container with the same image, GPUs and Docker args."""
+    old_name = t.container_info().name
+    t.teardown()
+    with _live_containers_lock:
+        _live_containers.discard(old_name)
+    t.serve()
+    new_name = t.container_info().name
+    with _live_containers_lock:
+        _live_containers.add(new_name)
 
 
 # ── Docker setup diagnostics ──────────────────────────────────────────────────

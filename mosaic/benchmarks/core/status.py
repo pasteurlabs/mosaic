@@ -715,10 +715,23 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
     (see :meth:`TimedResult.as_record`); other suites carry ``failure_type`` +
     ``error``. Both render as ``"<failure_type>: [<exc_type>: ]<message>"``.
+
+    A dead container's record also carries ``container_exit`` and
+    ``container_log``. The exit then forms the first line, followed by the
+    exception and the log tail.
     """
     exc_type = metrics.get("exc_type")
     exc_msg = metrics.get("exc_msg") or metrics.get("error")
     failure_type = metrics.get("failure_type")
+    container_exit = metrics.get("container_exit")
+    if container_exit:
+        lines = [f"{failure_type}: {container_exit}"]
+        if exc_msg:
+            head = str(exc_msg).strip().splitlines()[0][:160]
+            lines.append(f"{exc_type}: {head}" if exc_type else head)
+        if metrics.get("container_log"):
+            lines += ["", "last lines of the container log:", metrics["container_log"]]
+        return "\n".join(lines)
     if exc_msg:
         head = str(exc_msg).strip().splitlines()[0][:160]
         prefix = "".join(f"{p}: " for p in (failure_type, exc_type) if p)
