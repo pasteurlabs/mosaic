@@ -9,7 +9,7 @@ import typer
 
 from mosaic.benchmarks import cli as _cli_pkg
 from mosaic.benchmarks.cli import app
-from mosaic.benchmarks.cli._helpers import _apply_solver_filter
+from mosaic.benchmarks.cli._helpers import _apply_solver_filter, _validate_solver_csv
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 
@@ -51,6 +51,7 @@ def build(
     if not problem_list:
         print_warn("no problems selected — nothing to build")
         raise typer.Exit(code=1)
+    _validate_solver_csv(solvers)
 
     failed: list[tuple[str, str]] = []
     for problem in problem_list:
@@ -58,6 +59,8 @@ def build(
         try:
             cfg = get_config(problem)
             cfg = _apply_solver_filter(cfg, solvers)
+            if cfg is None:
+                continue
             # Look ``build_all`` up via the cli package namespace so tests can
             # monkeypatch ``mosaic.benchmarks.cli.build_all`` and have it take
             # effect here (see test_build_unknown_problem_records_failure).
