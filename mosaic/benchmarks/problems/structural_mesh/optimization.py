@@ -91,10 +91,10 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
     final density (``rho_final``), optional history snapshots
     (``rho_history``), the shared ``rho_init`` array, and a metrics dict
     matching the on-disk schema (``compliances``, ``vol_fracs``,
-    ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``iters_to_best``,
-    ``converged``, ``grad_norms``). ``iters_to_best`` counts iterations until
-    the lowest loss, which includes the volume penalty, so it can differ from
-    the iteration of the lowest compliance.
+    ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``iters_to_plateau``,
+    ``converged``, ``grad_norms``). ``iters_to_plateau`` follows the loss,
+    which includes the volume penalty, so it can differ from where the
+    compliance alone levels off.
     """
     run = ctx.run
     phys = run.get("physics", {})
@@ -202,7 +202,7 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
             "final_compliance": final_compliance,
             "final_vol_frac": final_vol_frac,
             "n_iters": n_iters,
-            "iters_to_best": diag["iters_to_best"],
+            "iters_to_plateau": diag["iters_to_plateau"],
             "converged": converged,
             "grad_norms": grad_norms,
         },
