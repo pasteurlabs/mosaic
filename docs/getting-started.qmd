@@ -236,7 +236,9 @@ Resource-frontier tracking depends on the solver container reporting a
 but reports a *generic* error is classified as a crash (a hard `fail`), not a
 frontier move. This is the safe direction — a mislabelled OOM surfaces as a
 louder regression, never a quieter one — but it means the frontier signal is
-best-effort, not an exhaustive OOM detector.
+best-effort, not an exhaustive OOM detector. For a container that died, the
+failure record and the report show the exit code Docker recorded and the last
+lines of the container's log, which is the place to look for the cause.
 :::
 
 ## Troubleshooting
