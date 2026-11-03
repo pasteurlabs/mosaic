@@ -49,6 +49,17 @@ def _append_aux(aux_history: dict | None, aux: Any) -> None:
         aux_history.setdefault(label, []).append(float(val))
 
 
+def _iters_to_best(losses: list[float]) -> int:
+    """Number of iterations taken until the lowest loss in ``losses``.
+
+    ``losses[0]`` is the loss at the initial iterate and ``losses[k]`` the loss
+    after ``k`` iterations, so a lowest loss at ``losses[42]`` gives 42, and 0
+    means that no iteration improved on the initial loss. Ties go to the
+    earliest iteration.
+    """
+    return int(np.argmin(losses))
+
+
 def _check_finite_loss(loss_val: float, i: int) -> None:
     """Raise once the loss goes NaN/Inf: the optimiser cannot recover from it."""
     if not math.isfinite(loss_val):
@@ -101,6 +112,10 @@ def _run_optim(
       * ``grad_divs``:  per-iter ``max|∇·g|`` (only when ``div_fn`` set)
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
       * ``converged``:  whether the patience-based early stop fired
+      * ``iters_to_best``: :func:`_iters_to_best` of ``losses``, the plain
+        minimum regardless of ``min_rel_improvement``. ``losses[k]`` is the
+        loss after ``k`` updates, and the iterate after the last update is
+        not evaluated, so it never counts as the best.
 
     Raises ``FloatingPointError`` as soon as the loss is NaN/Inf.
     """
@@ -144,6 +159,7 @@ def _run_optim(
         if no_improve >= patience:
             break
     diag["converged"] = no_improve >= patience
+    diag["iters_to_best"] = _iters_to_best(losses)
     return x, losses, diag
 
 
@@ -197,7 +213,8 @@ def _run_lbfgs(
     Returns ``(final_x, losses, diag)``. ``losses`` and ``diag["grad_norms"]``
     cover ``init_x`` and every iterate, ending at ``final_x``.
     ``diag["converged"]`` is false when the run hit ``max_iters`` or the line
-    search failed. Raises ``FloatingPointError`` when the loss at ``init_x``
+    search failed. ``diag["iters_to_best"]`` is :func:`_iters_to_best` of
+    ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
     is not finite.
     """
     shape, dtype = init_x.shape, init_x.dtype
@@ -283,5 +300,9 @@ def _run_lbfgs(
     if not np.array_equal(res.x, last_z[0]):
         record(res.x)
     converged = res.success or grad_norms[-1] < 1e-7
-    diag = {"grad_norms": grad_norms, "converged": bool(converged)}
+    diag = {
+        "grad_norms": grad_norms,
+        "converged": bool(converged),
+        "iters_to_best": _iters_to_best(losses),
+    }
     return jnp.asarray(to_x(res.x)), losses, diag

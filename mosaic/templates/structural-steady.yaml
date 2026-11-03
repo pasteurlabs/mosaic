@@ -2,7 +2,7 @@
 # optimisation).
 #
 # Based on the structural-mesh domain. Extend to new geometries by modifying
-# the mesh, boundary conditions, and loading in the generated physics.py.
+# the mesh, boundary conditions, and loading in the generated config.py.
 
 name: structural-steady
 description: >
