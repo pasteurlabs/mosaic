@@ -151,3 +151,76 @@ def plot_kolmogorov(
         save=save,
     )
     return list(out.values())
+
+
+# ── Kolmogorov solver in the loop ────────────────────────────────────────────
+
+_ARMS = {
+    "supervised": ("supervised", "#4c78a8"),
+    "stopped": ("stopped gradient", "#f58518"),
+    "sil": ("solver in the loop", "#54a24b"),
+}
+
+
+def _sil_cost(ctx: Ctx) -> alt.TopLevelMixin | None:
+    """Wall time per training update, per solver and arm."""
+    res = ctx.result()
+    rows = []
+    for e in (res or {}).get("results", []):
+        m = e.get("metrics") or {}
+        if not m.get("eligible"):
+            continue
+        for key, cost in m["cost"].items():
+            K, arm = key.split("/")
+            if cost.get("update_seconds") is None:
+                continue
+            rows.append(
+                {
+                    "solver": e["solver"],
+                    "unroll": int(K[1:]),
+                    "arm": _ARMS[arm][0],
+                    "seconds": cost["update_seconds"],
+                }
+            )
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    enc = solver_encodings(df["solver"].unique())
+    df = enc.relabel(df)
+    arms = [label for label, _ in _ARMS.values()]
+    return (
+        alt.Chart(df)
+        .mark_point(filled=True, size=80)
+        .encode(
+            x=alt.X("seconds:Q", title="seconds per update", scale=log_scale()),
+            y=alt.Y("solver:N", title=None, sort=enc.labels),
+            color=alt.Color(
+                "arm:N",
+                scale=alt.Scale(domain=arms, range=[c for _, c in _ARMS.values()]),
+                sort=arms,
+                legend=alt.Legend(orient="bottom", title=None),
+            ),
+            tooltip=["solver:N", "arm:N", "unroll:Q", "seconds:Q"],
+        )
+        .properties(width=360, height=alt.Step(28))
+    )
+
+
+def plot_kolmogorov_sil(
+    cfg: Problem,
+    *,
+    save: bool = True,
+    suffix: str = "",
+    **_kw: Any,
+) -> list:
+    """Cost per training update of the solver-in-the-loop arms."""
+    exp = f"kolmogorov_sil{suffix}"
+    out = render(
+        cfg,
+        results_dir() / cfg.name / "optimization" / exp,
+        {"kolmogorov_sil_cost": _sil_cost},
+        suite="optimization",
+        experiment=exp,
+        save=save,
+    )
+    return list(out.values())

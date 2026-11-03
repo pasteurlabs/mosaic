@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+from typing import Any, ClassVar
 
 import equinox as eqx
 import jax
@@ -14,6 +14,9 @@ from mosaic_shared.problems.navier_stokes_grid import (
     OutputSchema as _CanonicalOutputSchema,
 )
 from mosaic_shared.problems.navier_stokes_grid.channel import check_periodic
+from mosaic_shared.problems.navier_stokes_grid.grid_layout import (
+    lift_collocated_to_staggered_periodic,
+)
 from mosaic_shared.schema_types import make_differentiable
 from pydantic import Field, model_validator
 from tesseract_core.runtime import Array, Differentiable, Float32
@@ -21,9 +24,15 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 
 
 class InputSchema(
-    make_differentiable(_CanonicalInputSchema, ["v0", "viscosity", "dt"])
+    make_differentiable(_CanonicalInputSchema, ["v0", "state", "viscosity", "dt"])
 ):
-    """Input schema for jax-cfd Navier-Stokes solver."""
+    """Input schema for jax-cfd Navier-Stokes solver.
+
+    The native state, in 2-D, is (nx, ny, 1, 4): the face velocities on the
+    high faces, then the cell-centred velocity the call returned.
+    """
+
+    supports_native_state: ClassVar[bool] = True
 
     density: Differentiable[Array[(1,), Float32]] = Field(
         description="Density of the fluid", default=1.0
@@ -39,7 +48,7 @@ class InputSchema(
         return self
 
 
-class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state"])):
     """Output schema for jax-cfd Navier-Stokes solver."""
 
 
@@ -54,6 +63,8 @@ def cfd_fwd(
     forcing: jnp.ndarray | None = None,
     linear_drag: float | None = None,
     snapshot_every: int | None = None,
+    state: jnp.ndarray | None = None,
+    return_state: bool = False,
     **_kwargs: Any,
 ) -> dict[str, jax.Array]:
     """Compute the final velocity field of the incompressible Navier-Stokes equations.
@@ -66,8 +77,15 @@ def cfd_fwd(
     ``forcing`` and ``linear_drag`` enter the explicit right-hand side that
     every RK4 stage evaluates. The force is averaged onto the faces like v0,
     and the drag ``-linear_drag * u`` acts on the current face velocity.
+
+    Continuing from a native ``state`` (2-D), the run starts from its face
+    velocities plus the change from its cell-centred velocity to ``v0``,
+    lifted onto the faces and projected. With ``return_state`` or ``state``,
+    the final native state is also returned as ``state``.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
+    if state is not None and ndim != 2:
+        raise NotImplementedError("jax-cfd continues from a native state in 2-D only")
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
@@ -92,6 +110,19 @@ def cfd_fwd(
             cfd.grids.GridVariable(
                 cfd.grids.GridArray(
                     interp_to_face(v_2d[..., i], own_axis=i),
+                    grid=grid,
+                    offset=tuple(1.0 if j == i else 0.5 for j in range(ndim)),
+                ),
+                bc,
+            )
+            for i in range(ndim)
+        )
+
+    def wrap_faces(faces: jnp.ndarray) -> Any:
+        return tuple(
+            cfd.grids.GridVariable(
+                cfd.grids.GridArray(
+                    faces[..., i],
                     grid=grid,
                     offset=tuple(1.0 if j == i else 0.5 for j in range(ndim)),
                 ),
@@ -138,7 +169,17 @@ def cfd_fwd(
         steps=inner_steps,
     )
 
-    v_grid = make_grid_vars(v0)
+    if state is None:
+        v_grid = make_grid_vars(v0)
+    else:
+        faces = state[:, :, 0, :ndim]
+        lifted = lift_collocated_to_staggered_periodic(
+            v0 - state[:, :, 0, ndim:], xp=jnp
+        )
+        lifted = cfd.pressure.projection(wrap_faces(lifted))
+        v_grid = wrap_faces(
+            jnp.stack([faces[..., i] + lifted[i].data for i in range(ndim)], -1)
+        )
 
     rollout_fn = cfd.funcutils.trajectory(step_fn, steps)
     _, trajectory = rollout_fn(v_grid)
@@ -157,6 +198,11 @@ def cfd_fwd(
     out = {"result": to_coloc(-1)}
     if snapshot_every is not None:
         out["snapshots"] = to_coloc(slice(snapshot_every - 1, None, snapshot_every))
+    if return_state or state is not None:
+        faces = jnp.stack([trajectory[i].array.data[-1] for i in range(ndim)], -1)
+        if ndim == 2:
+            faces = faces[:, :, None, :]
+        out["state"] = jnp.concatenate([faces, out["result"]], axis=-1)
     return out
 
 
@@ -198,7 +244,8 @@ def vector_jacobian_product(
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
     """Calculate output shape of apply from the shape of its inputs.
 
-    For jax-cfd the output ``result`` always has the same shape as ``v0``.
+    For jax-cfd the output ``result`` always has the same shape as ``v0``, and
+    the native state twice its components.
     """
     raw = abstract_inputs.model_dump()
     v0 = raw["v0"]
@@ -213,6 +260,9 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict:
     if raw["snapshot_every"] is not None:
         frames = raw["steps"] // raw["snapshot_every"]
         out["snapshots"] = {"shape": (frames, *v0_shape), "dtype": v0_dtype}
+    if raw.get("return_state") or raw.get("state") is not None:
+        state_shape = (*v0_shape[:-1], 2 * v0_shape[-1])
+        out["state"] = {"shape": state_shape, "dtype": v0_dtype}
     return out
 
 

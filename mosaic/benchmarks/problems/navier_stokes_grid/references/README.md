@@ -18,3 +18,9 @@ Each seed starts from a random field and spins up for 100 time units at 512² be
 The truth is converged over the scored horizon. The 512² run from the same state differs from it by 0.3% after one time unit and by 2.3–3.2% after four, at a vorticity correlation of 0.997 or more, and it stays above 0.95 correlation for 6.5 to 7.5 time units. Independently, JAX-CFD converges to the truth at observed orders 1.6 and 1.9 between 64² and 256² (relative L2 at t = 1: 0.086, 0.029 and 0.0077) until it reaches that 0.3% floor at 512².
 
 Regenerate with `mosaic reference -p ns-grid -e forward/kolmogorov` (Docker and an NVIDIA GPU; under half an hour on an A100).
+
+## `optimization_kolmogorov_sil.npz`
+
+Training and validation states of the solver-in-the-loop study (`studies/kolmogorov-sil/`), `initial_<seed>` for the seeds in `sil.TRAINING_SEEDS` (0 to 4). They are burned in exactly like the states of `forward_kolmogorov.npz`, which the study uses as its test states. The file has no trajectories, since every solver trains against its own reference.
+
+Regenerate with `mosaic reference -p ns-grid -e optimization/kolmogorov_sil` (Docker and an NVIDIA GPU).

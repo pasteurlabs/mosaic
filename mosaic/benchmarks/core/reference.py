@@ -192,11 +192,13 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
     ],
     # The multimode initial condition has no closed form, so its agreement is
     # scored against a consensus. forward/kolmogorov is scored against a
-    # converged run, see CONVERGED_REFERENCES. The Taylor–Green variant keeps
-    # its analytic solution.
+    # converged run, see CONVERGED_REFERENCES, and the solver-in-the-loop
+    # study trains from more of its burned-in states. The Taylor–Green
+    # variant keeps its analytic solution.
     "ns-grid": [
         "forward/agreement/multimode",
         "forward/kolmogorov",
+        "optimization/kolmogorov_sil",
     ],
     "structural-mesh": [
         "forward/baseline",
@@ -248,6 +250,11 @@ CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
     # Kolmogorov flow: burned-in states and turbulent trajectories at N=1024,
     # converged against N=512 (see the ns-grid references README).
     ("ns-grid", "forward/kolmogorov"): ConvergedSpec(solver="Exponax", high_n=1024),
+    # The training and validation states of the solver-in-the-loop study,
+    # burned in at N=512 like those of forward/kolmogorov.
+    ("ns-grid", "optimization/kolmogorov_sil"): ConvergedSpec(
+        solver="Exponax", high_n=512
+    ),
 }
 
 

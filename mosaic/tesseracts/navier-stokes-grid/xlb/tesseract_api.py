@@ -4,7 +4,7 @@
 import functools
 import math
 import os
-from typing import Any
+from typing import Any, ClassVar
 
 import equinox as eqx
 import jax
@@ -44,10 +44,20 @@ from pydantic import model_validator  # noqa: E402
 
 class InputSchema(
     make_differentiable(
-        _CanonicalInputSchema, ["v0", "viscosity", "dt", "inflow_profile"]
+        _CanonicalInputSchema, ["v0", "state", "viscosity", "dt", "inflow_profile"]
     )
 ):
-    """XLB solver input schema with differentiable fields."""
+    """XLB solver input schema with differentiable fields.
+
+    The native state, in 2-D, is (2q + 3, nx, ny, 1): the q post-collision
+    populations as float32 high and low parts, the cell-centred velocity the
+    call returned, and the number of LBM sub-steps per dt, which fixes the
+    lattice units of the populations. The solver runs in float64, and the
+    populations keep that precision so that a continued run matches one that
+    never stopped.
+    """
+
+    supports_native_state: ClassVar[bool] = True
 
     @model_validator(mode="after")
     def _check_supported_bcs(self) -> "InputSchema":
@@ -56,7 +66,7 @@ class InputSchema(
 
 
 class OutputSchema(
-    make_differentiable(_CanonicalOutputSchema, ["result", "body_force"])
+    make_differentiable(_CanonicalOutputSchema, ["result", "state", "body_force"])
 ):
     """XLB solver output schema with differentiable fields."""
 
@@ -197,7 +207,10 @@ def _sub_steps(inputs: dict) -> int:
     and the peak inflow speed in the channel.
     k sub-steps of dt/k divide it by k and preserve the physical end time.
     Computed from the concrete primal inputs, since k fixes the traced graph.
+    A run continuing from a native state keeps the k it was started with.
     """
+    if inputs.get("state") is not None:
+        return round(float(np.asarray(inputs["state"])[-1].flat[0]))
     if inputs.get("obstacle") is None:
         v0 = np.asarray(inputs["v0"], dtype=np.float64)
         u_max = max(float(np.sqrt((v0**2).sum(axis=-1)).max()), _forced_speed(inputs))
@@ -226,6 +239,26 @@ def _forced_speed(inputs: dict) -> float:
         float(np.sqrt((np.asarray(forcing, np.float64) ** 2).sum(axis=-1)).max())
         / damping
     )
+
+
+def _continued_populations(
+    state: jnp.ndarray, u0_phys: jnp.ndarray, scale: Any, drag: Any, ops: dict
+) -> jnp.ndarray:
+    """Populations continuing from a native state, taking on v0's change.
+
+    The canonical velocity has no counterpart of the density or the
+    non-equilibrium moments, so only the equilibrium momentum moves,
+    f' = f + feq(ρ, u + δ) - feq(ρ, u), with δ the change from the velocity
+    returned with the state to v0 in lattice units. An unchanged v0 continues
+    exactly. Post-collision populations carry half a kick, Δu/2 = (a - αu)/2,
+    so a drag scales δ by 1 - α/2.
+    """
+    q, d = ops["W"].shape[0], u0_phys.shape[0]
+    f = state[:q, ..., 0] + state[q : 2 * q, ..., 0]
+    returned = state[2 * q : 2 * q + d, ..., 0]
+    rho, u = ops["macro"](f)
+    delta = (u0_phys - returned) * scale * (1.0 - 0.5 * drag)
+    return f + ops["eq"](rho, u + delta) - ops["eq"](rho, u)
 
 
 # mosaic-intervention: consistent-initial-populations
@@ -414,6 +447,8 @@ def xlb_fwd(
     forcing: jnp.ndarray | None = None,
     linear_drag: Any = None,
     snapshot_every: int | None = None,
+    state: jnp.ndarray | None = None,
+    return_state: bool = False,
     _use_f64: bool = False,
     _sub_k: int = 1,
     **_: Any,
@@ -444,6 +479,9 @@ def xlb_fwd(
         linear_drag:   Drag coefficient α of a force -αu on a periodic box.
         snapshot_every: On a periodic box, also return the velocity after
                        every this many timesteps as ``snapshots``.
+        state:         Native state to continue from (2-D periodic), see
+                       ``InputSchema``.
+        return_state:  Also return the native state; implied by ``state``.
         _use_f64:      If True, run the entire LBM computation in float64 for accurate
                        gradients. Output is cast back to float32 before returning.
                        This prevents float32 cancellation errors in the VJP/JVP paths,
@@ -475,23 +513,29 @@ def xlb_fwd(
 
     if ndim == 2:
         # (nx, ny, 1, 2) → (2, nx, ny)
-        u0 = jnp.moveaxis(v0[:, :, 0, :], -1, 0).astype(fdtype) * scale_eff
+        u0_phys = jnp.moveaxis(v0[:, :, 0, :], -1, 0).astype(fdtype)
     else:
         # (nx, ny, nz, 3) → (3, nx, ny, nz)
-        u0 = jnp.moveaxis(v0, -1, 0).astype(fdtype) * scale_eff
+        u0_phys = jnp.moveaxis(v0, -1, 0).astype(fdtype)
+    u0 = u0_phys * scale_eff
+    emit_state = return_state or state is not None
+    if emit_state and (ndim != 2 or obstacle is not None):
+        raise NotImplementedError("XLB continues from a native state on 2-D boxes only")
+    if state is not None:
+        state = jnp.asarray(state, dtype=fdtype)
 
-    def run(body: Any, f0: jnp.ndarray, velocity: Any) -> tuple[Any, Any]:
-        """Final lattice velocity, and the ones every ``snapshot_every`` steps."""
+    def run(body: Any, f0: jnp.ndarray, velocity: Any) -> tuple[Any, Any, Any]:
+        """Final populations and lattice velocity, and the snapshot velocities."""
         if snapshot_every is None:
             f_final, _ = _checkpointed_scan(body, f0, steps_eff)
-            return velocity(f_final), None
+            return f_final, velocity(f_final), None
 
         def chunk(f: jnp.ndarray, _: Any) -> tuple[jnp.ndarray, jnp.ndarray]:
             f, _ = _checkpointed_scan(body, f, snapshot_every * _sub_k)
             return f, velocity(f)
 
-        _, frames = jax.lax.scan(chunk, f0, None, length=steps // snapshot_every)
-        return frames[-1], frames
+        f_final, frames = jax.lax.scan(chunk, f0, None, length=steps // snapshot_every)
+        return f_final, frames[-1], frames
 
     out = {}
     frames = None
@@ -514,7 +558,10 @@ def xlb_fwd(
         # mosaic-intervention: consistent-initial-populations
         # Post-collision populations already hold half the kick of their
         # step, so they start at u* + Δu/2.
-        f0 = _periodic_populations(u0 + 0.5 * kick(u0), omega, ops)
+        if state is None:
+            f0 = _periodic_populations(u0 + 0.5 * kick(u0), omega, ops)
+        else:
+            f0 = _continued_populations(state, u0_phys, scale_eff, drag, ops)
         # mosaic-intervention-end: consistent-initial-populations
 
         # mosaic-intervention: manual-lbm-loop
@@ -530,12 +577,15 @@ def xlb_fwd(
             _rho, u_post = xlb_macro(f)
             return (u_post - 0.5 * accel) / (1.0 - 0.5 * drag)
 
-        u_out, frames = run(body, f0, velocity)
+        f_final, u_out, frames = run(body, f0, velocity)
         # mosaic-intervention-end: manual-lbm-loop
         # mosaic-intervention-end: exact-difference-forcing
     elif obstacle is None:
         # mosaic-intervention: consistent-initial-populations
-        f0 = _periodic_populations(u0, omega, ops)
+        if state is None:
+            f0 = _periodic_populations(u0, omega, ops)
+        else:
+            f0 = _continued_populations(state, u0_phys, scale_eff, 0.0, ops)
         # mosaic-intervention-end: consistent-initial-populations
 
         # mosaic-intervention: manual-lbm-loop
@@ -545,7 +595,7 @@ def xlb_fwd(
             feq = xlb_eq(rho_s, u_s)
             return xlb_bgk(f_s, feq, rho_s, u_s, omega), None
 
-        u_out, frames = run(body, f0, lambda f: xlb_macro(f)[1])
+        f_final, u_out, frames = run(body, f0, lambda f: xlb_macro(f)[1])
         # mosaic-intervention-end: manual-lbm-loop
     else:
         u_in = inflow_profile.astype(fdtype) * scale_eff
@@ -574,6 +624,16 @@ def xlb_fwd(
     out["result"] = to_physical(u_out)
     if frames is not None:
         out["snapshots"] = jax.vmap(to_physical)(frames)
+    if emit_state:
+        returned = jnp.moveaxis(out["result"][:, :, 0, :], -1, 0).astype(fdtype)
+        sub_k = jnp.full((1, *returned.shape[1:]), float(_sub_k), dtype=fdtype)
+        high = f_final.astype(jnp.float32)
+        low = (f_final - high.astype(fdtype)).astype(jnp.float32)
+        native = jnp.concatenate(
+            [high, low, returned.astype(jnp.float32), sub_k.astype(jnp.float32)],
+            axis=0,
+        )
+        out["state"] = native[..., None]
     return out
 
 
@@ -644,6 +704,9 @@ def abstract_eval(abstract_inputs: Any) -> dict:
     if abstract_inputs.snapshot_every is not None:
         frames = abstract_inputs.steps // abstract_inputs.snapshot_every
         out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
+    if abstract_inputs.return_state or abstract_inputs.state is not None:
+        q = len(_D2Q9_C)
+        out["state"] = {"shape": (2 * q + 3, *shape[:2], 1), "dtype": "float32"}
     return out
 
 
@@ -663,7 +726,7 @@ def _diff_apply(sub_k: int, dx: float) -> Any:
 
     def fn(inputs: dict) -> dict:
         fwd_kwargs = dict(inputs)
-        for k in ("v0", "inflow_profile", "forcing"):
+        for k in ("v0", "inflow_profile", "forcing", "state"):
             if fwd_kwargs.get(k) is not None:
                 fwd_kwargs[k] = jnp.asarray(fwd_kwargs[k], dtype=_diff_dtype)
         for k in ("viscosity", "dt", "linear_drag"):

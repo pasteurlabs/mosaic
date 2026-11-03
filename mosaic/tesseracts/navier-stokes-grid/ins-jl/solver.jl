@@ -4,6 +4,8 @@ using CUDA
 using LinearAlgebra
 using SparseArrays
 
+const FFTW = IncompressibleNavierStokes.FFTW
+
 # Run on the GPU when the container has one, otherwise on INS.jl's default CPU
 # backend. Inputs are copied to the device once per call and results back.
 const _ON_GPU = CUDA.functional()
@@ -269,11 +271,68 @@ end
 
 
 # ---------------------------------------------------------------------------
+# Native state (2-D): the high-face velocities and the returned velocity
+# ---------------------------------------------------------------------------
+
+# Largest amplification the lift applies to a Fourier mode; see
+# mosaic_shared/problems/navier_stokes_grid/grid_layout.py.
+const MAX_LIFT_GAIN = 32
+
+"""Per-mode inverse of the face-to-centre average along one axis, gain-capped."""
+function lift_filter(n::Int)
+    transfer = (1 .+ cispi.(-2 .* FFTW.fftfreq(n))) ./ 2
+    return to_device([abs(t) * MAX_LIFT_GAIN >= 1 ? 1 / t : zero(t) for t in transfer])
+end
+
+"""High-face field (n,n,2) whose average to the cell centres is `d` (n,n,2)."""
+function lift_coloc_to_stag_2d(d::AbstractArray, n::Int)
+    inv = Zygote.@ignore lift_filter(n)
+    ux = real.(FFTW.ifft(FFTW.fft(d[:, :, 1], 1) .* inv, 1))
+    uy = real.(FFTW.ifft(FFTW.fft(d[:, :, 2], 2) .* transpose(inv), 2))
+    T = eltype(d)
+    return cat(reshape(T.(ux), n, n, 1), reshape(T.(uy), n, n, 1); dims=3)
+end
+
+"""
+Ghosted staggered state continuing from the native `state` (n,n,4) with `v0`.
+
+Only the change from the velocity returned with `state` to `v0` is lifted onto
+the faces and projected, so an unchanged `v0` continues exactly.
+"""
+function continued_state(v0::AbstractArray, state::AbstractArray, setup, psolver, n::Int)
+    correction = lift_coloc_to_stag_2d(v0 .- state[:, :, 3:4], n)
+    correction = project(add_ghosts_2d(correction, n), setup; psolver)
+    u = add_ghosts_2d(state[:, :, 1:2], n) .+ correction
+    return apply_bc_u(u, zero(eltype(u)), setup)
+end
+
+# mosaic-intervention: hand-written-rk4-rollout
+"""2-D forward from `v0`, or continuing from `state`; returns (v_out, native)."""
+function ns_forward_native_2d(v0::AbstractArray, state, rhs, setup, psolver,
+                              nu::Real, dt::Real, steps::Int, n::Int)
+    p = (; viscosity = nu)
+    u = if isnothing(state)
+        initial_state(v0, setup, psolver, n)
+    else
+        continued_state(v0, state, setup, psolver, n)
+    end
+    for _ in 1:steps
+        u = rk4_step(u, rhs, p, dt)
+    end
+    faces = strip_ghosts_2d(u, n)
+    v_out = stag_to_coloc_2d(faces, n)
+    return v_out, cat(faces, v_out; dims=3)
+end
+# mosaic-intervention-end: hand-written-rk4-rollout
+
+
+# ---------------------------------------------------------------------------
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
 """
-    ns_apply(v0_np, nu, dt, steps, n, L; force, drag, snapshot_every) -> v_out_np
+    ns_apply(v0_np, nu, dt, steps, n, L; force, drag, snapshot_every, state,
+             return_state) -> v_out_np
 
 Forward pass.
   2-D: v0_np (n,n,2) Float32 → returns (n,n,2) Float32
@@ -282,6 +341,8 @@ Forward pass.
 With `snapshot_every > 0` (2-D only), returns the velocity after every
 `snapshot_every` steps instead, (steps ÷ snapshot_every, n, n, 2), from the
 same RK4 loop as the forced run; the last frame is the final velocity.
+With a native `state` or `return_state` (2-D only), returns (v_out, native)
+from that loop, continuing from `state` if it is given.
 
 Unforced rollouts use the in-place `solve_unsteady` time stepper (no AD
 tape needed), which is several times faster than the non-mutating rollout
@@ -290,11 +351,25 @@ projection as the projected RHS in `ns_forward_*`, so the two paths agree to
 round-off.
 """
 function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float64;
-                  force = nothing, drag::Float64 = 0.0, snapshot_every::Int = 0)
+                  force = nothing, drag::Float64 = 0.0, snapshot_every::Int = 0,
+                  state = nothing, return_state::Bool = false)
     T = Float32
     v0   = to_device(T.(v0_np))
     ndim = size(v0, ndims(v0))  # last dim: 2 or 3
     setup, psolver = get_setup_and_psolver(n, L, ndim)
+
+    if !isnothing(state) || return_state
+        rhs = forced_rhs(
+            create_right_hand_side(setup, psolver),
+            staggered_force(force, setup, psolver, n),
+            drag,
+        )
+        st = isnothing(state) ? nothing : to_device(T.(state))
+        v_out, native = ns_forward_native_2d(
+            v0, st, rhs, setup, psolver, T(nu), T(dt), steps, n,
+        )
+        return Array(T.(v_out)), Array(T.(native))
+    end
 
     if snapshot_every > 0
         rhs = forced_rhs(
@@ -339,8 +414,9 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
 end
 
 """
-    ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L; force, drag)
-        -> (grad_v0, grad_nu, grad_dt, grad_L)
+    ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L; force, drag, state,
+           return_state, state_cotangent)
+        -> (grad_v0, grad_nu, grad_dt, grad_L[, grad_state])
 
 VJP. Shapes match v0_np. grad_L is always 0.0 (L is structural).
 
@@ -352,7 +428,9 @@ two extra forward rollouts per VJP call) that earlier versions required.
 """
 function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
                 steps::Int, n::Int, L::Float64;
-                force = nothing, drag::Float64 = 0.0)
+                force = nothing, drag::Float64 = 0.0,
+                state = nothing, return_state::Bool = false,
+                state_cotangent = nothing)
     v0   = to_device(Float32.(v0_np))
     cot  = to_device(Float32.(cotangent_np))
     ndim = size(v0, ndims(v0))
@@ -363,6 +441,34 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
         staggered_force(force, setup, psolver, n),
         drag,
     )
+
+    if !isnothing(state) || return_state
+        # With a native state, also the cotangent of the returned state and
+        # the gradient with respect to the incoming one (2-D only).
+        st = isnothing(state) ? nothing : to_device(Float32.(state))
+        fwd = (v, dt_, nu_, s) -> ns_forward_native_2d(
+            v, s, rhs, setup, psolver, nu_, dt_, steps, n,
+        )
+        _, back = Zygote.pullback(fwd, v0, Float32(dt), Float32(nu), st)
+        cot_state = if isnothing(state_cotangent)
+            nothing
+        else
+            to_device(Float32.(state_cotangent))
+        end
+        grads = back((cot, cot_state))
+        grad_state = if isnothing(st)
+            nothing
+        else
+            Array(Float32.(something(grads[4], zero(st))))
+        end
+        return (
+            Array(Float32.(something(grads[1], zero(v0)))),
+            Float64(something(grads[3], 0.0)),
+            Float64(something(grads[2], 0.0)),
+            Float64(0.0),
+            grad_state,
+        )
+    end
 
     if ndim == 2
         fwd = (v, dt_, nu_) -> ns_forward_2d(v, rhs, setup, psolver, nu_, dt_, steps, n)
