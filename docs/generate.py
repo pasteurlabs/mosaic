@@ -70,6 +70,7 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
 
     _SOLVER_SPECS = {}
     try:
+        from mosaic.benchmarks.core.utils import exclusion_lookup
         from mosaic.benchmarks.problems import PROBLEMS, get_config
     except ImportError:
         return _SOLVER_SPECS
@@ -103,11 +104,28 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
                     "internal_dtype": spec.internal_dtype,
                     "exclusions": {},
                     "explained_anomalies": {},
+                    "setups_run": set(),
                 },
             )
+            excl = {
+                k: e
+                for k, e in cfg.exclusions.get(spec.key, {}).items()
+                if e.category.value != "anomaly_explained"
+            }
+            # A solver runs a setup if any of the setup's experiments is not
+            # excluded for it. ``ics`` only generates initial conditions.
+            for exp_key in cfg.experiments:
+                suite, _, exp_name = exp_key.partition("/")
+                setup = views.iv.setup_of(prob, exp_key)
+                if (
+                    setup
+                    and suite != "ics"
+                    and exclusion_lookup(excl, suite, exp_name) is None
+                ):
+                    entry["setups_run"].add(setup.key)
             # cfg.exclusions is keyed by ``spec.key``→``<experiment key>``→
             # ``Exclusion``. Several Problems can share a tesseract dir (and
-            # thus a solver card), so entries are grouped by problem name.
+            # thus a solver section), so entries are grouped by problem name.
             for exp_key, exc in cfg.exclusions.get(spec.key, {}).items():
                 target = (
                     entry["explained_anomalies"]
@@ -117,6 +135,15 @@ def _load_solver_specs() -> dict[tuple[str, str], dict]:
                 target.setdefault(prob, {})[exp_key] = {
                     "category": exc.category.value,
                     "reason": exc.reason,
+                    # The setups that own experiments under this key.
+                    "setups": list(
+                        dict.fromkeys(
+                            setup.key
+                            for e in cfg.experiments
+                            if (e == exp_key or e.startswith(exp_key + "/"))
+                            and (setup := views.iv.setup_of(prob, e))
+                        )
+                    ),
                 }
     return _SOLVER_SPECS
 
@@ -128,108 +155,7 @@ def _get_spec(physics: str, backend: str) -> dict | None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Capability matrix (solver × suite, derived from the problem exclusions)
-# ──────────────────────────────────────────────────────────────────────────────
-
-# Suites shown as matrix columns, in display order. ``ics`` only generates
-# initial conditions and says nothing about what a solver can do.
-_MATRIX_SUITES = ["forward", "gradient", "cost", "optimization"]
-
-_EXCLUSION_CATEGORY_LABELS = {
-    # Same words as the check states on the Results pages.
-    "categorical": "not supported",
-    "infeasible": "infeasible",
-    "not_implemented": "not implemented",
-    "unstable": "unstable",
-    "upstream_bug": "upstream bug",
-    "wip": "work in progress",
-    "unspecified": "unspecified",
-}
-
-
-def collect_capabilities() -> list[dict]:
-    """Build one solver × suite matrix per Problem from its exclusions.
-
-    Each cell counts the experiments with ``params`` that the solver runs in
-    full, using the runner's :func:`exclusion_lookup`. An exclusion on a
-    sub-key, such as a single IC, also takes the experiment out of the count.
-    """
-    try:
-        from docs.generate_results import PROBLEM_LABELS
-        from mosaic.benchmarks.core.utils import exclusion_lookup
-        from mosaic.benchmarks.problems import PROBLEMS, get_config
-    except ImportError:
-        return []
-
-    # Match the order of the Results pages and put unlabeled problems last.
-    order = list(PROBLEM_LABELS)
-    problems = sorted(
-        PROBLEMS, key=lambda p: order.index(p) if p in order else len(order)
-    )
-    matrices = []
-    for prob in problems:
-        try:
-            cfg = get_config(prob)
-        except Exception:  # noqa: S112 — skip problems that don't import in the docs env
-            continue
-        experiments: dict[str, list[str]] = {}
-        for exp_key, exp in cfg.experiments.items():
-            suite, _, exp_name = exp_key.partition("/")
-            if suite in _MATRIX_SUITES and exp.params:
-                experiments.setdefault(suite, []).append(exp_name)
-        suites = [s for s in _MATRIX_SUITES if s in experiments]
-
-        rows = []
-        for spec in cfg.solvers:
-            excl = {
-                k: e
-                for k, e in cfg.exclusions.get(spec.key, {}).items()
-                if e.category.value != "anomaly_explained"
-            }
-            cells = {}
-            unsupported = {}
-            for suite in suites:
-                n_total = len(experiments[suite])
-                n_run = sum(
-                    1
-                    for exp_name in experiments[suite]
-                    if exclusion_lookup(excl, suite, exp_name) is None
-                    and not any(k.startswith(f"{suite}/{exp_name}/") for k in excl)
-                )
-                cells[suite] = (n_run, n_total)
-                unsupported[suite] = sum(
-                    1
-                    for exp_name in experiments[suite]
-                    if (hit := exclusion_lookup(excl, suite, exp_name)) is not None
-                    and hit[1].category.value == "categorical"
-                )
-            notes: dict[str, list[str]] = {}
-            for k, e in excl.items():
-                label = _EXCLUSION_CATEGORY_LABELS.get(
-                    e.category.value, e.category.value
-                )
-                notes.setdefault(label, []).append(k)
-            rows.append(
-                {
-                    "name": spec.name,
-                    "anchor": f"{cfg.tesseract_dir.name}-{spec.dir}",
-                    "cells": cells,
-                    "unsupported": unsupported,
-                    "notes": notes,
-                }
-            )
-        matrices.append(
-            {
-                "label": PROBLEM_LABELS.get(prob, prob),
-                "suites": suites,
-                "rows": rows,
-            }
-        )
-    return matrices
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Schema parsing (unchanged)
+# Schema parsing
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -430,6 +356,8 @@ def load_solver(path: Path) -> dict | None:
         "explained_anomalies": spec["explained_anomalies"] if spec else {},
         "record": record,
         "setups": setups,
+        # Without the problem configs, assume the solver runs every setup.
+        "setups_run": tuple(s for s in setups if not spec or s in spec["setups_run"]),
     }
 
 
@@ -452,40 +380,36 @@ def collect_solvers() -> dict[str, list[dict]]:
 # Markdown generation
 # ──────────────────────────────────────────────────────────────────────────────
 
-AD_LABELS = {
-    "autodiff": "AD: autodiff",
-    "adjoint": "AD: adjoint",
-    "hybrid": "AD: hybrid",
-    None: "AD: forward-only",
-}
+_REPO_URL = "https://github.com/pasteurlabs/mosaic"
 
-# Expand discretization codes for the plain-text "Numerics:" line that appears
-# on every solver card.
 _DISCR_FULL = {
-    "FD": "Finite Difference",
-    "FV": "Finite Volume",
-    "FE": "Finite Element",
+    "FD": "Finite differences",
+    "FV": "Finite volumes",
+    "FE": "Finite elements",
     "LBM": "Lattice Boltzmann",
-    "Spectral": "Spectral",
 }
 
-# Badge classes used on every card. One colour per category so the three pill
-# types are visually distinct without overloading hues (styled in
-# docs/styles.scss).
-_LANG_BADGE_CLASS = "badge-lang"  # all language badges
-_AD_BADGE_CLASS = "badge-ad"  # all AD-strategy badges
-_GPU_BADGE_CLASS = "badge-gpu"  # only present on GPU-capable solvers
-
-# Per-solver checks written by `generate_results.py --overview-only` (keyed by
-# Solver Reference anchor). Optional: cards render without them if absent.
+# Per-solver checks written by `generate_results.py --overview-only`, keyed by
+# section anchor. Optional: sections render without them if absent.
 SCORES = Path(__file__).resolve().parent / "_scores.json"
-_CHECK_WORDS = {
-    "pass": "pass",
-    "borderline": "borderline",
-    "fail": "fail",
-    "blocked": "blocked",
-    "na": "not supported",
-    "notrun": "not run",
+_CHECK_SUITES = ("forward", "gradient", "optimization")
+# Same words as the check states on the results pages.
+_CHECK_LABELS = {
+    "pass": "Pass",
+    "borderline": "Borderline",
+    "fail": "Fail",
+    "blocked": "Blocked",
+    "na": "Not supported",
+    "notrun": "Not run",
+}
+_EXCLUSION_LABELS = {
+    "categorical": "not supported",
+    "infeasible": "infeasible",
+    "not_implemented": "not implemented",
+    "unstable": "unstable",
+    "upstream_bug": "upstream bug",
+    "wip": "work in progress",
+    "unspecified": "unspecified",
 }
 
 
@@ -498,19 +422,28 @@ def _load_scores() -> dict:
         return {}
 
 
-def _badge(text: str, classes: str) -> str:
-    """Render a pill badge as a Pandoc bracketed span.
-
-    Quarto/Pandoc turns ``[text]{.badge .badge-ad}`` into
-    ``<span class="badge badge-ad">text</span>``.
-    """
-    cls = " ".join("." + c for c in classes.split())
-    return f"[{text}]{{.badge {cls}}}"
+def _anchor(solver: dict) -> str:
+    return f"{solver['physics']}-{solver['backend']}"
 
 
-def _attr(text: str) -> str:
-    """Make a string safe for a Pandoc attribute value."""
-    return str(text).replace('"', "'").replace("\n", " ")
+def _setup_link(setup: str) -> str:
+    """The setup's label, linked to its results page."""
+    label = views.iv.SETUPS[setup].label
+    return f"[{label}](results_{setup.replace('-', '_')}.qmd)"
+
+
+def _join(items: list[str]) -> str:
+    """``a``, ``a and b``, ``a, b and c``."""
+    return " and ".join([", ".join(items[:-1]), items[-1]] if len(items) > 1 else items)
+
+
+def _discretization(solver: dict) -> str:
+    code = solver["discretization"]
+    return f"{_DISCR_FULL[code]} ({code})" if code in _DISCR_FULL else code
+
+
+def _ad_strategy(solver: dict) -> str:
+    return solver["ad_strategy"] or "none (forward only)"
 
 
 def render_field_table(fields: list[dict], label: str) -> str:
@@ -527,295 +460,179 @@ def render_field_table(fields: list[dict], label: str) -> str:
     return f"**{label}**\n\n{header}" + "\n".join(rows) + "\n"
 
 
-def render_solver(solver: dict, scores: dict | None = None) -> str:
-    """One searchable solver card.
-
-    The card shows the summary (numerics, badges, description, checks); the
-    full reference (links, image, exclusions, schema tables) sits in a
-    ``.solver-details`` block that docs/mosaic-ui.html opens in a dialog.
-    Without JS the details render inline under the summary.
-    """
-    name = solver["display_name"] or solver["name"]
-    anchor = f"{solver['physics']}-{solver['backend']}"
-    score = (scores or {}).get(anchor)
-    ad = solver["ad_strategy"] or "forward-only"
-    search = " ".join(
-        str(x)
-        for x in (
-            name,
-            solver["category"],
-            solver["backend_lang"],
-            ad,
-            solver["discretization"],
-            _DISCR_FULL.get(solver["discretization"], ""),
-            solver["numerics"],
-            solver["scheme"],
-            solver["family"],
-            "gpu" if solver["uses_gpu"] else "cpu",
-        )
-        if x
-    ).lower()
-    search = " ".join(dict.fromkeys(search.split()))
+def render_index(categories: dict[str, list[dict]]) -> list[str]:
+    """One row per solver, linking to its section."""
     lines = [
+        "| Domain | Solver | Discretization | Backend | AD strategy | GPU |",
+        "|---|---|---|---|---|:-:|",
+    ]
+    for category, solvers in categories.items():
+        domain = f"[{category}](#{solvers[0]['physics']})"
+        for s in solvers:
+            gpu = "\u2713" if s["uses_gpu"] is True else ""
+            lines.append(
+                f"| {domain} | [{s['display_name'] or s['name']}](#{_anchor(s)}) "
+                f"| {_discretization(s)} | {s['backend_lang']} "
+                f"| {_ad_strategy(s)} | {gpu} |"
+            )
+            domain = ""
+    lines.append("")
+    return lines
+
+
+def render_facts(solver: dict) -> list[str]:
+    facts = [
+        ("Discretization", _discretization(solver)),
+        ("Method", solver["numerics"]),
+        ("Backend", solver["backend_lang"]),
+        ("AD strategy", _ad_strategy(solver)),
+        ("GPU", "yes" if solver["uses_gpu"] is True else "no"),
+        ("Upstream documentation", views.linkify(solver["doc_url"])),
+        ("Source", f"[`{solver['path']}`]({_REPO_URL}/tree/main/{solver['path']})"),
+    ]
+    return [f"- **{k}:** {v}" for k, v in facts if v] + [""]
+
+
+def render_checks(solver: dict, score: list[dict] | None) -> list[str]:
+    """The setups the solver runs, with its check states when available."""
+    setups = list(solver["setups_run"])
+    lines = [f"#### Setups and checks {{#{_anchor(solver)}-checks}}", ""]
+    if not setups:
+        lines += ["This solver runs none of the setups.", ""]
+    elif score:
+        by_setup = {v["key"]: v["states"] for v in score}
+        lines += [
+            "| Setup | " + " | ".join(s.capitalize() for s in _CHECK_SUITES) + " |",
+            "|---|" + ":-:|" * len(_CHECK_SUITES),
+        ]
+        for setup in setups:
+            # A setup missing from the results was not run at all.
+            states = by_setup.get(setup, dict.fromkeys(_CHECK_SUITES, "notrun"))
+            cells = [
+                f"[{_CHECK_LABELS[states[s]]}]{{.ck .ck-{states[s]}}}"
+                if s in states
+                else "\u2014"
+                for s in _CHECK_SUITES
+            ]
+            lines.append(f"| {_setup_link(setup)} | " + " | ".join(cells) + " |")
+        lines.append("")
+    else:
+        lines += [f"This solver runs {_join([_setup_link(s) for s in setups])}.", ""]
+
+    # Exclusions with the same category and reason (one reason for several
+    # experiments, or for both Navier\u2013Stokes problems) are listed once.
+    merged: dict[tuple[str, str], tuple[list[str], list[str]]] = {}
+    for by_key in solver["exclusions"].values():
+        for key, val in by_key.items():
+            keys, hit = merged.setdefault((val["category"], val["reason"]), ([], []))
+            if key not in keys:
+                keys.append(key)
+            hit += [s for s in val["setups"] if s not in hit]
+    if merged:
+        lines += ["**Excluded experiments**", ""]
+        order = list(solver["setups"])
+        for (category, reason), (keys, hit) in sorted(
+            merged.items(),
+            key=lambda m: min((order.index(s) for s in m[1][1]), default=len(order)),
+        ):
+            where = _join([views.iv.SETUPS[s].label for s in hit])
+            label = _EXCLUSION_LABELS.get(category, category)
+            lines.append(
+                f"- {_join([f'`{k}`' for k in keys])}"
+                + (f" on {where}" if len(order) > 1 and where else "")
+                + f" ({label}): {views.linkify(reason).rstrip('.')}."
+            )
+        lines.append("")
+    return lines
+
+
+def render_usage(solver: dict) -> list[str]:
+    return [
+        f"#### Use it in your code {{#{_anchor(solver)}-usage}}",
+        "",
         (
-            f'::: {{.solver-card data-category="{_attr(solver["category"])}" '
-            f'data-lang="{_attr(solver["backend_lang"] or "")}" data-ad="{_attr(ad)}" '
-            f'data-gpu="{"true" if solver["uses_gpu"] is True else "false"}" '
-            f'data-search="{_attr(search)}"}}'
+            f"`tesseract build {solver['path']}` builds the image "
+            f"`{solver['name']}`. [Use a solver in your code](standalone.qmd) "
+            "shows how to load it and call it from JAX."
         ),
         "",
-        f"[{solver['category']}]{{.solver-domain}}",
+        '::: {.callout-note collapse="true" appearance="simple"}',
+        "#### Inputs and outputs",
         "",
-        f"### {name} {{#{anchor}}}",
-        "",
-    ]
-
-    # Method row: plain-text "Numerics: <Finite Volume>, <PISO, BDF1>".
-    numerics_parts: list[str] = []
-    if solver["discretization"]:
-        numerics_parts.append(
-            _DISCR_FULL.get(solver["discretization"], solver["discretization"])
-        )
-    if solver["numerics"]:
-        numerics_parts.append(solver["numerics"])
-    if numerics_parts:
-        lines += [
-            "::: {.solver-numerics}",
-            "**Numerics:** " + ", ".join(numerics_parts),
-            ":::",
-            "",
-        ]
-
-    # Implementation row: language, AD strategy, GPU badge (only when present).
-    impl_badges: list[str] = []
-    if solver["backend_lang"]:
-        impl_badges.append(_badge(solver["backend_lang"], _LANG_BADGE_CLASS))
-    ad_label = AD_LABELS.get(solver["ad_strategy"], solver["ad_strategy"])
-    if ad_label:
-        impl_badges.append(_badge(ad_label, _AD_BADGE_CLASS))
-    if solver["uses_gpu"] is True:
-        impl_badges.append(_badge("GPU", _GPU_BADGE_CLASS))
-    if impl_badges:
-        lines += ["::: {.solver-badges}", " ".join(impl_badges), ":::", ""]
-
-    # Two-sentence description from the YAML's top-level ``description:``.
-    if solver["description"]:
-        lines += ["::: {.solver-desc}", solver["description"], ":::", ""]
-
-    # Footer: benchmark checks per setup (when results are available) and the
-    # "view details" affordance.
-    foot: list[str] = []
-    for v in score or []:
-        if not v["n_supported"]:
-            continue
-        foot.append(
-            f"[[{v['id']}]{{.sc-id}} {v['short']} · {v['n_pass']}/{v['n_supported']} pass]"
-            f"{{.score-chip .ck-chip-{v['worst']}}}"
-        )
-    foot.append("[Details]{.solver-open}")
-    lines += ["::: {.solver-card-foot}", " ".join(foot), ":::", ""]
-
-    lines += ["::: {.solver-details}", ""]
-    if solver["doc_url"]:
-        lines.append(f"**Upstream docs:** [{solver['doc_url']}]({solver['doc_url']})")
-        lines.append("")
-
-    lines.append(f"**Path:** `{solver['path']}`")
-    lines.append("")
-
-    if solver["name"]:
-        lines.append(f"**Image:** `{solver['name']}`")
-        lines.append("")
-
-    if score:
-        per = "; ".join(
-            f"{v['id']} {v['setup']}: "
-            + ", ".join(
-                f"{suite} {_CHECK_WORDS[state]}" for suite, state in v["states"].items()
-            )
-            for v in score
-        )
-        lines.append(
-            f"**Benchmark checks:** {per} — see [Results](results.qmd#checks)."
-        )
-        lines.append("")
-
-    # Exclusions
-    if solver["exclusions"]:
-        lines.append("::: {.callout-note}")
-        lines.append("#### Excluded experiments")
-        lines.append("")
-        for problem, by_key in solver["exclusions"].items():
-            for key, val in by_key.items():
-                lines.append(f"- **{problem} · {key}**: {val['reason']}")
-        lines.append(":::")
-        lines.append("")
-
-    # Intervention record: a summary line plus a collapsible detail table.
-    lines += views.developer_block(solver.get("record"), solver.get("setups", ()))
-
-    # Schema tables
-    lines += [
-        "::: {.solver-io}",
+        "Fields marked \u2202 are differentiable.",
         "",
         render_field_table(solver["inputs"], "Inputs"),
         render_field_table(solver["outputs"], "Outputs"),
         ":::",
         "",
-        ":::",  # .solver-details
-        ":::",  # .solver-card
-        "",
     ]
 
+
+def render_solver(solver: dict, scores: dict) -> str:
+    name = solver["display_name"] or solver["name"]
+    lines = [f"### {name} {{#{_anchor(solver)}}}", ""]
+    if solver["description"]:
+        lines += [solver["description"], ""]
+    lines += render_facts(solver)
+    lines += views.developer_block(solver["record"], solver["setups"])
+    lines += render_checks(solver, scores.get(_anchor(solver)))
+    lines += render_usage(solver)
     return "\n".join(lines)
 
 
-def _render_cell(n_run: int, n_total: int, n_unsupported: int = 0) -> str:
-    if n_run == n_total:
-        return "✓"
-    if n_unsupported == n_total:
-        return "—"
-    return f"{n_run}/{n_total}"
+def render_domain(category: str, solvers: list[dict], scores: dict) -> str:
+    domain = solvers[0]["physics"]
+    schema = f"mosaic/mosaic_shared/problems/{domain.replace('-', '_')}/schemas.py"
+    setups = _join([_setup_link(s) for s in solvers[0]["setups"]])
+    intro = (
+        f"The solvers in this domain share the schema in "
+        f"[`{schema}`]({_REPO_URL}/blob/main/{schema})"
+        + (f" and serve {setups}." if setups else ".")
+    )
+    body = "\n".join(render_solver(s, scores) for s in solvers)
+    return f"## {category} {{#{domain}}}\n\n{intro}\n\n{body}"
 
 
-def render_capabilities(matrices: list[dict]) -> str:
-    lines = [
-        "## Capability matrix",
+def generate_qmd(categories: dict[str, list[dict]]) -> str:
+    scores = _load_scores()
+    intro = [
+        "---",
+        "title: Solvers",
+        "---",
         "",
         (
-            "These tables show which benchmark suites each solver runs, based on "
-            "the exclusions in the problem configs. ✓ means the solver runs every "
-            "experiment in the suite, — means the method cannot run any of them "
-            "(not supported, as on the Results pages), and *k*/*n* means it runs "
-            "*k* of the suite's *n* experiments in full; the others are not "
-            "supported or excluded for a reason that may be lifted. **Notes** lists "
-            "the excluded experiment keys by category, and each solver name links "
-            "to its card, which gives the reasons."
+            "Each section on this page describes one solver: its numerical "
+            "method and backend, what it took to run it in Mosaic, the setups "
+            "it runs and how it does on their checks, and how to call it from "
+            "your own code. Solvers are grouped by domain, a family of solvers "
+            "that share one input and output schema (see the "
+            "[terminology](index.qmd#terminology))."
+        ),
+        "",
+        (
+            "A solver's intervention record lists everything done to run it "
+            "beyond calling the library as intended, with the reason and "
+            "evidence for each item, and the places where it runs a substitute "
+            "for the prescribed setup, called deviations. Its effort on a setup "
+            "is the highest level among the interventions that setup requires. "
+            "[How to read the results](results.qmd#how-to-read-the-results) "
+            "explains the levels."
         ),
         "",
     ]
-    for matrix in matrices:
-        suites = matrix["suites"]
-        lines += [
-            f"### {matrix['label']}",
-            "",
-            "| Solver | " + " | ".join(s.capitalize() for s in suites) + " | Notes |",
-            "|---|" + ":-:|" * len(suites) + "---|",
-        ]
-        for row in matrix["rows"]:
-            cells = [
-                _render_cell(*row["cells"][s], row["unsupported"].get(s, 0))
-                for s in suites
-            ]
-            notes = "; ".join(
-                f"{label}: " + ", ".join(f"`{k}`" for k in keys)
-                for label, keys in row["notes"].items()
-            )
-            lines.append(
-                # Keeps names like "OpenFOAM" from breaking mid-word in the
-                # narrow first column.
-                f"| [{row['name']}](#{row['anchor']}){{.text-nowrap}} | "
-                + " | ".join(cells)
-                + f" | {notes} |"
-            )
-        lines.append("")
-    return "\n".join(lines)
-
-
-def render_category(
-    category: str, solvers: list[dict], scores: dict | None = None
-) -> str:
-    body = "\n".join(render_solver(s, scores) for s in solvers)
-    return f"## {category}\n\n::: {{.card-grid .solver-grid}}\n\n{body}\n:::\n"
-
-
-def _chip_group(name: str, label: str, values: list[tuple[str, str]]) -> str:
-    chips = "".join(
-        f'<button type="button" class="chip-btn" data-value="{v}">{t}</button>'
-        for v, t in values
-    )
-    return (
-        f'<div class="chip-filters" data-filter="{name}" aria-label="{label}">'
-        f'<button type="button" class="chip-btn active" data-value="">{label}</button>'
-        f"{chips}</div>"
-    )
-
-
-def render_toolbar(categories: dict[str, list[dict]]) -> str:
-    """Search box and filter chips (wired up by docs/mosaic-ui.html)."""
-    solvers = [s for v in categories.values() for s in v]
-    langs = sorted({s["backend_lang"] for s in solvers if s["backend_lang"]})
-    ads = sorted({s["ad_strategy"] or "forward-only" for s in solvers})
-    return (
-        "```{=html}\n"
-        '<div class="explorer-toolbar solver-toolbar" data-target="solver-catalog">'
-        '<label class="search-box"><span class="search-icon" aria-hidden="true"></span>'
-        '<input type="search" class="explorer-search" placeholder="Search solvers, '
-        'schemes, backends…" aria-label="Search solvers"></label>'
-        + _chip_group("category", "All domains", [(c, c) for c in categories])
-        + _chip_group("lang", "Any backend", [(lang, lang) for lang in langs])
-        + _chip_group("ad", "Any AD", [(a, a) for a in ads])
-        + '<div class="chip-filters" data-filter="gpu"><button type="button" '
-        'class="chip-btn chip-toggle" data-value="true" aria-pressed="false">GPU only'
-        "</button></div>"
-        '<span class="explorer-count" aria-live="polite"></span></div>\n'
-        "```\n\n"
-    )
-
-
-def generate_qmd(
-    categories: dict[str, list[dict]], capabilities: list[dict] | None = None
-) -> str:
-    frontmatter = "---\ntitle: Solver Reference\ntoc: false\n---\n\n"
-    header = (
-        f"Each solver card shows its numerical scheme, AD strategy, and "
-        f"Tesseract schema, and lists the experiments it is excluded from in "
-        f"each problem config. "
-        f"Each card also says what it took to run the solver here: the "
-        f"**effort** per setup (the highest level among the interventions it "
-        f"needs, L0 documented use to L3 changes to the solver), and under "
-        f"**Interventions and deviations** every intervention with its reason, "
-        f"evidence and upstream issue, the setup deviations, and the "
-        f"interventions nobody has a reason for yet. "
-        f"Click **Details** on any solver to see all of this and its field tables. "
-        f"The \u2202 column marks fields that support automatic differentiation "
-        f"(VJP/JVP).\n\n"
-        f"::: {{.legend-note}}\n"
-        f"**Legend.** Each card shows a **Numerics:** line — the discretization "
-        f"followed by the numerical method — and three "
-        f"badge categories: "
-        f"{_badge('language', _LANG_BADGE_CLASS)} (backend / runtime), "
-        f"{_badge('AD: strategy', _AD_BADGE_CLASS)} "
-        f"(autodiff / adjoint / hybrid / forward-only), and "
-        f"{_badge('GPU', _GPU_BADGE_CLASS)} on GPU-capable solvers.\n"
-        f":::\n\n"
-    )
-    scores = _load_scores()
     if scores:
-        header += (
-            "::: {.legend-note}\n"
-            "**Checks.** Where benchmark results are available, the card footer "
-            "shows how many of the forward, gradient and optimization checks the "
-            "solver passes on each setup it runs: **H** heat transfer, **S** "
-            "structural mechanics, **F2**/**F3** Navier–Stokes 2D/3D. Checks the "
-            "method cannot support are left out. See [Results](results.qmd#checks) "
-            "for what each check means.\n"
-            ":::\n\n"
-        )
-    sections = "\n\n".join(
-        render_category(cat, solvers, scores) for cat, solvers in categories.items()
-    )
-    matrix = render_capabilities(capabilities) + "\n" if capabilities else ""
-    return (
-        frontmatter
-        + header
-        + "::: {.column-page}\n\n"
-        + render_toolbar(categories)
-        + "::: {#solver-catalog}\n\n"
-        + sections
-        + "\n:::\n:::\n\n"
-        + matrix
-    )
+        intro += [
+            (
+                "The checks come from the benchmark results this site was built "
+                "with. The [results overview](results.qmd#checks) explains what "
+                "each check tests, and each setup links to its results page. A "
+                "dash means the setup has no check of that kind."
+            ),
+            "",
+        ]
+    intro += render_index(categories)
+    sections = [render_domain(c, s, scores) for c, s in categories.items()]
+    return "\n".join(intro) + "\n" + "\n\n".join(sections) + "\n"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -828,7 +645,7 @@ def main() -> None:
     if not categories:
         sys.exit(f"No solvers found under {TESSERACTS}")
 
-    new_qmd = generate_qmd(categories, collect_capabilities())
+    new_qmd = generate_qmd(categories)
     OUTPUT.write_text(new_qmd, encoding="utf-8")
     total = sum(len(v) for v in categories.values())
     print(f"Generated {OUTPUT} ({total} solvers, {len(categories)} categories)")
