@@ -132,6 +132,7 @@ class Elasticity(Problem):
         return val
 
 
+# mosaic-intervention: jitted-bicgstab-solver
 # JAX-FEM's default `jax_solver` (Jacobi-preconditioned BiCGSTAB) runs
 # `jax.scipy.sparse.linalg.bicgstab` eagerly, so every linear solve is traced
 # and compiled anew: 2 XLA compilations per forward call and 4 per VJP. This is
@@ -167,6 +168,7 @@ def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> A
 
 
 _SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
+# mosaic-intervention-end: jitted-bicgstab-solver
 
 
 # Module-level cache for the compiled elasticity solver, keyed on everything
@@ -352,11 +354,11 @@ def jacobian_vector_product(
     """Compute the Jacobian-vector product for the structural solver.
 
     NOTE: this calls ``jax.jvp`` eagerly rather than the ``jax_jvp`` helper
-    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper`` runs
-    a host-side SciPy UMFPACK direct solve (``scipy.sparse.linalg.spsolve`` on
-    concrete NumPy arrays), which cannot be traced under ``jax.jit``. The
-    shared helper wraps the differentiation in ``eqx.filter_jit``, so routing
-    through it raises an Error 500 inside the container. Keep this un-jitted.
+    from ``tesseract_core.runtime.jax_recipes``. JAX-FEM's ``ad_wrapper``
+    assembles each system matrix on the host, as a PETSc matrix built from
+    concrete NumPy arrays, which cannot be traced under ``jax.jit``. The shared
+    helper wraps the differentiation in ``eqx.filter_jit``, so routing through
+    it raises an Error 500 inside the container. Keep this un-jitted.
     """
     assert jvp_inputs <= {"rho"}
     assert jvp_outputs <= {"compliance"}

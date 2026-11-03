@@ -101,18 +101,13 @@ function write_inp_hex(
 end
 
 # ---------------------------------------------------------------------------
-# Solver cache (keyed by a hash of the structural problem parameters); holds
-# the current setup only
+# Solver cache (keyed by the structural problem parameters); holds the
+# current setup only
 # ---------------------------------------------------------------------------
 
-const _CACHE = Dict{UInt64, Tuple}()
-
-"""Hash the inputs that define the FEA model (not rho) to cache the setup."""
-function _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
-    h = hash(pts) ⊻ hash(cells) ⊻ hash(dirichlet_mask) ⊻ hash(cload_mask)
-    h = hash(cload_values, h) ⊻ hash(E) ⊻ hash(nu) ⊻ hash(xmin)
-    return h
-end
+# Dict compares keys with isequal after hashing, so a key matches only when every
+# array and constant is equal.
+const _CACHE = Dict{Tuple, Tuple}()
 
 function get_solver_mesh(
     pts::Matrix{Float64},
@@ -124,7 +119,7 @@ function get_solver_mesh(
     nu::Float64,
     xmin::Float64,
 )
-    key = _problem_hash(pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
+    key = (pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu, xmin)
     if !haskey(_CACHE, key)
         # Write temporary INP file and load it
         tmpfile = tempname() * ".inp"

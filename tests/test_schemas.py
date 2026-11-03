@@ -262,6 +262,35 @@ def test_ns_grid_forcing_and_drag_are_accepted_on_a_periodic_box():
 
 
 @needs_runtime
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        ({"steps": 10, "snapshot_every": 3}, "positive divisor of steps"),
+        ({"steps": 10, "snapshot_every": 0}, "positive divisor of steps"),
+        ({"v0": "3d", "steps": 10, "snapshot_every": 5}, "only defined in 2-D"),
+        ({"v0": "channel", "steps": 10, "snapshot_every": 5}, "without an obstacle"),
+    ],
+)
+def test_ns_grid_snapshots_need_a_2d_periodic_box_and_a_divisor_of_steps(
+    overrides, match
+):
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    v0 = overrides.pop("v0", None)
+    if v0 == "channel":
+        inputs = _channel_inputs(**overrides)
+    elif v0 == "3d":
+        inputs = {"v0": np.zeros((8, 8, 8, 3), dtype=np.float32), **overrides}
+    else:
+        inputs = {"v0": np.zeros((16, 16, 1, 2), dtype=np.float32), **overrides}
+    with pytest.raises(ValidationError, match=match):
+        InputSchema(**inputs)
+    assert InputSchema(steps=10, snapshot_every=5).snapshot_every == 5
+
+
+@needs_runtime
 def test_ns_grid_native_state_needs_a_solver_that_opts_in():
     import numpy as np
     from mosaic_shared.problems.navier_stokes_grid import InputSchema

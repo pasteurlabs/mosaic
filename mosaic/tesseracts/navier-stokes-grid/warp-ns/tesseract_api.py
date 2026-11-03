@@ -353,6 +353,7 @@ def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
     return wp.vec2f(v[0] * s, v[1] * s)
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 ####################################################################
 # Non-power-of-two support via Bluestein's algorithm
 #
@@ -384,7 +385,10 @@ def _next_pow2(n: int) -> int:
     return 1 << (n - 1).bit_length()
 
 
-@functools.cache
+# Setup data holds the current grid only (one length per call), so memory does
+# not grow with every N a sweep visits. The kernel factories below stay
+# unbounded: like jit caches, they hold compiled code per grid size.
+@functools.lru_cache(maxsize=1)
 def _bluestein_setup(n: int, device: str) -> dict:
     """Precompute the Bluestein chirp and the (pre-FFT'd) kernel for length ``n``.
 
@@ -654,6 +658,7 @@ def _spectral_poisson_2d_bluestein(
     return out
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
 @functools.cache
 def _fft_kernels_2d(n: int):
     """Build (and cache) the tiled FFT/transpose kernels for an N×N grid."""
@@ -720,7 +725,7 @@ def _fft_kernels_2d(n: int):
     }
 
 
-@functools.cache
+@functools.lru_cache(maxsize=1)
 def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
     """Precompute 1/λ for the 2-D continuous-eigenvalue spectral Poisson solve.
 
@@ -758,10 +763,12 @@ def _spectral_poisson_2d_core(
     for the taped path too.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path
         # (workspace fusion doesn't apply — always allocates fresh buffers).
         return _spectral_poisson_2d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_2d(n)
     inv_lambda = _inv_lambda_2d(n, domain_extent, device)
 
@@ -852,7 +859,8 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
     }
 
 
-@functools.cache
+# Two entries: a 3-D call uses the plain and the permuted layout.
+@functools.lru_cache(maxsize=2)
 def _inv_lambda_3d(
     n: int, domain_extent: float, device: str, permute: tuple | None = None
 ) -> wp.array:
@@ -1059,6 +1067,7 @@ def _fft_3d(
     return x
 
 
+# mosaic-intervention: bluestein-non-pow2-fft
 @functools.cache
 def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
     """y[k, i, j] = x[i, j, k]: cyclic axis permutation, valid for any ``n``."""
@@ -1136,6 +1145,7 @@ def _spectral_poisson_3d_bluestein(
     return _bluestein_fft_3d(scaled, n, "bwd", device)
 
 
+# mosaic-intervention-end: bluestein-non-pow2-fft
 def _spectral_poisson_3d_core(
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
@@ -1157,9 +1167,11 @@ def _spectral_poisson_3d_core(
     ones on every call — used by the forward-only (non-taped) path.
     """
     n = rhs_c.shape[0]
+    # mosaic-intervention: bluestein-non-pow2-fft
     if not _is_pow2(n):
         # cuFFTDx tile_fft only compiles pow2 lengths; use the Bluestein path.
         return _spectral_poisson_3d_bluestein(rhs_c, domain_extent, device)
+    # mosaic-intervention-end: bluestein-non-pow2-fft
     kernels = _fft_kernels_3d(n)
     inv_lambda_permuted = _inv_lambda_3d(n, domain_extent, device, permute=(1, 2, 0))
 
@@ -1234,7 +1246,7 @@ def ns2d_solve_tape(
 
     Used only by :func:`vector_jacobian_product` — see :func:`ns2d_solve_forward`
     for the plain-forward path used by :func:`apply`. Steps per time-step:
-        1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u)
+        1. Tentative velocity: u* = u + dt·(-u·∇u + ν∇²u + f - αu)
         2. Pressure Poisson: ∇²p = (1/dt)·∇·u*  (spectral FFT, periodic)
         3. Velocity correction: u^(n+1) = u* - dt·∇p
 
@@ -1396,10 +1408,14 @@ def ns2d_solve_forward(
     device: str = "cpu",
     forcing_np: np.ndarray | None = None,
     linear_drag: float | None = None,
-) -> np.ndarray:
+    snapshot_every: int | None = None,
+) -> dict[str, np.ndarray]:
     """Forward-only periodic 2-D incompressible NS by Chorin projection, no gradients.
 
     [2D-only function]
+
+    Returns ``result`` (N, N, 1, 2), and with ``snapshot_every`` also the
+    velocity after every ``snapshot_every`` steps as ``snapshots``.
 
     Same physics as :func:`ns2d_solve_tape`, but structurally distinct: no
     ``wp.Tape``, no ``requires_grad`` arrays, two ping-pong velocity buffers
@@ -1436,6 +1452,11 @@ def ns2d_solve_forward(
     div_star_c = wp.zeros((n, n), dtype=wp.vec2f, device=device)
     poisson_ws = _poisson_workspace_2d(n, device)
 
+    def collocated(i: int) -> np.ndarray:
+        ux, uy = vel_bufs_x[i].numpy(), vel_bufs_y[i].numpy()
+        return np.stack([ux, uy], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
+
+    snapshots = []
     src, dst = 0, 1
     for _step_i in range(steps):
         wp.launch(
@@ -1484,10 +1505,13 @@ def ns2d_solve_forward(
             device=device,
         )
         src, dst = dst, src
+        if snapshot_every is not None and (_step_i + 1) % snapshot_every == 0:
+            snapshots.append(collocated(src))
 
-    ux_out = vel_bufs_x[src].numpy()
-    uy_out = vel_bufs_y[src].numpy()
-    return np.stack([ux_out, uy_out], axis=-1)[:, :, np.newaxis, :]  # (N,N,1,2)
+    out = {"result": collocated(src)}
+    if snapshot_every is not None:
+        out["snapshots"] = np.stack(snapshots)
+    return out
 
 
 def ns2d_vjp(
@@ -2164,6 +2188,7 @@ def channel_centers_kernel(
     uy[i, j] = 0.5 * (v[i, j] + v[i, j + 1]) * f
 
 
+# mosaic-intervention: channel-cg-preconditioner
 @wp.kernel
 def channel_basis_rows_kernel(
     a: wp.array2d(dtype=wp.float32),
@@ -2196,6 +2221,9 @@ def channel_basis_cols_kernel(
     dst[i, j] = alpha * scale[i, j] * s + beta * y[i, j]
 
 
+# mosaic-intervention-end: channel-cg-preconditioner
+
+
 @wp.kernel
 def _flag_unconverged_kernel(
     r_norm_sq: wp.array(dtype=wp.float32),
@@ -2206,9 +2234,10 @@ def _flag_unconverged_kernel(
         flag[0] = 1
 
 
-# Relative residual at which the pressure CG stops, as in PhiFlow. A tighter
-# tolerance changes Cd by less than 1e-5 at 10 cells per diameter.
-_CHANNEL_CG_TOL = 1e-5
+# Relative residual at which the pressure CG stops: the loosest at which Cd,
+# Cl and the pressure drop stay within 0.3% of a 1e-7 solve at 10 and 20 cells
+# per diameter, and drag_opt ends at the same drag. At 1e-2 Cl moves by 5%.
+_CHANNEL_CG_TOL = 1e-3
 _CHANNEL_CG_MAXITER = 5000
 
 
@@ -2257,6 +2286,7 @@ def _channel_pressure_solver(
     nx, ny = fluid.shape
     n = nx * ny
 
+    # mosaic-intervention: channel-cg-preconditioner
     def second_difference(m: int, last: float) -> np.ndarray:
         t = 2.0 * np.eye(m) - np.eye(m, k=1) - np.eye(m, k=-1)
         t[0, 0], t[-1, -1] = 1.0, last
@@ -2271,6 +2301,7 @@ def _channel_pressure_solver(
     vx, vxt, vy, vyt = (to_wp(m) for m in (vec_x, vec_x.T, vec_y, vec_y.T))
     inv_lam, ones = to_wp(1.0 / np.add.outer(lam_x, lam_y)), to_wp(np.ones((nx, ny)))
     tmp_a, tmp_b = to_wp(np.zeros((nx, ny))), to_wp(np.zeros((nx, ny)))
+    # mosaic-intervention-end: channel-cg-preconditioner
 
     def matvec(x, y, z, alpha, beta):
         wp.launch(
@@ -2280,6 +2311,7 @@ def _channel_pressure_solver(
             device=device,
         )
 
+    # mosaic-intervention: channel-cg-preconditioner
     def precondition(x, y, z, alpha, beta):
         def launch(kernel, inputs):
             wp.launch(kernel, dim=(nx, ny), inputs=inputs, device=device)
@@ -2292,6 +2324,8 @@ def _channel_pressure_solver(
             channel_basis_cols_kernel,
             [tmp_a, vyt, ones, y, float(alpha), float(beta), z],
         )
+
+    # mosaic-intervention-end: channel-cg-preconditioner
 
     def operator(func):
         return warp.optim.linear.LinearOperator(
@@ -2434,6 +2468,7 @@ def channel_solve(
             )
         solve(rhs.flatten(), p_guess)
         wp.copy(p.flatten(), p_guess)
+        # mosaic-intervention: channel-cg-adjoint
         if grad:
 
             def adjoint(rhs=rhs, p=p) -> None:
@@ -2441,6 +2476,7 @@ def channel_solve(
                 wp.copy(rhs.grad.flatten(), adjoint_guess)
 
             tape.record_func(backward=adjoint, arrays=[rhs, p])
+        # mosaic-intervention-end: channel-cg-adjoint
         u_new, v_new = field(u.shape), field(v.shape)
         with recording:
             wp.launch(
@@ -2578,17 +2614,18 @@ def apply(inputs: InputSchema) -> OutputSchema:
         result = ns3d_solve_forward(
             v0, nu, dt, inputs.steps, inputs.domain_extent, device=device
         )
-    else:
-        result = ns2d_solve_forward(
-            v0,
-            nu,
-            dt,
-            inputs.steps,
-            inputs.domain_extent,
-            device=device,
-            **_body_force_args(inputs),
-        )
-    return OutputSchema(result=result)
+        return OutputSchema(result=result)
+    out = ns2d_solve_forward(
+        v0,
+        nu,
+        dt,
+        inputs.steps,
+        inputs.domain_extent,
+        device=device,
+        snapshot_every=inputs.snapshot_every,
+        **_body_force_args(inputs),
+    )
+    return OutputSchema(**out)
 
 
 def _body_force_args(inputs: InputSchema) -> dict[str, Any]:
@@ -2759,4 +2796,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, Any]:
     if d["obstacle"] is not None:
         out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
         out["body_force"] = {"shape": (d["steps"], 2), "dtype": "float32"}
+    if d["snapshot_every"] is not None:
+        frames = d["steps"] // d["snapshot_every"]
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out

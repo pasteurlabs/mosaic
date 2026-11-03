@@ -10,7 +10,7 @@ build_config:
   package_data: []
 env:
   XLA_PYTHON_CLIENT_PREALLOCATE: "false"
-  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.5"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:
@@ -25,3 +25,207 @@ metadata:
     uses_gpu: true
     internal_dtype: float32
     doc_url: "https://tum-pbs.github.io/PhiFlow/"
+    # What it took to run PhiFlow here, beyond expressing the setup with
+    # PhiFlow's fields and solvers. Format: mosaic/benchmarks/core/interventions.py.
+    abstraction: framework
+    interventions:
+      - id: int64-sparse-indices
+        level: L3
+        necessity: required
+        what: >
+          Monkeypatches phiml's private NumPyBackend.ravel_multi_index to
+          widen flat indices to int64 when the index space exceeds int32.
+        why:
+          ns-2d-periodic: &int64-reason
+            consequences: [crash]
+            symptom: >
+              phiml casts sparse-matrix flat indices back to int32; they wrap
+              at 2-D N >= 216 and 3-D N >= 36, and building the pressure
+              matrix fails. In the benchmark that failed 12 cost cells
+              (ns-grid N = 256, ns-3d-grid N >= 48). With the patch they
+              complete and other results are bitwise identical.
+            evidence: >
+              https://github.com/pasteurlabs/mosaic/issues/155; #232, table;
+              docstring of _ravel_multi_index_int64.
+          ns-2d-kolmogorov: *int64-reason
+          ns-3d: *int64-reason
+        upstream: https://github.com/tum-pbs/PhiML/pull/16 (open)
+        provenance: mosaic-team
+      - id: explicit-cg-solve
+        level: L0
+        necessity: unknown
+        what: >
+          The channel's pressure solve passes math.Solve("CG", ...) instead of
+          the "auto" method of make_incompressible's default Solve(). The
+          periodic boxes' solve uses incompressible_rk4's default method and
+          tolerances.
+        why:
+          ns-2d-cylinder:
+            consequences: []
+            symptom: No reason recorded.
+        provenance: mosaic-team
+      - id: periodic-cg-rank-deficiency
+        level: L0
+        necessity: required
+        what: >
+          The periodic boxes' pressure solve passes rank_deficiency=0, so
+          phiml runs CG on the singular pressure system, whose right-hand side
+          make_incompressible balances to zero mean, instead of adding a
+          Lagrange multiplier that makes the system indefinite.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [non-finite, incorrect-gradient, too-slow]
+            symptom: >
+              CG is not guaranteed to converge on an indefinite system, and
+              under jit phiml returns an unconverged solve without raising. At
+              256², 852 of 6400 solves to t = 4 stopped unconverged (128 of
+              them as diverged, with residuals up to 10⁴ times the right-hand
+              side), and two of three states went non-finite on CI. The chain
+              gradient was non-finite on CI and off by 12% at the best ε on
+              the A100. With rank_deficiency=0 every solve converged, in about
+              375 iterations against 570, both checks passed, and
+              forward/kolmogorov took 936 s against 5,585 s.
+            evidence: >
+              forward/kolmogorov and gradient/chain_fd_check of #272; PR
+              description.
+          ns-2d-periodic:
+            consequences: [too-slow]
+            symptom: >
+              No check changed. The cost experiments got 1.3x to 7.5x faster,
+              growing with N, and all four PhiFlow cost anomalies went away.
+            evidence: "#272, PR description."
+          ns-3d:
+            consequences: [too-slow]
+            symptom: >
+              No check changed. The cost experiments got 1.4x to 16x faster,
+              growing with N (15.7x for the VJP at N = 64).
+            evidence: "#272, PR description."
+        provenance: mosaic-team
+      - id: periodic-adjoint-relative-tolerance
+        level: L0
+        necessity: choice
+        what: >
+          The periodic boxes' adjoint pressure solve (the Solve's
+          gradient_solve) stops at a relative residual of 1e-5 only, instead
+          of inheriting the forward solve's absolute tolerance of 1e-5.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [incorrect-gradient]
+            symptom: >
+              The adjoint solve's right-hand side scales with the cotangent.
+              In the chain gradient check, whose cotangents are small, the
+              absolute tolerance stopped the adjoint solves after 0 to 17
+              iterations, against about 100 at the relative tolerance, and
+              the gradient missed the finite differences by 3.6e-3 at the best
+              ε, against 1.1e-4 with the relative tolerance; the peers miss by
+              7e-5 to 2e-3. The check passes either way.
+            evidence: gradient/chain_fd_check of #272; PR description.
+          ns-2d-periodic: &adjoint-tolerance-unmeasured
+            consequences: []
+            symptom: Not measured separately; no check changed.
+          ns-3d: *adjoint-tolerance-unmeasured
+        provenance: mosaic-team
+      - id: channel-cg-tolerance
+        level: L0
+        necessity: choice
+        tuned: true
+        what: >
+          The channel's pressure CG stops at a relative and absolute residual
+          of 1e-2 instead of phiml's float32 default of 1e-5.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              At 1e-5, forward/cylinder took 293 s against 43 s and drag_opt
+              10,782 s against 1,271 s, on a shared GPU. Against 1e-7, Cd, Cl
+              and the pressure drop move by at most 0.07%, and drag_opt
+              reaches a drag reduction of 47.60% against 47.66%; every status
+              is unchanged. At 1e-1 the Cd error moves by 4%. Tuned with the
+              channel-pressure-warm-start correction in place, so the
+              tolerance applies to the correction's residual.
+            evidence: "#308, notes."
+        provenance: mosaic-team
+      - id: rk4-central-differences
+        level: L0
+        necessity: choice
+        what: >
+          Periodic boxes advect and diffuse with 2nd-order central differences
+          under fluid.incompressible_rk4 (pressure_order=2, four pressure
+          projections per step) instead of the default semi-Lagrangian
+          advection with operator splitting. The channel keeps the default,
+          since incompressible_rk4 takes no obstacles.
+        why:
+          ns-2d-periodic: &rk4-reason
+            consequences: [inaccurate-forward]
+            symptom: >
+              PhiFlow's docs point users who want accurate periodic flow to
+              this pairing and label semi-Lagrangian advection first order.
+              Against the previous central-difference Euler step it changes
+              errors by a few percent and costs 2.4 to 4.4x more, but stays
+              stable where that step went NaN (2-D, N = 32, nu = 0, 800
+              steps). The semi-Lagrangian default was measured about 10x less
+              accurate on the periodic box in the cleanup notes; that table is
+              not published. pressure_order=2 follows the comparison
+              notebook; the function default (4) was not measured.
+            evidence: >
+              #288; https://tum-pbs.github.io/PhiFlow/Fluid_Simulation.html
+              ("Higher-Order Simulations").
+          ns-2d-kolmogorov: *rk4-reason
+          ns-3d: *rk4-reason
+        provenance: mosaic-team
+      - id: inlined-obstacle-projection
+        level: L2
+        necessity: unknown
+        what: >
+          Writes the channel's obstacle projection out instead of calling
+          fluid.make_incompressible with an obstacle: face masks from the
+          shared staircase solid_cells, solid faces zeroed after advection and
+          after diffusion, a masked_laplace CG solve over the fluid cells and
+          a masked green-gauss pressure gradient.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: >
+              No reason recorded. A plausible one, not checked:
+              make_incompressible rasterises its own obstacle geometry, so it
+              cannot take the staircase mask the other grid solvers share, and
+              it does not return the momentum removed at solid faces, which
+              body_force needs.
+        provenance: mosaic-team
+      - id: channel-pressure-warm-start
+        level: L2
+        necessity: unknown
+        what: >
+          Solves each step's channel pressure as a correction to the previous
+          step's pressure, from a zero initial guess, instead of passing the
+          previous pressure as the solve's x0.
+        why:
+          ns-2d-cylinder:
+            consequences: [too-slow]
+            symptom: >
+              Per the code comment, it keeps the CG iterations low in the
+              near-steady flow; not measured for PhiFlow, and the channel's CG
+              tolerance was tuned with it in place. Passing the previous
+              pressure as x0 fails under reverse mode with an
+              UnexpectedTracerError inside lax.scan.
+            evidence: Comment in channel_fwd.step (#239).
+        upstream: https://github.com/tum-pbs/PhiML/issues/17 (x0 tracer error)
+        provenance: mosaic-team
+      - id: body-force-output
+        level: L2
+        necessity: required
+        what: >
+          Computes the per-step force on the cylinder as the momentum the
+          solid faces remove in a step (advection and diffusion) plus the
+          pressure on the faces between fluid and solid cells.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: >
+              PhiFlow has no force-on-obstacle routine (checked for 3.2.0,
+              not re-checked for the pinned 3.4.0), so without this there is
+              no body_force output for forward/cylinder and drag_opt to score.
+            evidence: >
+              #239 makes body_force a required output.
+        provenance: mosaic-team
+    deviations: []

@@ -27,15 +27,14 @@ if TYPE_CHECKING:
 
 JAX_CFD_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; jax-cfd itself has "
-    "non-periodic pressure solvers for channel flows, which are not wired "
-    "up here",
-)
-INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; INS.jl itself supports "
-    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
-    "Brinkman forcing, which are not wired up here",
+    "jax-cfd 0.2.1 cannot express the channel through its API. Its advection "
+    "raises NotImplementedError for any inflow (only no-penetration and "
+    "periodic boundaries are supported), it pads a zero-gradient boundary only "
+    "for cell-centered fields, so the outlet's face-centered u_x cannot have "
+    "one, its boundary values are scalars, so the inlet cannot carry a "
+    "profile, and it has no obstacles. Running it would take a hand-written "
+    "convection, inlet and outlet conditions and obstacle on jax-cfd's grid "
+    "primitives, which this tesseract does not have",
 )
 EXPONAX_PERIODIC_ONLY = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -53,9 +52,9 @@ EXPONAX_EXACT_TGV = Exclusion(
 OPENFOAM_NO_SOURCE_TERM = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
     "this tesseract runs icoFoam, which has no momentum source term, so it "
-    "cannot apply the body force or the drag; OpenFOAM supports both through "
-    "the foamRun incompressibleFluid solver with an fvModel, which is not "
-    "wired up here",
+    "cannot apply the body force or the drag. OpenFOAM's foamRun "
+    "incompressibleFluid solver supports both through an fvModel, but this "
+    "tesseract does not use it",
 )
 EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
@@ -71,8 +70,8 @@ EXPLICIT_CENTRAL_UNSTABLE_CHAIN = Exclusion(
     "advection, which is linearly unstable at the timestep of the chain (see "
     "forward/kolmogorov). Over the chain's calls the unstable modes grow, so "
     "they dominate both the gradient and the finite differences, which then "
-    "do not agree at any ε a float32 run resolves; where they grow fast "
-    "enough, the chain from the ground-truth state diverges",
+    "disagree at every ε a float32 run resolves. Where they grow fast enough, "
+    "the chain from the ground-truth state diverges",
 )
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -93,6 +92,16 @@ PICT_DRAG_OPT_TOO_SLOW = Exclusion(
     "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
     "experiment takes hours on the benchmark GPU",
 )
+PICT_LATENCY_BOUND_SOLVES = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "PICT's linear solves are bound by synchronisation, not by grid size. "
+    "Each step runs three of them (the momentum predictor and two pressure "
+    "correctors). Every solve synchronises the whole device about 20 times "
+    "and frees device memory 10 times, and its CG copies scalars back to the "
+    "host about three times per iteration. A 64-times larger grid (N = 32 to "
+    "256) makes a solve only about 4 times slower, so at ns-grid's sizes the "
+    "GPU mostly waits",
+)
 PICT_PISO_SPLITTING_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "PICT runs PISO with its default two pressure correctors, and its "
@@ -104,7 +113,6 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
 )
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
-    "ins_jl": INS_JL_NO_OBSTACLE,
     "exponax": EXPONAX_PERIODIC_ONLY,
 }
 
@@ -140,6 +148,8 @@ def register(problem: Problem) -> None:
     )
 
     # Cost
+    for key in ("cost/spatial_cost", "cost/temporal_cost"):
+        problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below

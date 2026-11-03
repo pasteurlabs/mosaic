@@ -346,6 +346,7 @@ class _Channel:
         self._build_wall()
         self._build_transfers()
 
+    # mosaic-intervention: body-force-integration
     # -- cylinder wall ------------------------------------------------------
 
     def _build_wall(self) -> None:
@@ -409,6 +410,7 @@ class _Channel:
         traction = -self.wall_pressure() * n + nu * shear * tangent
         return (traction * self.wall_len).sum(dim=1)
 
+    # mosaic-intervention-end: body-force-integration
     # -- transfers between the blocks and the canonical grid ----------------
 
     def _build_transfers(self) -> None:
@@ -565,6 +567,7 @@ class _LogRecordCollector(logging.Handler):
             self.exceptions.append(record.exc_info[1])
 
 
+# mosaic-intervention: warm-start-pressure
 def _warm_cg(
     matrix: PISOtorch.CSRmatrix,
     rhs: torch.Tensor,
@@ -681,6 +684,7 @@ class _WarmStartSimulation(PISOtorch_simulation.Simulation):
         return result, ok
 
 
+# mosaic-intervention-end: warm-start-pressure
 def _simulate(
     domain: PISOtorch.Domain,
     dt_val: float,
@@ -695,10 +699,12 @@ def _simulate(
     With ``warm_start_tol``, pressure solves start from the previous step's
     pressure and stop at that tolerance.
     """
+    # mosaic-intervention: warm-start-pressure
     if warm_start_tol is None:
         sim_cls = PISOtorch_simulation.Simulation
     else:
         sim_cls = functools.partial(_WarmStartSimulation, solve_tol=warm_start_tol)
+    # mosaic-intervention-end: warm-start-pressure
     sim = sim_cls(
         domain,
         substeps=1,
@@ -756,19 +762,23 @@ def _run_periodic(
     differentiable: bool,
     force: torch.Tensor | None = None,
     drag: float | None = None,
-) -> tuple[torch.Tensor, PISOtorch.Domain]:
+    snapshot_every: int | None = None,
+) -> tuple[torch.Tensor, PISOtorch.Domain, list[torch.Tensor]]:
     """Run PICT on the periodic box and return the final velocity in PICT layout.
 
     ``force`` (PICT layout) and ``drag`` enter as PICT's velocity source,
     ``force - drag * u`` from the velocity at the start of each step, so the
     drag is explicit. Both are in PICT's unit-cell units.
+
+    Also returns copies of the velocity after every ``snapshot_every`` steps,
+    in PICT layout (none without ``snapshot_every``).
     """
     domain = _make_periodic_domain(viscosity_val, N, ndim, dtype)
     domain.PrepareSolve()  # allocate internal structures first
     block = domain.getBlock(0)
     block.setVelocity(v0_tensor)
     domain.UpdateDomainData()
-    prep_fn = None
+    prep_fn = {}
     if force is not None or drag is not None:
 
         def _pre_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
@@ -779,7 +789,17 @@ def _run_periodic(
                 source = source - drag * block.velocity
             block.setVelocitySource(source.contiguous())
 
-        prep_fn = {"PRE": _pre_step}
+        prep_fn["PRE"] = _pre_step
+    snapshots: list[torch.Tensor] = []
+    if snapshot_every is not None:
+        steps_done = [0]
+
+        def _post_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
+            steps_done[0] += 1
+            if steps_done[0] % snapshot_every == 0:
+                snapshots.append(block.velocity.detach().clone())
+
+        prep_fn["POST"] = _post_step
     # PICT's float32 default tolerance for the advection and pressure solves is
     # 1e-5. Its residual error in the forward and adjoint solves puts a floor of
     # about 1e-3 under the VJP's agreement with finite differences on the
@@ -789,12 +809,12 @@ def _run_periodic(
         dt_val,
         steps,
         differentiable,
-        prep_fn=prep_fn,
+        prep_fn=prep_fn or None,
         non_orthogonal=False,
         advection_tol=_PERIODIC_SOLVE_TOL,
         pressure_tol=_PERIODIC_SOLVE_TOL,
     )
-    return block.velocity, domain
+    return block.velocity, domain, snapshots
 
 
 def _run_channel(
@@ -854,8 +874,11 @@ def _run_channel(
             domain, channel.outlets, adv_vel, time_step.to(_DEVICE)
         )
 
+    # mosaic-intervention: body-force-integration
     def _post_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
         forces.append(channel.body_force())
+
+    # mosaic-intervention-end: body-force-integration
 
     _simulate(
         domain,
@@ -870,7 +893,9 @@ def _run_channel(
         # the box corners, a diameter away.
         non_orthogonal=False,
         pressure_tol=pressure_tol,
+        # mosaic-intervention: warm-start-pressure
         warm_start_tol=1e-8,
+        # mosaic-intervention-end: warm-start-pressure
     )
     return channel.velocity(), channel.pressure(), torch.stack(forces), domain
 
@@ -923,7 +948,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # Viscosity is passed as a CPU torch tensor (PISOtorch requirement).
     nu_pict_t = torch.tensor([nu_pict], dtype=dtype, device=torch.device("cpu"))
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
-    result_t, _ = _run_periodic(
+    result_t, _, snapshots = _run_periodic(
         v0_t,
         nu_pict_t,
         dt_pict,
@@ -932,9 +957,15 @@ def apply(inputs: InputSchema) -> OutputSchema:
         ndim,
         dtype,
         differentiable=False,
+        snapshot_every=inputs.snapshot_every,
         **_periodic_source(inputs, dtype),
     )
-    return {"result": _pict_to_v0(result_t, N, ndim).detach().cpu().numpy()}
+    out = {"result": _pict_to_v0(result_t, N, ndim).detach().cpu().numpy()}
+    if inputs.snapshot_every is not None:
+        out["snapshots"] = np.stack(
+            [_pict_to_v0(v, N, ndim).cpu().numpy() for v in snapshots]
+        )
+    return out
 
 
 def _periodic_source(inputs: InputSchema, dtype: torch.dtype) -> dict[str, Any]:
@@ -1003,7 +1034,7 @@ def vector_jacobian_product(
         # Viscosity must be a CPU tensor (PISOtorch requirement).
         nu_t = torch.tensor([nu_pict], dtype=dtype, requires_grad=want["viscosity"])
         profile_t = None
-        result_t, domain = _run_periodic(
+        result_t, domain, _ = _run_periodic(
             v0_t,
             nu_t,
             dt_pict,
@@ -1025,10 +1056,11 @@ def vector_jacobian_product(
     leaves = {"v0": v0_t, "viscosity": nu_t, "inflow_profile": profile_t}
     keys = [k for k, wanted in want.items() if wanted]
     grads: list[torch.Tensor | None] = [None] * len(keys)
-    # DEVIATION FROM PICT. PICT's linear solves stop once the RMS of their
-    # residual falls below an absolute tolerance (by default 1e-5 in float32),
-    # and the adjoint solves of its backward pass use the same one. For small
-    # cotangents they stop after few or no iterations, so PICT's VJP is not
+    # mosaic-intervention: cotangent-scaling
+    # PICT's linear solves stop once the RMS of their residual falls below an
+    # absolute tolerance (by default 1e-5 in float32), and the adjoint solves
+    # of its backward pass use the same one. For small cotangents they stop
+    # after few or no iterations, so PICT's VJP is not
     # linear in the cotangent: with cotangents of about 1e-4 per entry, the
     # gradient through a chain of calls is wrong by tens of percent. Here the
     # cotangents are scaled to a largest entry of 1 and the gradients scaled
@@ -1043,6 +1075,7 @@ def vector_jacobian_product(
             allow_unused=True,
         )
         grads = [None if g is None else g * scale for g in grads]
+    # mosaic-intervention-end: cotangent-scaling
     out: dict[str, Any] = {}
     for key, g in zip(keys, grads, strict=True):
         if g is None:
@@ -1069,4 +1102,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": tuple(shape[:3]), "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out

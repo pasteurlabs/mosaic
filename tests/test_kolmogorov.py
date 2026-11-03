@@ -5,21 +5,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from mosaic.benchmarks.core.status_checks import ForwardSummary, max_error
+from mosaic.benchmarks.core.status_checks import ForwardSummary
 from mosaic.benchmarks.problems.navier_stokes_grid import kolmogorov as ko
 
 L = ko.DOMAIN_EXTENT
 
 
 def _smooth(n: int, seed: int = 0) -> np.ndarray:
-    """A band-limited divergence-free field at the cell centres of an n-grid."""
+    """A band-limited divergence-free field at the cell centers of an n-grid."""
     rng = np.random.default_rng(seed)
-    x = ko.cell_centres(n)
+    x = ko.cell_centers(n)
     xx, yy = np.meshgrid(x, x, indexing="ij")
     u = np.zeros((n, n))
     v = np.zeros((n, n))
@@ -32,7 +33,7 @@ def _smooth(n: int, seed: int = 0) -> np.ndarray:
 
 @pytest.mark.parametrize("n", [16, 128])
 def test_forcing_resamples_onto_the_forcing_of_another_grid(n):
-    """Cell centres differ between grids, and resampling accounts for that."""
+    """Cell centers differ between grids, and resampling accounts for that."""
     resampled = np.asarray(ko.resample(ko.forcing_field(64), n))
     np.testing.assert_allclose(resampled, ko.forcing_field(n), atol=1e-5)
 
@@ -58,30 +59,21 @@ def test_laminar_velocity_relaxes_to_the_steady_shear_flow():
 def test_vorticity_of_the_force_and_its_self_correlation():
     k = 2 * np.pi * ko.WAVENUMBER / L
     w = np.asarray(ko.vorticity(ko.forcing_field(64)))
-    expected = -k * np.cos(k * ko.cell_centres(64))[None, :] * np.ones((64, 1))
+    expected = -k * np.cos(k * ko.cell_centers(64))[None, :] * np.ones((64, 1))
     np.testing.assert_allclose(w, expected, atol=1e-4)
     field = _smooth(32)
     assert float(ko.vorticity_correlation(field, field)) == pytest.approx(1.0)
     assert float(ko.vorticity_correlation(field, -field)) == pytest.approx(-1.0)
 
 
-def test_energy_spectrum_sums_to_the_kinetic_energy():
-    field = _smooth(32)
-    energy = 0.5 * np.mean(np.sum(field.astype(np.float64) ** 2, axis=-1))
-    assert ko.energy_spectrum(field).sum() == pytest.approx(energy, rel=1e-6)
-    assert ko.spectrum_error([field], [field]) == pytest.approx(0.0)
-
-
-def test_high_correlation_time_and_first_unstable_frame():
+def test_high_correlation_time_and_capped_error():
     assert ko.high_correlation_time([1.0, 0.99, 0.9, 0.97], 0.1) == pytest.approx(0.2)
     assert ko.high_correlation_time([1.0, 0.99], 0.1) == pytest.approx(0.2)
-    assert ko.first_unstable_frame([0.0, 1.0, np.nan, 0.5]) == 2
-    assert ko.first_unstable_frame([0.0, 1.5]) == 2
     assert ko.capped_error(np.full((4, 4, 1, 2), np.nan), np.ones((4, 4, 1, 2))) == 2
 
 
 def _truth(n_coarse: int = 16, n_ref: int = 32) -> dict:
-    seeds = ko.GROUND_TRUTH_SEEDS["test"]
+    seeds = ko.GROUND_TRUTH_SEEDS
     out = {f"initial_{s}": _smooth(n_ref, s) for s in seeds}
     for s in seeds:
         out[f"truth_{s}"] = np.stack(
@@ -104,10 +96,32 @@ def _context(phys: dict) -> SimpleNamespace:
     )
 
 
+def _snapshots_of(state_at: Callable[[dict, int], np.ndarray | None]):
+    """A fake ``safe_apply_with_state`` returning ``state_at(inputs, frame)`` per snapshot.
+
+    A frame for which ``state_at`` returns None fails the whole call.
+    """
+
+    def fake(t, inputs, key, require_finite=True):
+        assert key == "snapshots" and not require_finite
+        assert inputs["steps"] % inputs["snapshot_every"] == 0
+        frames = [
+            state_at(inputs, i)
+            for i in range(inputs["steps"] // inputs["snapshot_every"])
+        ]
+        if any(f is None for f in frames):
+            return None, {}
+        return np.stack(frames), {}
+
+    return fake
+
+
 def test_forward_scores_every_grid(monkeypatch):
     """A solver that returns its input scores 0.1 at every time and grid."""
     monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
-    monkeypatch.setattr(ko, "safe_apply", lambda t, inputs, key: inputs["v0"])
+    monkeypatch.setattr(
+        ko, "safe_apply_with_state", _snapshots_of(lambda inputs, i: inputs["v0"])
+    )
     phys = {"N": 16, "dt": 0.01, "grids": [64, 16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
     assert [r["grid"] for r in metrics["runs"]] == [16, 32, 64]
@@ -124,8 +138,10 @@ def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
     monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
     monkeypatch.setattr(
         ko,
-        "safe_apply",
-        lambda t, inputs, key: None if inputs["v0"].shape[0] == 32 else inputs["v0"],
+        "safe_apply_with_state",
+        _snapshots_of(
+            lambda inputs, i: None if inputs["v0"].shape[0] == 32 else inputs["v0"]
+        ),
     )
     phys = {"N": 16, "dt": 0.01, "grids": [16, 32], "nu": 0.01}
     metrics = ko.forward(None, _context(phys))["metrics"]
@@ -134,6 +150,21 @@ def test_forward_scores_a_diverged_run_as_left_the_attractor(monkeypatch):
     assert metrics["error"] == ko.DIVERGED_ERROR
     verdict = ko.min_refinement_order(0.8)(_summary(metrics))
     assert verdict is not None and "diverged on 32²" in verdict[1]
+
+
+def test_forward_keeps_the_times_before_a_run_diverges(monkeypatch):
+    """A run that is non-finite only at the last time is scored up to it."""
+    monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
+
+    def state_at(inputs, i):
+        return inputs["v0"] * (np.nan if i == 3 else 1.0)
+
+    monkeypatch.setattr(ko, "safe_apply_with_state", _snapshots_of(state_at))
+    phys = {"N": 16, "dt": 0.01, "grids": [16, 32], "nu": 0.01}
+    run = ko.forward(None, _context(phys))["metrics"]["runs"][0]
+    assert run["median_errors"][:3] == pytest.approx([1 / 9] * 3, rel=1e-3)
+    assert run["median_errors"][3] == ko.DIVERGED_ERROR
+    assert run["diverged"] and "t = 4" in run["per_seed"][0]["failure"]
 
 
 def _summary(metrics: dict) -> ForwardSummary:
@@ -161,10 +192,3 @@ def _ladder(order: float, coarse_diverged: bool = False) -> dict:
 def test_min_refinement_order(metrics, fires):
     """Grids below the coarse one may diverge; it and finer ones may not."""
     assert (ko.min_refinement_order(0.8)(_summary(metrics)) is not None) == fires
-
-
-def test_max_error_at_one_sweep_value():
-    summary = ForwardSummary(errs_by_pval={"32": 0.08, "64": 0.02, "128": 0.005})
-    assert max_error(0.05)(summary) is not None
-    assert max_error(0.05, at=64)(summary) is None
-    assert max_error(0.01, at=64)(summary) is not None

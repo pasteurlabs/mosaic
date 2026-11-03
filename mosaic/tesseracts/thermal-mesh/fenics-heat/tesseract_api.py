@@ -30,6 +30,7 @@ from dolfin_adjoint import *  # noqa: F403
 # checkouts fixed this upstream (SolveVarFormBlock now forwards
 # `linear_solver` into the adjoint solve automatically) and no longer expose
 # this compat shim, so skip the patch if it's absent.
+# mosaic-intervention: mumps-adjoint-monkeypatch
 try:
     import fenics_adjoint.types.compat as _fa_compat
 
@@ -39,6 +40,7 @@ try:
     _fa_compat.linalg_solve = _adjoint_linalg_solve_mumps
 except ImportError:
     pass
+# mosaic-intervention-end: mumps-adjoint-monkeypatch
 
 from mosaic_shared.problems.thermal_mesh import (
     InputSchema as _CanonicalInputSchema,
@@ -184,6 +186,7 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
     return facet_markers
 
 
+# mosaic-intervention: nodal-misfit-block
 # ---------------------------------------------------------------------------
 # Identification error as a tape-recorded operation
 # ---------------------------------------------------------------------------
@@ -287,6 +290,9 @@ def nodal_squared_error(T: Function, target: np.ndarray, mask: np.ndarray) -> An
         get_working_tape().add_block(block)
         block.add_output(output.block_variable)
     return output
+
+
+# mosaic-intervention-end: nodal-misfit-block
 
 
 # ---------------------------------------------------------------------------
@@ -491,7 +497,9 @@ def _build_reduced_functionals(
     target_at_dofs[has_target] = T_tgt[d2v[has_target]]
     mask_at_dofs = has_target.astype(np.float64)
 
+    # mosaic-intervention: nodal-misfit-block
     I_err = nodal_squared_error(T_sol, target_at_dofs, mask_at_dofs)
+    # mosaic-intervention-end: nodal-misfit-block
 
     controls = [Control(rho_fn), Control(source_fn)]
     Chat = ReducedFunctional(J, controls)

@@ -554,6 +554,7 @@ def vector_jacobian_product(
         grad_rho += dC_drho * cot_compliance
         grad_source += dC_dsource * cot_compliance
 
+    # mosaic-intervention: nodal-misfit-seed
     cot_id_error = float(cotangent_vector.get("identification_error", 0.0))
     if cot_id_error != 0.0:
         # I = Σ_nodes (T - T_target)², so the temperature adjoint is seeded
@@ -569,6 +570,7 @@ def vector_jacobian_product(
         dI_drho, dI_dsource = _gradient_pair(entry["That"], entry, n_cells, dI_dT)
         grad_rho += dI_drho * cot_id_error
         grad_source += dI_dsource * cot_id_error
+    # mosaic-intervention-end: nodal-misfit-seed
 
     result: dict[str, Any] = {}
     if want_rho:

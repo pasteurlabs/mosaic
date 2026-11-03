@@ -1,20 +1,16 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Body force and linear drag in the periodic ns-grid solvers.
+"""Body force, linear drag and snapshots in the periodic ns-grid solvers.
 
-Started from rest, the Kolmogorov force (A sin(κy), 0) keeps the flow a shear
-flow u(y, t). Its advection term vanishes, so the Navier–Stokes equations with
-drag α have the exact solution
+Started from rest, the Kolmogorov force keeps the flow a shear flow with a
+closed-form solution (see ``kolmogorov.laminar_velocity``). One run against it
+checks the amplitude, sign and wavenumber of the force, its placement on
+staggered grids, the sign of the drag and any unit conversion. The snapshots
+of a forced run must match separate runs that stop at their steps.
 
-    u = (A/λ)(1 − e^{−λt}) sin(κy),  v = 0,  λ = νκ² + α.
-
-One run against it checks the amplitude, sign and wavenumber of the force, its
-placement on staggered grids, the sign of the drag and any unit conversion.
-
-Every test runs against the solver's ``:latest`` image built from this
-checkout and is skipped where that image or Docker is missing. They are never
-built here.
+Every test runs against the solver's ``:latest`` image, which this module
+never builds, and is skipped where that image or Docker is missing.
 """
 
 from __future__ import annotations
@@ -23,6 +19,8 @@ import shutil
 
 import numpy as np
 import pytest
+
+from mosaic.benchmarks.problems.navier_stokes_grid.kolmogorov import forcing_field
 
 from .helpers import image_available
 
@@ -59,14 +57,6 @@ def solver(request):
         yield request.param, t, extra
 
 
-def _kolmogorov_force(n: int, k: int, amplitude: float = 1.0) -> np.ndarray:
-    """(A sin(κy), 0) at the cell centres, shape (n, n, 1, 2)."""
-    y = (np.arange(n) + 0.5) * _L / n
-    force = np.zeros((n, n, 1, 2), np.float32)
-    force[..., 0, 0] = amplitude * np.sin(2 * np.pi * k * y / _L)[None, :]
-    return force
-
-
 def _inputs(v0, *, nu, dt, steps, extra, **more) -> dict:
     return {
         "v0": np.asarray(v0, np.float32),
@@ -100,7 +90,7 @@ def test_laminar_kolmogorov_transient(solver):
     """Within 5% of the exact shear flow at N = 64 after two time units."""
     _, t, extra = solver
     n, k, nu, alpha, dt, steps = 64, 4, 0.05, 0.1, 0.01, 200
-    force = _kolmogorov_force(n, k)
+    force = forcing_field(n, _L, k)
     out = t.apply(
         _inputs(
             np.zeros_like(force),
@@ -143,7 +133,7 @@ def test_forced_vjp_matches_central_difference(solver):
     name, t, extra = solver
     n = 16
     v0 = _smooth_field(n)
-    force = _kolmogorov_force(n, 2)
+    force = forcing_field(n, _L, 2)
     inputs = _inputs(
         v0,
         nu=0.02,
@@ -167,6 +157,41 @@ def test_forced_vjp_matches_central_difference(solver):
     fd = (objective(v0 + eps * direction) - objective(v0 - eps * direction)) / (2 * eps)
     ad = float(np.sum(np.asarray(grad, np.float64) * direction))
     assert ad == pytest.approx(fd, rel=1e-2), f"{name}: AD {ad:.6g} vs FD {fd:.6g}"
+
+
+def test_snapshots_match_runs_that_stop_there(solver):
+    """Snapshot i of a forced run equals the result of a run of (i + 1)·k steps."""
+    name, t, extra = solver
+    n, every, frames = 16, 3, 3
+    v0 = _smooth_field(n)
+    common = {
+        "nu": 0.02,
+        "dt": 0.02,
+        "extra": extra,
+        "forcing": forcing_field(n, _L, 2),
+        "linear_drag": np.array([0.1], np.float32),
+    }
+    out = t.apply(_inputs(v0, steps=every * frames, snapshot_every=every, **common))
+    snapshots = np.asarray(out["snapshots"])
+    assert snapshots.shape == (frames, *v0.shape)
+    np.testing.assert_array_equal(snapshots[-1], np.asarray(out["result"]))
+    for i in range(frames):
+        stopped = t.apply(_inputs(v0, steps=every * (i + 1), **common))["result"]
+        np.testing.assert_allclose(
+            snapshots[i], np.asarray(stopped), rtol=0, atol=1e-5, err_msg=name
+        )
+
+
+@pytest.mark.skipif(not image_available(_OPENFOAM), reason=f"{_OPENFOAM} not built")
+def test_openfoam_rejects_snapshots():
+    from tesseract_core import Tesseract
+
+    v0 = np.zeros((8, 8, 1, 2), np.float32)
+    with (
+        Tesseract.from_image(_OPENFOAM) as t,
+        pytest.raises(Exception, match="snapshots"),
+    ):
+        t.apply(_inputs(v0, nu=0.01, dt=0.01, steps=2, extra={}, snapshot_every=1))
 
 
 @pytest.mark.skipif(not image_available(_OPENFOAM), reason=f"{_OPENFOAM} not built")

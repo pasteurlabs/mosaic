@@ -14,8 +14,6 @@ from mosaic.benchmarks.core.config import SolverSpec
 from mosaic.benchmarks.core.utils import fixed_cfl_dt_steps
 from mosaic.benchmarks.problems.shared.diagnostics import FLUID_DIAGNOSTICS
 
-_LBM_SOLVERS = {"xlb"}
-
 
 def make_inputs(
     spec: SolverSpec,
@@ -25,24 +23,18 @@ def make_inputs(
     dt: float,
     steps: int,
     domain_extent: float = 2 * jnp.pi,
-    lbm_N_base: int | None = None,
     cfl_N_base: int | None = None,
     **_: Any,
 ) -> dict:
-    """Build solver input dict, applying LBM dt-scaling when lbm_N_base is set.
+    """Build solver input dict.
 
-    ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver, before
-    any LBM scaling.
+    ``cfl_N_base`` applies :func:`fixed_cfl_dt_steps` to every solver.
 
     For standard 3-D periodic runs ic has shape (N, N, N, 3) and is passed
     directly as v0.
     """
     N = ic.shape[0]
     _dt, _steps = fixed_cfl_dt_steps(dt, steps, N, cfl_N_base=cfl_N_base)
-
-    if spec.key in _LBM_SOLVERS and lbm_N_base is not None:
-        _dt = _dt * (lbm_N_base / N)
-        _steps = max(1, round(_steps * (N / lbm_N_base)))
 
     base = {
         "v0": ic,

@@ -8,14 +8,10 @@ f = (A sin(κy), 0), κ = 2πk/L, and linear drag α. The drag removes the energ
 that the 2D inverse cascade piles up at the largest scales, so the flow
 settles into a statistically steady state.
 
-Every field here uses the canonical layout of the ns-grid solvers: shape
-(N, N, 1, 2) with cell (i, j) centred at ((i + ½)h, (j + ½)h). Resampling
-between grids therefore shifts phases by the offset between cell centres,
-since a coarse cell centre does not coincide with a fine one.
+Every field here uses the canonical layout of the ns-grid solvers, shape
+(N, N, 1, 2) with cell (i, j) centered at ((i + ½)h, (j + ½)h).
 
-This module also holds the ``forward/kolmogorov`` kernel, which runs each
-solver on a ladder of grids from the ground truth's initial states, and its
-status check.
+This module also holds the ``forward/kolmogorov`` kernel and its status check.
 """
 
 from __future__ import annotations
@@ -31,19 +27,18 @@ import numpy as np
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.reference import reference_path
-from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply
+from mosaic.benchmarks.core.runner import get_last_apply_error, safe_apply_with_state
 from mosaic.benchmarks.core.status_checks import CheckOutcome, ForwardSummary
-from mosaic.benchmarks.core.utils import active_solvers
+from mosaic.benchmarks.core.utils import active_solvers, l2_error_rel
 
 from .ics import _multimode
 
 logger = logging.getLogger(__name__)
 
 # ── Setup ────────────────────────────────────────────────────────────────────
-# Chosen in the calibration of the benchmark (PR #267): a chaotic, statistically
-# steady flow that a 64² grid resolves only roughly, missing a 4× finer run by
-# about 2% every 0.1 time units, while the converged truth stays predictable
-# for longer than the scored horizon.
+# A chaotic, statistically steady flow. A 64² grid resolves it only roughly,
+# missing a 4× finer run by about 2% every 0.1 time units, while the converged
+# truth stays predictable for longer than the scored horizon.
 
 DOMAIN_EXTENT = 2 * np.pi
 WAVENUMBER = 4
@@ -86,8 +81,8 @@ FORCING_PHYSICS = {
 # ── Fields ───────────────────────────────────────────────────────────────────
 
 
-def cell_centres(n: int, domain_extent: float = DOMAIN_EXTENT) -> np.ndarray:
-    """Cell-centre coordinates (j + ½)h of an ``n``-cell periodic axis."""
+def cell_centers(n: int, domain_extent: float = DOMAIN_EXTENT) -> np.ndarray:
+    """Cell-center coordinates (j + ½)h of an ``n``-cell periodic axis."""
     return (np.arange(n) + 0.5) * domain_extent / n
 
 
@@ -97,10 +92,10 @@ def forcing_field(
     wavenumber: int = WAVENUMBER,
     amplitude: float = AMPLITUDE,
 ) -> np.ndarray:
-    """The Kolmogorov force (A sin(κy), 0) at the cell centres, (n, n, 1, 2)."""
+    """The Kolmogorov force (A sin(κy), 0) at the cell centers, (n, n, 1, 2)."""
     kappa = 2 * np.pi * wavenumber / domain_extent
     field = np.zeros((n, n, 1, 2), dtype=np.float32)
-    field[..., 0, 0] = amplitude * np.sin(kappa * cell_centres(n, domain_extent))
+    field[..., 0, 0] = amplitude * np.sin(kappa * cell_centers(n, domain_extent))
     return field
 
 
@@ -118,7 +113,7 @@ def laminar_velocity(
 
     The force only depends on y and points along x, so the flow stays a shear
     flow u(y, t) whose advection term vanishes. The forced mode then relaxes
-    at the rate λ = νκ² + α: u = (A/λ)(1 − e^{−λt}) sin(κy), v = 0.
+    at the rate λ = νκ² + α, so u = (A/λ)(1 − e^{−λt}) sin(κy) and v = 0.
     """
     kappa = 2 * np.pi * wavenumber / domain_extent
     rate = viscosity * kappa**2 + drag
@@ -164,17 +159,18 @@ def resample(field: Any, n: int, domain_extent: float = DOMAIN_EXTENT) -> jax.Ar
     """Band-limited resampling of a periodic field onto an ``n``-cell grid.
 
     ``field`` has the two spatial axes first, (N, N, ...), sampled at the cell
-    centres. Coarsening keeps the modes below the target Nyquist frequency,
-    refining pads with zeros; the Nyquist modes of both grids are dropped,
-    since a real field cannot carry the phase shift between the two sets of
-    cell centres on them. Differentiable.
+    centers. The two grids' cell centers do not coincide, so resampling shifts
+    the phases by their offset. Coarsening keeps the modes below the target
+    Nyquist frequency and refining pads with zeros. The Nyquist modes of both
+    grids are dropped because a real field cannot carry that phase shift on
+    them. Differentiable.
     """
     field = jnp.asarray(field)
     size = field.shape[0]
     if size == n:
         return field
     k = _wavenumbers(size, domain_extent)
-    # Cell centres of the two grids are offset by (h_n - h_N)/2.
+    # Cell centers of the two grids are offset by (h_n - h_N)/2.
     shift = np.exp(1j * k * 0.5 * (domain_extent / n - domain_extent / size))
     trailing = (1,) * (field.ndim - 2)
     m = min(size, n) // 2
@@ -209,44 +205,6 @@ def vorticity_correlation(
     return jnp.sum(wa * wb) / jnp.sqrt(jnp.sum(wa * wa) * jnp.sum(wb * wb))
 
 
-def relative_l2(a: Any, b: Any) -> jax.Array:
-    """‖a − b‖ / ‖b‖."""
-    a, b = jnp.asarray(a), jnp.asarray(b)
-    return jnp.sqrt(jnp.sum((a - b) ** 2) / jnp.sum(b**2))
-
-
-def energy_spectrum(v: Any) -> np.ndarray:
-    """Kinetic energy per integer wavenumber shell, ½Σ|û|² over |k| ∈ [s−½, s+½).
-
-    Returns shells 0 … N/2 − 1, normalised so that their sum is the mean
-    kinetic energy ½⟨|u|²⟩ (Parseval, Nyquist excluded).
-    """
-    v = np.asarray(v, dtype=np.float64)[:, :, 0, :]
-    n = v.shape[0]
-    kint = np.fft.fftfreq(n, d=1.0 / n)
-    kx, ky = np.meshgrid(kint, kint, indexing="ij")
-    shell = np.rint(np.sqrt(kx**2 + ky**2)).astype(int)
-    hat = np.fft.fft2(v, axes=(0, 1)) / n**2
-    density = 0.5 * np.sum(np.abs(hat) ** 2, axis=-1)
-    spectrum = np.bincount(shell.ravel(), weights=density.ravel())
-    return spectrum[: n // 2]
-
-
-def spectrum_error(states: Any, references: Any) -> float:
-    """Mean |log₁₀| ratio of time-averaged energy spectra over shells 1 … N/3.
-
-    ``states`` and ``references`` are stacks of fields, (T, N, N, 1, 2).
-    Shells above N/3 are left out: there the canonical interfaces of the
-    staggered solvers damp the energy by design, not by error.
-    """
-    a = np.mean([energy_spectrum(s) for s in states], axis=0)
-    b = np.mean([energy_spectrum(s) for s in references], axis=0)
-    top = max(2, len(a) * 2 // 3)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        err = np.abs(np.log10(a[1:top] / b[1:top]))
-    return float(np.mean(err)) if np.all(np.isfinite(err)) else float("inf")
-
-
 def high_correlation_time(
     correlations: Any, interval: float, threshold: float = HIGH_CORRELATION
 ) -> float:
@@ -262,38 +220,23 @@ def high_correlation_time(
     return float(frame * interval)
 
 
-def first_unstable_frame(errors: Any, threshold: float = DIVERGED_ERROR) -> int:
-    """First frame whose relative error is non-finite or above ``threshold``.
-
-    A stable rollout scores its frame count.
-    """
-    e = np.asarray(errors, dtype=np.float64)
-    bad = np.nonzero(~(e <= threshold))[0]
-    return int(bad[0]) if bad.size else len(e)
-
-
 def capped_error(state: Any, target: Any) -> float:
-    """Relative L2 error, :data:`DIVERGED_ERROR` for a non-finite state."""
+    """Relative L2 error capped at :data:`DIVERGED_ERROR`, which a non-finite state also gets."""
     state = np.asarray(state)
     if not np.isfinite(state).all():
         return DIVERGED_ERROR
-    return min(float(relative_l2(state, target)), DIVERGED_ERROR)
+    return min(l2_error_rel(state, target), DIVERGED_ERROR)
 
 
 # ── Ground truth ─────────────────────────────────────────────────────────────
 
-# Initial states by role. The forward check and the test split of the
-# solver-in-the-loop benchmark share the test states.
-GROUND_TRUTH_SEEDS = {
-    "train": (0, 1, 2, 3),
-    "validation": (4,),
-    "test": (5, 6, 7),
-}
+# Seeds of the random fields the initial states spin up from.
+GROUND_TRUTH_SEEDS = (5, 6, 7)
 
-# Exponax resolutions and spin-up: a burn-in at BURN_IN_N, then the truth at
-# TRUTH_N with CONVERGENCE_N alongside to show convergence. The initial states
-# are kept band-limited to INITIAL_N, deep in the dissipation range of this
-# flow, which regenerates the smallest scales within a fraction of a time unit.
+# Exponax spins each state up at BURN_IN_N, then runs the truth at TRUTH_N and
+# a CONVERGENCE_N run alongside it to show convergence. The initial states are
+# band-limited to INITIAL_N, which only drops modes deep in the dissipation
+# range. The flow regenerates those within a fraction of a time unit.
 INITIAL_N = 128
 TRUTH_N = 1024
 CONVERGENCE_N = 512
@@ -301,11 +244,11 @@ BURN_IN_N = 512
 BURN_IN_TIME = 100.0
 # Convergence of the truth is followed for three horizons.
 CONVERGENCE_TIME = 12.0
-# Frames of the truth and its convergence check.
+# Interval between the stored frames of the truth and its convergence run.
 TRUTH_FRAME = 0.5
-# Exponax's float32 ETDRK2 needs a CFL number well below 0.25; at 0.1 it is
-# stable at these resolutions. The speed bound is the forced flow's largest,
-# about 7.
+# Exponax's float32 ETDRK2 needs a CFL number well below 0.25 and is stable at
+# 0.1 on these resolutions. The speed bound is about the forced flow's largest
+# speed.
 _TRUTH_CFL = 0.1
 _SPEED_BOUND = 7.0
 
@@ -336,23 +279,16 @@ def _run(advance: Advance, v: np.ndarray, t_end: float) -> np.ndarray:
 def generate_ground_truth(
     advance: Advance, log: Callable[[str], None] = logger.info
 ) -> dict[str, np.ndarray]:
-    """Burned-in initial states and the converged trajectories from the test ones.
+    """Burned-in initial states and the converged trajectories from them.
 
     ``advance(v, dt, steps)`` runs the reference solver with the Kolmogorov
-    force and drag on the grid of ``v`` and returns the state after ``steps``
-    steps of ``dt``. Each seed starts from a random field, spins up for
-    :data:`BURN_IN_TIME` at :data:`BURN_IN_N` and continues at
-    :data:`TRUTH_N`. For the test seeds the run at :data:`CONVERGENCE_N` from
-    the same state measures how long the truth is converged.
-
-    Returns ``initial_<seed>`` at :data:`INITIAL_N` and, for the test seeds,
-    ``truth_<seed>`` at the times :data:`HORIZON_TIMES` on the coarse grid,
-    plus the convergence record.
+    force and drag on the grid of ``v``. Returns ``initial_<seed>`` at
+    :data:`INITIAL_N`, ``truth_<seed>`` at :data:`HORIZON_TIMES` on the coarse
+    grid, and how closely the :data:`CONVERGENCE_N` run tracks the truth.
     """
-    test = set(GROUND_TRUTH_SEEDS["test"])
     out: dict[str, np.ndarray] = {}
     frame_of = {t: round(t / TRUTH_FRAME) - 1 for t in HORIZON_TIMES}
-    for seed in sorted({s for seeds in GROUND_TRUTH_SEEDS.values() for s in seeds}):
+    for seed in GROUND_TRUTH_SEEDS:
         v = np.asarray(_multimode(BURN_IN_N, DOMAIN_EXTENT, seed=seed))
         v = _run(advance, v, BURN_IN_TIME)[-1]
         # The truth starts from exactly the field the solvers get.
@@ -360,8 +296,6 @@ def generate_ground_truth(
         start = np.asarray(resample(initial, TRUTH_N))
         out[f"initial_{seed}"] = initial
         log(f"seed {seed}: burned in for {BURN_IN_TIME:g}")
-        if seed not in test:
-            continue
         horizon = CONVERGENCE_TIME
         truth = _run(advance, start, horizon)
         check = _run(advance, np.asarray(resample(start, CONVERGENCE_N)), horizon)
@@ -376,7 +310,7 @@ def generate_ground_truth(
         )
         out[f"convergence_error_{seed}"] = np.array(
             [
-                float(relative_l2(a, b))
+                l2_error_rel(a, b)
                 for a, b in zip(check_coarse, truth_coarse, strict=True)
             ]
         )
@@ -409,49 +343,42 @@ def initial_state(truth: dict, seed: int, n: int) -> np.ndarray:
 # ── forward/kolmogorov ───────────────────────────────────────────────────────
 
 
+Run = Callable[[np.ndarray, int, int], np.ndarray | None]
+
+
 def _rollout_errors(
-    run: Callable[[np.ndarray, int], np.ndarray | None],
+    run: Run,
     v0: np.ndarray,
     dt: float,
     times: tuple[float, ...],
     targets: list[np.ndarray],
     n_score: int,
 ) -> dict[str, Any]:
-    """Error, correlation and wall time against ``targets`` at ``times``, each from ``v0``.
+    """Error against ``targets`` at ``times`` from one run of ``v0``, and its wall time.
 
-    Each time is its own call from the initial state, so solvers that keep
-    their own staggered or lattice state never round-trip through the
-    canonical grid. After a non-finite state the remaining times are scored
-    as diverged without running, and their wall time is NaN.
+    ``times`` are multiples of the first. The run returns the state at each
+    of them as a snapshot, so solvers that keep their own staggered or
+    lattice state never round-trip through the canonical grid. From the first
+    non-finite snapshot on, the times are scored as diverged.
     """
+    every = round(times[0] / dt)
+    if not np.allclose(times, every * dt * np.arange(1, len(times) + 1)):
+        raise ValueError(f"times {times} are not multiples of the first")
+    started = time.perf_counter()
+    snapshots = run(v0, every * len(times), every)
+    seconds = time.perf_counter() - started
+    failure = None
+    if snapshots is None:
+        failure = get_last_apply_error() or "the run returned no snapshots"
     errors: list[float] = []
-    correlations: list[float] = []
-    seconds: list[float] = []
-    final, failure = None, None
-    for t_end, target in zip(times, targets, strict=True):
-        state = None
-        if not failure:
-            started = time.perf_counter()
-            state = run(v0, round(t_end / dt))
-            seconds.append(time.perf_counter() - started)
-        else:
-            seconds.append(float("nan"))
-        if state is None:
-            failure = failure or (get_last_apply_error() or "non-finite state")
+    for i, (t_end, target) in enumerate(zip(times, targets, strict=True)):
+        if not failure and not np.isfinite(snapshots[i]).all():
+            failure = f"solver output is not finite at t = {t_end:g}"
+        if failure:
             errors.append(DIVERGED_ERROR)
-            correlations.append(0.0)
             continue
-        state = np.asarray(resample(state, n_score))
-        errors.append(capped_error(state, target))
-        correlations.append(float(vorticity_correlation(state, target)))
-        final = state
-    return {
-        "errors": errors,
-        "correlations": correlations,
-        "seconds": seconds,
-        "final": final,
-        "failure": failure,
-    }
+        errors.append(capped_error(resample(snapshots[i], n_score), target))
+    return {"errors": errors, "seconds": seconds, "failure": failure}
 
 
 def _check_ground_truth(truth: dict, seeds: tuple[int, ...]) -> None:
@@ -461,32 +388,29 @@ def _check_ground_truth(truth: dict, seeds: tuple[int, ...]) -> None:
 
 
 def _seconds_per_time(per_seed: list[dict], horizon: float) -> float | None:
-    """Wall time of one time unit, from each seed's longest call.
+    """Wall time of one time unit, from each seed's run.
 
-    The first seed's calls include compilation and warm-up, so it only counts
+    The first seed's run includes compilation and warm-up, so it only counts
     when it is the only seed.
     """
     warm = per_seed[1:] or per_seed
-    values = [s["seconds"][-1] / horizon for s in warm if not s["failure"]]
+    values = [s["seconds"] / horizon for s in warm if not s["failure"]]
     return float(np.median(values)) if values else None
 
 
 @kernel(sweep_mode="none", selector_fn=active_solvers)
 def forward(t: Any, ctx: KernelContext) -> dict:
-    """One solver on each grid of the ladder against the ground truth.
+    """Each grid of the ladder, scored on the coarse grid against the ground truth.
 
-    Every grid runs at the CFL number of the coarse configuration, from each
-    test seed's burned-in state restricted to that grid, and is scored on the
-    coarse grid at :data:`HORIZON_TIMES`. ``error`` is the finest grid's
-    median error over the seeds at the last time. ``order`` is the observed
-    order of convergence from the coarse grid to the finest at the first
-    time, see :func:`min_refinement_order`.
+    ``error`` is the finest grid's median error over the seeds at the last
+    time. ``order`` is the observed order of convergence from the coarse grid
+    to the finest at the first time.
     """
     phys = dict(ctx.phys)
     n = int(phys.pop("N"))
     dt = float(phys.pop("dt"))
     grids = sorted(int(g) for g in phys.pop("grids"))
-    seeds = tuple(int(s) for s in phys.pop("seeds", GROUND_TRUTH_SEEDS["test"]))
+    seeds = GROUND_TRUTH_SEEDS
     if n not in grids:
         raise ValueError(f"the coarse grid {n} is not among the grids {grids}")
     truth = load_ground_truth(ctx.cfg.name)
@@ -497,16 +421,22 @@ def forward(t: Any, ctx: KernelContext) -> dict:
     for grid in grids:
         step = dt * n / grid
 
-        def run(v0: np.ndarray, steps: int, _step: float = step) -> np.ndarray | None:
-            inputs = ctx.make_inputs(ctx.name, v0, dt=_step, steps=steps, **phys)
-            return safe_apply(t, inputs, ctx.output_key)
+        def run(
+            v0: np.ndarray, steps: int, every: int, _step: float = step
+        ) -> np.ndarray | None:
+            inputs = ctx.make_inputs(
+                ctx.name, v0, dt=_step, steps=steps, snapshot_every=every, **phys
+            )
+            snapshots, _ = safe_apply_with_state(
+                t, inputs, "snapshots", require_finite=False
+            )
+            return None if snapshots is None else np.asarray(snapshots)
 
-        per_seed, finals = [], []
+        per_seed = []
         for seed in seeds:
             targets = [np.asarray(resample(f, n)) for f in truth[f"truth_{seed}"]]
             v0 = initial_state(truth, seed, grid)
             record = _rollout_errors(run, v0, step, times, targets, n)
-            finals.append(record.pop("final"))
             per_seed.append({"seed": seed, **record})
         runs.append(
             {
@@ -516,17 +446,8 @@ def forward(t: Any, ctx: KernelContext) -> dict:
                 "median_errors": np.median(
                     [s["errors"] for s in per_seed], axis=0
                 ).tolist(),
-                "median_correlations": np.median(
-                    [s["correlations"] for s in per_seed], axis=0
-                ).tolist(),
                 "diverged": any(s["failure"] for s in per_seed),
                 "seconds_per_time": _seconds_per_time(per_seed, times[-1]),
-                "spectrum_error": [
-                    spectrum_error([f], [resample(truth[f"truth_{s}"][-1], n)])
-                    if f is not None
-                    else float("inf")
-                    for f, s in zip(finals, seeds, strict=True)
-                ],
             }
         )
     coarse = next(r for r in runs if r["grid"] == n)
@@ -546,11 +467,11 @@ def forward(t: Any, ctx: KernelContext) -> dict:
 
 
 def min_refinement_order(order: float) -> Callable[[ForwardSummary], CheckOutcome]:
-    """Anomaly if a grid from the coarse one up diverged, or if refining it converges slower than ``order``.
+    """Anomaly if the coarse grid or a finer one diverged, or if the observed order is below ``order``.
 
-    The observed order comes from the median errors at the first time, while
-    both are small enough that the flow's chaos amplifies them alike. Grids
-    below the coarse one are reported but not checked: they may be too
+    The order is measured at the first time, while the errors on both grids
+    are still small enough that the flow's chaos amplifies them alike. Grids
+    below the coarse one are reported but not checked, since they may be too
     coarse for the flow.
     """
 

@@ -58,6 +58,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
     """Exponax solver output schema."""
 
 
+# mosaic-intervention: vorticity-velocity-conversion
 # ---------------------------------------------------------------------------
 # Spectral velocity <-> vorticity helpers (2D, differentiable via JAX FFT)
 # ---------------------------------------------------------------------------
@@ -98,6 +99,9 @@ def _vorticity_to_velocity(omega: jnp.ndarray, domain_extent: float) -> jnp.ndar
     return jnp.stack([vx, vy], axis=-1)  # (N, N, 2)
 
 
+# mosaic-intervention-end: vorticity-velocity-conversion
+
+
 # ---------------------------------------------------------------------------
 # Core forward function
 # ---------------------------------------------------------------------------
@@ -117,8 +121,9 @@ def exponax_fwd(
     boundary_conditions: dict | None = None,
     forcing: jnp.ndarray | None = None,
     linear_drag: float | None = None,
+    snapshot_every: int | None = None,
     **_kwargs: Any,
-) -> jnp.ndarray:
+) -> dict[str, jnp.ndarray]:
     """Run 2D or 3D incompressible Navier-Stokes using exponax.
 
     2D uses the pseudo-spectral streamfunction-vorticity stepper with an
@@ -128,11 +133,11 @@ def exponax_fwd(
     vorticity is -q.
 
     A ``forcing`` field enters as the injection term of Exponax's Kolmogorov
-    stepper, the spectral curl of the force on the grid as given. Its own
-    ``injection_mode``/``injection_scale`` cannot express the canonical force:
-    Exponax puts sample j at y = j·h, the canonical layout at (j + ½)h, so its
-    sin(κy) is half a cell off. ``linear_drag`` α maps to Exponax's drag λ,
-    which adds λω and so damps for λ < 0.
+    stepper, as the spectral curl of the force on the grid. The stepper's own
+    ``injection_mode``/``injection_scale`` cannot express the canonical force.
+    Exponax puts sample j at y = j·h and the canonical layout at (j + ½)h, so
+    its sin(κy) would be half a cell off. ``linear_drag`` α is subtracted from
+    Exponax's drag λ, which adds λω and so damps for λ < 0.
 
     3D uses the Leray-projected velocity stepper directly.
 
@@ -150,9 +155,12 @@ def exponax_fwd(
         boundary_conditions: Boundary condition config (must be fully periodic).
         forcing: Body force at the grid points, shape of v0 (2D only).
         linear_drag: Coefficient α of a linear drag -αu (2D only).
+        snapshot_every: Also return the velocity after every this many steps
+            (2D only).
 
     Returns:
-        Final velocity field, same shape as v0.
+        ``result``, the final velocity field, same shape as v0, and with
+        ``snapshot_every`` the ``snapshots`` (steps // snapshot_every, *v0.shape).
     """
     ndim = v0.shape[-1]  # 2 or 3
     num_points = v0.shape[0]  # isotropic: nx == ny (== nz)
@@ -173,12 +181,14 @@ def exponax_fwd(
         # v0: (N, N, 1, 2) -> squeeze z -> (N, N, 2)
         v = v0[:, :, 0, :]
 
+        # mosaic-intervention: vorticity-velocity-conversion
         # The vorticity formulation strips the mean velocity (∂const/∂x = 0),
         # so we save it and evolve it separately.
         v_mean = jnp.mean(v, axis=(0, 1), keepdims=True)  # (1, 1, 2)
 
         # velocity -> Exponax's q = -ω: (1, N, N)  (operate on fluctuation only)
         q = -_velocity_to_vorticity(v - v_mean, domain_extent)
+        # mosaic-intervention-end: vorticity-velocity-conversion
 
         if kolmogorov_forcing:
             stepper = ex.stepper.KolmogorovFlowVorticity(
@@ -188,17 +198,20 @@ def exponax_fwd(
                 **stepper_kwargs,
             )
         elif forcing is not None:
+            # mosaic-intervention: canonical-force-injection
             stepper = ex.stepper.KolmogorovFlowVorticity(
                 num_spatial_dims=2, injection_scale=0.0, **stepper_kwargs
             )
             # The force drives q with -curl f. Exponax builds its injection as
-            # a real array; the force's coefficients need their phase.
+            # a real array, which would drop the phase of the force's
+            # coefficients.
             curl = _velocity_to_vorticity(forcing[:, :, 0, :], domain_extent)
             stepper = eqx.tree_at(
                 lambda st: st._integrator._nonlinear_fun.injection,
                 stepper,
                 jnp.fft.rfft2(-curl).astype(jnp.complex64),
             )
+            # mosaic-intervention-end: canonical-force-injection
         else:
             stepper = ex.stepper.NavierStokesVorticity(
                 num_spatial_dims=2, **stepper_kwargs
@@ -207,26 +220,40 @@ def exponax_fwd(
         def step_fn(carry: Any, _: Any) -> tuple[Any, None]:
             return stepper(carry).astype(carry.dtype), None
 
-        result_q, _ = jax.lax.scan(step_fn, q, None, length=steps)
+        # mosaic-intervention: vorticity-velocity-conversion
+        def to_velocity(q_t: jnp.ndarray, t_end: Any) -> jnp.ndarray:
+            """Q at time t_end -> velocity (N, N, 1, 2), with the mean restored."""
+            mean = v_mean
+            if forcing is not None or linear_drag is not None:
+                # dū/dt = λū + f̄ under Exponax's drag λ and the mean force f̄.
+                rate = stepper_kwargs["drag"]
+                f_mean = (
+                    0.0
+                    if forcing is None
+                    else jnp.mean(forcing[:, :, 0, :], axis=(0, 1), keepdims=True)
+                )
+                growth = jnp.exp(rate * t_end)
+                # (e^{λT} - 1)/λ, which tends to T as λ → 0 (rate may be traced).
+                safe = jnp.where(rate == 0, 1.0, rate)
+                gain = jnp.where(rate == 0, t_end, (growth - 1.0) / safe)
+                mean = mean * growth + f_mean * gain
+            return (_vorticity_to_velocity(-q_t, domain_extent) + mean)[:, :, None, :]
 
-        if forcing is not None or linear_drag is not None:
-            # dū/dt = λū + f̄ under Exponax's drag λ and the mean force f̄.
-            rate = stepper_kwargs["drag"]
-            t_end = dt * steps
-            f_mean = (
-                0.0
-                if forcing is None
-                else jnp.mean(forcing[:, :, 0, :], axis=(0, 1), keepdims=True)
-            )
-            growth = jnp.exp(rate * t_end)
-            # (e^{λT} - 1)/λ, which tends to T as λ → 0 (rate may be traced).
-            safe = jnp.where(rate == 0, 1.0, rate)
-            gain = jnp.where(rate == 0, t_end, (growth - 1.0) / safe)
-            v_mean = v_mean * growth + f_mean * gain
+        # mosaic-intervention-end: vorticity-velocity-conversion
 
-        # q -> velocity: (N, N, 2) -> (N, N, 1, 2); restore the mean
-        result = _vorticity_to_velocity(-result_q, domain_extent) + v_mean
-        return result[:, :, None, :]
+        if snapshot_every is None:
+            result_q, _ = jax.lax.scan(step_fn, q, None, length=steps)
+            return {"result": to_velocity(result_q, dt * steps)}
+
+        def chunk(carry: Any, _: Any) -> tuple[Any, Any]:
+            carry, _ = jax.lax.scan(step_fn, carry, None, length=snapshot_every)
+            return carry, carry
+
+        frames = steps // snapshot_every
+        _, frames_q = jax.lax.scan(chunk, q, None, length=frames)
+        times = dt * snapshot_every * jnp.arange(1, frames + 1)
+        snapshots = jax.vmap(to_velocity)(frames_q, times)
+        return {"result": snapshots[-1], "snapshots": snapshots}
 
     else:  # 3D
         # v0: (N, N, N, 3) channels-last -> (3, N, N, N) channels-first for exponax
@@ -250,7 +277,7 @@ def exponax_fwd(
         result_cf, _ = jax.lax.scan(step_fn, v0_cf, None, length=steps)
 
         # (3, N, N, N) -> (N, N, N, 3)
-        return jnp.moveaxis(result_cf, 0, -1)
+        return {"result": jnp.moveaxis(result_cf, 0, -1)}
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +288,7 @@ def exponax_fwd(
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled forward pass for the Exponax solver."""
-    return {"result": exponax_fwd(**inputs)}
+    return exponax_fwd(**inputs)
 
 
 _SCALAR_KEYS = ("dt", "viscosity", "drag", "injection_scale", "linear_drag")
@@ -291,7 +318,9 @@ def _diff_apply(inputs: dict) -> dict:
     for k in _SCALAR_KEYS:
         if fwd_kwargs.get(k) is not None:
             fwd_kwargs[k] = jnp.reshape(fwd_kwargs[k], ())
-    return {"result": exponax_fwd(**fwd_kwargs)}
+    # snapshots are not differentiable, so the VJP's rollout skips them.
+    fwd_kwargs["snapshot_every"] = None
+    return {"result": exponax_fwd(**fwd_kwargs)["result"]}
 
 
 def vector_jacobian_product(

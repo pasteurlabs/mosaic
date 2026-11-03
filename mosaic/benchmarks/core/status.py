@@ -325,9 +325,9 @@ def _refine_cost(
     if not checks:
         return
     key = "by_N" if "by_N" in data else "by_steps" if "by_steps" in data else None
-    if not key:
+    top = data.get(key, {}) if key else data.get("by_solver", {})
+    if not isinstance(top, dict):
         return
-    top = data[key]
     solver_medians: dict[str, float] = {}
     for solver, cell in cells.items():
         if cell.status != OK:
@@ -872,7 +872,10 @@ def _v1_to_legacy_view(data: dict) -> dict:
 
 
 def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
-    return suite == "gradient" and exp_label.split("/")[0] == "analytic_check"
+    return suite == "gradient" and exp_label.split("/")[0] in (
+        "analytic_check",
+        "analytic_check_nu",
+    )
 
 
 def _refine_for_suite(

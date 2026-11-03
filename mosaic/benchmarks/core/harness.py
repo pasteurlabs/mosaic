@@ -19,7 +19,7 @@ Typical use::
         n_trials=3,
         wall_limit_s=1000.0,
         gpu_id=gpu_id,
-        image_tag=image_tag,
+        container_id=container_id,
     )
     if result.failure is not None:
         ...  # record failure, stop sweep
@@ -36,7 +36,7 @@ from typing import Any
 
 import jax.numpy as jnp
 
-from mosaic.benchmarks.core.hardware import ResourceSampler
+from mosaic.benchmarks.core.memory import MemoryPoller
 
 
 def classify_failure(exc_name: str, exc_str: str) -> str:
@@ -66,6 +66,7 @@ def classify_failure(exc_name: str, exc_str: str) -> str:
         "resource_exhausted" in s
         or "out of memory" in s
         or "out-of-memory" in s
+        or "out of gpu memory" in s
         or "oom killer" in s
         or "oom-killer" in s
         or "cuda_error_out_of_memory" in s
@@ -99,7 +100,7 @@ class TimedResult:
     Attributes:
         times: Per-trial elapsed seconds. Empty if the warmup raised before
             any trial ran.
-        mem: ``{"vram_peak_mib", "ram_peak_mib"}`` from the resource sampler.
+        mem: ``{"vram_peak_mib", "ram_peak_mib"}`` from :class:`MemoryPoller`.
         wall_limit_hit: ``True`` iff the first trial exceeded ``wall_limit_s``
             and the loop stopped early.
         first_elapsed: Elapsed seconds for the first trial, or ``None`` if no
@@ -176,12 +177,12 @@ def run_timed_trials(
     *,
     n_trials: int,
     wall_limit_s: float,
-    gpu_id: int | None = None,
-    image_tag: str | None = None,
+    gpu_id: int | str | None = None,
+    container_id: str | None = None,
     capture_value: bool = False,
     setup: Callable[[], Any] | None = None,
 ) -> TimedResult:
-    """Run ``fn`` n_trials times under a :class:`ResourceSampler`.
+    """Run ``fn`` n_trials times under a :class:`MemoryPoller`.
 
     Behaviour:
       * ``setup()``, when given, runs once before the warmup. It is neither
@@ -200,8 +201,13 @@ def run_timed_trials(
       * ``capture_value=True`` stores the last successful ``fn()`` return
         value from inside the trial loop (useful for grabbing a gradient
         for ``grad_norm`` / snapshotting).
+      * The poller covers setup, warmup and trials. ``vram_peak_mib`` is the
+        peak used memory of device ``gpu_id`` and ``ram_peak_mib`` the peak
+        memory of container ``container_id``; either is ``None`` when its
+        argument is. See :mod:`mosaic.benchmarks.core.memory` for what the
+        numbers include.
     """
-    sampler = ResourceSampler(gpu_id=gpu_id, image_tag=image_tag)
+    sampler = MemoryPoller(gpu_id, container_id)
     times: list[float] = []
     last_value: Any = None
     wall_limit_hit = False

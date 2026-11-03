@@ -1,17 +1,15 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Hardware detection and resource sampling utilities."""
+"""Hardware detection utilities."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+import os
+import re
 
-from mosaic.benchmarks.core.memory import _nvml_ready, sample_vram_mib
-
-if TYPE_CHECKING:
-    from typing import Self
+from mosaic.benchmarks.core.memory import _nvml_ready
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +41,51 @@ def _gpu_descriptions() -> list[str]:
     return out
 
 
-def get_hardware_info() -> dict:
-    """Return a dict with GPU model(s), CPU model, and total RAM.
+def _nvidia_versions() -> dict:
+    """NVIDIA driver version and the CUDA version it supports, via NVML.
 
-    Keys: "gpus" (list[str]), "cpu" (str), "ram_gb" (float).
+    The CUDA version is the newest runtime the driver can serve, not the
+    runtime inside a solver image (each image ships its own). Returns an
+    empty dict on any failure.
+    """
+    nvml = _nvml_ready()
+    if nvml is None:
+        return {}
+    out: dict = {}
+    try:
+        driver = nvml.nvmlSystemGetDriverVersion()
+        if isinstance(driver, bytes):
+            driver = driver.decode("utf-8", errors="replace")
+        out["nvidia_driver"] = driver
+        cuda = nvml.nvmlSystemGetCudaDriverVersion_v2()
+        out["cuda_driver"] = f"{cuda // 1000}.{cuda % 1000 // 10}"
+    except Exception:
+        logger.debug("NVIDIA version probe failed", exc_info=True)
+    return out
+
+
+# Environment variables that set thread counts: OpenMP (and Intel's and GNU's
+# extensions), MKL, and anything with THREAD in its name (OPENBLAS_NUM_THREADS,
+# JULIA_NUM_THREADS, NUMEXPR_MAX_THREADS, ...).
+_THREAD_ENV = re.compile(r"^(OMP|KMP|GOMP|MKL)_|THREAD")
+
+
+def get_hardware_info() -> dict:
+    """Return a dict describing the machine a result was measured on.
+
+    Keys:
+      * ``gpus`` (list[str]), ``nvidia_driver`` (str), ``cuda_driver`` (str):
+        GPU models and memory, the driver version and the CUDA version the
+        driver supports.
+      * ``cpu`` (str), ``cpu_logical_cores`` (int), ``cpu_physical_cores``
+        (int): CPU model and core counts. Solver containers get no CPU limit,
+        so these are the cores a CPU solver can use.
+      * ``ram_gb`` (float): total RAM.
+      * ``thread_env`` (dict[str, str]): thread-count environment variables of
+        the harness process, empty when none is set. Containers do not
+        inherit them; a solver's own settings are in the ``env:`` of its
+        ``tesseract_config.yaml``.
+
     Any key is omitted if the underlying query fails.
     """
     info: dict = {}
@@ -54,6 +93,7 @@ def get_hardware_info() -> dict:
     gpus = _gpu_descriptions()
     if gpus:
         info["gpus"] = gpus
+        info.update(_nvidia_versions())
 
     # CPU model from /proc/cpuinfo
     try:
@@ -65,14 +105,19 @@ def get_hardware_info() -> dict:
     except Exception:
         logger.debug("CPU model probe failed", exc_info=True)
 
-    # Total RAM via psutil
+    # Core counts and total RAM via psutil
     try:
         import psutil
 
+        info["cpu_logical_cores"] = psutil.cpu_count(logical=True)
+        info["cpu_physical_cores"] = psutil.cpu_count(logical=False)
         info["ram_gb"] = round(psutil.virtual_memory().total / 1e9, 1)
     except Exception:
-        logger.debug("RAM probe failed", exc_info=True)
+        logger.debug("CPU core / RAM probe failed", exc_info=True)
 
+    info["thread_env"] = {
+        k: v for k, v in sorted(os.environ.items()) if _THREAD_ENV.search(k)
+    }
     return info
 
 
@@ -114,70 +159,3 @@ def has_gpu() -> bool:
         return nvml.nvmlDeviceGetCount() > 0
     except Exception:
         return False
-
-
-# ── Resource sampler ──────────────────────────────────────────────────────────
-
-
-class ResourceSampler:
-    """Before/after GPU memory delta sampler.  Use as a context manager.
-
-    Snapshots whole-GPU memory usage at ``__enter__`` and ``__exit__`` and
-    reports the delta as ``vram_peak_mib``. Also reports harness-process
-    RAM (RSS) at exit as ``ram_peak_mib`` if psutil is available.
-
-    The complementary tool, :class:`mosaic.benchmarks.core.memory.MemoryPoller`,
-    polls in a background thread and reports the absolute peak over the
-    block — pick that one when you need true peak or when the workload
-    may be killed mid-call. ResourceSampler is the cheaper choice for
-    steady-state timing.
-
-    The summary key shape (``vram_peak_mib`` / ``ram_peak_mib``) matches
-    :class:`MemoryPoller.summary` so both samplers are drop-in compatible
-    downstream (suite results, plots).
-
-    Args:
-        gpu_id:    GPU index to query (int or str). ``None`` → queries GPU 0.
-        interval:  Ignored (kept for API compatibility with MemoryPoller).
-        image_tag: Ignored (kept for API compatibility).
-    """
-
-    def __init__(
-        self,
-        gpu_id: int | str | None = None,
-        interval: float = 0.5,
-        image_tag: str | None = None,
-    ) -> None:
-        self.gpu_id = 0 if gpu_id is None else int(gpu_id)
-        self._baseline_vram_mib: float | None = None
-        self._final_vram_mib: float | None = None
-        self._ram_mib: float | None = None
-
-    def __enter__(self) -> Self:
-        self._baseline_vram_mib = sample_vram_mib(self.gpu_id)
-        return self
-
-    def __exit__(self, *_: object) -> None:
-        self._final_vram_mib = sample_vram_mib(self.gpu_id)
-        try:
-            import psutil
-
-            self._ram_mib = psutil.Process().memory_info().rss / 1e6
-        except Exception:
-            logger.debug("RSS sampling failed", exc_info=True)
-
-    @property
-    def summary(self) -> dict:
-        """Resource stats collected during the context.
-
-        Returns:
-            ``vram_peak_mib``: VRAM delta (final − baseline), whole-GPU,
-                or ``None`` if either snapshot failed.
-            ``ram_peak_mib``: harness-process RSS at exit, in MiB, or
-                ``None`` if psutil is unavailable.
-        """
-        if self._baseline_vram_mib is not None and self._final_vram_mib is not None:
-            vram = max(0.0, self._final_vram_mib - self._baseline_vram_mib)
-        else:
-            vram = None
-        return {"vram_peak_mib": vram, "ram_peak_mib": self._ram_mib}

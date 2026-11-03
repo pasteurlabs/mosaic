@@ -23,11 +23,13 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 - [ ] `mosaic run -p <domain> --suites forward -s <solver> --debug` completes
 - [ ] `mosaic status -p <domain> -f` output pasted below
 - [ ] Exclusions and explained anomalies documented (if any)
+- [ ] Intervention record (`abstraction`, `interventions`, `deviations`) in the `metadata.mosaic:` block, with markers around L2/L3 code
 
 ### For solver tuning
 
 - [ ] Before/after `mosaic status --format json` snapshots compared
 - [ ] No regressions to other solvers
+- [ ] Intervention record updated for every intervention added, changed or removed
 
 ## Benchmark label
 

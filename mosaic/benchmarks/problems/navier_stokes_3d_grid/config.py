@@ -94,9 +94,11 @@ _SOLVERS["exponax"].input_overrides = {
 
 # ── Shared run-lists ─────────────────────────────────────────────────────────
 
-_COST_BASE_PHYS = {"nu": 0.01, "dt": 0.01, "lbm_N_base": 16}
-_COST_N_VALUES = [16, 32, 48, 64]
-_COST_STEPS_VALUES = [10, 50, 100]
+_COST_BASE_PHYS = {"nu": 0.01, "dt": 0.01}
+# The largest sizes go past where solvers ran out of memory on 16 GB GPUs, so
+# that the memory limit can also show on an 80 GB GPU.
+_COST_N_VALUES = [16, 32, 48, 64, 96, 128]
+_COST_STEPS_VALUES = [10, 50, 100, 500, 1000, 2000]
 _COST_REF_N = 48
 _COST_REF_STEPS = 50
 _COST_TRIALS = {"n_trials": 3}
@@ -228,7 +230,6 @@ problem.add_experiment(
         "nu": [0.001, 0.01, 0.05],
         "dt": 0.01,
         "steps": 50,
-        "lbm_N_base": 16,
     },
     plot=plot_agreement,
 )
@@ -249,7 +250,6 @@ problem.add_experiment(
                 "nu": 0.05,
                 "dt": 0.01,
                 "steps": 20,
-                "lbm_N_base": 16,
             },
         },
         {
@@ -260,7 +260,6 @@ problem.add_experiment(
                 "dt": 0.01,
                 "steps": [5, 10, 20, 50],
                 "N": 16,
-                "lbm_N_base": 16,
             },
         },
         {
@@ -271,7 +270,6 @@ problem.add_experiment(
                 "dt": 0.01,
                 "steps": 20,
                 "N": 16,
-                "lbm_N_base": 16,
             },
         },
     ],
@@ -358,7 +356,7 @@ problem.add_experiment(
         "N": 20,
         "nu": 0.001,
         "dt": 0.05,
-        "steps": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240],
+        "steps": [40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920],
     },
     plot=plot_horizon_sweep_limits,
 )

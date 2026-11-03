@@ -38,7 +38,7 @@ class InputSchema(
         description="Density of the fluid", default=1.0
     )
     inner_steps: int = Field(
-        description="Solver sub-iterations per timestep (higher = more accurate pressure solve)",
+        description="Time steps of dt per output step, so a run advances steps * inner_steps * dt",
         default=1,
     )
 
@@ -62,22 +62,26 @@ def cfd_fwd(
     domain_extent: float,
     forcing: jnp.ndarray | None = None,
     linear_drag: float | None = None,
+    snapshot_every: int | None = None,
     state: jnp.ndarray | None = None,
+    return_state: bool = False,
     **_kwargs: Any,
-) -> tuple[jax.Array, jax.Array]:
+) -> dict[str, jax.Array]:
     """Compute the final velocity field of the incompressible Navier-Stokes equations.
 
     Supports 2D and 3D on a fully periodic domain, inferred from
-    v0.shape[-1]. The result has the same shape as v0.
+    v0.shape[-1]. ``result`` has the same shape as v0, and with
+    ``snapshot_every`` the rollout's states after every ``snapshot_every``
+    steps are also returned as ``snapshots``.
 
     ``forcing`` and ``linear_drag`` enter the explicit right-hand side that
-    every RK4 stage evaluates, the force averaged onto the faces like v0 and
-    the drag ``-linear_drag * u`` on the current face velocity.
+    every RK4 stage evaluates. The force is averaged onto the faces like v0,
+    and the drag ``-linear_drag * u`` acts on the current face velocity.
 
     Continuing from a native ``state`` (2-D), the run starts from its face
     velocities plus the change from its cell-centred velocity to ``v0``,
-    lifted onto the faces and projected. Returns the final cell-centred
-    velocity and the native state.
+    lifted onto the faces and projected. With ``return_state`` or ``state``,
+    the final native state is also returned as ``state``.
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if state is not None and ndim != 2:
@@ -130,9 +134,10 @@ def cfd_fwd(
     def interp_to_coloc(v_stag: Any, own_axis: int) -> Any:
         return 0.5 * (v_stag + jnp.roll(v_stag, 1, axis=own_axis))
 
+    # mosaic-intervention: summed-forcing
     def body_force(v: Any) -> tuple:
-        # jax-cfd's own sum_forcings calls jax.tree_map, which JAX 0.10
-        # removed, so the force and the drag are summed here.
+        # jax-cfd's own sum_forcings calls jax.tree_map, which JAX 0.10 no
+        # longer has, so the force and the drag are summed here.
         terms = []
         for i, u in enumerate(v):
             term = 0.0
@@ -142,6 +147,8 @@ def cfd_fwd(
                 term = term - linear_drag * u.data
             terms.append(cfd.grids.GridArray(term, u.offset, grid))
         return tuple(terms)
+
+    # mosaic-intervention-end: summed-forcing
 
     # --- NS step function ------------------------------------------------
     # The library's default (van Leer + forward Euler) uses a Lax-Wendroff
@@ -176,28 +183,33 @@ def cfd_fwd(
 
     rollout_fn = cfd.funcutils.trajectory(step_fn, steps)
     _, trajectory = rollout_fn(v_grid)
-    stag_components = [trajectory[i].array.data[-1] for i in range(ndim)]
 
-    # --- interpolate back to collocated grid ---
-    coloc_components = [
-        interp_to_coloc(stag_components[i], own_axis=i) for i in range(ndim)
-    ]
-    result = jnp.stack(coloc_components, axis=-1)
-    native = jnp.concatenate([jnp.stack(stag_components, axis=-1), result], axis=-1)
+    def to_coloc(frame: int | slice) -> jax.Array:
+        """Staggered trajectory frame(s) → collocated (..., *spatial, 1?, ndim)."""
+        components = [
+            interp_to_coloc(trajectory[i].array.data[frame], own_axis=i - ndim)
+            for i in range(ndim)
+        ]
+        v = jnp.stack(components, axis=-1)
+        if ndim == 2:
+            v = v[..., None, :]  # (..., nx, ny, 2) → (..., nx, ny, 1, 2)
+        return v
 
-    if ndim == 2:
-        result = result[:, :, None, :]  # (nx, ny, 2) → (nx, ny, 1, 2)
-        native = native[:, :, None, :]
-    return result, native
+    out = {"result": to_coloc(-1)}
+    if snapshot_every is not None:
+        out["snapshots"] = to_coloc(slice(snapshot_every - 1, None, snapshot_every))
+    if return_state or state is not None:
+        faces = jnp.stack([trajectory[i].array.data[-1] for i in range(ndim)], -1)
+        if ndim == 2:
+            faces = faces[:, :, None, :]
+        out["state"] = jnp.concatenate([faces, out["result"]], axis=-1)
+    return out
 
 
 @eqx.filter_jit
 def apply_jit(inputs: dict) -> dict:
     """JIT-compiled jax-cfd forward pass."""
-    result, native = cfd_fwd(**inputs)
-    if inputs.get("return_state") or inputs.get("state") is not None:
-        return {"result": result, "state": native}
-    return {"result": result}
+    return cfd_fwd(**inputs)
 
 
 def _unpack_scalars(d: dict) -> dict:
@@ -220,8 +232,9 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict:
     """Compute the vector-Jacobian product for jax-cfd via autodiff."""
+    # snapshots are not differentiable, so the VJP's rollout skips them.
     return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
+        _unpack_scalars(inputs.model_dump(exclude={"snapshot_every"})),
         tuple(vjp_inputs),
         tuple(vjp_outputs),
         cotangent_vector,
@@ -244,6 +257,9 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict:
         v0_shape = arr.shape
         v0_dtype = str(arr.dtype)
     out = {"result": {"shape": v0_shape, "dtype": v0_dtype}}
+    if raw["snapshot_every"] is not None:
+        frames = raw["steps"] // raw["snapshot_every"]
+        out["snapshots"] = {"shape": (frames, *v0_shape), "dtype": v0_dtype}
     if raw.get("return_state") or raw.get("state") is not None:
         state_shape = (*v0_shape[:-1], 2 * v0_shape[-1])
         out["state"] = {"shape": state_shape, "dtype": v0_dtype}

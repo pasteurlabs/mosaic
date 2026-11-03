@@ -50,6 +50,7 @@ from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_fre
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
     analytic_check,
+    analytic_param_check,
     fd_check,
     jacobian_svd,
     param_sweep,
@@ -72,7 +73,13 @@ from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
 from . import chain, cylinder, kolmogorov, sil, sil_status
 from .exclusions import register as _register_exclusions
-from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
+from .ics import (
+    _multimode,
+    _tgv,
+    _tgv_analytic,
+    _tgv_analytic_dJ_dnu,
+    _tgv_analytic_grad,
+)
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
 from .plots import plot_drag_opt, plot_kolmogorov, plot_kolmogorov_sil
@@ -115,7 +122,12 @@ problem = Problem(
         "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
         "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
         "exponentially sensitive to perturbations. This is the regime where "
-        "backprop-through-simulation is hardest."
+        "backprop-through-simulation is hardest.\n\n"
+        "The Kolmogorov-flow experiments add a steady body force "
+        "$\\mathbf{f} = (\\sin 4y, 0)$ and a linear drag $-\\alpha\\mathbf{u}$ "
+        "to the right-hand side. The force drives the flow, and the drag removes "
+        "the energy that piles up at the largest scales, so the turbulent flow "
+        "settles into a statistically steady state."
     ),
     bc_description=(
         "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
@@ -290,8 +302,8 @@ problem.add_experiment(
     ),
     ic={"name": "dfg_inflow", "seed": 0},
     # 40 cells per diameter is left out of the routine run because it is not
-    # scored and costs PhiFlow ~1000 s on an A100, past the per-call timeout on a
-    # T4.
+    # scored. At PhiFlow's earlier channel CG tolerance of 1e-5 (before #308) it
+    # cost PhiFlow ~1000 s on an A100, past the per-call timeout on a T4.
     # Checked locally, it gives Cd = 5.5791 (OpenFOAM), 5.647 (XLB) and
     # 5.471 (PhiFlow).
     physics={"resolution": [10, 20]},
@@ -332,8 +344,9 @@ problem.add_experiment(
     # A second-order scheme misses this mode by about (κh)²/12 in its
     # diffusion rate, 1.3% at N = 64, while a wrong 2π/L factor, a flipped
     # sign or a force half a cell off (a phase error of κh/2) cost 20% or
-    # more. 5% at N = 64 separates the two; the coarser grid only shows the
-    # order. Not peer-relative: the bound comes from the solution.
+    # more. A 5% bound at N = 64 separates the two, and min_order covers the
+    # rest of the sweep. Both bounds come from the exact solution, not from
+    # the peers.
     status_check=[max_error(0.05, at=64), min_order(0.8)],
 )
 problem.add_experiment(
@@ -345,7 +358,7 @@ problem.add_experiment(
         " ν = 2·10⁻³. Every grid runs at the CFL number of 64² with dt = 0.01"
         " and is scored on the 64² grid. Relative error at t = 4 against the"
         " wall time of one time unit, and relative error per time on each"
-        " grid; medians over the states."
+        " grid, as medians over the states."
     ),
     physics={
         "N": kolmogorov.COARSE_N,
@@ -357,9 +370,9 @@ problem.add_experiment(
     reference=kolmogorov.generate_ground_truth,
     plot=plot_kolmogorov,
     # Space and time are refined together, so a consistent scheme converges
-    # at order 1 or more, as on forward/baseline; 0.8 catches error floors and
-    # non-convergence. Not peer-relative: the bound comes from the scheme's
-    # consistency.
+    # at order 1 or more, as on forward/baseline. A bound of 0.8 catches error
+    # floors and non-convergence. It comes from the scheme's consistency, not
+    # from the peers.
     status_check=[kolmogorov.min_refinement_order(0.8)],
 )
 # Cost
@@ -446,10 +459,10 @@ problem.add_experiment(
     plot=plot_fd_check,
     # The finite differences run the solver in float32, so even an exact VJP
     # meets them only to the rounding and truncation error of the difference
-    # quotient: on the A100 the best ε gives median errors of order 1e-4 to
+    # quotient. On the A100, the best ε gives median errors of order 1e-4 to
     # 1e-3 for the solvers whose VJP is linear in the cotangent, with cosines
     # above 0.9999. A VJP whose adjoint solves stop at an absolute tolerance
-    # is off by tens of percent with a cosine near 0.5. Both bounds sit at
+    # is off by tens of percent, with a cosine near 0.5. Both bounds sit at
     # least a factor of five from either side.
     status_check=[
         min_cosine(0.99),
@@ -481,6 +494,25 @@ problem.add_experiment(
     # Provisional. In-process CPU runs at N=32 and nu = 0.01 gave errors of
     # 0.019 (jax-cfd, PhiFlow), 0.005 (Warp-NS) and 0.035 (XLB). INS.jl and
     # PICT have not been measured.
+    status_check=[median_k(3.0), max_error(0.1)],
+)
+problem.add_experiment(
+    "gradient/analytic_check_nu",
+    analytic_param_check,
+    plot_description=(
+        "Relative error of each solver's derivative of"
+        " $J = \\sum \\lvert\\mathbf{u}(T)\\rvert^2$ with respect to the viscosity"
+        " for the TGV, against the exact $dJ/d\\nu = -4T\\,J$ with"
+        " $J = e^{-4\\nu T} \\sum \\lvert\\mathbf{u}_0\\rvert^2$ on the grid."
+        " The error includes the forward discretization error."
+    ),
+    ic={"name": "tgv", "seed": 0},
+    physics={"N": 32, "dt": 0.05, "steps": 20, "nu": [0.001, 0.005, 0.01, 0.02, 0.05]},
+    wrt="viscosity",
+    reference=_tgv_analytic_dJ_dnu,
+    plot=plot_analytic_check,
+    # Provisional: the same thresholds as gradient/analytic_check, which this
+    # check has not been run against on every solver yet.
     status_check=[median_k(3.0), max_error(0.1)],
 )
 problem.add_experiment(

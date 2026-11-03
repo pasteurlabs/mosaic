@@ -138,19 +138,23 @@ def reference_exists(domain: str, exp_key: str) -> bool:
     return (_reference_dir(domain) / _reference_filename(exp_key)).exists()
 
 
-def extract_references_from_fields(
+def consensus_from_fields(
     fields_path: Path | str,
+    solver_names: list[str],
     n_sweep_values: int,
 ) -> dict[int, np.ndarray]:
-    """Extract consensus references from a fields.npz snapshot.
+    """Recompute the trimmed-mean consensus from a fields.npz's per-solver arrays.
 
-    The forward/agreement experiments store consensus references as
-    ``consensus_{i}`` arrays in ``fields.npz``. This function reads
-    them out, suitable for saving as a standalone reference NPZ.
+    The agreement aggregate writes each solver's output as ``{solver}_{i}``
+    and the reference it scored against as ``consensus_{i}``. The stored
+    consensus only covers the solvers of the run that last wrote it, which in
+    CI is a single job's subset; the per-solver arrays are merged across runs.
+    Averaging those gives the consensus of every solver's latest output.
 
-    Returns a dict mapping sweep index to the consensus array. Missing
-    indices are omitted.
+    Sweep indices with fewer than two solver arrays are omitted.
     """
+    from .utils import trimmed_mean
+
     fields_path = Path(fields_path)
     if not fields_path.exists():
         return {}
@@ -158,9 +162,13 @@ def extract_references_from_fields(
     try:
         with np.load(str(fields_path), allow_pickle=False) as data:
             for i in range(n_sweep_values):
-                key = f"consensus_{i}"
-                if key in data:
-                    refs[i] = np.asarray(data[key])
+                arrays = [
+                    np.asarray(data[f"{name}_{i}"])
+                    for name in solver_names
+                    if f"{name}_{i}" in data
+                ]
+                if len(arrays) >= 2:
+                    refs[i] = np.asarray(trimmed_mean(arrays))
     except Exception:
         log.warning("Failed to read fields from %s", fields_path, exc_info=True)
     return refs
@@ -182,7 +190,12 @@ PRECOMPUTED_EXPERIMENTS: dict[str, list[str]] = {
         "forward/baseline",
         "forward/agreement",
     ],
+    # The multimode initial condition has no closed form, so its agreement is
+    # scored against a consensus. forward/kolmogorov is scored against a
+    # converged run, see CONVERGED_REFERENCES. The Taylor–Green variant keeps
+    # its analytic solution.
     "ns-grid": [
+        "forward/agreement/multimode",
         "forward/kolmogorov",
     ],
     "structural-mesh": [
@@ -232,7 +245,7 @@ CONVERGED_REFERENCES: dict[tuple[str, str], ConvergedSpec] = {
     ("ns-3d-grid", "forward/agreement"): ConvergedSpec(solver="Exponax", high_n=64),
     # 3D resolution sweep: one high-resolution run per grid, truncated to it.
     ("ns-3d-grid", "forward/baseline"): ConvergedSpec(solver="Exponax", high_n=64),
-    # Kolmogorov flow: burned-in states and a turbulent trajectory at N=1024,
+    # Kolmogorov flow: burned-in states and turbulent trajectories at N=1024,
     # converged against N=512 (see the ns-grid references README).
     ("ns-grid", "forward/kolmogorov"): ConvergedSpec(solver="Exponax", high_n=1024),
 }
