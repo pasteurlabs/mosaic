@@ -1,0 +1,80 @@
+% ============================================================
+%  Mosaic — preprint, styled via pasteurlabs.sty.
+%  Shares abstract.tex, body.tex and appendix.tex with neurips.tex.
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{pasteurlabs}
+
+\bibliographystyle{abbrvnat}
+
+% Extras used by the body that pasteurlabs.sty does not load.
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{multirow}
+\usepackage[capitalize,noabbrev]{cleveref}
+\usepackage{orcidlink}
+
+% Shared sources branch on \ifpreprint for venue-specific content.
+\newif\ifpreprint
+\preprinttrue
+
+% Float placement: discourage float-only pages, allow more text+float
+% co-placement so appendix figures stop creating mostly-blank pages.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.85}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\makeatletter
+\def\fps@figure{!htbp}
+\def\fps@table{!htbp}
+\makeatother
+
+% ── TITLE-PAGE METADATA ─────────────────────────────────────
+\title{Mosaic: A Benchmark Suite for Differentiable Physics Solvers}
+
+\author{Andrin Rehmann\,\orcidlink{0009-0001-6002-5096},\;
+        Heiko Zimmermann\,\orcidlink{0000-0001-9190-4328},\;
+        Dion Häfner\,\orcidlink{0000-0002-4465-7317}}
+
+\date{05-2026}
+
+\organization{\includegraphics[height=26pt]{figures/pl-labs}}
+
+\affiliation{Pasteur Labs, Brooklyn, NY, USA}
+
+\correspondence{dion.haefner@simulation.science}
+
+\shorttitle{Mosaic: A Benchmark Suite for Differentiable Physics Solvers --- Rehmann et al., 2026}
+
+
+% ============================================================
+\begin{document}
+% ============================================================
+
+\maketitle
+
+% ===========================================================================
+\begin{plabstract}
+\input{abstract}
+\end{plabstract}
+
+\input{body}
+
+% ===========================================================================
+
+% ── REFERENCES ──────────────────────────────────────────────
+\PLrefheading
+\bibliography{refs}
+
+\clearpage
+
+% ===========================================================================
+\appendix
+
+\input{appendix}
+
+\end{document}

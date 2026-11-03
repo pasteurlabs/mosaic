@@ -142,3 +142,4 @@ docstring-code-format = true
 "tests/**" = ["D", "ANN"]
 "docs/**" = ["D", "ANN"]
 ".github/**" = ["D", "ANN"]
+"paper/**" = ["D", "ANN", "RUF005"]  # RUF005 fix breaks numpy array arithmetic

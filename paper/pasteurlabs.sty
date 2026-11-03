@@ -1,0 +1,300 @@
+% ============================================================
+%  pasteurlabs.sty
+%  Pasteur Labs research paper style — arXiv-compatible
+%
+%  USAGE
+%    \documentclass[11pt,a4paper]{article}
+%    \usepackage{pasteurlabs}
+%
+%  FONT STACK (all available in TeX Live / arXiv)
+%    Body:    Linux Libertine        (\rmfamily)
+%    Heads:   Source Sans Pro        (\sffamily, scaled=0.92, SemiBold)
+%    Math:    newtxmath libertine
+%    Mono:    Inconsolata            (scaled=0.90)
+%
+%  TITLE PAGE
+%    Standard LaTeX macros; call \maketitle as normal.
+%
+%    \title{Full paper title}
+%    \author{Name One\textsuperscript{1}, Name Two\textsuperscript{2}}
+%    \date{May 2026}               % omit for \today
+%    \organization{Pasteur Labs}   % default; accepts \includegraphics
+%    \affiliation{%                % full affiliation block
+%      \textsuperscript{1}Pasteur Labs\quad\textsuperscript{2}Cornell}
+%    \correspondence{email@example.com}  % optional; auto-formats line
+%
+%    \maketitle
+%
+%  OTHER KEY COMMANDS
+%    \shorttitle{Short title --- Pasteur Labs, 20XX}
+%    \sysname{SystemName}       — small-caps roman for model names
+%    \blfootnote{text}          — unnumbered footnote
+%    \begin{plabstract}…\end{plabstract}
+%    \tablefont / \theadfont    — 9.5pt sf table body / header
+%    \argmin / \argmax          — math operators
+%    \PLrefheading              — ruled References heading;
+%                                 call immediately before \bibliography{}
+%
+%  BIBLIOGRAPHY
+%    Loads natbib (numbers, sort&compress).
+%    Set \bibliographystyle{} in your document (plainnat suggested).
+%
+%  COMPILATION
+%    latexmk -pdf main.tex
+%    — or — pdflatex → bibtex → pdflatex → pdflatex
+% ============================================================
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{pasteurlabs}[2026/05/01 v1.0 Pasteur Labs research paper style]
+
+
+% ── ENCODING & LANGUAGE ─────────────────────────────────────
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[english]{babel}
+
+
+% ── FONTS ───────────────────────────────────────────────────
+\RequirePackage{libertine}
+\RequirePackage{amsmath,amssymb,amsthm}
+\RequirePackage[libertine,cmbraces]{newtxmath}
+\RequirePackage[scaled=0.92]{sourcesanspro}
+\RequirePackage[scaled=0.90]{inconsolata}
+\RequirePackage{microtype}
+
+
+% ── PAGE GEOMETRY ───────────────────────────────────────────
+\RequirePackage[a4paper,
+  top=2.8cm, bottom=3.2cm, left=3.2cm, right=3.2cm,
+  headheight=14pt, headsep=14pt]{geometry}
+
+
+% ── PARAGRAPH SPACING ───────────────────────────────────────
+\RequirePackage{parskip}
+\setlength{\parskip}{5pt plus 1pt}
+\setlength{\parindent}{0pt}
+
+
+% ── COLORS ──────────────────────────────────────────────────
+\RequirePackage[dvipsnames,svgnames]{xcolor}
+\definecolor{plgray}{HTML}{666666}
+\definecolor{plrulegray}{HTML}{DDDDDD}
+
+
+% ── RUNNING HEADER ──────────────────────────────────────────
+\RequirePackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{%
+  \fontsize{9.5pt}{11pt}\selectfont\sffamily\color{plgray}\PLrunningtitle}
+\fancyhead[R]{%
+  \fontsize{9.5pt}{11pt}\selectfont\sffamily\color{plgray}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% \shorttitle{Running title — Org, Year}
+\newcommand{\PLrunningtitle}{}
+\newcommand{\shorttitle}[1]{\renewcommand{\PLrunningtitle}{#1}}
+
+
+% ── SECTION HEADINGS ────────────────────────────────────────
+\RequirePackage{titlesec}
+\titleformat{\section}{}{}{0pt}{%
+  \fontsize{13pt}{15.6pt}\selectfont\sffamily\mdseries
+  \thesection.\enspace\fontseries{sb}\selectfont}
+\titleformat{\subsection}
+  {\fontsize{11pt}{13.2pt}\selectfont\sffamily\fontseries{sb}\selectfont}
+  {\thesubsection}{0.55em}{}
+\titleformat{\subsubsection}
+  {\fontsize{11pt}{13.2pt}\selectfont\sffamily\fontseries{sb}\selectfont\itshape}
+  {\thesubsubsection}{0.55em}{}
+\titleformat{\paragraph}[runin]
+  {\fontsize{11pt}{13.2pt}\selectfont\sffamily\fontseries{sb}\selectfont}
+  {}{0em}{}[.\enspace]
+\titlespacing*{\section}      {0pt}{2.4ex plus .4ex}{0.8ex}
+\titlespacing*{\subsection}   {0pt}{1.8ex plus .3ex}{0.4ex}
+\titlespacing*{\subsubsection}{0pt}{1.4ex plus .2ex}{0.3ex}
+\titlespacing*{\paragraph}    {0pt}{0.8ex plus .2ex}{0pt}
+
+
+% ── ABSTRACT ENVIRONMENT ────────────────────────────────────
+\RequirePackage{environ}
+\NewEnviron{plabstract}{%
+  \nopagebreak[4]%
+  \vspace{10pt}\noindent\rule{\linewidth}{0.4pt}\vspace{8pt}%
+  \par\noindent
+  {\fontsize{11pt}{13.2pt}\selectfont\sffamily\fontseries{sb}\selectfont
+   Abstract\quad}%
+  {\fontsize{10.5pt}{13pt}\selectfont\rmfamily\BODY}%
+  \vspace{8pt}\par\noindent\rule{\linewidth}{0.4pt}\vspace{10pt}%
+}
+
+
+% ── CAPTIONS ────────────────────────────────────────────────
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\DeclareCaptionFont{capnine}{\fontsize{9.5pt}{11.5pt}\selectfont}
+\DeclareCaptionFont{capninesb}{%
+  \fontsize{9.5pt}{11.5pt}\selectfont\fontseries{sb}\selectfont}
+\DeclareCaptionLabelSeparator{pipe}{ \textbar\ }
+\captionsetup{font={capnine,sf}, labelfont={capninesb,sf},
+              labelsep=pipe, justification=justified,
+              singlelinecheck=false}
+\captionsetup[algorithm]{font={capnine,sf}, labelfont={capninesb,sf},
+              labelsep=pipe}
+\captionsetup[subfigure]{justification=justified, singlelinecheck=true}
+
+
+
+% ── TABLES ──────────────────────────────────────────────────
+\RequirePackage{booktabs,tabularx,array}
+\renewcommand{\arraystretch}{1.3}
+\newcommand{\tablefont}{%
+  \fontsize{9.5pt}{11.5pt}\selectfont\sffamily}
+\newcommand{\theadfont}{%
+  \fontsize{9.5pt}{11.5pt}\selectfont\sffamily\fontseries{sb}\selectfont}
+
+
+% ── FIGURES ─────────────────────────────────────────────────
+\RequirePackage{graphicx}
+\RequirePackage{float}
+\graphicspath{{./figures/}}
+
+
+% ── THEOREM ENVIRONMENTS ────────────────────────────────────
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+
+% ── ALGORITHMS ──────────────────────────────────────────────
+\RequirePackage{algorithm}
+\RequirePackage{algpseudocode}
+
+
+% ── BIBLIOGRAPHY ────────────────────────────────────────────
+% natbib with numeric compressed citations.
+% Set \bibliographystyle{plainnat} (or your choice) in the document.
+\RequirePackage[numbers,sort&compress]{natbib}
+\renewcommand{\bibsection}{}   % heading added manually via \PLrefheading
+\renewcommand{\bibfont}{%
+  \fontsize{9.5pt}{12pt}\selectfont\rmfamily}
+
+
+% ── HYPERLINKS (loaded last per hyperref convention) ─────────
+\RequirePackage[colorlinks=true,
+  linkcolor=black, citecolor=black,
+  urlcolor=black, bookmarksnumbered=true]{hyperref}
+\RequirePackage{url}
+\urlstyle{tt}
+
+
+% ── LISTS ───────────────────────────────────────────────────
+\RequirePackage{enumitem}
+\setlist{itemsep=2pt, topsep=4pt, parsep=0pt}
+
+
+% ── CUSTOM COMMANDS ─────────────────────────────────────────
+
+% \sysname{Name} — small-caps roman for system/model names
+\newcommand{\sysname}[1]{{\rmfamily\textsc{#1}}}
+
+% \blfootnote{text} — unnumbered footnote (e.g. equal contribution)
+\newcommand{\blfootnote}[1]{%
+  \begingroup
+    \renewcommand\thefootnote{}\footnote{#1}%
+    \addtocounter{footnote}{-1}%
+  \endgroup}
+
+% ── TITLE PAGE ──────────────────────────────────────────────
+%
+% Storage macros (all prefixed \@PL to avoid collisions).
+% Defaults:
+%   \organization → "Pasteur Labs"
+%   \date         → \today  (set via standard \date{Month Year})
+%   \affiliation  → empty
+%   \correspondence → empty (suppressed when empty)
+
+\def\@PLorg{Pasteur Labs}
+\def\@PLaffil{}
+\def\@PLcorr{}
+
+% \organization{text-or-\includegraphics} — org name / logo top-left
+\newcommand{\organization}[1]{\def\@PLorg{#1}}
+
+% \affiliation{block} — affiliation lines, may use \textsuperscript
+\newcommand{\affiliation}[1]{\def\@PLaffil{#1}}
+
+% \correspondence{email} — typesets "Correspondence: <email>" line
+\newcommand{\correspondence}[1]{\def\@PLcorr{#1}}
+
+% Redefine \maketitle to produce the Pasteur Labs branded title page.
+% hyperref wraps this at \AtBeginDocument and extracts PDF metadata
+% from \@title / \@author automatically; no extra setup needed.
+\renewcommand{\maketitle}{%
+  \thispagestyle{empty}%
+  % Suppress parskip inside the title block so spacings are exact
+  % and the block height stays predictable.
+  \begingroup
+    \setlength{\parskip}{0pt}%
+    \setlength{\parindent}{0pt}%
+    %
+    % Header row: org/logo flush-left, date flush-right.
+    % \makebox[\linewidth] guarantees we stay in a single measured
+    % horizontal box, then \par ends it cleanly in vertical mode.
+    \noindent\makebox[\linewidth][l]{%
+      {\fontsize{13pt}{15.6pt}\selectfont\sffamily\fontseries{sb}\selectfont
+       \@PLorg}\hfill
+      {\fontsize{10pt}{12pt}\selectfont\sffamily\color{plgray}\@date}%
+    }\par\vskip 6pt%
+    %
+    % Full-width separator rule.  \hrule in vertical mode spans \hsize
+    % reliably without any h-mode ambiguity.
+    \hrule height 0.8pt\vskip 16pt%
+    %
+    % Title (24 pt SemiBold SSP; \\ line-breaks work inside \@title).
+    \noindent
+    {\fontsize{24pt}{28.8pt}\selectfont\sffamily\fontseries{sb}\selectfont
+     \raggedright\hyphenpenalty=10000\exhyphenpenalty=10000\@title\par}%
+    \vskip 14pt%
+    %
+    % Authors — regular weight roman to avoid Libertine small-caps
+    % artefacts ("KumaR", "BjoRgaaRd") while keeping the serif contrast
+    % with the sans-serif title.
+    \noindent
+    {\fontsize{11pt}{14pt}\selectfont\rmfamily\mdseries
+     \hyphenpenalty=10000\exhyphenpenalty=10000\@author\par}%
+    \vskip 5pt%
+    %
+    % Affiliations and correspondence.
+    \noindent
+    {\fontsize{10pt}{13pt}\selectfont\sffamily\color{plgray}%
+     \@PLaffil
+     \ifx\@PLcorr\@empty\else
+       \\[2pt]Correspondence:
+       \href{mailto:\@PLcorr}{\texttt{\@PLcorr}}%
+     \fi\par}%
+  \endgroup
+  % Prevent a page break between the title block and the abstract.
+  \nopagebreak[4]%
+}
+
+% ── REFERENCES HEADING HELPER ────────────────────────────────
+% \PLrefheading — inserts the ruled References heading used in the
+% template. Call immediately before \bibliography{}.
+\newcommand{\PLrefheading}{%
+  \par\vspace{14pt}%
+  % \hrule stays in vertical mode; \color needs a tiny group to scope it.
+  \begingroup\color{plrulegray}\hrule height 0.5pt\endgroup%
+  \par\vspace{4pt}%
+  \phantomsection%
+  \addcontentsline{toc}{section}{References}%
+  \noindent{\fontsize{13pt}{15.6pt}\selectfont\sffamily\fontseries{sb}\selectfont
+   References}\par\vspace{0.6ex}%
+}

@@ -1,0 +1,77 @@
+\documentclass{article}
+
+\PassOptionsToPackage{numbers, compress}{natbib}
+% NeurIPS 2026 Evaluations & Datasets Track, camera-ready
+\usepackage[eandd, final]{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{amssymb}
+\usepackage[capitalize,noabbrev]{cleveref}
+\usepackage{tabularx}
+
+% Shared sources branch on \ifpreprint for venue-specific content.
+\newif\ifpreprint
+\preprintfalse
+
+\makeatletter
+% NeurIPS run-in paragraph titles end with a period.
+\let\mosaic@paragraph\paragraph
+\renewcommand{\paragraph}[1]{\mosaic@paragraph{#1.}}
+% Placement of floats without an explicit specifier.
+\def\fps@figure{ht}
+\def\fps@table{t}
+\makeatother
+
+% ---------------------------------------------------------------------------
+\title{Mosaic: A Benchmark Suite for Differentiable Physics Solvers}
+
+\author{%
+  Andrin Rehmann \qquad Heiko Zimmermann \qquad Dion H\"afner \\
+  Pasteur Labs, Brooklyn, NY, USA \\
+  \texttt{dion.haefner@simulation.science}
+}
+
+\begin{document}
+\maketitle
+
+% ===========================================================================
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\input{body}
+
+% ===========================================================================
+
+\clearpage
+
+{\small
+\bibliographystyle{abbrvnat}
+\bibliography{refs}
+}
+
+\clearpage
+
+% ===========================================================================
+\appendix
+
+\input{appendix}
+
+% ===========================================================================
+\newpage
+\input{checklist}
+
+\end{document}
