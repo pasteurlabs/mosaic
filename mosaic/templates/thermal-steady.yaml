@@ -2,7 +2,7 @@
 # optimisation).
 #
 # Based on the thermal-mesh domain. Extend to new geometries by modifying the
-# mesh, boundary conditions, and objective in the generated physics.py.
+# mesh, boundary conditions, and objective in the generated config.py.
 
 name: thermal-steady
 description: >

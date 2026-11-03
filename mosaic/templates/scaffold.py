@@ -221,7 +221,7 @@ def scaffold_domain(
     created: dict[str, Path] = {}
 
     # 1. Schema stubs under ``mosaic_shared/problems/<slug>``.
-    schema_dir = target_dir / "tesseracts" / "mosaic_shared" / "problems" / slug
+    schema_dir = target_dir / "mosaic_shared" / "problems" / slug
     schema_dir.mkdir(parents=True, exist_ok=True)
 
     schema_init = schema_dir / "__init__.py"
@@ -241,7 +241,7 @@ def scaffold_domain(
         f"from pydantic import BaseModel\n\n\n"
         f"# TODO: declare your domain's canonical fields here. Every solver\n"
         f"# subclasses these so cross-solver comparison is well-defined. See\n"
-        f"# docs/tutorial.qmd Part B §4 for the Array / Differentiable typing.\n"
+        f"# docs/add-domain.qmd for the Array / Differentiable typing.\n"
         f"class InputSchema(BaseModel):\n"
         f'    """Inputs for {domain_name} solvers."""\n\n'
         f"    pass\n\n\n"

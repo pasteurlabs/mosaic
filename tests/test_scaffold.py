@@ -130,6 +130,10 @@ def test_scaffold_creates_files(tmp_path):
 
     assert created["schemas"].exists()
     assert created["schema_init"].exists()
+    # Solvers import the stubs from mosaic.mosaic_shared, so they must land there.
+    assert created["schemas"] == (
+        target / "mosaic_shared" / "problems" / "test_domain" / "schemas.py"
+    )
     assert created["tesseracts_dir"].is_dir()
     assert created["problem_config"].exists()
 
