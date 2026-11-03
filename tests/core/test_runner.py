@@ -830,6 +830,118 @@ def test_tracked_tesseract_tracks_the_served_container_by_name(monkeypatch):
     assert "tesseract-abc123" not in runner._live_containers
 
 
+# ── Dead containers ───────────────────────────────────────────────────────────
+
+
+class _StoppedContainer:
+    """A container as ``docker inspect`` reports it after it stopped."""
+
+    def __init__(self, name: str, state: dict | None, *, running: bool = False):
+        self.name = name
+        self.attrs = {"State": state or {}}
+        self._running = running
+
+    def wait(self, timeout=None):
+        if self._running:
+            raise TimeoutError
+        return {"StatusCode": self.attrs["State"].get("ExitCode")}
+
+    def reload(self):
+        pass
+
+
+class _ServedTesseract:
+    """Serves a new ``_StoppedContainer`` each time, like ``Tesseract.serve``."""
+
+    def __init__(self, state: dict | None = None, logs: str = "", running=False):
+        self._state, self._logs, self._running = state, logs, running
+        self.served = 0
+        self._container = None
+        self.serve()
+
+    def serve(self):
+        self.served += 1
+        self._container = _StoppedContainer(
+            f"tesseract-{self.served}", self._state, running=self._running
+        )
+
+    def teardown(self):
+        self._container = None
+
+    def container_info(self):
+        if self._container is None:
+            raise RuntimeError("not served")
+        return self._container
+
+    def server_logs(self):
+        return self._logs
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._container = None
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ({"ExitCode": 1}, "container exited with code 1"),
+        ({"ExitCode": 134}, "container exited with code 134 (SIGABRT)"),
+        ({"ExitCode": 139}, "container exited with code 139 (SIGSEGV)"),
+        (
+            {"ExitCode": 137, "OOMKilled": True},
+            (
+                "container exited with code 137 (SIGKILL), "
+                "killed by Docker for exceeding its memory limit"
+            ),
+        ),
+        (
+            {"ExitCode": 255, "Error": "no such device"},
+            "container exited with code 255; Docker reported: no such device",
+        ),
+    ],
+)
+def test_describe_exit(state, expected):
+    assert runner._describe_exit(state) == expected
+
+
+def test_death_report_has_the_exit_and_the_end_of_the_log():
+    logs = "\n".join(f"line {i}" for i in range(100))
+    t = _ServedTesseract({"ExitCode": 134}, logs)
+    report = runner.container_death_report(t)
+    assert report["container_exit"] == "container exited with code 134 (SIGABRT)"
+    log_lines = report["container_log"].splitlines()
+    assert len(log_lines) == runner._CONTAINER_LOG_TAIL_LINES
+    assert log_lines[-1] == "line 99"
+
+
+def test_death_report_says_when_the_container_is_still_running(monkeypatch):
+    monkeypatch.setattr(runner, "_CONTAINER_EXIT_WAIT_S", 0.0)
+    report = runner.container_death_report(_ServedTesseract(logs="x", running=True))
+    assert report["container_exit"].startswith("container still running")
+
+
+def test_death_report_is_none_without_a_container():
+    class InProcess:
+        def container_info(self):
+            raise RuntimeError("only available with from_image")
+
+    assert runner.container_death_report(InProcess()) is None
+
+
+def test_restarted_container_is_tracked_and_removed_on_exit(monkeypatch):
+    t = _ServedTesseract({"ExitCode": 137})
+    monkeypatch.setattr(runner.Tesseract, "from_image", lambda *a, **k: t)
+    with runner._tracked_tesseract("solver:latest", None, None):
+        assert "tesseract-1" in runner._live_containers
+        runner.restart_container(t)
+        assert t.served == 2
+        assert "tesseract-1" not in runner._live_containers
+        assert "tesseract-2" in runner._live_containers
+    assert "tesseract-2" not in runner._live_containers
+
+
 # ── Serial runs: which GPU's memory is sampled ────────────────────────────────
 
 

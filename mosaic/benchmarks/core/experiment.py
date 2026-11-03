@@ -70,7 +70,12 @@ from mosaic.benchmarks.core.partial import (
     write_partial,
     write_partial_snapshots,
 )
-from mosaic.benchmarks.core.runner import current_worker_context, per_solver_loop
+from mosaic.benchmarks.core.runner import (
+    container_death_report,
+    current_worker_context,
+    per_solver_loop,
+    restart_container,
+)
 from mosaic.benchmarks.core.utils import (
     active_differentiable_solvers,
     iter_runs,
@@ -144,6 +149,8 @@ def _emit_sweep_failure(
             f"expected at large sizes[/]"
         )
         return
+    # For a dead container, print how it exited instead of the dropped connection.
+    short = metrics.get("container_exit") or short
     console_.print(
         f"  [{color}]{name}[/] [red]FAIL[/] {label} ({failure_type})"
         + (f": {short}" if short else "")
@@ -153,6 +160,22 @@ def _emit_sweep_failure(
         f"{name} failed at {label} ({failure_type})" + (f": {short}" if short else ""),
         title=f"Benchmark solver failure: {name}",
     )
+
+
+def _record_container_death(t: Any, metrics: dict) -> None:
+    """Add how ``t``'s container stopped to a ``container_died`` failure record."""
+    try:
+        report = container_death_report(t)
+    except Exception as exc:
+        report = {
+            "container_exit": f"could not inspect the container: "
+            f"{type(exc).__name__}: {exc}"
+        }
+    if report is None:
+        return
+    if "container_log" in report:
+        report["container_log"] = _truncate_error(report["container_log"])
+    metrics.update(report)
 
 
 def _flatten_by_solver(by_solver: dict, sweep_key: str | None) -> list[dict]:
@@ -529,6 +552,8 @@ def run_experiment(
             for k, v in poller.summary.items():
                 if v is not None:
                     metrics.setdefault(k, v)
+            if metrics.get("failure_type") == "container_died":
+                _record_container_death(t, metrics)
             return out
 
         # Partial-result checkpointing: after each solver finishes its
@@ -595,6 +620,7 @@ def run_experiment(
             if sweep_mode == "default":
                 color = cfg.solver(name).color
                 stopped_at: int | None = None
+                skip_reason = ""
                 for idx, val in enumerate(_sweep_values):
                     out = _call_with_sampler(name, t, val)
                     metrics = out.get("metrics", {})
@@ -623,16 +649,33 @@ def run_experiment(
                         )
                     if stop_reason is not None and stop_reason != "error":
                         stopped_at = idx
+                        skip_reason = (
+                            f"skipped after sweep stopped at {_sweep_key}={val}"
+                        )
                         break
+                    # Serve a new container so the remaining values run.
+                    if metrics.get(
+                        "failure_type"
+                    ) == "container_died" and idx + 1 < len(_sweep_values):
+                        try:
+                            restart_container(t)
+                        except Exception as rex:
+                            stopped_at = idx
+                            skip_reason = (
+                                f"skipped: container could not be restarted after "
+                                f"{_sweep_key}={val} ({type(rex).__name__}: {rex})"
+                            )
+                            console.print(f"  [{color}]{name}[/] [red]{skip_reason}[/]")
+                            break
+                        console.print(
+                            f"  [{color}]{name}[/] container restarted after "
+                            f"{_sweep_key}={val}"
+                        )
                 if stopped_at is not None:
                     # Distinct, visible "skipped" state — NOT ``None``/``{}``,
                     # which is indistinguishable from "never selected". The
                     # status classifier treats it as a benign "didn't run" and
                     # the cost plots draw it as a gap rather than a data point.
-                    skip_reason = (
-                        f"skipped after sweep stopped at "
-                        f"{_sweep_key}={_sweep_values[stopped_at]}"
-                    )
                     for remaining in _sweep_values[stopped_at + 1 :]:
                         solver_results[remaining] = {
                             "status": "skipped",
@@ -699,6 +742,10 @@ def run_experiment(
                         "wall_time_s": step_wall,
                         **mem,
                     }
+                    # Every later value is skipped, so the container is not
+                    # restarted here.
+                    if failure_type == "container_died":
+                        _record_container_death(t, solver_results[val])
                     fail_reason = (
                         f"first failure at {_sweep_key}={val} ({failure_type})"
                     )

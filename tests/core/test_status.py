@@ -438,6 +438,28 @@ class TestClassifyFromV1(unittest.TestCase):
         self.assertEqual(cell.status, FAILED)
         self.assertEqual(cell.reason, "nan: VJP is NaN")
 
+    def test_dead_container_leads_with_its_exit(self) -> None:
+        fail = {
+            "status": "failed",
+            "failure_type": "container_died",
+            "exc_type": "ConnectionError",
+            "exc_msg": "('Connection aborted.', RemoteDisconnected())",
+            "container_exit": "container exited with code 134 (SIGABRT)",
+            "container_log": "terminate called after throwing an instance of ...",
+        }
+        cell = self._classify([self.OK_M, fail])
+        self.assertEqual(cell.status, FAILED)
+        lines = cell.reason.splitlines()
+        self.assertEqual(
+            lines[0], "container_died: container exited with code 134 (SIGABRT)"
+        )
+        self.assertEqual(
+            lines[1], "ConnectionError: ('Connection aborted.', RemoteDisconnected())"
+        )
+        self.assertEqual(
+            lines[-1], "terminate called after throwing an instance of ..."
+        )
+
     @staticmethod
     def _OOM() -> dict:
         return dict(_OOM_METRICS)
