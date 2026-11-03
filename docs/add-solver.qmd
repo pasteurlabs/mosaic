@@ -1,0 +1,475 @@
+---
+title: Add a solver
+---
+
+A solver wraps one library as a Tesseract under the directory of an existing domain. Once its directory is in place, the harness discovers it and runs it against every experiment of the problems that use that domain. This page walks through every step, from the directory layout to the pull request. To add a new family of solvers with its own canonical schema, see [Add a domain](add-domain.qmd).
+
+The running example adds a solver called `my-spectral-solver` to the `navier-stokes-grid` domain. Its physics is deliberately minimal. It only applies viscous decay in Fourier space, which takes one line and keeps the focus on how a solver plugs into Mosaic.
+
+You need a development install of Mosaic (see [Setup](contributing.qmd#setup), which links the [install steps](getting-started.qmd#install)) and a running Docker daemon. An NVIDIA GPU is only needed if your solver runs on one.
+
+## How Mosaic builds on Tesseract
+
+Every Mosaic solver is a plain Tesseract. The container build, the HTTP API, schema validation and the `tesseract` command-line tool come unchanged from [tesseract-core](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/). Mosaic adds a thin layer of conventions on top, so that solvers can be compared on the same experiments:
+
+- a `metadata.mosaic` block in `tesseract_config.yaml`, which the harness reads to discover the solver and which carries its intervention record;
+- canonical `InputSchema` and `OutputSchema` classes per domain, in `mosaic_shared.problems.<domain>`, which every solver in the domain subclasses;
+- per-problem settings such as exclusions and input overrides, in the problem packages under `mosaic/benchmarks/problems/`;
+- plot styling in `mosaic/benchmarks/problems/shared/plots/solver_styles.py`.
+
+## 1. Create the solver directory
+
+Each solver lives in its own subdirectory of the domain's directory under `mosaic/tesseracts/`, with three files:
+
+```
+mosaic/tesseracts/navier-stokes-grid/my-spectral-solver/
+  tesseract_config.yaml       # build configuration and Mosaic metadata
+  tesseract_api.py            # schemas and endpoints (apply, abstract_eval, VJP)
+  tesseract_requirements.txt  # Python dependencies
+```
+
+There is no registration step in Python. The harness scans the domain directory for `tesseract_config.yaml` files with a `metadata.mosaic` block.
+
+::: {.callout-tip}
+`tesseract init --recipe jax` (or `--recipe pytorch`) generates a starter `tesseract_api.py`, including VJP boilerplate, that you can edit in place. See [Initialize a new Tesseract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html).
+:::
+
+## 2. Write `tesseract_config.yaml`
+
+```yaml
+name: my_spectral_solver_navier_stokes_grid
+version: "0.1.0"
+description: >
+  Pseudo-spectral viscous-diffusion solver for 2D incompressible Navier–Stokes
+  on a periodic domain, backed by JAX FFTs.
+  Gradients via JAX source-transformation AD through the spectral update.
+
+build_config:
+  package_data: []
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
+
+metadata:
+  mosaic:
+    name: "My Spectral"
+    backend: jax
+    family: spectral
+    scheme: "Pseudo-spectral viscous step (periodic)"
+    discretization: Spectral
+    numerics: "Exponential diffusion"
+    ad_strategy: autodiff
+    differentiable: true
+    uses_gpu: true
+    internal_dtype: float32
+    doc_url: "https://github.com/yourname/my-spectral-solver"
+```
+
+The top-level keys (`name`, `version`, `description`, `build_config`, `env`) belong to tesseract-core and are documented in [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) repository has more worked configurations. Mosaic adds two conventions. `name` becomes the Docker image name and follows the pattern `<solver>_<domain>`, with underscores. `description` is also the solver's summary in the [solver reference](solvers.qmd), so keep it to one or two sentences on the method and how gradients are computed.
+
+### The `metadata.mosaic` block
+
+tesseract-core ignores this block, since it sits under the free-form `metadata` key. Mosaic's `discover_solvers()` reads it to build the solver's `SolverSpec`.
+
+| Field | Purpose |
+|:------|:--------|
+| `name` | Display name in plots and tables, and the name `-s` selects. |
+| `backend` | Runtime or AD framework, e.g. `jax`, `pytorch`, `julia`, `cpp`, `warp`, `fenics`, `firedrake`. |
+| `family` | Solver family, e.g. `projection`, `lbm`, `spectral`, `fd`, `fem`. |
+| `scheme` | Short label for the numerical scheme. |
+| `discretization` | `FD`, `FV`, `FE`, `LBM` or `Spectral`. |
+| `numerics` | Short description of the numerics, e.g. `"Projection, semi-implicit"` or `"Direct (UMFPACK)"`. |
+| `ad_strategy` | How gradients are computed: `autodiff`, `adjoint`, `hybrid` or `null`. |
+| `differentiable` | Whether the solver implements `vector_jacobian_product`. |
+| `uses_gpu` | `true` if the solver runs on a GPU, `false` for CPU only. |
+| `internal_dtype` | Precision used internally, `float32` or `float64`. |
+| `doc_url` | Link to the upstream documentation or repository. |
+
+Discovery only needs `name`. CI also requires `backend`, and `mosaic validate-domain` checks that every solver has a `backend` and a `scheme`, so set all three.
+
+[]{#gpu-memory-settings} **GPU memory settings.** Every JAX solver that runs on a GPU sets `XLA_PYTHON_CLIENT_PREALLOCATE: "false"` and `XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"` in its `env`, and CI rejects one that doesn't. By default, XLA reserves 75% of the device when it starts. The measured peak memory would then be that reservation instead of what the solver uses, and the solver would run out of memory at 75% of the device. Torch, Julia and Warp solvers have no such cap. The settings are part of how Mosaic measures and apply equally to every JAX solver, so they are not interventions.
+
+### The intervention record
+
+Almost any solver passes a benchmark if someone works around its problems hard enough, so the effort it took is part of the result. The same `metadata.mosaic` block records it in three keys:
+
+| Field | Purpose |
+|:------|:--------|
+| `abstraction` | What counts as ordinary use of the library. `application` means running the program as its documentation intends, e.g. OpenFOAM case files written as in its tutorials. `framework` means expressing the setup through the library's API, e.g. FEniCS or XLB. `kernel-toolkit` means writing the solver with the library's primitives, e.g. Warp, where only what was added for the benchmark is recorded. |
+| `interventions` | Everything beyond that ordinary use, one entry each (below). |
+| `deviations` | Places where the solver runs a substitute for the prescribed setup, such as a different outflow condition. Each has an `id`, the `setups` it applies to, `what` it is, its `consequences`, which say why it exists (usually `cannot-express`), its `effect` on the results ("Not measured." if unknown) and optional `evidence`. |
+
+Each intervention has these fields:
+
+- `id`, in kebab-case, and `what`, one or two sentences on what was done.
+- `level`, by mechanism:
+  - `L0`, nothing beyond expected tweaks, meaning the library's public API with its defaults or documented options, such as a solver tolerance.
+  - `L1`, undocumented configuration, found by reading the source.
+  - `L2`, user code on the library's public primitives, such as a boundary condition, objective or VJP rule that the library doesn't provide.
+  - `L3`, changing the solver, such as monkeypatching, private APIs or patching its source.
+
+  Fixes that exist only in unreleased upstream code are not accepted.
+- `necessity`: `required` if the setup fails without it, `choice` if it isn't needed to pass (say what it gains), or `unknown`.
+- `why`, per setup: the `consequences` a user who skips the intervention would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, with a measured number where one exists, and the `evidence`, such as a pull request, issue, test or log. The setups a solver can name are the ones its domain serves. For `navier-stokes-grid` they are `ns-2d-periodic`, `ns-2d-cylinder`, `ns-2d-kolmogorov` and `ns-3d`, for `structural-mesh` it is `structural`, and for `thermal-mesh` it is `heat`.
+- `provenance`: `mosaic-team`, `contributor`, `maintainer-authored` or `maintainer-advised`.
+- Optionally `upstream` (a link to the upstream issue, or why there is none), `tuned`, and `active: false` for code that no experiment exercises.
+
+Evidence is required above `L0` unless the necessity is `unknown`, and for every setting picked by measuring alternatives (`tuned: true`), such as a tolerance, linear solver, preconditioner, device or parallel layout. If you don't know why an intervention is needed, say `necessity: unknown` instead of guessing. This includes a setup on which the intervention was never measured. Since necessity applies to the whole entry, that setup then gets an entry of its own.
+
+The effort a solver needs on a setup is the highest level among its active, required interventions there, and `L0` if there are none. The results pages show it next to the checks (see [how to read the results](results.qmd#how-to-read-the-results)), and the [solver reference](solvers.qmd) lists every intervention with its reason and evidence. Record `L0` changes too, so that readers can see which options were set and why.
+
+```yaml
+metadata:
+  mosaic:
+    name: "My Spectral"
+    # ...
+    abstraction: framework
+    interventions:
+      - id: custom-outflow
+        level: L2
+        necessity: required
+        what: >
+          Writes the zero-pressure outlet by hand on the library's operators.
+        why:
+          ns-2d-cylinder:
+            consequences: [cannot-express]
+            symptom: The library ships no pressure outlet.
+            evidence: https://example.org/docs/boundary-conditions
+        upstream: https://github.com/example/solver/issues/1
+        provenance: contributor
+    deviations: []
+```
+
+The record leaves out fixes to Mosaic's own wrapper code (including runtime settings that only keep an embedded runtime working inside the Python wrapper, such as Julia's under juliacall), the GPU memory settings above, code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect results.
+
+`L2` and `L3` code is wrapped in marker comments (`//` in C and C++), outside import blocks:
+
+```python
+# mosaic-intervention: custom-outflow
+...
+# mosaic-intervention-end: custom-outflow
+```
+
+The test suite checks every record and its markers (`tests/core/test_interventions.py`). The format is defined in [`mosaic/benchmarks/core/interventions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/interventions.py).
+
+## 3. Implement `tesseract_api.py`
+
+The structure of this file comes from tesseract-core. It defines the `InputSchema` and `OutputSchema` Pydantic models, `apply`, and optionally `abstract_eval` and `vector_jacobian_product`. The signatures and rules of each endpoint are documented in [Endpoints (tesseract_api.py)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html). What Mosaic adds is that the schemas subclass the domain's canonical schemas, so every solver in the domain reads and writes the same fields.
+
+### Subclass the canonical schemas
+
+Each domain defines a canonical `InputSchema` and `OutputSchema` in `mosaic/mosaic_shared/problems/<domain>/schemas.py`. They are Pydantic models whose array fields use tesseract-core's [`Array[(shape,), dtype]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema) annotation. A solver imports them by package name, since `mosaic_shared` is installed in the container (see step 4):
+
+```python
+from mosaic_shared.problems.navier_stokes_grid import (
+    InputSchema as _CanonicalInputSchema,
+    OutputSchema as _CanonicalOutputSchema,
+)
+```
+
+The simplest solver schema is a plain subclass, which can add solver-specific parameters with defaults:
+
+```python
+from pydantic import Field
+
+
+class InputSchema(_CanonicalInputSchema):
+    dealias: bool = Field(default=True, description="Apply the 2/3 dealiasing rule.")
+
+
+class OutputSchema(_CanonicalOutputSchema):
+    pass
+```
+
+A differentiable solver also declares which fields carry gradients. `make_differentiable(base, [...])` from `mosaic_shared.schema_types` returns a subclass with the listed fields wrapped in tesseract-core's [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability) and every other field unchanged:
+
+```python
+from mosaic_shared.problems.navier_stokes_grid.channel import check_periodic
+from mosaic_shared.schema_types import make_differentiable
+from pydantic import Field, model_validator
+
+
+class InputSchema(make_differentiable(_CanonicalInputSchema, ["v0", "viscosity"])):
+    """Solver inputs; v0 and viscosity carry gradients, the rest do not."""
+
+    dealias: bool = Field(default=True, description="Apply the 2/3 dealiasing rule.")
+
+    @model_validator(mode="after")
+    def _check_supported_inputs(self) -> "InputSchema":
+        check_periodic(self, "My Spectral")
+        if self.v0.shape[-1] != 2:
+            raise ValueError("My Spectral supports only 2-D fields")
+        if self.forcing is not None or self.linear_drag is not None:
+            raise ValueError("My Spectral supports no body force or drag")
+        return self
+
+
+class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result"])):
+    """Solver outputs; `result` carries the cotangent during VJP."""
+```
+
+The validator matters as much as the field list. The canonical schema also describes 3D boxes, channel flows with an obstacle, and a body force with linear drag, and a solver must raise on any input it doesn't implement instead of quietly solving a different problem. This example only handles a 2D periodic box without forcing. `check_periodic` rejects channel boundary conditions and obstacles, and a solver that also runs the cylinder channel calls `check_periodic_or_channel` from the same module instead. Experiments the solver can't run also get [exclusions](#exclusions-and-overrides).
+
+Give every input field a default, as the canonical schemas do, so that the solver runs with empty inputs. The smoke test in step 5 relies on that.
+
+### `apply`
+
+`apply` runs the forward simulation and returns a dict that matches `OutputSchema`. Here each Fourier mode of the velocity decays as `exp(-ν |k|² t)` over the total time `t = dt · steps`:
+
+```python
+import jax
+import jax.numpy as jnp
+
+
+def _spectral_step(v0, viscosity, dt, steps, domain_extent):
+    """Evolve v(x, 0) -> v(x, dt·steps) under 2D viscous diffusion.
+
+    Pure spectral update on a periodic [0, L]² grid:
+        v̂(k, t) = v̂(k, 0) · exp(-ν |k|² t)
+
+    Args:
+        v0:  shape (N, N, 1, 2) — initial velocity field.
+        viscosity: scalar ν.
+        dt, steps: timestep and number of steps; only their product matters here.
+        domain_extent: side length L of the periodic square.
+
+    Returns:
+        Final velocity field, same shape as v0.
+    """
+    N = v0.shape[0]
+    k = jnp.fft.fftfreq(N, d=domain_extent / N) * 2 * jnp.pi
+    kx, ky = jnp.meshgrid(k, k, indexing="ij")
+    decay = jnp.exp(-viscosity * (kx**2 + ky**2) * dt * steps)
+    v_hat = jnp.fft.fft2(v0[:, :, 0, :], axes=(0, 1))  # (N, N, 2)
+    v_new = jnp.fft.ifft2(v_hat * decay[..., None], axes=(0, 1)).real
+    return v_new[:, :, None, :].astype(jnp.float32)
+
+
+def apply(inputs: InputSchema) -> OutputSchema:
+    d = inputs.model_dump()
+    result = _spectral_step(
+        v0=d["v0"],
+        viscosity=float(d["viscosity"][0]),
+        dt=float(d["dt"][0]),
+        steps=int(d["steps"]),
+        domain_extent=float(d["domain_extent"]),
+    )
+    return {"result": result}
+```
+
+Scalar physics parameters such as `viscosity` and `dt` arrive as one-element arrays of shape `(1,)`. Unpack them to Python floats before passing them to JIT-compiled code. The output `result` has the same shape as the input `v0`, here `(N, N, 1, 2)`.
+
+### `abstract_eval`
+
+`abstract_eval` returns the output shapes and dtypes without running the solver. The harness calls solvers through tesseract-jax, which uses it for shape inference, and every Mosaic solver implements it. Array fields of `abstract_inputs` are either `jax.ShapeDtypeStruct` objects or dicts with `"shape"` and `"dtype"` keys, so handle both:
+
+```python
+def abstract_eval(abstract_inputs):
+    v0_info = abstract_inputs.v0
+    shape = tuple(v0_info["shape"]) if isinstance(v0_info, dict) else v0_info.shape
+    return {"result": {"shape": shape, "dtype": "float32"}}
+```
+
+### `vector_jacobian_product`
+
+A differentiable solver (`differentiable: true`) implements the VJP. For a JAX solver, wrap `jax.vjp` around the forward function and return a gradient for each field the caller asks for in `vjp_inputs`:
+
+```python
+from typing import Any
+
+
+def vector_jacobian_product(
+    inputs: InputSchema,
+    vjp_inputs: set[str],
+    vjp_outputs: set[str],
+    cotangent_vector: dict[str, Any],
+):
+    """Reverse-mode VJP w.r.t. v0 and viscosity."""
+    d = inputs.model_dump()
+    v0 = jnp.asarray(d["v0"])
+    viscosity = jnp.asarray(d["viscosity"])
+    dt = float(d["dt"][0])
+    steps = int(d["steps"])
+    L = float(d["domain_extent"])
+
+    def fwd(v0, viscosity):
+        return _spectral_step(v0, viscosity[0], dt, steps, L)
+
+    _, vjp_fn = jax.vjp(fwd, v0, viscosity)
+    g_v0, g_visc = vjp_fn(cotangent_vector["result"])
+
+    out: dict[str, Any] = {}
+    if "v0" in vjp_inputs:
+        out["v0"] = g_v0
+    if "viscosity" in vjp_inputs:
+        out["viscosity"] = jnp.atleast_1d(g_visc)  # schema expects shape (1,)
+    return out
+```
+
+The arguments are defined by the [endpoint contract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#vector-jacobian-product).
+
+::: {.callout-tip}
+A solver without gradients sets `differentiable: false` and leaves out `vector_jacobian_product`. The gradient suite, the VJP cost experiment and the optimization suite then skip it, while the forward and cost suites run as usual. `gradient/fd_check` compares each solver's VJP with finite differences of its own forward pass, so it has nothing to check for a solver without a VJP.
+:::
+
+## 4. Write `tesseract_requirements.txt`
+
+tesseract-core installs this file with pip when it builds the container. List the solver's Python dependencies one per line, and end with the shared schema package:
+
+```
+jax[cuda12]>=0.4.13
+../../../mosaic_shared
+```
+
+The relative path resolves from the solver directory (`mosaic/tesseracts/<domain>/<solver>/`) to `mosaic/mosaic_shared/`, which makes the canonical schemas available inside the container.
+
+::: {.callout-note}
+Non-Python runtimes need `custom_build_steps` in `tesseract_config.yaml`. Among the existing solvers, `ins-jl` downloads Julia and calls it through juliacall, and `openfoam` installs OpenFOAM from its apt repository. The [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) repository collects more patterns, such as custom base images and GPU runtimes.
+:::
+
+## 5. Build and smoke-test
+
+Build the container with [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build):
+
+```bash
+tesseract build mosaic/tesseracts/navier-stokes-grid/my-spectral-solver
+```
+
+This builds an image named `my_spectral_solver_navier_stokes_grid:latest`. The first build downloads base images and installs dependencies, which takes a few minutes, and later builds reuse Docker's layer cache.
+
+Then call `apply` with empty inputs, so that every field takes its default. For `navier-stokes-grid`, the default `v0` is a 64×64 random vortex field.
+
+```bash
+tesseract run my_spectral_solver_navier_stokes_grid apply '{"inputs": {}}' | python -c "
+import sys, json, numpy as np
+r = json.load(sys.stdin)['result']
+arr = np.array(r['data']['buffer'], dtype=r['dtype']).reshape(r['shape'])
+print(f'Shape: {arr.shape}, finite: {np.isfinite(arr).all()}')
+"
+```
+
+You should see `Shape: (64, 64, 1, 2), finite: True`. If the call fails, the usual causes are a dependency missing from `tesseract_requirements.txt`, an output whose shape differs from `v0`, or an input field without a default.
+
+## 6. Run the benchmark
+
+Plug the solver into the harness. `-s` selects solvers by their display name (`metadata.mosaic.name`), matched case-insensitively, and `--no-build` reuses the image you just built. Start with a quick forward run at reduced problem size:
+
+```bash
+mosaic run -p ns-grid --suites forward -s "My Spectral" --debug --no-build
+```
+
+`--debug` caps grid sizes, step counts and sweep lengths, and writes its results to `<experiment>_debug/` directories, which `mosaic status` ignores. Once the debug run completes, run the forward suite at full size:
+
+```bash
+mosaic run -p ns-grid --suites forward -s "My Spectral" --no-build
+```
+
+This runs every forward experiment registered in [`navier_stokes_grid/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/navier_stokes_grid/config.py), from the Taylor–Green resolution sweep to the cylinder channel and the Kolmogorov flow. Results land in `mosaic-results/ns-grid/forward/`.
+
+To check the gradient, run the finite-difference check, which compares the VJP with central finite differences along random directions:
+
+```bash
+mosaic run -p ns-grid -e gradient/fd_check -s "My Spectral" --no-build
+```
+
+Whether a result passes is decided by the experiment's `status_check` in the same `config.py`. For `gradient/fd_check`, it combines a minimum cosine similarity, a maximum relative error and a test for outliers among the solvers (`min_cosine`, `max_rel_err` and `rel_err_peer_outlier`).
+
+To run every suite, leave out `--suites` and `-e`:
+
+```bash
+mosaic run -p ns-grid -s "My Spectral" --no-build
+```
+
+The solvers of `navier-stokes-grid` also serve the `ns-3d-grid` problem, so run `-p ns-3d-grid` as well, or exclude the solver there (step 8). [Run the benchmark](getting-started.qmd#choosing-what-runs) describes the other options for choosing what runs.
+
+## 7. Check the status
+
+`mosaic status` shows how every solver did on every experiment:
+
+```bash
+mosaic status -p ns-grid -f
+```
+
+`-f` lists the reason for every failed or anomalous cell, and `--format json` writes a machine-readable snapshot. [How to read the results](results.qmd#how-to-read-the-results) explains what each state means.
+
+If your solver doesn't appear, check that its `tesseract_config.yaml` parses as YAML, that it has a `metadata.mosaic` block with a `name`, and that its directory sits directly under `mosaic/tesseracts/navier-stokes-grid/`.
+
+## 8. Declare exclusions and overrides {#exclusions-and-overrides}
+
+Most solvers run with the default problem configuration. The settings below are per solver and problem, live in the problem package under `mosaic/benchmarks/problems/<package>/`, and have no counterpart in tesseract-core. They refer to the solver by its key, the directory name with hyphens replaced by underscores (`my_spectral_solver`).
+
+### Exclusions
+
+If your solver can't run an experiment, declare an exclusion so that the harness skips it and the results pages say why. Each problem registers its exclusions in the `register()` function of its `exclusions.py`, e.g. [`navier_stokes_grid/exclusions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/navier_stokes_grid/exclusions.py):
+
+```python
+MY_SPECTRAL_PERIODIC_ONLY = Exclusion(
+    ExclusionCategory.CATEGORICAL,
+    "a Fourier pseudo-spectral method represents only periodic fields, so it "
+    "cannot express a channel with walls, an inflow and an outflow",
+)
+
+
+def register(problem: Problem) -> None:
+    # ...
+    for key in ("forward/cylinder", "optimization/drag_opt"):
+        problem.exclude(key, {"my_spectral_solver": MY_SPECTRAL_PERIODIC_ONLY})
+```
+
+The example solver would also need exclusions for the Kolmogorov experiments, which apply a body force, and for `ns-3d-grid`, whose experiments are 3D. `problem.exclude(key, ...)` matches the longest prefix, so a suite-level key such as `"gradient"` covers every `gradient/*` experiment. The category says why the solver doesn't run, and the results pages show it:
+
+- `CATEGORICAL`: the method can't express the experiment. The results pages show the cell as "Not supported", which doesn't count as a failure.
+- `NOT_IMPLEMENTED`, `INFEASIBLE`, `UNSTABLE`, `UPSTREAM_BUG`: the solver could in principle run the experiment, but doesn't for the stated reason. The results pages show the cell as blocked, labelled with the category.
+- `WIP`, `UNSPECIFIED`: the results pages show the cell as not run.
+- `ANOMALY_EXPLAINED`: the solver still runs. See [explained anomalies](#explained-anomalies) below.
+
+The docstring of `ExclusionCategory` in [`mosaic/benchmarks/core/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py) describes each category.
+
+### Input overrides
+
+If your solver needs different values for fields of the shared schema, such as a density or an inner step count, set them in the problem's `config.py` after solver discovery:
+
+```python
+_SOLVERS["my_spectral_solver"].input_overrides = {
+    "density": jnp.array([1.0], dtype=jnp.float32),
+}
+```
+
+They are merged into every input dict the problem builds for your solver.
+
+### Explained anomalies {#explained-anomalies}
+
+If your solver trips a quality check for a reason intrinsic to its method, document the cause with an `ANOMALY_EXPLAINED` exclusion, registered the same way:
+
+```python
+MY_STAGGERED_ROUND_TRIP = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "interpolating the collocated IC onto staggered faces and back "
+    "adds a second-order round-trip error",
+)
+problem.exclude("forward/baseline", {"my_staggered_solver": MY_STAGGERED_ROUND_TRIP})
+```
+
+The solver still runs, and its cell stays an anomaly. `mosaic status` adds the explanation next to the measured reason and marks the cell 🟠ⁱ, and the results pages show the check as borderline with the explanation attached. If the cell passes its checks, it stays ok, and `mosaic status` lists the explanation as unused so that it can be removed. Describe the mechanism instead of quoting measured numbers, since the report already shows the live values and quoted numbers go stale. A bug that should be fixed belongs in a GitHub issue.
+
+## 9. Register a plot style
+
+Plot colors, line styles and markers are not part of the YAML. Add an entry for your solver key to `SOLVER_STYLES` in [`solver_styles.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/shared/plots/solver_styles.py). A solver without an entry is drawn in a neutral grey.
+
+```python
+"my_spectral_solver": {"color": "#BB5566", "linestyle": "--", "marker": "d"},
+```
+
+## 10. Open a pull request {#open-a-pull-request}
+
+Before you open the pull request, check that:
+
+1. The lint hooks and tests pass (`pre-commit run --all-files` and `pytest`).
+2. The forward debug run from step 6 completes, and after a full forward run `mosaic status -p ns-grid -f` shows the results you expect.
+3. `metadata.mosaic` sets `name`, `backend` and `scheme`, and the intervention record lists every intervention with its level, necessity and evidence.
+4. Experiments the solver can't run have exclusions, in every problem that uses the domain.
+5. The solver has an entry in `SOLVER_STYLES`.
+
+CI lints the code, runs the tests on Python 3.12 and 3.14, which include the check of every intervention record and its markers, and validates every `tesseract_config.yaml`. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), usually `benchmark:solver`, which benchmarks the solvers whose directories changed. The results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
+
+In the pull request description, say which library and method the solver wraps, list the exclusions and explained anomalies you declared and why, and summarize the interventions and deviations you recorded, so that a second maintainer can review their level, necessity and evidence.
