@@ -52,3 +52,21 @@ def plot_ic_only(cfg: Problem, ic_name: str, *, make_ic: Any, params: dict) -> N
     out_dir = results_dir() / cfg.name / _SUITE / ic_name
     ic = make_ic[ic_name](**params)
     plot_ic(cfg, ic_name, ic, out_dir, make_ic=make_ic)
+
+
+def get_experiments(cfg: Problem) -> dict:
+    """The problem's IC experiments, keyed by IC name."""
+    return {
+        key.removeprefix(f"{_SUITE}/"): exp.fn
+        for key, exp in cfg.experiments.items()
+        if key.startswith(f"{_SUITE}/")
+    }
+
+
+def get_plot_fns(cfg: Problem) -> dict:
+    """The problem's IC plots, keyed by IC name."""
+    return {
+        key.removeprefix(f"{_SUITE}/"): fn
+        for key, fn in cfg.plot_fns.items()
+        if key.startswith(f"{_SUITE}/")
+    }
