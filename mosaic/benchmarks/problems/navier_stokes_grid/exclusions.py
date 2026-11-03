@@ -94,7 +94,8 @@ PICT_LATENCY_BOUND_SOLVES = Exclusion(
     "and frees device memory 10 times, and its CG copies scalars back to the "
     "host about three times per iteration. A 64-times larger grid (N = 32 to "
     "256) makes a solve only about 4 times slower, so at ns-grid's sizes the "
-    "GPU mostly waits",
+    "GPU mostly waits. The VJP solves the transposed systems with the same "
+    "solvers",
 )
 PICT_PISO_SPLITTING_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
@@ -129,7 +130,7 @@ def register(problem: Problem) -> None:
     )
 
     # Cost
-    for key in ("cost/spatial_cost", "cost/temporal_cost"):
+    for key in ("cost/spatial_cost", "cost/temporal_cost", "cost/vjp_cost/by_N"):
         problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
 
