@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from mosaic.benchmarks.problems.navier_stokes_grid import kolmogorov as ko
 from mosaic.benchmarks.problems.navier_stokes_grid import sil
 
 from .test_sil import _truth, grid_dependent_step
@@ -20,7 +19,7 @@ def test_plot_renders(tmp_path, monkeypatch):
         plot_kolmogorov_sil,
     )
 
-    monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
+    monkeypatch.setattr(sil, "load_initial_states", lambda domain: _truth())
     optim = {
         "unrolls": [1, 2],
         "updates": 2,

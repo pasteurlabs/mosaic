@@ -60,7 +60,7 @@ def rel(a: np.ndarray, b: np.ndarray) -> float:
 def closure(solver: str, tag: str, use_state: bool) -> dict:
     """Median and max distance between the chain and one call, per length."""
     truth = ko.load_ground_truth()
-    starts = [ko.initial_state(truth, s, N) for s in ko.GROUND_TRUTH_SEEDS["test"]]
+    starts = [ko.initial_state(truth, s, N) for s in ko.GROUND_TRUTH_SEEDS]
     errors = {k: [] for k in COMPARED}
     with Tesseract.from_image(f"{solver}_navier_stokes_grid:{tag}", gpus=["all"]) as t:
         for v0 in starts:

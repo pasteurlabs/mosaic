@@ -27,6 +27,7 @@ grid and timestep and restricted to the coarse grid.
 from __future__ import annotations
 
 import functools
+import logging
 import time
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -37,17 +38,20 @@ import numpy as np
 import optax
 
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
-from mosaic.benchmarks.core.utils import active_differentiable_solvers
+from mosaic.benchmarks.core.reference import reference_path
+from mosaic.benchmarks.core.utils import active_differentiable_solvers, l2_error_rel
 
+from . import kolmogorov as ko
 from .corrector import apply_corrector
+from .ics import _multimode
 from .kolmogorov import (
-    first_unstable_frame,
+    DIVERGED_ERROR,
     high_correlation_time,
-    relative_l2,
     resample,
-    spectrum_error,
     vorticity_correlation,
 )
+
+logger = logging.getLogger(__name__)
 
 Step = Callable[[jax.Array, Any], tuple[jax.Array, Any]]
 
@@ -57,6 +61,92 @@ TRAINED_ARMS = ARMS[1:]
 # Frames at the end of an evaluation rollout whose mean energy spectrum is
 # compared with the reference's.
 SPECTRUM_FRAMES = 10
+
+# Seeds of the training and validation states. The test states are those of
+# forward/kolmogorov's ground truth.
+TRAINING_SEEDS = (0, 1, 2, 3, 4)
+
+
+# ── Initial states ───────────────────────────────────────────────────────────
+
+
+def generate_initial_states(
+    advance: ko.Advance, log: Callable[[str], None] = logger.info
+) -> dict[str, np.ndarray]:
+    """Burned-in ``initial_<seed>`` states of :data:`TRAINING_SEEDS`.
+
+    They spin up like the states of :func:`kolmogorov.generate_ground_truth`,
+    which also documents ``advance``. No trajectories are stored, since every
+    solver trains against its own reference.
+    """
+    out: dict[str, np.ndarray] = {}
+    for seed in TRAINING_SEEDS:
+        v = np.asarray(_multimode(ko.BURN_IN_N, ko.DOMAIN_EXTENT, seed=seed))
+        v = ko._run(advance, v, ko.BURN_IN_TIME)[-1]
+        out[f"initial_{seed}"] = np.asarray(resample(v, ko.INITIAL_N))
+        log(f"seed {seed}: burned in for {ko.BURN_IN_TIME:g}")
+    return out
+
+
+def load_initial_states(domain: str = "ns-grid") -> dict[str, np.ndarray]:
+    """The ``initial_<seed>`` states of every split, training and test."""
+    path = reference_path(domain, "optimization/kolmogorov_sil")
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no solver-in-the-loop initial states at {path}; generate them with "
+            "`mosaic reference -p ns-grid -e optimization/kolmogorov_sil`"
+        )
+    with np.load(path, allow_pickle=False) as data:
+        training = {k: np.asarray(data[k]) for k in data.files}
+    return {**ko.load_ground_truth(domain), **training}
+
+
+# ── Scores ───────────────────────────────────────────────────────────────────
+
+
+def energy_spectrum(v: Any) -> np.ndarray:
+    """Kinetic energy per integer wavenumber shell, ½Σ|û|² over |k| ∈ [s−½, s+½).
+
+    Returns shells 0 … N/2 − 1, normalised so that their sum is the mean
+    kinetic energy ½⟨|u|²⟩ (Parseval, Nyquist excluded).
+    """
+    v = np.asarray(v, dtype=np.float64)[:, :, 0, :]
+    n = v.shape[0]
+    kint = np.fft.fftfreq(n, d=1.0 / n)
+    kx, ky = np.meshgrid(kint, kint, indexing="ij")
+    shell = np.rint(np.sqrt(kx**2 + ky**2)).astype(int)
+    hat = np.fft.fft2(v, axes=(0, 1)) / n**2
+    density = 0.5 * np.sum(np.abs(hat) ** 2, axis=-1)
+    spectrum = np.bincount(shell.ravel(), weights=density.ravel())
+    return spectrum[: n // 2]
+
+
+def spectrum_error(states: Any, references: Any) -> float:
+    """Mean |log₁₀| ratio of time-averaged energy spectra over shells 1 … N/3.
+
+    ``states`` and ``references`` are stacks of fields, (T, N, N, 1, 2).
+    Shells above N/3 are left out: there the canonical interfaces of the
+    staggered solvers damp the energy by design, not by error.
+    """
+    a = np.mean([energy_spectrum(s) for s in states], axis=0)
+    b = np.mean([energy_spectrum(s) for s in references], axis=0)
+    top = max(2, len(a) * 2 // 3)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        err = np.abs(np.log10(a[1:top] / b[1:top]))
+    return float(np.mean(err)) if np.all(np.isfinite(err)) else float("inf")
+
+
+def first_unstable_frame(errors: Any, threshold: float = DIVERGED_ERROR) -> int:
+    """First frame whose relative error is non-finite or above ``threshold``.
+
+    A stable rollout scores its frame count.
+    """
+    e = np.asarray(errors, dtype=np.float64)
+    bad = np.nonzero(~(e <= threshold))[0]
+    return int(bad[0]) if bad.size else len(e)
+
+
+# ── Rollouts and training ────────────────────────────────────────────────────
 
 
 def rollout(
@@ -101,10 +191,7 @@ def mean_relative_error(states: np.ndarray, targets: np.ndarray) -> float:
     """Mean relative L2 error over frames 1 …, the score of a rollout."""
     return float(
         np.mean(
-            [
-                float(relative_l2(s, t))
-                for s, t in zip(states[1:], targets[1:], strict=True)
-            ]
+            [l2_error_rel(s, t) for s, t in zip(states[1:], targets[1:], strict=True)]
         )
     )
 
@@ -325,7 +412,7 @@ def evaluate(
     errors, correlations, hct, spectra, unstable, finals = [], [], [], [], [], []
     for target in targets:
         states = rollout(step, target[0], len(target) - 1, params)
-        e = [float(relative_l2(s, t)) for s, t in zip(states, target, strict=True)]
+        e = [l2_error_rel(s, t) for s, t in zip(states, target, strict=True)]
         c = [
             float(vorticity_correlation(s, t))
             for s, t in zip(states, target, strict=True)
@@ -437,8 +524,8 @@ def closure(
     semigroup, long = [], []
     for v in starts:
         chain = rollout(step, v, frames)
-        semigroup.append(float(relative_l2(chain[2], two(jnp.asarray(v), None)[0])))
-        long.append(float(relative_l2(chain[frames], whole(jnp.asarray(v), None)[0])))
+        semigroup.append(l2_error_rel(chain[2], two(jnp.asarray(v), None)[0]))
+        long.append(l2_error_rel(chain[frames], whole(jnp.asarray(v), None)[0]))
     return {"semigroup": semigroup, "long": long}
 
 
@@ -618,7 +705,7 @@ def run(t: Any, ctx: Any, *, step_factory: Callable = solver_step) -> dict:
     with closed-form transitions.
     """
     from .corrector import init_corrector
-    from .kolmogorov import INTERVAL, initial_state, load_ground_truth
+    from .kolmogorov import INTERVAL, initial_state
 
     cfg = {**DEFAULT_TRAINING, **ctx.run.get("optim", {})}
     n = int(ctx.phys["N"])
@@ -637,7 +724,7 @@ def run(t: Any, ctx: Any, *, step_factory: Callable = solver_step) -> dict:
         )
 
     coarse, fine, audit_step = make(1), make(factor), make(2 * factor)
-    truth = load_ground_truth(ctx.cfg.name)
+    truth = load_initial_states(ctx.cfg.name)
     seeds = cfg["seeds"]
     frames = {
         "train": cfg["train_frames"],

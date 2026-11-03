@@ -31,7 +31,7 @@ N = 8
 def _field(n: int = N, seed: int = 0) -> np.ndarray:
     """A band-limited divergence-free field at the cell centres."""
     rng = np.random.default_rng(seed)
-    x = ko.cell_centres(n)
+    x = ko.cell_centers(n)
     xx, yy = np.meshgrid(x, x, indexing="ij")
     v = np.zeros((n, n, 1, 2))
     for kx, ky in ((1, 0), (0, 1), (1, 1), (2, 1)):
@@ -264,7 +264,7 @@ def grid_dependent_step(t, ctx, *, dt, steps, native_state):
 
 
 def test_run_gates_trains_and_evaluates(monkeypatch):
-    monkeypatch.setattr(ko, "load_ground_truth", lambda domain: _truth())
+    monkeypatch.setattr(sil, "load_initial_states", lambda domain: _truth())
     optim = {
         "unrolls": [2],
         "updates": 3,

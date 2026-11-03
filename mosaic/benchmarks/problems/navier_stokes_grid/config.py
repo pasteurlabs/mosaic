@@ -630,6 +630,7 @@ problem.add_experiment(
     sil.solver_in_loop,
     plot_description=_SIL_DESCRIPTION,
     physics=_SIL_PHYSICS,
+    reference=sil.generate_initial_states,
     optim={
         "unrolls": [4],
         "updates": 32,

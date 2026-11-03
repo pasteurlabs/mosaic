@@ -24,7 +24,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from .kolmogorov import AMPLITUDE, DOMAIN_EXTENT, INTERVAL, WAVENUMBER, cell_centres
+from .kolmogorov import AMPLITUDE, DOMAIN_EXTENT, INTERVAL, WAVENUMBER, cell_centers
 
 # Scales of the inputs and output, fixed by the forcing rather than by any
 # solver's data. √(A/κ) balances advection against the force at the forcing
@@ -60,7 +60,7 @@ def init_corrector(
 
 def _features(v: jax.Array, domain_extent: float) -> jax.Array:
     n = v.shape[0]
-    phase = 2 * np.pi * WAVENUMBER * cell_centres(n, domain_extent) / domain_extent
+    phase = 2 * np.pi * WAVENUMBER * cell_centers(n, domain_extent) / domain_extent
     sin = jnp.broadcast_to(jnp.asarray(np.sin(phase), v.dtype)[None, :], (n, n))
     cos = jnp.broadcast_to(jnp.asarray(np.cos(phase), v.dtype)[None, :], (n, n))
     return jnp.concatenate(
