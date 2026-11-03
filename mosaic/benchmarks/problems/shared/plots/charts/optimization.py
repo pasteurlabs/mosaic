@@ -69,7 +69,7 @@ def _rho_to_2d(
 # ── Drag optimisation (ns-grid) ──────────────────────────────────────────────
 
 # Solvers in the drag-optimization panels, in display order (aliases).
-_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "warp_ns", "ins_jl"]
+_DRAG_OPT_SOLVER_ORDER = ["xlb", "phiflow", "warp_ns", "ins_jl", "pict"]
 _INITIAL = "Initial"
 
 
@@ -103,7 +103,7 @@ def drag_opt(ctx: Ctx) -> alt.TopLevelMixin | None:
     Same reduction as ``_drag_opt_figure``: drag reduction (d₀ − dᵢ)/d₀ in %
     on ≤ ~50 subsampled iterations, initial + final inlet profiles u_x(y), and
     one ``profile_history`` heatmap (snapshot × y, viridis, own colour range)
-    per solver in XLB, PhiFlow, Warp-NS order.
+    per solver in XLB, PhiFlow, Warp-NS, INS.jl, PICT order.
     """
     data = ctx.legacy()
     if data is None or not data.get("by_solver"):
