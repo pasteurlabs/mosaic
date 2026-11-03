@@ -49,6 +49,18 @@ EXPONAX_EXACT_TGV = Exclusion(
     "steps rather than shrinking with the grid spacing, so no positive order "
     "can be observed",
 )
+OPENFOAM_COLLOCATED_TGV = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "OpenFOAM stores velocity at cell centres and makes only the face fluxes "
+    "divergence-free. In the Taylor–Green vortex, advection is a gradient at "
+    "twice the vortex's wavenumber, which the pressure cancels exactly. Most "
+    "of OpenFOAM's error is a compressive component at that wavenumber in the "
+    "cell-centred velocity. The staggered and spectral solvers have none of "
+    "it, the other solvers at most a tenth of it. It is second order in the grid spacing, grows with the simulated "
+    "time and the vortex's amplitude, and changes little with the timestep. "
+    "It shrinks as the viscosity grows, so it stands out only at the lowest "
+    "viscosities",
+)
 OPENFOAM_NO_SOURCE_TERM = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
     "this tesseract runs icoFoam, which has no momentum source term, so it "
@@ -120,6 +132,7 @@ def register(problem: Problem) -> None:
         {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
     )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
+    problem.exclude("forward/tgv_nu_sweep", {"openfoam": OPENFOAM_COLLOCATED_TGV})
     problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
     problem.exclude(
         "forward/kolmogorov",
