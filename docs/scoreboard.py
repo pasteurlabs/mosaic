@@ -441,13 +441,13 @@ def _relative_cost(
     return out
 
 
-def _iters_to_best(
+def _iters_to_plateau(
     results_dir: Path, problem: str, gates: list[str] | None
 ) -> dict[str, float]:
-    """Per solver, the optimizer iterations until the best objective.
+    """Per solver, the optimizer iterations until the loss levelled off.
 
     Read from the first optimization gate whose results carry it; results
-    recorded before the harness kept ``iters_to_best`` have none.
+    recorded before the harness kept ``iters_to_plateau`` have none.
     """
     for label in gates or []:
         path = results_dir / problem / label / "result.json"
@@ -458,7 +458,7 @@ def _iters_to_best(
         out = {
             r["solver"]: float(v)
             for r in results or []
-            if _finite(v := (r.get("metrics") or {}).get("iters_to_best"))
+            if _finite(v := (r.get("metrics") or {}).get("iters_to_plateau"))
         }
         if out:
             return out
@@ -528,7 +528,9 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                     for s, v in _relative_cost(times, group).items():
                         cost.setdefault(s, {})[label] = v
 
-        iters = _iters_to_best(results_dir, problem, setup["gates"].get("optimization"))
+        iters = _iters_to_plateau(
+            results_dir, problem, setup["gates"].get("optimization")
+        )
         records = views.records_for(setup["key"])
         out_rows = []
         for name in names:
@@ -663,7 +665,7 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
         f"{_short(lab)}: {txt}" for lab, m in chk["metrics"] if (txt := _metric_text(m))
     ]
     if iters is not None:
-        tip.append(f"{iters:.0f} iterations to the best objective")
+        tip.append(f"Loss levelled off after {iters:.0f} iterations")
     tip += [f"{_short(lab)}: {why}" for lab, _, why in chk["reasons"] if why]
     extra = (
         f'<span class="ck-part">{chk["n_run"]} of {chk["n_gates"]} run</span>'
@@ -671,7 +673,7 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
         else ""
     )
     if iters is not None:
-        extra += f'<span class="ck-part">{iters:.0f} iterations</span>'
+        extra += f'<span class="ck-part">plateau at {iters:.0f}</span>'
     explained = (
         f'<a class="ck-explained" href="#{notes}" '
         'aria-label="explained, see the notes below the table"><sup>i</sup></a>'

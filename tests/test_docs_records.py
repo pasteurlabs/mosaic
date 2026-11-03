@@ -97,6 +97,24 @@ def test_ranking_table_gains_effort_columns(results: Path) -> None:
     )
 
 
+def test_optimization_table_shows_iterations_to_plateau(results: Path) -> None:
+    _write_result(
+        results,
+        "optimization/drag_opt",
+        [
+            {"solver": "XLB", "metrics": {"final_drag": 3.1, "iters_to_plateau": 120}},
+            {"solver": "PICT", "metrics": {"final_drag": 3.0}},
+        ],
+    )
+    block = "\n".join(
+        generate_results._leaderboard_block("ns-grid", "optimization", "ns-2d-cylinder")
+    )
+    assert "| Solver | Final drag | Iterations to plateau |" in block
+    assert "| XLB | 3.10e+00 | 120 |" in block
+    # Results recorded before the harness kept the metric show a dash.
+    assert "| PICT | 3.00e+00 | — |" in block
+
+
 def test_no_results_means_no_effort_block(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(generate_results, "RESULTS_DIR", tmp_path)
     assert generate_results._effort_block("ns-grid", "ns-2d-periodic") == []

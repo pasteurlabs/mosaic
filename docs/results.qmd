@@ -57,7 +57,10 @@ For each setup, each solver gets the following.
   the gradient, or the fraction of the objective an optimizer must remove. A
   check combines the setup's *gate* experiments for that suite. It is shown as
   *Partial* with a count when the solver passed the gates it ran but did not
-  run all of them. Hover over a check for each gate's headline numbers.
+  run all of them. An optimization check also shows after how many
+  iterations the loss levelled off, that is, made 95% of its total
+  improvement on a log scale. Hover over a check for each gate's headline
+  numbers.
 - **Cost**, forward and VJP: wall-clock time as a multiple of the fastest
   solver *on the same kind of device*, at the largest problem size every solver
   in that group completed. GPU and CPU solvers ran on different machines, so

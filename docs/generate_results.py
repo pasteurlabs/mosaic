@@ -641,8 +641,8 @@ _OPT_METRIC_LABELS = {
 
 
 def _iterations(m: dict) -> str:
-    """Iterations until the best objective, or "—" for results without it."""
-    v = m.get("iters_to_best")
+    """Iterations until the loss levelled off, or "—" for results without it."""
+    v = m.get("iters_to_plateau")
     if not isinstance(v, int | float) or not math.isfinite(v):
         return "—"
     return f"{v:.0f}" if float(v).is_integer() else f"{v:.1f}"
@@ -677,7 +677,7 @@ def _rank_optimization(
     if len(rows) < 2:
         return None
     rows.sort(key=lambda t: t[1])
-    header = ["Solver", metric_label, "Iterations to best"]
+    header = ["Solver", metric_label, "Iterations to plateau"]
     return (
         header,
         [(s, _fmt_sci(v), its) for s, v, its in rows],
@@ -709,8 +709,10 @@ _SUITE_RANK_CAPTIONS = {
     "memory for those measured on a CPU, at the same N as the time. See the "
     "note on how these results were produced before comparing across devices.",
     "optimization": "Sorted by the final objective reached within the iteration "
-    "budget (lower is better). Iterations to best counts the optimizer "
-    "iterations until the best objective was reached.",
+    "budget (lower is better). Iterations to plateau counts the optimizer "
+    "iterations until the best loss so far had made 95% of the run's total "
+    "improvement, on a log scale. A value near the iteration budget means "
+    "that the loss was still falling.",
 }
 
 
