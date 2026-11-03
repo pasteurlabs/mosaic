@@ -165,3 +165,27 @@ def test_fd_check_skips_non_finite_entries(tmp_path):
     assert chart is not None
     rows = [r for ds in chart.to_dict()["datasets"].values() for r in ds]
     assert {(r["solver"], r["eps"]) for r in rows} == {("XLB", 0.1), ("PhiFlow", 0.1)}
+
+
+def test_profiles_charts_one_dimensional_observables(tmp_path):
+    """1-D outputs (e.g. spectra) get a curve and a residual row per solver."""
+    import numpy as np
+
+    from mosaic.benchmarks.problems.shared.plots.charts.forward import profiles
+
+    x = np.linspace(0.0, 1.0, 16)
+    np.savez(
+        tmp_path / "fields.npz",
+        sweep_values=np.array([0.1]),
+        solver_names=np.array(["PhiFlow", "XLB"]),
+        x_axis=x,
+        consensus_0=np.sin(x),
+        PhiFlow_0=np.sin(x),
+        XLB_0=np.sin(x) + 0.01,
+    )
+    ctx = Ctx("ns-grid", "forward", "agreement", tmp_path / "curves.png")
+    chart = profiles(ctx, ylabel="spectrum")
+    assert chart is not None
+    df = chart.data
+    assert set(df["row"]) == {"spectrum", "Δ spectrum"}
+    assert len(df) == 2 * 2 * len(x)  # two solvers, curve and residual rows

@@ -70,3 +70,39 @@ def test_generator_runs_the_reference_solver_and_stores_its_arrays(
         "domain_extent": 1.0,
     }
     np.testing.assert_array_equal(np.load(path)["doubled"], 2 * np.ones(3))
+
+
+def test_from_results_accepts_spaces_in_the_experiment_list(monkeypatch, tmp_path):
+    """``-e "forward/baseline, forward/agreement"`` generates both references."""
+    from typer.testing import CliRunner
+
+    from mosaic.benchmarks.cli import app
+    from mosaic.benchmarks.problems import get_config
+
+    saved = []
+    monkeypatch.setattr(
+        cli_reference,
+        "save_reference",
+        lambda domain, key, refs, sweep_values=None: saved.append(key) or tmp_path,
+    )
+    names = [s.name for s in get_config("thermal-mesh").solvers][:2]
+    for exp in ("baseline", "agreement"):
+        exp_dir = tmp_path / "thermal-mesh" / "forward" / exp
+        exp_dir.mkdir(parents=True)
+        np.savez(exp_dir / "fields.npz", **{f"{n}_0": np.ones(3) for n in names})
+        (exp_dir / "result.json").write_text('{"sweep": {"key": "nx", "values": [8]}}')
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "reference",
+            "-p",
+            "thermal-mesh",
+            "-e",
+            "forward/baseline, forward/agreement",
+            "--from-results",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert saved == ["forward/baseline", "forward/agreement"]
