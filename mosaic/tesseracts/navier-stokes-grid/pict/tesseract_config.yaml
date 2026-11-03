@@ -10,7 +10,8 @@ description: >
   linear solves stop at an absolute residual and would cut the adjoint solves
   short for small cotangents. PICT has no releases; this runs commit 72a6e86.
 build_config:
-  package_data: []
+  package_data:
+    - ["./patch_cuda_errors.py", "/tmp/patch_cuda_errors.py"]
   target_platform: "linux/amd64"
   # skip_checks: PISOtorch_simulation asserts torch.cuda.is_available() at
   # import time, which fails in the GPU-less Docker build environment.
@@ -45,6 +46,9 @@ build_config:
     # Limit nvcc parallelism to 1 thread — PICT's setup.py uses
     # --threads=os.cpu_count() which OOMs on memory-constrained CI runners.
     - "RUN sed -i 's/os.cpu_count()/1/g' /opt/pict/extensions/setup.py"
+    # PISOtorch exits the process on any CUDA error, out of memory included;
+    # make its error handlers throw instead (intervention cuda-errors-raise).
+    - "RUN python /tmp/patch_cuda_errors.py /opt/pict/extensions && rm /tmp/patch_cuda_errors.py"
     - "RUN cd /opt/pict/extensions && MAX_JOBS=2 pip install . --no-build-isolation --no-deps"
     # PISOtorch_simulation.py / PISOtorch_diff.py / lib/ live at the PICT repo
     # root and aren't pip-installable. Drop a .pth file into the tesseract
@@ -263,6 +267,26 @@ metadata:
             evidence: >
               #239; PISOtorch_simulation.py at PICT 72a6e86 has no force
               routine.
+        provenance: mosaic-team
+      - id: cuda-errors-raise
+        level: L3
+        necessity: required
+        what: >
+          At build time, rewrites PISOtorch's CUDA, cuBLAS and cuSPARSE error
+          handlers to throw std::runtime_error with their message instead of
+          printing it and calling exit(10). The error then reaches Python as a
+          RuntimeError.
+        why:
+          ns-3d:
+            consequences: [crash]
+            symptom: >
+              When one of PISOtorch's own allocations runs out of GPU memory,
+              the process exits with code 10 and the Tesseract server dies.
+              The harness records container_died instead of OOM, which fails
+              the cell and keeps a sweep running past its memory limit. On the
+              T4 this failed ns-3d vjp_cost/by_steps from 500 steps (#348).
+            evidence: "#348, ns-3d-grid cost/vjp_cost/by_steps; exit(10) in cg_solver_kernel.cu, bicgstab_solver_kernel.cu, dispatch.h and PISO_multiblock_cuda_kernel.cu at PICT 72a6e86."
+        upstream: None filed.
         provenance: mosaic-team
     deviations:
       - id: advective-outflow
