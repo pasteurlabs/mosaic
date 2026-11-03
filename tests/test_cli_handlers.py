@@ -191,6 +191,34 @@ def test_build_unknown_problem_records_failure(monkeypatch):
     assert "definitely-not-a-real-problem" in result.output
 
 
+def test_build_skips_problems_without_a_matching_solver(monkeypatch):
+    """`build -s XLB` builds XLB where it exists and skips the mesh problems."""
+    from mosaic.benchmarks import cli as cli_mod
+
+    built = []
+
+    def _fake_build_all(cfg, max_workers=2):
+        built.append((cfg.name, [s.name for s in cfg.solvers]))
+        return {}
+
+    monkeypatch.setattr(cli_mod, "build_all", _fake_build_all)
+
+    result = runner.invoke(app, ["build", "-p", "ns-grid,structural-mesh", "-s", "XLB"])
+    assert result.exit_code == 0, result.output
+    assert built == [("ns-grid", ["XLB"])]
+
+
+def test_build_unknown_solver_fails_fast(monkeypatch):
+    """`build -s <typo>` names the typo and exits 1 before building anything."""
+    from mosaic.benchmarks import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "build_all", lambda cfg, max_workers=2: {})
+
+    result = runner.invoke(app, ["build", "-s", "XBL"])
+    assert result.exit_code == 1
+    assert "Unknown solver 'XBL'" in result.output
+
+
 # ── run: -s validation across problems ──────────────────────────────────────────
 
 
