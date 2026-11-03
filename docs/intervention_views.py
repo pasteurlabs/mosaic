@@ -44,35 +44,21 @@ iv = _load_records_module()
 
 EFFORT_LABEL = "Effort"
 DEVIATIONS_LABEL = "Deviations"
-NOTHING_REQUIRED = "none"
+# The effort of a solver that needs no intervention beyond the baseline.
+BASELINE_LEVEL = "L0"
 NOT_RECORDED = "not recorded"
 
-# Explains the two columns and the filter; shown once per results page.
+# Explains the two columns; shown once per results page.
 EFFORT_EXPLAINER = (
     "**Effort** is the highest level among the interventions a solver *needs* "
-    "on this setup: L0 documented use (public API and documented options), "
-    "L1 undocumented configuration, L2 user code on the library's public "
-    "primitives, L3 changes to the solver itself (monkeypatches, private "
-    "APIs, patched sources). *none* means nothing beyond ordinary use is "
-    "required. **Deviations** counts the places where a solver runs a "
-    "substitute for the prescribed setup. Hover over a cell for the details; "
-    "the [Solver Reference](solvers.qmd) lists every intervention with its "
-    "reason and evidence."
-)
-
-# The select is read by docs/effort-filter.html; its values are the highest
-# level shown.
-LEVEL_FILTER_HTML = (
-    "```{=html}\n"
-    '<div class="m-effort-filter"><label>Show solvers whose effort is at most '
-    '<select class="m-effort-select">'
-    '<option value="L3" selected>any level</option>'
-    '<option value="L2">L2, user code</option>'
-    '<option value="L1">L1, undocumented configuration</option>'
-    '<option value="L0">L0, documented use</option>'
-    '<option value="none">none required</option>'
-    "</select></label></div>\n"
-    "```"
+    "on this setup: L0 nothing beyond expected tweaks (the public API with its "
+    "defaults or documented options, such as a tolerance), L1 undocumented "
+    "configuration, L2 user code on the library's public primitives, and L3 "
+    "changes to the solver itself (monkeypatches, private APIs, patched "
+    "sources). **Deviations** counts the places where a solver runs a "
+    "substitute for the prescribed setup. Each solver's entry in the "
+    "[solver reference](solvers.qmd) lists its interventions and deviations "
+    "with their reasons and evidence."
 )
 
 
@@ -113,7 +99,10 @@ def effort_parts(record: object | None, setup: str) -> tuple[str, str]:
     required = [i for i in record.interventions_for(setup) if i.necessity == "required"]
     level = record.effort(setup)
     if level is None:
-        return NOTHING_REQUIRED, "No intervention is required on this setup."
+        return BASELINE_LEVEL, (
+            f"{BASELINE_LEVEL}, {iv.LEVEL_NAMES[BASELINE_LEVEL]}. "
+            "No intervention is required on this setup."
+        )
     detail = "; ".join(
         f"{i.level} {i.id}"
         for i in sorted(required, key=lambda i: iv.LEVELS.index(i.level), reverse=True)
@@ -192,20 +181,19 @@ def summary_line(record: object, setups: tuple[str, ...]) -> str:
     """One line: effort per setup and how many records have no known reason."""
     setups = mentioned_setups(record, setups)
     if not setups:
-        return "**Effort:** nothing beyond ordinary use is recorded"
-    efforts = " · ".join(
-        f"{_setup_label(s)} {record.effort(s) or NOTHING_REQUIRED}" for s in setups
+        return f"**Effort:** {BASELINE_LEVEL} on every setup"
+    efforts = ", ".join(
+        f"{record.effort(s) or BASELINE_LEVEL} on {_setup_label(s)}" for s in setups
     )
     n = len(record.interventions)
     unknown = sum(i.reason_unknown for i in record.interventions)
-    parts = [f"**Effort:** {efforts}"]
-    parts.append(
-        f"{n} intervention{'s' if n != 1 else ''}"
-        + (f", {unknown} with unknown reason" if unknown else "")
-    )
     d = len(record.deviations)
-    parts.append(f"{d} setup deviation{'s' if d != 1 else ''}")
-    return " — ".join(parts)
+    counts = (
+        f"{n} intervention{'s' if n != 1 else ''}"
+        + (f" ({unknown} with unknown reason)" if unknown else "")
+        + f" and {d} setup deviation{'s' if d != 1 else ''}"
+    )
+    return f"**Effort:** {efforts}. {counts.capitalize()}."
 
 
 def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]:
@@ -218,14 +206,14 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
     lines = [
         summary_line(record, setups),
         "",
-        '::: {.callout-note collapse="true"}',
+        "::: {.callout-note}",
         "#### Interventions and deviations",
         "",
         (
-            f"Abstraction level: **{record.abstraction}**. Effort counts only "
-            "`required` interventions. Each item is an invitation to contribute: "
-            "an upstream fix or a better configuration moves the solver down the "
-            "ladder."
+            f"Abstraction level: **{record.abstraction}**. The effort level counts "
+            "only interventions marked `required`. Each item is an invitation to "
+            "contribute, since an upstream fix or a better configuration moves the "
+            "solver down the ladder."
         ),
         "",
     ]
@@ -254,7 +242,7 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
             )
         lines.append("")
     else:
-        lines += ["No interventions beyond ordinary use.", ""]
+        lines += ["No interventions are recorded.", ""]
 
     if record.deviations:
         lines += ["**Setup deviations**", ""]
@@ -272,7 +260,7 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
         lines += [
             (
                 "**Reason unknown.** Nobody has measured whether these are "
-                "needed; a measurement, or removing them, would settle it:"
+                "needed. A measurement, or removing them, would settle it."
             ),
             "",
         ]
@@ -282,7 +270,7 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
     inactive = [i for i in record.interventions if not i.active]
     if inactive:
         lines += [
-            "**Inactive** (present in the code, exercised by no experiment): "
+            "**Inactive** (present in the code, but exercised by no experiment): "
             + ", ".join(f"`{i.id}`" for i in inactive),
             "",
         ]

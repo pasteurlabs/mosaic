@@ -109,34 +109,23 @@ _SOLVERS["jax_cfd"].input_overrides = {
 
 problem = Problem(
     name="ns-grid",
-    category_label="Navier–Stokes (Grid)",
+    category_label="Navier–Stokes (grid)",
     description=(
-        "**Fluid flow in 2D.** We simulate an incompressible fluid (think of stirred "
-        "water) and differentiate through the simulation. The headline question is "
-        "whether each solver returns a trustworthy gradient as the flow becomes chaotic.\n\n"
-        "Formally, we solve the 2D incompressible Navier–Stokes equations "
+        "**Incompressible fluid flow in 2D.** We solve the 2D incompressible "
+        "Navier–Stokes equations "
         "$\\partial_t \\mathbf{u} + (\\mathbf{u}\\cdot\\nabla)\\mathbf{u} "
         "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
-        "with the kinematic viscosity $\\nu$ as the primary control parameter. The "
-        "nonlinear advection term $\\nabla\\cdot(\\mathbf{u}\\otimes\\mathbf{u})$ "
-        "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
-        "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
-        "exponentially sensitive to perturbations. This is the regime where "
-        "backprop-through-simulation is hardest.\n\n"
-        "The Kolmogorov-flow experiments add a steady body force "
-        "$\\mathbf{f} = (\\sin 4y, 0)$ and a linear drag $-\\alpha\\mathbf{u}$ "
-        "to the right-hand side. The force drives the flow, and the drag removes "
-        "the energy that piles up at the largest scales, so the turbulent flow "
-        "settles into a statistically steady state."
+        "with the kinematic viscosity $\\nu$ as the primary control parameter, "
+        "and differentiate through the simulation. The problem has three setups: "
+        "a doubly periodic box, a channel flow past a cylinder, and a forced "
+        "Kolmogorov flow."
     ),
+    # The channel past a cylinder has boundary conditions of its own, which its
+    # results page shows instead (``SETUP_BCS`` in docs/generate_results.py).
     bc_description=(
         "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
         "edge), with incompressibility $\\nabla\\cdot\\mathbf{u}=0$ enforced by a "
-        "pressure projection at each time step. The cylinder experiments use the "
-        "Schäfer–Turek DFG 2D-1 channel instead: $[0, 2.2] \\times [0, 0.41]$ with a "
-        "cylinder of diameter 0.1 at $(0.2, 0.2)$, a parabolic inflow of mean speed "
-        "0.2 on the left, a zero-gradient outflow at $p=0$ on the right, and no-slip "
-        "walls; $\\nu = 10^{-3}$, so $Re = 20$."
+        "pressure projection at each time step."
     ),
     tesseract_dir=_TESSERACT_SLUG,
     output_key="result",

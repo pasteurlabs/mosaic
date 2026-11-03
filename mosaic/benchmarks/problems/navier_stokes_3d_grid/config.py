@@ -108,7 +108,7 @@ _COST_TRIALS = {"n_trials": 3}
 
 problem = Problem(
     name="ns-3d-grid",
-    category_label="Navier–Stokes (Grid)",
+    category_label="Navier–Stokes (grid)",
     description=(
         "**Fluid flow in 3D.** The 3D counterpart of the 2D fluid problem, and the "
         "harder stress test for differentiable simulation: real turbulence lives in 3D, "
@@ -118,8 +118,8 @@ problem = Problem(
         "= -\\nabla p + \\nu\\,\\nabla^2\\mathbf{u}$, $\\nabla\\cdot\\mathbf{u}=0$, "
         "with viscosity $\\nu$ as the primary control parameter. Unlike 2D, the 3D "
         "equations admit *vortex stretching*, which amplifies vorticity and brings on "
-        "chaos far sooner: the chaos horizon is $T^\\ast \\approx 8\\text{–}16$ s versus "
-        "$T^\\ast > 64$ s in 2D (at $\\nu=10^{-3}$, $N=16$). As a result gradient norms "
+        "chaos far sooner: the chaos horizon is $T^\\ast \\approx 8\\text{–}16$ versus "
+        "$T^\\ast > 64$ in 2D (at $\\nu=10^{-3}$, $N=16$). As a result gradient norms "
         "*grow* along the rollout here rather than decaying as they do in 2D."
     ),
     bc_description=(

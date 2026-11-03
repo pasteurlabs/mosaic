@@ -59,29 +59,89 @@ def test_experiments_map_to_setups() -> None:
     )
     assert views.iv.setup_of("ns-3d-grid", "cost/spatial_cost").key == "ns-3d"
     assert views.iv.setup_of("unknown-problem", "forward/x") is None
+    # Initial conditions belong to the setup whose experiments start from them.
+    assert views.iv.setup_of("ns-grid", "ics/dfg_inflow").key == "ns-2d-cylinder"
+    assert views.iv.setup_of("ns-grid", "ics/rest").key == "ns-2d-kolmogorov"
+    assert views.iv.setup_of("ns-grid", "ics/tgv").key == "ns-2d-periodic"
 
 
-def test_effort_block_has_one_table_per_setup(results: Path) -> None:
-    block = "\n".join(generate_results._effort_block("ns-grid"))
-    assert "## Setup and effort" in block
-    assert 'class="m-effort-select"' in block
-    assert "**Channel flow past a cylinder**" in block
-    assert "**Periodic box (2D)**" in block
-    # XLB's sub-stepping deviation shows on hover; a solver without a record
-    # says so instead of claiming no effort.
-    assert "ma-targeted-substepping" in block
+def test_effort_block_covers_one_setup(results: Path) -> None:
+    block = "\n".join(generate_results._effort_block("ns-grid", "ns-2d-periodic"))
+    assert "## Effort and deviations" in block
+    assert "OpenFOAM" not in block  # only ran the cylinder setup
+    # A solver without a record says so instead of claiming no effort.
     assert "| Unrecorded | not recorded | not recorded | not recorded |" in block
+    cylinder = "\n".join(generate_results._effort_block("ns-grid", "ns-2d-cylinder"))
+    # XLB's sub-stepping deviation shows on hover.
+    assert "ma-targeted-substepping" in cylinder
 
 
 def test_ranking_table_gains_effort_columns(results: Path) -> None:
-    block = "\n".join(generate_results._leaderboard_block("ns-grid", "forward"))
+    block = "\n".join(
+        generate_results._leaderboard_block(
+            "ns-grid", "forward", "ns-2d-periodic", frozenset({"tgv_nu_sweep"})
+        )
+    )
     assert "| Solver | Mean rel. error | Effort | Deviations |" in block
-    assert ".effort-table}" in block
+    # The caption links to the experiment the ranking was measured in, or to
+    # the suite when that experiment has no heading on the page.
+    assert "(#exp-forward-tgv-nu-sweep)" in block
+    unshown = "\n".join(
+        generate_results._leaderboard_block("ns-grid", "forward", "ns-2d-periodic")
+    )
+    assert "(#suite-forward)" in unshown
+    # The cylinder setup's own forward experiment has no error metric.
+    assert (
+        generate_results._leaderboard_block("ns-grid", "forward", "ns-2d-cylinder")
+        == []
+    )
 
 
 def test_no_results_means_no_effort_block(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(generate_results, "RESULTS_DIR", tmp_path)
-    assert generate_results._effort_block("ns-grid") == []
+    assert generate_results._effort_block("ns-grid", "ns-2d-periodic") == []
+
+
+def test_every_setup_gets_a_page_without_results(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(generate_results, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(generate_results, "OUTPUT_DIR", tmp_path)
+    for name in ("SCOREBOARD_INCLUDE", "EXPLORER_INCLUDE", "SCORES_JSON"):
+        monkeypatch.setattr(generate_results, name, tmp_path / name)
+    for name in ("GATES_INCLUDE", "SETUPS_INCLUDE"):
+        monkeypatch.setattr(generate_results, name, tmp_path / name)
+    generate_results.main()
+    for setup in generate_results.scoreboard.SETUPS:
+        page = (tmp_path / generate_results.setup_page(setup["key"])).read_text()
+        assert f'title: "{setup["setup"]}"' in page
+        assert "No benchmark results are available" in page
+    setups = (tmp_path / "SETUPS_INCLUDE").read_text()
+    assert "[Forced Kolmogorov flow](results_ns_2d_kolmogorov.qmd)" in setups
+
+
+def test_setup_pages_only_show_their_experiments() -> None:
+    tree = {
+        "forward": {"cylinder": [], "tgv_nu_sweep": []},
+        "ics": {"dfg_inflow": [], "tgv": []},
+        "cost": {"": []},
+    }
+    cylinder = generate_results._setup_suites("ns-grid", tree, "ns-2d-cylinder")
+    assert cylinder == {"forward": {"cylinder": []}, "ics": {"dfg_inflow": []}}
+    periodic = generate_results._setup_suites("ns-grid", tree, "ns-2d-periodic")
+    assert set(periodic) == {"forward", "ics", "cost"}
+    assert "cylinder" not in periodic["forward"]
+
+
+def test_no_required_intervention_reads_as_l0() -> None:
+    class Record:
+        def interventions_for(self, setup: str) -> list:
+            return []
+
+        def effort(self, setup: str) -> None:
+            return None
+
+    text, detail = views.effort_parts(Record(), "heat")
+    assert text == "L0"
+    assert "nothing beyond expected tweaks" in detail
 
 
 def test_effort_cell_names_the_required_interventions() -> None:

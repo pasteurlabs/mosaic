@@ -32,13 +32,13 @@ if TYPE_CHECKING:
 
 DEALII_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "deal.II structural tesseract is forward-only: this tesseract exposes "
-    "no AD path (no VJP endpoint, no differentiable inputs), so cost/vjp "
-    "and gradient experiments are categorically out of scope.",
+    "The deal.II structural tesseract is forward-only. It exposes no AD path "
+    "(no VJP endpoint, no differentiable inputs), so cost/vjp and gradient "
+    "experiments are categorically out of scope.",
 )
 DEALII_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "deal.II structural tesseract has no AD path; topology-optimisation "
+    "The deal.II structural tesseract has no AD path, and topology optimization "
     "(compliance gradient-based ρ updates) requires a differentiable "
     "compliance output.",
 )

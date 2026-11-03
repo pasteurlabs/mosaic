@@ -119,7 +119,7 @@ metadata:
               the gradient missed the finite differences by 3.6e-3 at the best
               ε, against 1.1e-4 with the relative tolerance; the peers miss by
               7e-5 to 2e-3. The check passes either way.
-            evidence: gradient/chain_fd_check of #272; PR description.
+            evidence: "gradient/chain_fd_check of #272; PR description."
           ns-2d-periodic: &adjoint-tolerance-unmeasured
             consequences: []
             symptom: Not measured separately; no check changed.

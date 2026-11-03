@@ -9,9 +9,9 @@ Each tesseract records, under ``metadata.mosaic`` in its
 * ``abstraction``: the solver's abstraction level, which sets the baseline of
   ordinary use (``application``, ``framework`` or ``kernel-toolkit``);
 * ``interventions``: everything beyond calling the solver as its baseline
-  intends, each with a level (L0 documented use, L1 undocumented
-  configuration, L2 user code on public primitives, L3 changing the solver),
-  a necessity, and per setup what a user who skips it would see;
+  intends, each with a level (L0 nothing beyond expected tweaks, L1
+  undocumented configuration, L2 user code on public primitives, L3 changing
+  the solver), a necessity, and per setup what a user who skips it would see;
 * ``deviations``: where the solver runs a substitute for the prescribed setup.
 
 Example::
@@ -53,7 +53,7 @@ ABSTRACTIONS = ("application", "framework", "kernel-toolkit")
 # a record cannot use it.
 LEVELS = ("L0", "L1", "L2", "L3")
 LEVEL_NAMES = {
-    "L0": "documented use",
+    "L0": "nothing beyond expected tweaks",
     "L1": "undocumented configuration",
     "L2": "user code on public primitives",
     "L3": "changing the solver",
@@ -103,7 +103,7 @@ SETUPS: dict[str, Setup] = {
             "ns-2d-cylinder",
             "ns-grid",
             "Channel flow past a cylinder",
-            claims=("forward/cylinder", "optimization/drag_opt"),
+            claims=("forward/cylinder", "optimization/drag_opt", "ics/dfg_inflow"),
         ),
         Setup(
             "ns-2d-kolmogorov",
@@ -113,6 +113,7 @@ SETUPS: dict[str, Setup] = {
                 "forward/kolmogorov",
                 "forward/kolmogorov_laminar",
                 "gradient/chain_fd_check",
+                "ics/rest",
             ),
         ),
         Setup("ns-3d", "ns-3d-grid", "Triply periodic box (3D)"),

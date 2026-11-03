@@ -179,18 +179,39 @@ def test_cost_marks_gaps_within_the_trial_spread(periodic: dict) -> None:
     assert periodic["gpu_model"] == "Tesla T4"
     html = scoreboard.render_setup(periodic)
     assert "≈ 1.1×" in html
-    assert "first call" in html
+    assert "First call" in html
     assert "measured on Tesla T4" in html
 
 
 def test_check_tables_carry_effort_and_deviations(periodic: dict) -> None:
     assert periodic["has_effort"]
     html = scoreboard.render_setup(periodic)
-    assert 'class="checkboard effort-table"' in html
     assert ">Effort</th>" in html
     assert ">Deviations</th>" in html
     xlb = _solver(periodic, "XLB")
     assert xlb["effort"][0] in iv.LEVELS
+    # Effort and deviations link to the solver's record.
+    href = f"solvers.qmd#{xlb['anchor']}" if xlb["anchor"] else "solvers.qmd"
+    assert f'<td class="ck-effort"><a href="{href}"' in html
+    # Reliability points at the notes under the table.
+    assert '<a href="#notes-ns-2d-periodic">*</a>' in html
+    assert 'id="notes-ns-2d-periodic"' in html
+
+
+def test_partial_passes_read_as_partial() -> None:
+    chk = {
+        "state": "pass",
+        "n_run": 1,
+        "n_gates": 5,
+        "reasons": [],
+        "explained": False,
+        "blocked_as": "Blocked",
+        "metrics": [],
+    }
+    cell = scoreboard._check_td(chk, "notes-x")
+    assert "Partial</span>" in cell
+    assert "1 of 5 run" in cell
+    assert "Pass</span>" in scoreboard._check_td({**chk, "n_run": 5}, "notes-x")
 
 
 def test_setups_follow_the_intervention_module(

@@ -3,10 +3,11 @@
 
 """Per-setup solver check tables for the Results pages.
 
-The benchmark does not rank solvers. For each problem *setup* (one problem
-statement, e.g. periodic Taylor–Green flow or flow past a cylinder; the setups
-and the experiments each one owns are defined in
-``mosaic/benchmarks/core/interventions.py``) it reports:
+The tables report each metric separately and never combine them into one
+score. For each problem *setup* (one problem statement, e.g. periodic
+Taylor–Green flow or flow past a cylinder; the setups and the experiments each
+one owns are defined in ``mosaic/benchmarks/core/interventions.py``) they
+report:
 
 * **Checks** — forward, gradient and optimization, each one of pass,
   borderline, fail, blocked, not supported or not run. A check
@@ -17,7 +18,8 @@ and the experiments each one owns are defined in
 * **Cost** — forward and VJP wall-clock time as a multiple of the fastest
   solver *on the same device class* (GPU or CPU), at the largest problem size
   every solver of that class completed. A gap to the fastest solver that is
-  within the spread of the timed trials is marked.
+  within the spread of the timed trials is marked. Next to it, the peak
+  memory of the VJP pass (the forward pass for forward-only solvers).
 * **Reliability** — counts of ok, flagged (anomaly), failed, blocked and
   not-run experiment cells over every experiment of the setup, with the reason
   for each, and the experiments where a solver reached a resource limit
@@ -365,6 +367,8 @@ def _times_by_n(data: dict) -> dict[str, dict[float, dict]]:
             "first": float(m["first_call_s"])
             if _finite(m.get("first_call_s"))
             else math.nan,
+            "vram": m.get("vram_peak_mib"),
+            "ram": m.get("ram_peak_mib"),
         }
     return out
 
@@ -427,12 +431,38 @@ def _relative_cost(
             "std": t["std"],
             "n_trials": t["n_trials"],
             "first": t["first"],
+            "vram": t["vram"],
+            "ram": t["ram"],
             "n": n,
             "within_noise": s != fastest
             and math.isfinite(spread)
             and t["mean"] - best["mean"] <= 2 * spread,
         }
     return out
+
+
+def _iters_to_best(
+    results_dir: Path, problem: str, gates: list[str] | None
+) -> dict[str, float]:
+    """Per solver, the optimizer iterations until the best objective.
+
+    Read from the first optimization gate whose results carry it; results
+    recorded before the harness kept ``iters_to_best`` have none.
+    """
+    for label in gates or []:
+        path = results_dir / problem / label / "result.json"
+        try:
+            results = json.loads(path.read_text(encoding="utf-8")).get("results")
+        except Exception:  # noqa: S112 — no or malformed result file
+            continue
+        out = {
+            r["solver"]: float(v)
+            for r in results or []
+            if _finite(v := (r.get("metrics") or {}).get("iters_to_best"))
+        }
+        if out:
+            return out
+    return {}
 
 
 # ── Assembly ─────────────────────────────────────────────────────────────────
@@ -498,6 +528,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                     for s, v in _relative_cost(times, group).items():
                         cost.setdefault(s, {})[label] = v
 
+        iters = _iters_to_best(results_dir, problem, setup["gates"].get("optimization"))
         records = views.records_for(setup["key"])
         out_rows = []
         for name in names:
@@ -561,6 +592,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                     "device_mismatch": name in measured
                     and measured[name] is not configured[name],
                     "checks": checks,
+                    "iters": iters.get(name),
                     "cost": cost.get(name, {}),
                     "reliability": reliability,
                     "flags": flags,
@@ -612,9 +644,16 @@ def _metric_text(metrics: dict) -> str:
     return ", ".join(parts)
 
 
-def _check_td(chk: dict) -> str:
+def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
+    """One check cell. ``notes`` is the id of the setup's notes below the table."""
     st = chk["state"]
-    label = chk["blocked_as"] if st == "blocked" else STATE_LABELS[st]
+    partial = st not in ("na", "notrun", "blocked") and chk["n_run"] < chk["n_gates"]
+    if st == "blocked":
+        label = chk["blocked_as"]
+    elif st == "pass" and partial:
+        label = "Partial"
+    else:
+        label = STATE_LABELS[st]
     tip = [label]
     if chk["n_gates"] and st not in ("na", "notrun", "blocked"):
         tip.append(f"{chk['n_run']} of {chk['n_gates']} gate experiments run")
@@ -623,21 +662,26 @@ def _check_td(chk: dict) -> str:
     tip += [
         f"{_short(lab)}: {txt}" for lab, m in chk["metrics"] if (txt := _metric_text(m))
     ]
+    if iters is not None:
+        tip.append(f"{iters:.0f} iterations to the best objective")
     tip += [f"{_short(lab)}: {why}" for lab, _, why in chk["reasons"] if why]
-    partial = (
-        f'<span class="ck-part">{chk["n_run"]}/{chk["n_gates"]}</span>'
-        if st not in ("na", "notrun", "blocked") and chk["n_run"] < chk["n_gates"]
+    extra = (
+        f'<span class="ck-part">{chk["n_run"]} of {chk["n_gates"]} run</span>'
+        if partial
         else ""
     )
+    if iters is not None:
+        extra += f'<span class="ck-part">{iters:.0f} iterations</span>'
     explained = (
-        '<sup class="ck-explained" aria-label="explained">i</sup>'
+        f'<a class="ck-explained" href="#{notes}" '
+        'aria-label="explained, see the notes below the table"><sup>i</sup></a>'
         if chk["explained"]
         else ""
     )
     return (
-        f'<td class="ck-cell"><span class="ck ck-{st}" title="{_esc(" · ".join(tip))}">'
+        f'<td class="ck-cell"><span class="ck ck-{st}" title="{_esc(chr(10).join(tip))}">'
         f'<span class="ck-glyph" aria-hidden="true">{STATE_GLYPHS[st]}</span>'
-        f"{_esc(label)}{explained}</span>{partial}</td>"
+        f"{_esc(label)}</span>{explained}{extra}</td>"
     )
 
 
@@ -651,10 +695,19 @@ def _cost_td(v: dict | None) -> str:
         tip += f" ± {v['std']:.2g} s over {v['n_trials']} trials"
     tip += f" at N={int(v['n'])}"
     if math.isfinite(v["first"]):
-        tip += f" · first call {v['first']:.3g} s"
+        tip += f"\nFirst call {v['first']:.3g} s"
     if v["within_noise"]:
         txt = f"≈ {txt}"
-        tip += " · within the spread of the fastest solver's trials"
+        tip += "\nWithin the spread of the fastest solver's trials"
+    return f'<td class="ck-cost" title="{_esc(tip)}">{txt}</td>'
+
+
+def _memory_td(v: dict | None, gpu: bool) -> str:
+    mib = (v or {}).get("vram" if gpu else "ram")
+    if not _finite(mib):
+        return '<td class="ck-cost ck-cost-na">—</td>'
+    txt = f"{mib / 1024:.3g} GiB" if mib >= 1024 else f"{mib:.3g} MiB"
+    tip = f"{'Device' if gpu else 'Container'} memory at N={int(v['n'])}"
     return f'<td class="ck-cost" title="{_esc(tip)}">{txt}</td>'
 
 
@@ -682,14 +735,11 @@ def _rel_td(rel: dict) -> str:
     )
 
 
-def _record_td(parts: tuple[str, str], cls: str) -> str:
+def _record_td(parts: tuple[str, str], cls: str, href: str) -> str:
+    """An effort or deviations cell, linked to the solver's record."""
     text, detail = parts
-    inner = (
-        f'<span class="m-tip" title="{_esc(detail)}">{_esc(text)}</span>'
-        if detail
-        else _esc(text)
-    )
-    return f'<td class="{cls}">{inner}</td>'
+    title = f' title="{_esc(detail)}"' if detail else ""
+    return f'<td class="{cls}"><a href="{href}"{title}>{_esc(text)}</a></td>'
 
 
 def _cost_n(setup: dict, label: str, gpu: bool) -> str:
@@ -701,19 +751,26 @@ def _cost_n(setup: dict, label: str, gpu: bool) -> str:
     return f"N={ns.pop()}" if len(ns) == 1 else ""
 
 
+# The pass whose peak memory the check tables show: the VJP, which holds the
+# forward pass's state for the backward pass, else the forward pass.
+_MEMORY_PASSES = ("VJP cost", "Forward cost")
+
+
 def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
-    """One setup: check table grouped by device class, plus the flag list."""
+    """One setup: check table grouped by device class, plus the notes."""
     suites = setup["suites"]
     cost_cols = [c for c, _ in COST_PASSES] if setup["has_cost"] else []
     record_cols = (
         [views.EFFORT_LABEL, views.DEVIATIONS_LABEL] if setup["has_effort"] else []
     )
-    ncols = 1 + len(suites) + len(cost_cols) + 1 + len(record_cols)
+    notes = f"notes-{setup['key']}"
+    ncols = 1 + len(suites) + len(cost_cols) + bool(cost_cols) + 1 + len(record_cols)
     head = (
         '<th scope="col" class="ck-solver">Solver</th>'
         + "".join(f'<th scope="col">{SUITE_LABELS[s]}</th>' for s in suites)
         + "".join(f'<th scope="col">{c}</th>' for c in cost_cols)
-        + '<th scope="col" class="ck-rel">Reliability</th>'
+        + ('<th scope="col">Peak memory</th>' if cost_cols else "")
+        + f'<th scope="col" class="ck-rel">Reliability<a href="#{notes}">*</a></th>'
         + "".join(f'<th scope="col">{c}</th>' for c in record_cols)
     )
     bodies = []
@@ -724,7 +781,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         ns = [n for n in (_cost_n(setup, c, gpu) for c in cost_cols) if n]
         device = setup["gpu_model"] if gpu else ""
         note = (
-            f" · cost relative to the fastest {'GPU' if gpu else 'CPU'} solver"
+            f"Cost relative to the fastest {'GPU' if gpu else 'CPU'} solver"
             + (f" at {', '.join(dict.fromkeys(ns))}" if ns else "")
             + (f", measured on {device}" if device else "")
             if cost_cols
@@ -746,14 +803,25 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
                 if r["device_mismatch"]
                 else ""
             )
+            memory = next(
+                (r["cost"][c] for c in _MEMORY_PASSES if c in r["cost"]), None
+            )
             trs.append(
                 f'<tr><th scope="row" class="ck-solver"><a href="{href}">{_esc(r["name"])}</a>{mismatch}</th>'
-                + "".join(_check_td(r["checks"][s]) for s in suites)
+                + "".join(
+                    _check_td(
+                        r["checks"][s],
+                        notes,
+                        r["iters"] if s == "optimization" else None,
+                    )
+                    for s in suites
+                )
                 + "".join(_cost_td(r["cost"].get(c)) for c in cost_cols)
+                + (_memory_td(memory, gpu) if cost_cols else "")
                 + _rel_td(r["reliability"])
                 + (
-                    _record_td(r["effort"], "ck-effort")
-                    + _record_td(r["deviations"], "ck-dev")
+                    _record_td(r["effort"], "ck-effort", href)
+                    + _record_td(r["deviations"], "ck-dev", href)
                     if record_cols
                     else ""
                 )
@@ -761,30 +829,19 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
             )
         bodies.append("<tbody>" + "".join(trs) + "</tbody>")
 
-    passing = [
-        r["name"]
-        for r in setup["rows"]
-        if all(r["checks"][s]["state"] == "pass" for s in suites)
-    ]
-    summary = (
-        "Passes every check: " + ", ".join(_esc(n) for n in passing) + "."
-        if passing
-        else "No solver passes every check yet."
-    )
-
+    word = {"anomaly": "flagged", "failed": "failed", "notrun": "not run"}
     flag_items = []
     for r in setup["rows"]:
         for lab, kind, why in r["flags"]:
-            word = {"anomaly": "flagged", "failed": "failed", "notrun": "not run"}
             cls = kind if kind in word else "blocked"
             flag_items.append(
-                f"<li><strong>{_esc(r['name'])}</strong> · <code>{_esc(lab)}</code> · "
+                f"<li><strong>{_esc(r['name'])}</strong> on <code>{_esc(lab)}</code>: "
                 f'<span class="fl-{cls}">{_esc(word.get(kind, kind.lower()))}</span>'
-                + (f" — {_esc(why)}" if why else "")
+                + (f". {_esc(why)}" if why else "")
                 + "</li>"
             )
     limit_items = [
-        f"<li><strong>{_esc(r['name'])}</strong> · <code>{_esc(lab)}</code> · "
+        f"<li><strong>{_esc(r['name'])}</strong> on <code>{_esc(lab)}</code>, "
         f"from {_esc(frontier)}</li>"
         for r in setup["rows"]
         for lab, frontier in r["limits"]
@@ -793,12 +850,18 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     for r in setup["rows"]:
         whys = list(dict.fromkeys(w for _, w in r["unsupported"] if w))
         if r["unsupported"]:
+            n = len(r["unsupported"])
             unsup.append(
-                f"<li><strong>{_esc(r['name'])}</strong> · {len(r['unsupported'])} experiments"
-                + (f" — {_esc('; '.join(whys))}" if whys else "")
+                f"<li><strong>{_esc(r['name'])}</strong>, {n} experiment"
+                + ("s" if n != 1 else "")
+                + (f". {_esc('; '.join(whys))}" if whys else "")
                 + "</li>"
             )
-    details = ""
+    details = (
+        '<p class="ck-note">* Reliability counts the experiments of this setup '
+        "that ran cleanly, out of those the solver supports. The lists below name "
+        "every flag, exclusion and resource limit behind it.</p>"
+    )
     if flag_items:
         details += (
             f'<details class="ck-flags"><summary>Flags and exclusions ({len(flag_items)})</summary>'
@@ -808,10 +871,10 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         details += (
             f'<details class="ck-flags"><summary>Resource limits ({len(limit_items)})'
             "</summary><p>Sweeps a solver completed only up to some size or rollout "
-            "length: it ran out of memory or time, or, in sweeps that look for the "
+            "length. It ran out of memory or time or, in sweeps that look for the "
             "limit, failed past the last value it completed. Unless that happened "
-            "at the first value, the experiment counts as ok; the limit shows how "
-            "far the solver goes on this hardware.</p>"
+            "at the first value, the experiment counts as ok, and the limit shows "
+            "how far the solver goes on this hardware.</p>"
             f"<ul>{''.join(limit_items)}</ul></details>"
         )
     if unsup:
@@ -837,36 +900,36 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         else ""
     )
     return (
-        f'<section class="checkboard effort-table" id="setup-{_esc(setup["key"])}">'
+        f'<section class="checkboard" id="setup-{_esc(setup["key"])}">'
         + header
         + '<div class="table-scroll"><table class="ck-table" data-quarto-disable-processing="true"><thead><tr>'
         + head
         + "</tr></thead>"
         + "".join(bodies)
         + "</table></div>"
-        + f'<div class="ck-foot"><p class="ck-summary">{summary}</p>{details}</div>'
+        + f'<div class="ck-foot" id="{notes}">{details}</div>'
         + "</section>"
     )
 
 
 def render_overview(data: dict, pages: dict[str, str]) -> str:
-    """All setups, for the Results overview page."""
+    """All setups, for the Results overview page. ``pages`` maps setup keys to
+    their results pages."""
     parts = ['```{=html}\n<div class="checkboards">']
     for setup in data["setups"]:
-        parts.append(render_setup(setup, link=pages.get(setup["problem"], "")))
+        parts.append(render_setup(setup, link=pages.get(setup["key"], "")))
     parts.append("</div>\n```\n")
     return "".join(parts)
 
 
-def render_problem(data: dict, problem: str) -> str:
-    """The setups of one problem, for its results page."""
-    setups = [s for s in data["setups"] if s["problem"] == problem]
-    if not setups:
+def render_setup_page(data: dict, key: str) -> str:
+    """The check table of one setup, for its results page."""
+    setup = next((s for s in data["setups"] if s["key"] == key), None)
+    if setup is None:
         return ""
-    many = len(setups) > 1
     return (
         '```{=html}\n<div class="checkboards">'
-        + "".join(render_setup(s, heading=many) for s in setups)
+        + render_setup(setup, heading=False)
         + "</div>\n```\n"
     )
 
@@ -903,10 +966,9 @@ def render_gates() -> str:
         "|---|---|---|---|",
     ]
     for setup in _setups():
-        pid = PROBLEM_IDS.get(setup["problem"], setup["problem"])
         cells = [
             ", ".join(f"`{_short(g)}`" for g in setup["gates"].get(s, [])) or "—"
             for s in SUITES
         ]
-        lines.append(f"| {pid} · {setup['setup']} | " + " | ".join(cells) + " |")
+        lines.append(f"| {setup['setup']} | " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
