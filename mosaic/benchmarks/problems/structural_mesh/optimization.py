@@ -92,7 +92,8 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
     (``rho_history``), the shared ``rho_init`` array, and a metrics dict
     matching the on-disk schema (``compliances``, ``vol_fracs``,
     ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``iters_to_plateau``,
-    ``converged``, ``grad_norms``). ``iters_to_plateau`` follows the loss,
+    ``seconds_to_plateau``, ``elapsed_s``, ``converged``, ``grad_norms``).
+    ``iters_to_plateau`` follows the loss,
     which includes the volume penalty, so it can differ from where the
     compliance alone levels off.
     """
@@ -202,6 +203,8 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
             "final_vol_frac": final_vol_frac,
             "n_iters": diag["n_iters"],
             "iters_to_plateau": diag["iters_to_plateau"],
+            "seconds_to_plateau": diag["seconds_to_plateau"],
+            "elapsed_s": diag["elapsed_s"],
             "converged": converged,
             "grad_norms": grad_norms,
         },
