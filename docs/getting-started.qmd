@@ -2,7 +2,7 @@
 title: Run the benchmark
 ---
 
-This page covers installing Mosaic, running the benchmark and reading its output. Running it locally reproduces the [results](results.qmd) on your own hardware, which gives numbers that reflect your setup. To contribute a solver or a change, start with the [contributing guide](contributing.qmd) once you have a first run working.
+This page covers installing Mosaic, running the benchmark and reading its output. Running it locally reproduces the [results](results/index.qmd) on your own hardware, which gives numbers that reflect your setup. To contribute a solver or a change, start with the [contributing guide](contributing.qmd) once you have a first run working.
 
 ## Requirements {#requirements}
 
@@ -167,7 +167,7 @@ mosaic status --format md > report.md     # Markdown report
 mosaic status --format json > snap.json   # machine-readable snapshot
 ```
 
-The [results overview](results.qmd#how-to-read-the-results) explains what the checks and states mean.
+The [results overview](results/index.qmd#how-to-read-the-results) explains what the checks and states mean.
 
 ## Troubleshooting {#troubleshooting}
 

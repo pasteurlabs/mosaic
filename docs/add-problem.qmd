@@ -1,16 +1,16 @@
 ---
-title: Add a domain
+title: Add a problem
 ---
 
-A domain is a family of solvers that share one canonical schema and one directory under `mosaic/tesseracts/`. Adding one requires four pieces: the canonical schema, a problem package that registers the experiments (the name you pass to `-p`), the setup that results are reported for, and at least one solver. The [terminology](index.qmd#terminology) on the Overview page explains how domains, problems and setups relate.
+A problem is the benchmark package you select with `mosaic run -p`. It registers experiments for one kind of physics, and its solvers share one canonical schema, which makes them a domain. Adding a problem for new physics therefore takes four pieces: the canonical schema, the problem package, the setup that results are reported for, and at least one solver. The [terminology](index.qmd#terminology) on the Overview page explains how domains, problems and setups relate.
 
-This page builds a domain for the 1D diffusion equation, called `diffusion-1d`. The solver step is condensed, since [Add a solver](add-solver.qmd) covers it in full. Read that page first if Tesseract endpoints (`apply`, `abstract_eval`, `vector_jacobian_product`) are new to you.
+This page builds a problem for the 1D diffusion equation, called `diffusion-1d`. The solver step is condensed, since [Add a solver](add-solver.qmd) covers it in full. Read that page first if Tesseract endpoints (`apply`, `abstract_eval`, `vector_jacobian_product`) are new to you.
 
 You need a development install of Mosaic (see [Setup](contributing.qmd#setup)) and a running Docker daemon.
 
 ## 1. Choose a template
 
-Mosaic ships templates that scaffold the files of a new domain. List them with:
+Mosaic ships templates that scaffold the files of a new problem and its domain. List them with:
 
 ```bash
 mosaic templates
@@ -34,7 +34,7 @@ mosaic templates
 
 The 1D diffusion equation is a time-dependent PDE on a periodic grid, so `ns-periodic` is the closest match.
 
-## 2. Scaffold the domain
+## 2. Scaffold the files
 
 ```bash
 mosaic new-domain diffusion-1d --from-template ns-periodic
@@ -345,7 +345,7 @@ DOMAIN_SETUPS: dict[str, tuple[str, ...]] = {
 
 A setup without `claims` owns every experiment of its problem that no other setup claims. A problem with several setups gives the others `claims`, as `ns-grid` does for the cylinder and Kolmogorov experiments, and `setup_of(problem, experiment)` resolves which setup an experiment belongs to.
 
-To show the setup on the results pages, add it to `SETUPS` in `docs/scoreboard.py`, which also names the experiments whose status decides each check. Then give it a one-line description in `SETUP_TAGLINES` in `docs/generate_results.py`, and add its page (`docs/results_<setup>.qmd`, with dashes in the key replaced by underscores) to the Results menu in `_quarto.yml`. A maintainer can help with this step.
+To show the setup on the results pages, add it to `SETUPS` in `docs/scripts/scoreboard.py`, which also names the experiments whose status decides each check. Then give it a one-line description in `SETUP_TAGLINES` in `docs/scripts/generate_results.py`. Its page is `docs/results/<setup>.qmd`, which only includes the generated body, `{{{< include ../_generated/results/<setup>.qmd >}}}`. Copy one of the existing pages and add it to the Results menu in `docs/_quarto.yml`. A maintainer can help with this step.
 
 ## 6. Add a reference solver
 
@@ -498,4 +498,4 @@ mosaic/benchmarks/problems/shared/plots/solver_styles.py   # the solver's plot s
 
 CI runs the [checks](contributing.qmd#ci-checks) that every pull request gets. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), and the results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
 
-In the pull request description, say what physics the domain adds and why it makes a useful benchmark, describe the canonical interface (what goes in and what comes out), and point out design decisions that reviewers should know about, such as the output key, the IC generators and the experiment parameters.
+In the pull request description, say what physics the problem adds and why it makes a useful benchmark, describe the canonical interface (what goes in and what comes out), and point out design decisions that reviewers should know about, such as the output key, the IC generators and the experiment parameters.

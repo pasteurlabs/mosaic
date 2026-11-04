@@ -35,6 +35,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: gpu-device
+        title: Runs the solver on the GPU
         level: L0
         necessity: choice
         what: >
@@ -44,14 +45,16 @@ metadata:
           structural:
             consequences: []
             symptom: >
-              Not compared with the CPU: the tesseract has run on the GPU since
-              its first version.
+              No comparison with the CPU exists.
+            notes: >
+              The tesseract has run on the GPU since its first version.
         provenance: maintainer-authored
       - id: global-default-device
+        title: Sets torch's default device and dtype globally
         level: L0
         necessity: required
         what: >
-          Sets torch's default device (and dtype, float64) process-wide, so
+          Sets torch's default device and dtype (float64) process-wide, so
           the tensors torch-fem allocates internally land on the GPU with the
           mesh, material and load tensors.
         why:
@@ -59,13 +62,15 @@ metadata:
             consequences: [crash]
             symptom: >
               torch-fem allocates auxiliary tensors without device=, so they
-              land on the CPU and collide with the CUDA tensors. No error log
-              is recorded.
+              land on the CPU and collide with the CUDA tensors.
+            notes: >
+              No error log is recorded.
             evidence: >
               Code comment; torch-fem's benchmarks/utils.py at v0.12.1 and its
               current installation docs set the default device the same way.
         provenance: maintainer-authored
       - id: gpu-cg-jacobi
+        title: Solves with Jacobi-preconditioned CG on the GPU
         level: L0
         necessity: choice
         what: >
@@ -77,14 +82,17 @@ metadata:
             consequences: [too-slow]
             symptom: >
               torch-fem 0.12.1 solves systems below 10,000 DOFs directly with
-              SciPy on the CPU, even when the matrix is on the GPU; larger ones
-              already get CG with Jacobi without AmgX. So the setting keeps the
-              smaller meshes on the device. No isolated measurement.
+              SciPy on the CPU, even when the matrix is on the GPU.
+            notes: >
+              Larger systems already get CG with Jacobi without AmgX, so the
+              setting keeps the smaller meshes on the device. There is no
+              isolated measurement.
             evidence: >
               #188; resolve_method and resolve_library in torch-fem v0.12.1
               src/torchfem/sparse.py.
         provenance: maintainer-authored
       - id: cg-tolerance
+        title: Loosens the CG stopping tolerance to 1e-6
         level: L0
         necessity: choice
         tuned: true
@@ -95,13 +103,16 @@ metadata:
           structural:
             consequences: [too-slow]
             symptom: >
-              At 1e-10, spatial_cost at N = 128 took 0.435 s against 0.338 s
-              and vjp_cost 0.717 s against 0.530 s, on a shared GPU. Every
-              status is unchanged from 1e-12 to 1e-6; forward metrics are
-              bit-identical and gradient checks move by less than 1e-9.
+              At torch-fem's default of 1e-10, spatial_cost at N = 128 took
+              0.435 s against 0.338 s, with every status unchanged.
+            notes: >
+              vjp_cost took 0.717 s against 0.530 s. Measured on a shared GPU.
+              Every status is unchanged from 1e-12 to 1e-6. Forward metrics
+              are bit-identical and gradient checks move by less than 1e-9.
             evidence: "#301, notes."
         provenance: mosaic-team
       - id: deterministic-kernels
+        title: Makes the CUDA assembly deterministic
         level: L0
         necessity: choice
         what: >
@@ -111,8 +122,9 @@ metadata:
           structural:
             consequences: []
             symptom: >
-              Run-to-run differences were shown on the heat setup only; on
-              this setup the setting is kept for consistency, with no
+              Run-to-run differences were shown on the heat setup only.
+            notes: >
+              On this setup the setting is kept for consistency, with no
               measurable cost.
             evidence: "#200, notes."
         provenance: maintainer-authored

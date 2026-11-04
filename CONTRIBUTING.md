@@ -2,7 +2,7 @@
 
 Mosaic grows as the community adds solvers, improves their configurations, and extends the benchmark to new domains. Any contributions you make are greatly appreciated.
 
-The [contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/contributing.html) covers the development setup, the contribution paths (adding a solver or a domain, tuning a solver, changing the harness), the pull request workflow with its benchmark labels, and the commit conventions.
+The [contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html) covers the development setup, the contribution paths (adding a solver or a domain, tuning a solver, changing the harness), the pull request workflow with its benchmark labels, and the commit conventions.
 
 ## Code of Conduct
 

@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Per-setup check tables on the Results pages (docs/scoreboard.py)."""
+"""Per-setup check tables on the Results pages (docs/scripts/scoreboard.py)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from docs import generate_results  # noqa: E402
+from docs.scripts import generate_results  # noqa: E402
 
 scoreboard = generate_results.scoreboard
 iv = scoreboard.views.iv
@@ -190,10 +190,13 @@ def test_check_tables_carry_effort_and_deviations(periodic: dict) -> None:
     assert ">Deviations</th>" in html
     xlb = _solver(periodic, "XLB")
     assert xlb["effort"][0] in iv.LEVELS
-    # Effort and deviations link to the solver's record.
-    href = f"solvers.qmd#{xlb['anchor']}" if xlb["anchor"] else "solvers.qmd"
-    assert f'<td class="ck-effort"><a href="{href}"' in html
-    # Reliability points at the notes under the table.
+    # The solver's name links to its record, and effort and deviations show
+    # their detail on hover.
+    href = f"../solvers.qmd#{xlb['anchor']}" if xlb["anchor"] else "../solvers.qmd"
+    assert f'<a href="{href}">XLB</a>' in html
+    assert '<td class="ck-effort"><span title="' in html
+    assert '<td class="ck-dev">—</td>' in html
+    # The all-experiments column points at the notes under the table.
     assert '<a href="#notes-ns-2d-periodic">*</a>' in html
     assert 'id="notes-ns-2d-periodic"' in html
 

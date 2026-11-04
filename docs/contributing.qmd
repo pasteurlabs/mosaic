@@ -2,7 +2,7 @@
 title: Contributing guide
 ---
 
-Mosaic grows as people add solvers, tune the ones it has, and extend it to new domains. This page explains how to set up a development environment, which path fits your contribution, and what happens after you open a pull request. All contributors sign the Contributor License Agreement and follow the code of conduct, both linked from [`CONTRIBUTING.md`](https://github.com/pasteurlabs/mosaic/blob/main/CONTRIBUTING.md).
+Mosaic grows as people add solvers, tune the ones it has, and extend it to new physics. This page explains how to set up a development environment, which path fits your contribution, and what happens after you open a pull request. We ask everyone who takes part to follow our [code of conduct](https://github.com/pasteurlabs/mosaic/blob/main/CODE_OF_CONDUCT.md).
 
 ## Setup {#setup}
 
@@ -33,9 +33,9 @@ The hooks run on every commit. They lint and format Python with ruff, format JSO
 
 A solver wraps one library as a Tesseract for an existing domain. It lives in its own directory under `mosaic/tesseracts/<domain>/`, implements the domain's canonical schema, and describes itself in the `metadata.mosaic` block of its `tesseract_config.yaml`, including the intervention record. [Add a solver](add-solver.qmd) walks through every step, from the directory layout to the first benchmark run.
 
-### Add a domain
+### Add a problem
 
-A domain is a family of solvers that share one canonical schema. Adding one means writing that schema (`mosaic/mosaic_shared/problems/<domain>/schemas.py`), a problem package under `mosaic/benchmarks/problems/` that registers the experiments, the setups that results are reported for, and at least one solver. `mosaic new-domain <name> --from-template <template>` scaffolds the files from a built-in template (`mosaic templates` lists them), and `mosaic validate-domain <problem>` checks the problem package. [Add a domain](add-domain.qmd) is the full walkthrough.
+A problem is the benchmark package for one kind of physics, selected with `mosaic run -p`. Adding one means writing the canonical schema its solvers share (`mosaic/mosaic_shared/problems/<domain>/schemas.py`), a problem package under `mosaic/benchmarks/problems/` that registers the experiments, the setups that results are reported for, and at least one solver. `mosaic new-domain <name> --from-template <template>` scaffolds the files from a built-in template (`mosaic templates` lists them), and `mosaic validate-domain <problem>` checks the problem package. [Add a problem](add-problem.qmd) is the full walkthrough.
 
 ### Tune an existing solver {#tuning-an-existing-solver}
 
@@ -59,11 +59,13 @@ mosaic run -p <problem> --suites forward -s "<Display Name>" --debug
 
 ### Change the harness
 
-The harness is the code that runs experiments and reports results, mainly the CLI in `mosaic/benchmarks/cli/` and the runner and status pipeline in `mosaic/benchmarks/core/`. [Architecture](architecture.qmd) explains how a run flows through it. Add or update tests under `tests/` alongside the change. Since a harness change can alter results for every solver, the maintainer reviewing it picks the [benchmark label](#benchmark-labels) accordingly, usually `benchmark:all`, or `benchmark:none` if the change can't affect results.
+The harness is the code that runs experiments and reports results, mainly the CLI in `mosaic/benchmarks/cli/` and the runner and status pipeline in `mosaic/benchmarks/core/`. Add or update tests under `tests/` alongside the change. Since a harness change can alter results for every solver, the maintainer reviewing it picks the [benchmark label](#benchmark-labels) accordingly, usually `benchmark:all`, or `benchmark:none` if the change can't affect results.
 
 ## Pull request workflow
 
 Open the pull request against `main` and fill in the template. CI starts right away, while benchmarks wait until a maintainer applies a benchmark label, which also works for pull requests from forks.
+
+Before we can merge your first pull request, we ask you to sign our [Contributor License Agreement](https://github.com/pasteurlabs/pasteur-oss-cla/blob/main/README.md). A bot explains how in a comment on the pull request, and you only need to do it once.
 
 ### CI checks
 
@@ -134,7 +136,7 @@ Mark a breaking change with an exclamation mark after the type or scope (`feat(h
 
 ## Building the docs {#building-the-docs}
 
-The site is built with [Quarto](https://quarto.org) from the `.qmd` files under `docs/`, configured in `_quarto.yml`. Quarto is a standalone binary, not a Python package. CI uses Quarto 1.7.31, and using the same version locally avoids rendering differences. Download it from the [Quarto releases](https://github.com/quarto-dev/quarto-cli/releases/tag/v1.7.31), for example on Linux x86-64:
+The site is built with [Quarto](https://quarto.org) from the `.qmd` files under `docs/`, configured in `docs/_quarto.yml`. Quarto is a standalone binary, not a Python package. CI uses Quarto 1.7.31, and using the same version locally avoids rendering differences. Download it from the [Quarto releases](https://github.com/quarto-dev/quarto-cli/releases/tag/v1.7.31), for example on Linux x86-64:
 
 ```bash
 wget https://github.com/quarto-dev/quarto-cli/releases/download/v1.7.31/quarto-1.7.31-linux-amd64.deb
@@ -142,23 +144,22 @@ sudo dpkg -i quarto-1.7.31-linux-amd64.deb
 quarto --version
 ```
 
-Before each render or preview, Quarto runs two pre-render scripts with the `python` on your `PATH`. `docs/generate_results.py` writes the includes of the results overview and one results page per setup (`docs/results_<setup>.qmd`). It fills them from `mosaic-results/` if that directory exists and writes placeholders otherwise. `docs/generate.py` then writes the solver reference, `docs/solvers.qmd`. All generated files are gitignored. Both scripts import `mosaic`, so run Quarto from the repository root with the development environment active, or through uv. Quarto resolves the includes of the results overview before it runs the pre-render scripts, so in a fresh checkout run the results script once by hand, as CI does:
+`docs/Makefile` wraps the commands, running them through uv:
 
 ```bash
-uv run python docs/generate_results.py   # once, in a fresh checkout
-uv run quarto preview                    # live-reloading preview
-uv run quarto render                     # full site in _site/
+cd docs
+make html      # full site in docs/_site/
+make preview   # live-reloading preview
+make clean     # remove docs/_build/ and docs/_site/
 ```
 
-To preview the results pages with real data, put a result tree in `mosaic-results/`, either from a local run or from the published baseline, and regenerate its plots. The baseline artifact is several hundred megabytes and needs a GitHub token:
+Quarto writes its cache and each page's intermediate files next to the sources, so the Makefile copies `docs/` into `docs/_build/` and renders that copy. During `make preview`, it copies your edits there every second. Both directories are gitignored.
 
-```bash
-GITHUB_TOKEN=$(gh auth token) GITHUB_REPO=pasteurlabs/mosaic \
-  bash .github/scripts/fetch-artifact.sh baseline mosaic-results/
-uv run mosaic run --plots-only
-```
+The results pages and the solver reference include generated files from `_generated/`. Before each render or preview, the Makefile runs two scripts that write them into `docs/_build/_generated/`. `docs/scripts/generate_results.py` writes the results overview's tables, the body of each setup's page and a copy of the plots. It fills them from `mosaic-results/` if that directory exists and writes placeholders otherwise. `docs/scripts/generate.py` then writes the solver reference. Both scripts import `mosaic`, which `make` takes care of by running them through uv.
 
-`--plots-only` regenerates the plots from the `result.json` files without Docker or a GPU. The baseline stores data only, so this step is needed before the results pages show plots.
+To preview the results pages with real data, put a result tree in `mosaic-results/`, either from a local run or from the published baseline. `make data` fetches the baseline, which is several hundred megabytes and needs the GitHub CLI for a token, and then runs `mosaic run --plots-only`. That command regenerates the plots from the `result.json` files without Docker or a GPU, which is needed because the baseline stores data only.
+
+`make figures` redraws the setup schematics and the animation on the paper page. The animation runs Exponax in a temporary environment and needs [ffmpeg](https://ffmpeg.org).
 
 ## Maintainers {#maintainers}
 

@@ -3,10 +3,10 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Generate docs/solvers.qmd from tesseract source files and SolverSpec metadata.
+"""Generate the solver reference from tesseract source files and SolverSpec metadata.
 
 Usage:
-    python docs/generate.py           # writes docs/solvers.qmd
+    python docs/scripts/generate.py   # writes docs/_build/_generated/solvers.qmd
 """
 
 from __future__ import annotations
@@ -21,12 +21,13 @@ try:
 except ImportError:
     sys.exit("PyYAML is required: pip install pyyaml")
 
-ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = Path(__file__).resolve().parents[1]
+ROOT = DOCS_DIR.parent
 sys.path.insert(0, str(ROOT))
 
 
 def _load_views():
-    """Load docs/intervention_views.py whether this runs as a script or a module."""
+    """Load docs/scripts/intervention_views.py whether this runs as a script or a module."""
     import importlib.util
 
     name = "_mosaic_intervention_views"
@@ -41,7 +42,7 @@ def _load_views():
 
 views = _load_views()
 TESSERACTS = ROOT / "mosaic" / "tesseracts"
-OUTPUT = Path(__file__).resolve().parent / "solvers.qmd"
+OUTPUT = DOCS_DIR / "_build" / "_generated" / "solvers.qmd"
 
 # Maps (domain_dir, solver_dir) to the solver key used in problem configs.
 # Populated lazily by _load_solver_specs().
@@ -389,9 +390,9 @@ _DISCR_FULL = {
     "LBM": "Lattice Boltzmann",
 }
 
-# Per-solver checks written by `generate_results.py --overview-only`, keyed by
+# Per-solver checks written by `generate_results.py`, keyed by
 # section anchor. Optional: sections render without them if absent.
-SCORES = Path(__file__).resolve().parent / "_scores.json"
+SCORES = DOCS_DIR / "_build" / "_generated" / "scores.json"
 _CHECK_SUITES = ("forward", "gradient", "optimization")
 # Same words as the check states on the results pages.
 _CHECK_LABELS = {
@@ -429,7 +430,7 @@ def _anchor(solver: dict) -> str:
 def _setup_link(setup: str) -> str:
     """The setup's label, linked to its results page."""
     label = views.iv.SETUPS[setup].label
-    return f"[{label}](results_{setup.replace('-', '_')}.qmd)"
+    return f"[{label}](results/{setup}.qmd)"
 
 
 def _join(items: list[str]) -> str:
@@ -552,8 +553,8 @@ def render_usage(solver: dict) -> list[str]:
         "",
         (
             f"`tesseract build {solver['path']}` builds the image "
-            f"`{solver['name']}`. [Use a solver in your code](standalone.qmd) "
-            "shows how to load it and call it from JAX."
+            f"`{solver['name']}`. To load it and call it from JAX, follow "
+            "[Use a solver in your code](standalone.qmd)."
         ),
         "",
         '::: {.callout-note collapse="true" appearance="simple"}',
@@ -602,41 +603,59 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         "",
         (
             "Each section on this page describes one solver: its numerical "
-            "method and backend, what it took to run it in Mosaic, the setups "
-            "it runs and how it does on their checks, and how to call it from "
-            "your own code. Solvers are grouped by domain, a family of solvers "
-            "that share one input and output schema (see the "
-            "[terminology](index.qmd#terminology))."
+            "method and backend, what it took to run it in Mosaic, its checks on "
+            "the setups it runs (a dash means the setup has no check of that "
+            "kind), and how to call it from your own code. Solvers "
+            "are grouped by domain, a family of solvers that share one input "
+            "and output schema."
+        ),
+        "",
+        "## Effort levels {#effort-levels}",
+        "",
+        (
+            "Every solver has an intervention record that lists everything done "
+            "to run it beyond using the library as intended, with the reason and "
+            "evidence for each item. Each intervention gets a level by its "
+            "mechanism:"
+        ),
+        "",
+        "| Level | Mechanism | Example |",
+        "|---|---|---|",
+        (
+            "| L0 | Nothing beyond expected tweaks, meaning the public API with "
+            "its defaults or documented options | Setting a documented solver "
+            "tolerance |"
+        ),
+        (
+            "| L1 | Undocumented configuration, found by reading the source "
+            "| An option that only the library's source code mentions |"
+        ),
+        (
+            "| L2 | User code on the library's public primitives | A boundary "
+            "condition or VJP rule that the library does not provide |"
+        ),
+        (
+            "| L3 | Changes to the solver itself | A monkeypatch, a private API "
+            "or a patched source file |"
         ),
         "",
         (
-            "A solver's intervention record lists everything done to run it "
-            "beyond calling the library as intended, with the reason and "
-            "evidence for each item. What counts as intended use depends on the "
-            "solver's abstraction level, which is running a program as "
+            "A solver's effort on a setup is the highest level among the "
+            "interventions it requires there. What counts as intended use "
+            "depends on the solver's abstraction level: running a program as "
             "documented (`application`), expressing the setup through a "
-            "library's API (`framework`) or building on its primitives "
-            "(`kernel-toolkit`). The record also lists the solver's deviations, "
-            "the places where it runs a substitute for the prescribed setup. "
-            "The solver's effort on a setup is the highest level among the "
-            "interventions marked `required` there, and "
-            "[How to read the results](results.qmd#how-to-read-the-results) "
-            "explains the levels. Contributions are welcome on every item, since "
-            "an upstream fix or a better configuration can lower a solver's "
-            "effort."
+            "library's API (`framework`), or building on its primitives "
+            "(`kernel-toolkit`). The record also lists *deviations*, the places "
+            "where a solver runs a substitute for part of the prescribed setup, "
+            "with their effect on the results. An upstream fix or a better "
+            "configuration can lower a solver's effort, so "
+            "[contributions](contributing.qmd#tuning-an-existing-solver) are "
+            "welcome on every item."
         ),
         "",
+        "## All solvers {#all-solvers}",
+        "",
     ]
-    if scores:
-        intro += [
-            (
-                "The checks come from the benchmark results this site was built "
-                "with. The [results overview](results.qmd#checks) explains what "
-                "each check tests, and each setup links to its results page. A "
-                "dash means the setup has no check of that kind."
-            ),
-            "",
-        ]
     intro += render_index(categories)
     sections = [render_domain(c, s, scores) for c, s in categories.items()]
     return "\n".join(intro) + "\n" + "\n\n".join(sections) + "\n"
@@ -653,6 +672,7 @@ def main() -> None:
         sys.exit(f"No solvers found under {TESSERACTS}")
 
     new_qmd = generate_qmd(categories)
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(new_qmd, encoding="utf-8")
     total = sum(len(v) for v in categories.values())
     print(f"Generated {OUTPUT} ({total} solvers, {len(categories)} categories)")

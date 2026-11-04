@@ -5,14 +5,15 @@
 
 """Generate the results pages of the docs from benchmark results.
 
-Writes one page per setup (``docs/results_<setup>.qmd``) and the includes of
-the Results overview (``docs/_setups.qmd``, ``docs/_scoreboard.qmd``,
-``docs/_explorer.qmd``, ``docs/_gates.qmd``, ``docs/_scores.json``). All of them are gitignored and
-rewritten on every render by the Quarto pre-render hook. Without results under
+Writes into ``docs/_build/_generated/``: the body of each setup's page
+(``results/<setup>.qmd``, included by ``docs/results/<setup>.qmd``), the
+includes of the Results overview (``scoreboard.qmd``, ``explorer.qmd``,
+``gates.qmd``), the per-solver checks for the solver reference
+(``scores.json``) and a copy of the plots (``plots/``). Without results under
 ``mosaic-results/`` they hold placeholders, so the site still renders.
 
 Usage:
-    python docs/generate_results.py
+    python docs/scripts/generate_results.py
 """
 
 from __future__ import annotations
@@ -23,13 +24,14 @@ import math
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = Path(__file__).resolve().parents[1]
+ROOT = DOCS_DIR.parent
 RESULTS_DIR = ROOT / "mosaic-results"
-OUTPUT_DIR = Path(__file__).resolve().parent  # docs/
+OUTPUT_DIR = DOCS_DIR / "_build" / "_generated"
 
 
 def _load_docs_module(stem: str):
-    """Load docs/<stem>.py whether this runs as a script or a module."""
+    """Load docs/scripts/<stem>.py whether this runs as a script or a module."""
     import importlib.util
 
     name = f"_mosaic_{stem}"
@@ -45,8 +47,11 @@ def _load_docs_module(stem: str):
 views = _load_docs_module("intervention_views")
 scoreboard = _load_docs_module("scoreboard")
 
-# Relative path from docs/results_*.qmd to mosaic-results/
-_IMG_BASE = "../mosaic-results"
+# Every generated page and include ends up in docs/results/, so links and
+# images are relative to that directory. The plots are copied from
+# mosaic-results/, which lies outside the Quarto project.
+_PLOT_SUFFIXES = (".png", ".gif", ".vl.json")
+_IMG_BASE = "../_generated/plots"
 
 # Suite traversal order
 _SUITE_ORDER = ["ics", "forward", "cost", "gradient", "optimization"]
@@ -76,19 +81,22 @@ PROBLEM_LABELS = {
     "thermal-mesh": "Heat transfer",
 }
 
-# Schematic of a setup's task (control variable, physical process,
-# optimization objective), drawn by docs/figures/make_domain_figures.py. Path is
-# relative to the generated docs/results_*.qmd files. Setups without a
-# schematic of their own get none.
+# Schematic of each setup, drawn by docs/scripts/make_domain_figures.py. Path
+# is relative to docs/.
 SETUP_ILLUSTRATIONS = {
-    "ns-2d-cylinder": "figures/domain_ns_grid.svg",
-    "ns-3d": "figures/domain_ns_3d_grid.svg",
-    "structural": "figures/domain_structural_mesh.svg",
-    "heat": "figures/domain_thermal_mesh.svg",
+    key: f"figures/setup_{key.replace('-', '_')}.svg"
+    for key in (
+        "ns-2d-periodic",
+        "ns-2d-cylinder",
+        "ns-2d-kolmogorov",
+        "ns-3d",
+        "structural",
+        "heat",
+    )
 }
 
 # One line on what each setup measures that the others don't, shown at the top
-# of its page and on the Results overview, aimed at a reader who knows ML but
+# of its page, aimed at a reader who knows ML but
 # not the specific solver community.
 SETUP_TAGLINES = {
     "ns-2d-periodic": (
@@ -171,7 +179,7 @@ RESULTS_PROVENANCE = (
     "absolute timings. Accuracy and gradient metrics change little across "
     "hardware, although float32 arithmetic is not identical across devices "
     "and chaotic rollouts amplify small discrepancies. For numbers that "
-    "reflect *your* setup, [run the benchmark yourself](getting-started.qmd) "
+    "reflect *your* setup, [run the benchmark yourself](../getting-started.qmd) "
     "on your target hardware."
 )
 
@@ -745,7 +753,7 @@ def _leaderboard_block(
         )
         for row in rows
     ]
-    # Wrap the table in a .sortable-table div so docs/sortable-tables.html
+    # Wrap the table in a .sortable-table div so docs/assets/sortable-tables.html
     # (injected via include-after-body) can attach click-to-sort handlers
     # (numeric-aware). Static and correctly sorted without JS, so it
     # degrades gracefully.
@@ -828,13 +836,9 @@ def _effort_block(problem: str, setup: str) -> list[str]:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _slug(key: str) -> str:
-    return key.replace("-", "_")
-
-
 def setup_page(setup: str) -> str:
-    """The results page of ``setup``, relative to docs/."""
-    return f"results_{_slug(setup)}.qmd"
+    """The results page of ``setup``, relative to docs/results/."""
+    return f"{setup}.qmd"
 
 
 def _exp_anchor(suite: str, experiment: str) -> str:
@@ -883,7 +887,7 @@ def _chart_block(problem: str, suite: str, experiment: str, png: Path) -> str | 
 
     The plot harness writes the Vega-Lite spec ``<plot>.vl.json`` next to each
     ``<plot>.png`` from the same chart definition. The figure fetches it
-    lazily (docs/charts.html) and keeps the PNG as the fallback when there is
+    lazily (docs/assets/charts.html) and keeps the PNG as the fallback when there is
     no JS or the chart fails to load.
     """
     if not png.with_suffix(".vl.json").exists():
@@ -1120,8 +1124,12 @@ def generate_qmd_for_setup(
     # missing, so a checkout without docs/figures/ still renders cleanly.
     illustration = SETUP_ILLUSTRATIONS.get(key)
     tagline = SETUP_TAGLINES.get(key)
-    if illustration and (OUTPUT_DIR / illustration).exists():
-        lines += ["::: {.domain-hero}", f"![]({illustration}){{.domain-figure}}", ""]
+    if illustration and (DOCS_DIR / illustration).exists():
+        lines += [
+            "::: {.domain-hero}",
+            f"![](../{illustration}){{.domain-figure}}",
+            "",
+        ]
         if tagline:
             lines += [f"[{tagline}]{{.domain-tagline}}", ""]
         lines += [":::", ""]
@@ -1166,17 +1174,15 @@ def generate_qmd_for_setup(
         lines += [
             "## Checks {.unnumbered}",
             "",
-            views.EFFORT_EXPLAINER,
+            (
+                "Checks per suite, from the same results as the sections below. "
+                "[How to read the results](index.qmd#how-to-read-the-results) "
+                "explains each column and state."
+            ),
             "",
             "::: {.column-page}",
             checks,
             ":::",
-            "",
-            (
-                "*Checks per suite, from the same results as the sections below. "
-                "See [how to read the results](results.qmd#how-to-read-the-results) "
-                "for what each state means and how cost is compared.*"
-            ),
             "",
         ]
     else:
@@ -1251,21 +1257,19 @@ def generate_qmd_for_setup(
 
 # ── Results overview includes (scoreboard + experiment explorer) ─────────────
 #
-# docs/results.qmd pulls these in with {{< include >}}. They are gitignored and
-# rewritten by the Quarto pre-render hook, so a checkout without benchmark
-# results still renders (with a short placeholder) instead of failing on a
-# missing include.
+# docs/results/index.qmd pulls these in with {{< include >}}. A checkout
+# without benchmark results still renders (with a short placeholder) instead of
+# failing on a missing include.
 
-SCOREBOARD_INCLUDE = OUTPUT_DIR / "_scoreboard.qmd"
-EXPLORER_INCLUDE = OUTPUT_DIR / "_explorer.qmd"
-SCORES_JSON = OUTPUT_DIR / "_scores.json"
-GATES_INCLUDE = OUTPUT_DIR / "_gates.qmd"
-SETUPS_INCLUDE = OUTPUT_DIR / "_setups.qmd"
+SCOREBOARD_INCLUDE = OUTPUT_DIR / "scoreboard.qmd"
+EXPLORER_INCLUDE = OUTPUT_DIR / "explorer.qmd"
+SCORES_JSON = OUTPUT_DIR / "scores.json"
+GATES_INCLUDE = OUTPUT_DIR / "gates.qmd"
 
 _NO_RESULTS = (
     "::: {.callout-note appearance='simple'}\n"
     "No benchmark results are available in this build. [Run the "
-    "benchmark](getting-started.qmd) or download the published results into "
+    "benchmark](../getting-started.qmd) or download the published results into "
     "`mosaic-results/` to populate this section.\n"
     ":::\n"
 )
@@ -1435,20 +1439,26 @@ def render_explorer(tree: dict) -> str:
     return "\n".join(lines)
 
 
-def render_setups() -> str:
-    """The list of setups, each with its tagline and results page."""
-    lines = ["| Setup | Problem | What it measures |", "|---|---|---|"]
-    for setup in scoreboard.SETUPS:
-        problem = PROBLEM_LABELS.get(setup["problem"], setup["problem"])
-        tagline = SETUP_TAGLINES.get(setup["key"], "")
-        lines.append(
-            f"| [{setup['setup']}]({setup_page(setup['key'])}) | {problem} | {tagline} |"
-        )
-    return "\n".join(lines) + "\n"
+def copy_plots() -> int:
+    """Copy the plots under mosaic-results/ into the Quarto project."""
+    import shutil
+
+    dest = OUTPUT_DIR / "plots"
+    shutil.rmtree(dest, ignore_errors=True)
+    if not RESULTS_DIR.exists():
+        return 0
+    n = 0
+    for src in RESULTS_DIR.rglob("*"):
+        if src.is_file() and src.name.endswith(_PLOT_SUFFIXES):
+            target = dest / src.relative_to(RESULTS_DIR)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, target)
+            n += 1
+    return n
 
 
 def write_overview(tree: dict, scores: dict | None) -> None:
-    """Write the gitignored overview includes and the per-solver check JSON."""
+    """Write the overview includes and the per-solver check JSON."""
     if scores:
         pages = {s["key"]: setup_page(s["key"]) for s in scoreboard.SETUPS}
         SCOREBOARD_INCLUDE.write_text(
@@ -1463,7 +1473,6 @@ def write_overview(tree: dict, scores: dict | None) -> None:
         SCORES_JSON.unlink(missing_ok=True)
     EXPLORER_INCLUDE.write_text(render_explorer(tree), encoding="utf-8")
     GATES_INCLUDE.write_text(scoreboard.render_gates(), encoding="utf-8")
-    SETUPS_INCLUDE.write_text(render_setups(), encoding="utf-8")
 
 
 def main() -> None:
@@ -1471,10 +1480,12 @@ def main() -> None:
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    (OUTPUT_DIR / "results").mkdir(parents=True, exist_ok=True)
     tree = _scan_results()
     scores = compute_scores() if tree else None
     write_overview(tree, scores)
     print(f"Wrote results overview includes ({len(tree)} problems)")
+    print(f"Copied {copy_plots()} plot files into {OUTPUT_DIR / 'plots'}")
 
     # Every setup gets a page, so the navbar links always resolve; setups
     # without results get a placeholder.
@@ -1482,7 +1493,7 @@ def main() -> None:
         suites = _setup_suites(
             setup["problem"], tree.get(setup["problem"], {}), setup["key"]
         )
-        out_path = OUTPUT_DIR / setup_page(setup["key"])
+        out_path = OUTPUT_DIR / "results" / setup_page(setup["key"])
         out_path.write_text(
             generate_qmd_for_setup(setup, suites, timestamp, scores), encoding="utf-8"
         )

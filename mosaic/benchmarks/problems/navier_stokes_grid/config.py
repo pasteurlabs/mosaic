@@ -121,7 +121,7 @@ problem = Problem(
         "Kolmogorov flow."
     ),
     # The channel past a cylinder has boundary conditions of its own, which its
-    # results page shows instead (``SETUP_BCS`` in docs/generate_results.py).
+    # results page shows instead (``SETUP_BCS`` in docs/scripts/generate_results.py).
     bc_description=(
         "Doubly periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
         "edge), with incompressibility $\\nabla\\cdot\\mathbf{u}=0$ enforced by a "

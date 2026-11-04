@@ -1,0 +1,103 @@
+# The whole site is rendered everywhere (`make html`/`make preview` locally,
+# PR previews in benchmark.yml, and post-merge in publish-results.yml) from the
+# single page set and navbar defined here. The Makefile renders a copy of
+# docs/ in _build/, next to the files in _generated/ that some pages include.
+project:
+  type: website
+  output-dir: _site
+  # Interactive chart specs (copied next to each plot by
+  # scripts/generate_results.py, and the paper page's chart) and the paper
+  # page's video are referenced from raw HTML, so Quarto can't discover them
+  # from the pages.
+  resources:
+    - "_generated/plots/**/*.vl.json"
+    - "figures/paper/*.vl.json"
+    - "figures/kolmogorov.mp4"
+    - "figures/kolmogorov.jpg"
+  render:
+    - index.qmd
+    - results/*.qmd
+    - solvers.qmd
+    - getting-started.qmd
+    - standalone.qmd
+    - contributing.qmd
+    - add-solver.qmd
+    - add-problem.qmd
+    - paper.qmd
+
+website:
+  title: Mosaic
+  repo-url: https://github.com/pasteurlabs/mosaic
+  repo-subdir: docs
+  repo-actions: [edit, issue]
+  navbar:
+    # Results come last, after everything that explains how they are made.
+    # The setup badges match the ones on the Overview and the results pages.
+    left:
+      - text: Overview
+        file: index.qmd
+      - text: Solvers
+        file: solvers.qmd
+      - text: Run the benchmark
+        file: getting-started.qmd
+      - text: Use a solver in your code
+        file: standalone.qmd
+      - text: Contribute
+        menu:
+          - text: Contributing guide
+            file: contributing.qmd
+          - text: Add a solver
+            file: add-solver.qmd
+          - text: Add a problem
+            file: add-problem.qmd
+      - text: Paper
+        file: paper.qmd
+      - text: Results
+        menu:
+          - text: Overview
+            file: results/index.qmd
+          - text: "<span class='domain-id d-F2'>F2</span>Periodic box (2D)"
+            file: results/ns-2d-periodic.qmd
+          - text: "<span class='domain-id d-F2'>F2</span>Channel flow past a cylinder"
+            file: results/ns-2d-cylinder.qmd
+          - text: "<span class='domain-id d-F2'>F2</span>Forced Kolmogorov flow (2D)"
+            file: results/ns-2d-kolmogorov.qmd
+          - text: "<span class='domain-id d-F3'>F3</span>Triply periodic box (3D)"
+            file: results/ns-3d.qmd
+          - text: "<span class='domain-id d-S'>S</span>Linear-elastic cantilever"
+            file: results/structural.qmd
+          - text: "<span class='domain-id d-H'>H</span>Steady conduction in a slab"
+            file: results/heat.qmd
+    right:
+      - icon: github
+        href: https://github.com/pasteurlabs/mosaic
+  page-footer:
+    center: "[Mosaic](https://github.com/pasteurlabs/mosaic) is built with [Quarto](https://quarto.org)."
+
+execute:
+  enabled: false
+
+format:
+  html:
+    # Warm light/dark themes (assets/theme-*.scss) share assets/styles.scss.
+    theme:
+      light: [assets/theme-light.scss, assets/styles.scss]
+      dark: [assets/theme-dark.scss, assets/styles.scss]
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap
+    highlight-style:
+      light: github
+      dark: nord
+    # Render LaTeX math ($...$ inline, $$...$$ display) with MathJax.
+    html-math-method: mathjax
+    # Enable click-to-zoom for images tagged {.lightbox} (the result plots).
+    lightbox: true
+    # Click-to-sort for the per-suite results tables (.sortable-table).
+    include-after-body:
+      - assets/sortable-tables.html
+      # Search/filter and detail dialogs.
+      - assets/mosaic-ui.html
+      # Interactive Vega-Lite charts on the results pages.
+      - assets/charts.html

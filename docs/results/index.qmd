@@ -1,0 +1,57 @@
+---
+title: Results
+---
+
+::: {.callout-tip appearance="simple"}
+These are **example results**, produced automatically on GitHub-hosted runners and refreshed on every release. Wall-clock times vary between runs, so treat absolute times as indicative and compare solvers by their relative cost. Accuracy and gradient metrics change little across hardware. For numbers that reflect *your* setup, [run the benchmark yourself](../getting-started.qmd) on your target hardware.
+:::
+
+::: {.callout-note appearance="simple"}
+Each solver runs through an integration written by the Mosaic team or a contributor, which may not be the best possible use of the library. The effort and deviations columns record what that integration needed. If you know a solver well and can improve its configuration, [contributions are welcome](../contributing.qmd#tuning-an-existing-solver).
+:::
+
+## How to read the results {#how-to-read-the-results}
+
+Each setup has a table with one row per solver. GPU and CPU solvers ran on different machines, so the rows are grouped by device, and within each group solvers that pass more checks come first, then faster ones. Mosaic does not combine the columns into a single score.
+
+- **Forward, gradient and optimization checks** combine the setup's experiments of that suite, each judged against pass criteria from the problem configuration, such as an error bound against a reference or a minimum agreement with finite differences. An optimization check also shows after how many iterations the loss leveled off, that is, made 95% of its total improvement on a log scale. Hover over a check for its numbers.
+- **Forward and VJP cost** give the wall-clock time at the largest problem size that every solver in the group completed, and its multiple of the fastest solver in the group. A **≈** marks a gap that is within the spread of the timed trials.
+- **Peak memory** is that of the VJP pass at the same size (of the forward pass for forward-only solvers), as device memory on a GPU and container memory on a CPU.
+- **All experiments** counts the setup's experiments that produced valid results within their criteria, including experiments that no check uses, such as Jacobian spectra and cost sweeps. The notes below each table name every flag, exclusion and resource limit.
+- **Effort** is the level, from L0 to L3, of the most invasive intervention a solver needs on the setup, and **deviations** counts the places where it runs a substitute for part of the setup. Hover over either for the details. Each solver's name links to its entry in the solver reference, which [explains the levels](../solvers.qmd#effort-levels) and lists every intervention.
+
+::: {.ck-legend}
+| State | Meaning |
+|---|---|
+| [✓ Pass]{.ck .ck-pass} | Every experiment behind the check met its criteria. |
+| [✓ Partial]{.ck .ck-pass} | The experiments that ran met their criteria, but not all of them ran. |
+| [! Borderline]{.ck .ck-borderline} | An experiment ran but missed its criteria. An *i* means every such flag has a documented cause, often a property of the method or of the comparison rather than of the implementation, and links to the notes below the table. |
+| [✗ Fail]{.ck .ck-fail} | An experiment errored or produced no valid result. |
+| [⊘ Blocked]{.ck .ck-blocked} | The experiments are excluded for a recorded reason that may be lifted, such as an instability, the time or memory budget, an upstream bug or a missing implementation. The cell names the reason. |
+| [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
+| [· Not run]{.ck .ck-notrun} | Not run in this campaign yet. |
+:::
+
+::: {.callout-note collapse="true" title="Experiments behind each check"}
+{{< include ../_generated/gates.qmd >}}
+
+Some criteria are absolute, such as an error bound against an analytic solution, an observed order of convergence or a minimum agreement with finite differences. Others compare a solver with its peers on the same experiment, for example an error more than three times their median, so a flag on such a criterion marks an outlier that may still be accurate enough for a given task. The thresholds are provisional and will be refined with the solver maintainers. They live next to each experiment in `mosaic/benchmarks/problems/<problem>/config.py`.
+:::
+
+## Checks by setup {#checks}
+
+::: {.column-page}
+{{< include ../_generated/scoreboard.qmd >}}
+:::
+
+## Download the data {#data}
+
+The full result tree of every release, with the metrics, fields and plot specs behind these pages, is attached to its [GitHub release](https://github.com/pasteurlabs/mosaic/releases) as `mosaic-results-<version>.zip`. We welcome analyses of it beyond what these pages show.
+
+## Experiment explorer {#explorer}
+
+Every experiment across all setups. Search or filter, then click a card to see its plots.
+
+::: {.column-page}
+{{< include ../_generated/explorer.qmd >}}
+:::

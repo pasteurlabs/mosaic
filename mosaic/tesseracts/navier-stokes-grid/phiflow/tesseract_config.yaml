@@ -30,6 +30,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: int64-sparse-indices
+        title: Widens phiml's sparse-matrix indices to int64
         level: L3
         necessity: required
         what: >
@@ -39,11 +40,13 @@ metadata:
           ns-2d-periodic: &int64-reason
             consequences: [crash]
             symptom: >
-              phiml casts sparse-matrix flat indices back to int32; they wrap
-              at 2-D N >= 216 and 3-D N >= 36, and building the pressure
-              matrix fails. In the benchmark that failed 12 cost cells
-              (ns-grid N = 256, ns-3d-grid N >= 48). With the patch they
-              complete and other results are bitwise identical.
+              Building the pressure matrix fails at 2-D N >= 216 and 3-D
+              N >= 36, because phiml casts the flat indices back to int32 and
+              they wrap.
+            notes: >
+              In the benchmark that failed 12 cost cells (ns-grid N = 256,
+              ns-3d-grid N >= 48). With the patch they complete and other
+              results are bitwise identical.
             evidence: >
               https://github.com/pasteurlabs/mosaic/issues/155; #232, table;
               docstring of _ravel_multi_index_int64.
@@ -52,19 +55,24 @@ metadata:
         upstream: https://github.com/tum-pbs/PhiML/pull/16 (open)
         provenance: mosaic-team
       - id: explicit-cg-solve
+        title: Runs the channel's pressure solve with CG
         level: L0
         necessity: unknown
         what: >
           The channel's pressure solve passes math.Solve("CG", ...) instead of
-          the "auto" method of make_incompressible's default Solve(). The
-          periodic boxes' solve uses incompressible_rk4's default method and
-          tolerances.
+          the "auto" method of make_incompressible's default Solve().
         why:
           ns-2d-cylinder:
             consequences: []
-            symptom: No reason recorded.
+            symptom: No reason is recorded.
+            notes: >
+              The periodic boxes' solve keeps incompressible_rk4's default
+              method (CG) and forward tolerance, with the changes recorded
+              under periodic-cg-rank-deficiency and
+              periodic-adjoint-relative-tolerance.
         provenance: mosaic-team
       - id: periodic-cg-rank-deficiency
+        title: Runs CG on the singular periodic pressure system
         level: L0
         necessity: required
         what: >
@@ -76,6 +84,10 @@ metadata:
           ns-2d-kolmogorov:
             consequences: [non-finite, incorrect-gradient, too-slow]
             symptom: >
+              Without it, states and the chain gradient went non-finite on CI, and
+              forward/kolmogorov ran about six times slower (5,585 s against
+              936 s).
+            notes: >
               CG is not guaranteed to converge on an indefinite system, and
               under jit phiml returns an unconverged solve without raising. At
               256², 852 of 6400 solves to t = 4 stopped unconverged (128 of
@@ -91,17 +103,22 @@ metadata:
           ns-2d-periodic:
             consequences: [too-slow]
             symptom: >
-              No check changed. The cost experiments got 1.3x to 7.5x faster,
-              growing with N, and all four PhiFlow cost anomalies went away.
+              Without it, the cost experiments run 1.3x to 7.5x slower, growing with N. No
+              check changes.
+            notes: >
+              With it, all four PhiFlow cost anomalies went away.
             evidence: "#272, PR description."
           ns-3d:
             consequences: [too-slow]
             symptom: >
-              No check changed. The cost experiments got 1.4x to 16x faster,
-              growing with N (15.7x for the VJP at N = 64).
+              Without it, the cost experiments run 1.4x to 16x slower, growing with N. No
+              check changes.
+            notes: >
+              The largest factor is 15.7x, for the VJP at N = 64.
             evidence: "#272, PR description."
         provenance: mosaic-team
       - id: periodic-adjoint-relative-tolerance
+        title: Uses a relative tolerance in the adjoint solve
         level: L0
         necessity: choice
         what: >
@@ -112,20 +129,25 @@ metadata:
           ns-2d-kolmogorov:
             consequences: [incorrect-gradient]
             symptom: >
+              The chain gradient misses the finite differences by 3.6e-3
+              instead of 1.1e-4, because the absolute tolerance stops the
+              adjoint solves early for small cotangents. The check still
+              passes.
+            notes: >
               The adjoint solve's right-hand side scales with the cotangent.
               In the chain gradient check, whose cotangents are small, the
               absolute tolerance stopped the adjoint solves after 0 to 17
-              iterations, against about 100 at the relative tolerance, and
-              the gradient missed the finite differences by 3.6e-3 at the best
-              ε, against 1.1e-4 with the relative tolerance; the peers miss by
-              7e-5 to 2e-3. The check passes either way.
+              iterations, against about 100 at the relative tolerance. Both
+              gradient errors are at the best ε. The peers miss by 7e-5 to
+              2e-3.
             evidence: "gradient/chain_fd_check of #272; PR description."
           ns-2d-periodic: &adjoint-tolerance-unmeasured
             consequences: []
-            symptom: Not measured separately; no check changed.
+            symptom: Its effect has not been measured separately. No check changed.
           ns-3d: *adjoint-tolerance-unmeasured
         provenance: mosaic-team
       - id: channel-cg-tolerance
+        title: Loosens the channel's pressure CG tolerance
         level: L0
         necessity: choice
         tuned: true
@@ -136,37 +158,45 @@ metadata:
           ns-2d-cylinder:
             consequences: [too-slow]
             symptom: >
-              At 1e-5, forward/cylinder took 293 s against 43 s and drag_opt
-              10,782 s against 1,271 s, on a shared GPU. Against 1e-7, Cd, Cl
-              and the pressure drop move by at most 0.07%, and drag_opt
-              reaches a drag reduction of 47.60% against 47.66%; every status
-              is unchanged. At 1e-1 the Cd error moves by 4%. Tuned with the
-              channel-pressure-warm-start correction in place, so the
-              tolerance applies to the correction's residual.
+              At a tolerance of 1e-5, forward/cylinder took 293 s against 43 s
+              on a shared GPU.
+            notes: >
+              On the same shared GPU, drag_opt took 10,782 s at 1e-5 against
+              1,271 s. Against 1e-7, Cd, Cl and the pressure drop move by at
+              most 0.07%, and drag_opt reaches a drag reduction of 47.60%
+              against 47.66%. Every status is unchanged. At 1e-1 the Cd error
+              moves by 4%. Tuned with the channel-pressure-warm-start
+              correction in place, so the tolerance applies to the
+              correction's residual.
             evidence: "#308, notes."
         provenance: mosaic-team
       - id: rk4-central-differences
+        title: Uses central differences with RK4 on periodic boxes
         level: L0
         necessity: choice
         what: >
           Periodic boxes advect and diffuse with 2nd-order central differences
-          under fluid.incompressible_rk4 (pressure_order=2, four pressure
-          projections per step) instead of the default semi-Lagrangian
-          advection with operator splitting. The channel keeps the default,
-          since incompressible_rk4 takes no obstacles.
+          under fluid.incompressible_rk4 instead of the default semi-Lagrangian
+          advection with operator splitting.
         why:
           ns-2d-periodic: &rk4-reason
             consequences: [inaccurate-forward]
             symptom: >
+              The default semi-Lagrangian advection is first order, per
+              PhiFlow's docs, and was about 10x less accurate on the periodic
+              box in an unpublished measurement.
+            notes: >
               PhiFlow's docs point users who want accurate periodic flow to
-              this pairing and label semi-Lagrangian advection first order.
-              Against the previous central-difference Euler step it changes
-              errors by a few percent and costs 2.4 to 4.4x more, but stays
-              stable where that step went NaN (2-D, N = 32, nu = 0, 800
-              steps). The semi-Lagrangian default was measured about 10x less
-              accurate on the periodic box in the cleanup notes; that table is
-              not published. pressure_order=2 follows the comparison
-              notebook; the function default (4) was not measured.
+              this pairing. The 10x figure comes from the cleanup notes, and
+              that table is not published. Compared with the previous
+              central-difference Euler step, errors change by a few percent
+              and the cost is 2.4 to 4.4x higher, but the RK4 step stays
+              stable where the Euler step went NaN (2-D, N = 32, nu = 0, 800
+              steps). The runs use pressure_order=2, with four pressure
+              projections per step. pressure_order=2 follows the comparison
+              notebook, and the function default (4) was not measured. The
+              channel keeps the default, since incompressible_rk4 takes no
+              obstacles.
             evidence: >
               #288; https://tum-pbs.github.io/PhiFlow/Fluid_Simulation.html
               ("Higher-Order Simulations").
@@ -174,25 +204,28 @@ metadata:
           ns-3d: *rk4-reason
         provenance: mosaic-team
       - id: inlined-obstacle-projection
+        title: Writes out the channel's obstacle projection by hand
         level: L2
         necessity: unknown
         what: >
           Writes the channel's obstacle projection out instead of calling
-          fluid.make_incompressible with an obstacle: face masks from the
-          shared staircase solid_cells, solid faces zeroed after advection and
-          after diffusion, a masked_laplace CG solve over the fluid cells and
-          a masked green-gauss pressure gradient.
+          fluid.make_incompressible with an obstacle.
         why:
           ns-2d-cylinder:
             consequences: [cannot-express]
-            symptom: >
-              No reason recorded. A plausible one, not checked:
-              make_incompressible rasterises its own obstacle geometry, so it
-              cannot take the staircase mask the other grid solvers share, and
-              it does not return the momentum removed at solid faces, which
-              body_force needs.
+            symptom: No reason is recorded.
+            notes: >
+              The written-out projection builds face masks from the shared
+              staircase solid_cells, zeroes solid faces after advection and
+              after diffusion, and uses a masked_laplace CG solve over the
+              fluid cells and a masked green-gauss pressure gradient. A
+              plausible reason, not checked: make_incompressible rasterizes its
+              own obstacle geometry, so it cannot take the staircase mask the
+              other grid solvers share, and it does not return the momentum
+              removed at solid faces, which body_force needs.
         provenance: mosaic-team
       - id: channel-pressure-warm-start
+        title: Solves for a pressure correction in the channel
         level: L2
         necessity: unknown
         what: >
@@ -203,28 +236,32 @@ metadata:
           ns-2d-cylinder:
             consequences: [too-slow]
             symptom: >
-              Per the code comment, it keeps the CG iterations low in the
-              near-steady flow; not measured for PhiFlow, and the channel's CG
-              tolerance was tuned with it in place. Passing the previous
-              pressure as x0 fails under reverse mode with an
+              Per the code comment, CG needs more iterations in the near-steady
+              flow without it. This has not been measured for PhiFlow.
+            notes: >
+              The channel's CG tolerance was tuned with it in place. Passing
+              the previous pressure as x0 fails under reverse mode with an
               UnexpectedTracerError inside lax.scan.
             evidence: Comment in channel_fwd.step (#239).
         upstream: https://github.com/tum-pbs/PhiML/issues/17 (x0 tracer error)
         provenance: mosaic-team
       - id: body-force-output
+        title: Computes the force on the cylinder by hand
         level: L2
         necessity: required
         what: >
-          Computes the per-step force on the cylinder as the momentum the
-          solid faces remove in a step (advection and diffusion) plus the
-          pressure on the faces between fluid and solid cells.
+          Computes the per-step force on the cylinder as the momentum removed
+          at solid faces in a step (advection and diffusion) plus the pressure
+          on the faces between fluid and solid cells.
         why:
           ns-2d-cylinder:
             consequences: [cannot-express]
             symptom: >
-              PhiFlow has no force-on-obstacle routine (checked for 3.2.0,
-              not re-checked for the pinned 3.4.0), so without this there is
-              no body_force output for forward/cylinder and drag_opt to score.
+              There is no body_force output for forward/cylinder and drag_opt
+              to score, because PhiFlow has no force-on-obstacle routine.
+            notes: >
+              The missing routine was checked for PhiFlow 3.2.0 and not
+              re-checked for the pinned 3.4.0.
             evidence: >
               #239 makes body_force a required output.
         provenance: mosaic-team

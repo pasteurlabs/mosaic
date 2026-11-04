@@ -14,13 +14,13 @@ report:
   combines the status of the setup's gate experiments for that suite, using the
   pass criteria (``status_check``) each problem config declares for them; see
   :func:`_check`. Diagnostic experiments (Jacobian spectra, horizon sweeps,
-  cost sweeps) are not gates, but count towards reliability.
-* **Cost** — forward and VJP wall-clock time as a multiple of the fastest
-  solver *on the same device class* (GPU or CPU), at the largest problem size
-  every solver of that class completed. A gap to the fastest solver that is
-  within the spread of the timed trials is marked. Next to it, the peak
-  memory of the VJP pass (the forward pass for forward-only solvers).
-* **Reliability** — counts of ok, flagged (anomaly), failed, blocked and
+  cost sweeps) are not gates, but count in the all-experiments column.
+* **Cost** — forward and VJP wall-clock time, and its multiple of the
+  fastest solver *on the same device class* (GPU or CPU), at the largest
+  problem size every solver of that class completed. A gap to the fastest
+  solver that is within the spread of the timed trials is marked. Next to it,
+  the peak memory of the VJP pass (the forward pass for forward-only solvers).
+* **All experiments** — counts of ok, flagged (anomaly), failed, blocked and
   not-run experiment cells over every experiment of the setup, with the reason
   for each, and the experiments where a solver reached a resource limit
   partway through a sweep. Cells excluded because the method cannot express
@@ -44,7 +44,7 @@ from pathlib import Path
 
 
 def _load_views():
-    """Load docs/intervention_views.py whether this runs as a script or a module."""
+    """Load docs/scripts/intervention_views.py whether this runs as a script or a module."""
     import importlib.util
 
     name = "_mosaic_intervention_views"
@@ -658,7 +658,9 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
         label = STATE_LABELS[st]
     tip = [label]
     if chk["n_gates"] and st not in ("na", "notrun", "blocked"):
-        tip.append(f"{chk['n_run']} of {chk['n_gates']} gate experiments run")
+        tip.append(
+            f"Ran {chk['n_run']} of the {chk['n_gates']} experiments behind this check"
+        )
     # Every gate's headline numbers, so that e.g. the finite-difference and
     # analytic gradient checks read side by side.
     tip += [
@@ -687,11 +689,15 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
     )
 
 
+def _seconds(t: float) -> str:
+    return f"{t * 1000:.3g} ms" if t < 1 else f"{t:.3g} s"
+
+
 def _cost_td(v: dict | None) -> str:
     if not v:
         return '<td class="ck-cost ck-cost-na">—</td>'
     r = v["ratio"]
-    txt = "1× (fastest)" if r < 1.005 else (f"{r:.1f}×" if r < 10 else f"{r:.0f}×")
+    rel = "fastest" if r < 1.005 else (f"{r:.1f}×" if r < 10 else f"{r:.0f}×")
     tip = f"{v['seconds']:.3g} s"
     if math.isfinite(v["std"]) and v["n_trials"]:
         tip += f" ± {v['std']:.2g} s over {v['n_trials']} trials"
@@ -699,9 +705,12 @@ def _cost_td(v: dict | None) -> str:
     if math.isfinite(v["first"]):
         tip += f"\nFirst call {v['first']:.3g} s"
     if v["within_noise"]:
-        txt = f"≈ {txt}"
+        rel = f"≈ {rel}"
         tip += "\nWithin the spread of the fastest solver's trials"
-    return f'<td class="ck-cost" title="{_esc(tip)}">{txt}</td>'
+    return (
+        f'<td class="ck-cost" title="{_esc(tip)}">{_seconds(v["seconds"])}'
+        f'<span class="ck-part">{rel}</span></td>'
+    )
 
 
 def _memory_td(v: dict | None, gpu: bool) -> str:
@@ -737,11 +746,12 @@ def _rel_td(rel: dict) -> str:
     )
 
 
-def _record_td(parts: tuple[str, str], cls: str, href: str) -> str:
-    """An effort or deviations cell, linked to the solver's record."""
+def _record_td(parts: tuple[str, str], cls: str) -> str:
+    """An effort or deviations cell, with the detail on hover."""
     text, detail = parts
-    title = f' title="{_esc(detail)}"' if detail else ""
-    return f'<td class="{cls}"><a href="{href}"{title}>{_esc(text)}</a></td>'
+    if not detail:
+        return f'<td class="{cls}">{_esc(text)}</td>'
+    return f'<td class="{cls}"><span title="{_esc(detail)}">{_esc(text)}</span></td>'
 
 
 def _cost_n(setup: dict, label: str, gpu: bool) -> str:
@@ -772,7 +782,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         + "".join(f'<th scope="col">{SUITE_LABELS[s]}</th>' for s in suites)
         + "".join(f'<th scope="col">{c}</th>' for c in cost_cols)
         + ('<th scope="col">Peak memory</th>' if cost_cols else "")
-        + f'<th scope="col" class="ck-rel">Reliability<a href="#{notes}">*</a></th>'
+        + f'<th scope="col" class="ck-rel">All experiments<a href="#{notes}">*</a></th>'
         + "".join(f'<th scope="col">{c}</th>' for c in record_cols)
     )
     bodies = []
@@ -783,8 +793,9 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         ns = [n for n in (_cost_n(setup, c, gpu) for c in cost_cols) if n]
         device = setup["gpu_model"] if gpu else ""
         note = (
-            f"Cost relative to the fastest {'GPU' if gpu else 'CPU'} solver"
+            "Times"
             + (f" at {', '.join(dict.fromkeys(ns))}" if ns else "")
+            + f", relative to the fastest {'GPU' if gpu else 'CPU'} solver"
             + (f", measured on {device}" if device else "")
             if cost_cols
             else ""
@@ -796,7 +807,7 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
             )
         ]
         for r in rows:
-            href = f"solvers.qmd#{r['anchor']}" if r["anchor"] else "solvers.qmd"
+            href = f"../solvers.qmd#{r['anchor']}" if r["anchor"] else "../solvers.qmd"
             mismatch = (
                 '<span class="ck-device" title="This solver targets the '
                 f"{'CPU' if gpu else 'GPU'}, but its cost results were measured "
@@ -822,8 +833,8 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
                 + (_memory_td(memory, gpu) if cost_cols else "")
                 + _rel_td(r["reliability"])
                 + (
-                    _record_td(r["effort"], "ck-effort", href)
-                    + _record_td(r["deviations"], "ck-dev", href)
+                    _record_td(r["effort"], "ck-effort")
+                    + _record_td(r["deviations"], "ck-dev")
                     if record_cols
                     else ""
                 )
@@ -860,9 +871,10 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
                 + "</li>"
             )
     details = (
-        '<p class="ck-note">* Reliability counts the experiments of this setup '
-        "that ran cleanly, out of those the solver supports. The lists below name "
-        "every flag, exclusion and resource limit behind it.</p>"
+        '<p class="ck-note">* Experiments of this setup that produced valid '
+        "results within their criteria, out of those the solver supports, "
+        "including experiments that no check uses. The lists below name every "
+        "flag, exclusion and resource limit.</p>"
     )
     if flag_items:
         details += (
@@ -962,7 +974,7 @@ def per_solver_summary(data: dict) -> dict[str, list[dict]]:
 
 
 def render_gates() -> str:
-    """Markdown table of each setup's gate experiments, for the method notes."""
+    """Markdown table of the experiments behind each check, per setup."""
     lines = [
         "| Setup | Forward | Gradient | Optimization |",
         "|---|---|---|---|",

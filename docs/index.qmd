@@ -4,61 +4,52 @@ title: ""
 
 ::: {.hero}
 ::: {.hero-body}
-![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
+![](figures/logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
 
-[Mosaic is a benchmark for differentiable solvers. It measures whether they are fit for purpose and at what cost, in compute and in development effort. Because every solver runs the same setups under the same protocol, Mosaic also allows researchers to investigate patterns across solvers, for example between solvers that share numerical characteristics, or between gradient quality and optimization performance. [Our paper](paper.qmd) is one such investigation.]{.hero-lede}
+[Mosaic benchmarks differentiable physics solvers on accuracy, gradient quality and cost, in compute and in development effort.]{.hero-lede}
 
 ::: {.hero-actions}
-[Results](results.qmd){.btn-m .primary} [Run the benchmark](getting-started.qmd){.btn-m} [Solvers](solvers.qmd){.btn-m}
+[Results](results/index.qmd){.btn-m .primary} [Run the benchmark](getting-started.qmd){.btn-m} [Solvers](solvers.qmd){.btn-m}
 :::
 :::
 :::
 
 ## What Mosaic measures {#what-mosaic-measures}
 
-If you train a model or run an optimizer through a simulation, the solver has to return a correct prediction (the *forward* pass) and a usable gradient of that prediction with respect to your inputs (the vector–Jacobian product, VJP). A solver that runs fast and predicts accurately is of little use for gradient-based work if its VJP is wrong, noisy or ill-conditioned, so Mosaic checks both. On each setup it supports, every solver computes an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and the results answer three questions:
+If you train a model or run an optimizer through a simulation, the solver has to return a correct prediction (the *forward* pass) and a usable gradient of that prediction with respect to your inputs (the vector–Jacobian product, VJP). A solver that predicts accurately is of little use for gradient-based work if its VJP is wrong, noisy or ill-conditioned, so Mosaic checks both. The [results](results/index.qmd) answer two questions for every solver on every setup:
 
 ::: {.axis-row}
 ::: {.axis-card style="--tile: var(--m-indigo)"}
-[Is the solver fit for purpose?]{.axis-q}
+[Is the solver accurate, and are its gradients usable?]{.axis-q}
 
-Forward, gradient and optimization checks, the reliability of each solver across a setup's experiments, and its deviations from the setup.
+Forward accuracy against a reference, gradients against finite differences, and whether an optimizer makes progress through the solver.
 :::
 ::: {.axis-card style="--tile: var(--m-accent)"}
-[At what cost?]{.axis-q}
+[At what compute and development cost?]{.axis-q}
 
-Wall-clock time and peak memory of the forward and VJP calls, and the development effort it took to make the solver run the setup.
-:::
-::: {.axis-card style="--tile: var(--m-saffron)"}
-[Which patterns hold across solvers?]{.axis-q}
-
-Comparisons across solvers that share a discretization or AD strategy, or between gradient quality and optimization performance.
+Wall-clock time and peak memory of the forward and VJP calls, and the effort it took to make the solver run the setup.
 :::
 :::
 
-The [results overview](results.qmd) reports the first two for every solver on every setup. Patterns have no column of their own, but the overview's section on [investigating patterns](results.qmd#investigating-patterns) suggests where to start in the data and the solver metadata. The [paper](paper.qmd) is a worked example.
+### Development effort {#effort}
 
-### Effort and deviations
+Time and memory are only part of what a solver costs. Making it run a given problem can take anything from setting a documented option to patching the library, and comparisons of solvers rarely report that work. Since it often decides whether a solver is practical for a new problem, Mosaic records it alongside the checks.
 
-A check that passes says little about how much work it took to get there. Every solver therefore has an intervention record in its `tesseract_config.yaml` that lists everything done beyond using the library as intended, with the reason on each setup, the evidence and any upstream issue. The effort a solver needs on a setup is the highest level among the interventions it requires there:
-
-- **L0**: nothing beyond expected tweaks, meaning the public API with its defaults or documented options such as a solver tolerance.
-- **L1**: undocumented configuration.
-- **L2**: user code on the library's public primitives.
-- **L3**: changes to the solver itself.
-
-Deviations record where a solver runs a substitute for part of the prescribed setup, such as a different outflow condition, together with the effect on its results. Effort and deviations sit next to the checks on every results page, and the [solver reference](solvers.qmd) lists each intervention in full.
+Every solver has an intervention record in its `tesseract_config.yaml` that lists everything done beyond using the library as intended, with the reason, the evidence and any upstream issue. From it, each solver gets an effort level per setup, from L0 (the public API with documented options) to L3 (changes to the solver itself). Where a solver runs a substitute for part of a setup, such as a different outflow condition, the record lists a deviation and its effect on the results. The [solver reference](solvers.qmd#effort-levels) defines the levels and lists every intervention.
 
 ## Setups {#setups}
 
-Results are reported per setup, meaning one problem statement with its own experiments and checks. A solver that handles one setup need not handle another, so setups are never averaged. Each card links to the setup's results page, and its chips link to the solvers that run it.
+Results are reported per setup, meaning one problem statement with its own experiments and checks. A solver that handles one setup need not handle another, so Mosaic never averages across setups. Each card links to the setup's results page, and its chips link to the solvers that run it. The badge names the physics, as in the paper: heat transfer (H), structural mechanics (S), and incompressible flow in 2D (F2) and 3D (F3).
 
 ::: {.domain-grid}
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_periodic.svg){.nolightbox fig-alt="Schematic of the periodic box: four Taylor–Green vortices in a box with periodic edges evolve into a mixed field over a Navier–Stokes rollout."}
+:::
 ::: {.domain-card-body}
-[[Periodic box (2D)](results_ns_2d_periodic.qmd)]{.domain-card-title}
+[[F2]{.domain-id .d-F2} [Periodic box (2D)](results/ns-2d-periodic.qmd)]{.domain-card-title}
 
-Decaying 2D flow without walls. Forward accuracy against the analytic Taylor–Green solution, and how gradients hold up as the rollout lengthens and the flow becomes chaotic. OpenFOAM runs forward experiments only.
+Decaying 2D flow without walls. Forward accuracy against the analytic Taylor–Green solution, and how gradients hold up as the rollout lengthens and the flow becomes chaotic.
 
 [Problem `ns-grid`, suites forward, gradient, cost]{.domain-meta}
 
@@ -69,10 +60,13 @@ Decaying 2D flow without walls. Forward accuracy against the analytic Taylor–G
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_cylinder.svg){.nolightbox fig-alt="Schematic of the channel: a parabolic inflow profile on the left, a cylinder with a drag arrow, and a vortex street downstream between two walls."}
+:::
 ::: {.domain-card-body}
-[[Channel flow past a cylinder](results_ns_2d_cylinder.qmd)]{.domain-card-title}
+[[F2]{.domain-id .d-F2} [Channel flow past a cylinder](results/ns-2d-cylinder.qmd)]{.domain-card-title}
 
-The Schäfer–Turek DFG 2D-1 channel at $Re = 20$, which needs walls, an obstacle, an inflow and an outflow. Drag against the literature value, and drag minimization over the inflow profile. OpenFOAM runs forward experiments only.
+The Schäfer–Turek DFG 2D-1 channel at $Re = 20$, with walls, an obstacle, an inflow and an outflow. Drag against the literature value, and drag minimization over the inflow profile.
 
 [Problem `ns-grid`, suites forward, optimization]{.domain-meta}
 
@@ -83,8 +77,11 @@ The Schäfer–Turek DFG 2D-1 channel at $Re = 20$, which needs walls, an obstac
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_kolmogorov.svg){.nolightbox fig-alt="Schematic of Kolmogorov flow: a sinusoidal body force drives a turbulent field, which passes through a chain of solver calls with the gradient flowing back through the chain."}
+:::
 ::: {.domain-card-body}
-[[Forced Kolmogorov flow (2D)](results_ns_2d_kolmogorov.qmd)]{.domain-card-title}
+[[F2]{.domain-id .d-F2} [Forced Kolmogorov flow (2D)](results/ns-2d-kolmogorov.qmd)]{.domain-card-title}
 
 Forced 2D turbulence that settles into a statistically steady state. Forward accuracy against a converged high-resolution run, and gradients through a chain of solver calls, as in training a model through a solver.
 
@@ -97,10 +94,13 @@ Forced 2D turbulence that settles into a statistically steady state. Forward acc
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_3d.svg){.nolightbox fig-alt="Schematic of the 3D task: an initial velocity field in a cube evolves into a later snapshot, and the optimizer recovers the initial field from that snapshot."}
+:::
 ::: {.domain-card-body}
-[[Triply periodic box (3D)](results_ns_3d.qmd)]{.domain-card-title}
+[[F3]{.domain-id .d-F3} [Triply periodic box (3D)](results/ns-3d.qmd)]{.domain-card-title}
 
-Recover the initial velocity field of a 3D flow from a later snapshot, with one control per velocity component and cell of a $16^3$ grid (12,288 values). Also measures how far each solver's gradient stays usable as the rollout lengthens. OpenFOAM runs forward experiments only.
+Recover the initial velocity field of a 3D flow from a later snapshot, with one control per velocity component and cell of a $16^3$ grid (12,288 values). Also measures how far each solver's gradient stays usable as the rollout lengthens.
 
 [Problem `ns-3d-grid`, suites forward, gradient, cost, optimization]{.domain-meta}
 
@@ -111,10 +111,13 @@ Recover the initial velocity field of a 3D flow from a later snapshot, with one 
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_structural.svg){.nolightbox fig-alt="Schematic of the cantilever: a beam clamped on the left with a load at its tip, filled with a truss-like material layout."}
+:::
 ::: {.domain-card-body}
-[[Linear-elastic cantilever](results_structural.qmd)]{.domain-card-title}
+[[S]{.domain-id .d-S} [Linear-elastic cantilever](results/structural.qmd)]{.domain-card-title}
 
-Place a fixed budget of material in a clamped 3D beam, two cells thick, to make it as stiff as possible. The control is one density per cell of a $16\times2\times8$ mesh (256 values). deal.II runs forward experiments only.
+Place a fixed budget of material in a clamped 3D beam, two cells thick, to make it as stiff as possible. The control is one density per cell of a $16\times2\times8$ mesh (256 values).
 
 [Problem `structural-mesh`, suites forward, gradient, cost, optimization]{.domain-meta}
 
@@ -125,10 +128,13 @@ Place a fixed budget of material in a clamped 3D beam, two cells thick, to make 
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_heat.svg){.nolightbox fig-alt="Schematic of the slab: a conductivity field on the left produces a temperature field on the right through a steady solve, and the inversion recovers the conductivity from the temperature."}
+:::
 ::: {.domain-card-body}
-[[Steady conduction in a slab](results_heat.qmd)]{.domain-card-title}
+[[H]{.domain-id .d-H} [Steady conduction in a slab](results/heat.qmd)]{.domain-card-title}
 
-Invert for the conductivity field of a slab from its temperature, with one conductivity per cell of a $16\times8\times1$ mesh (128 values). Also checks gradients with respect to the heat source. deal.II runs forward experiments only.
+Invert for the conductivity field of a slab from its temperature, with one conductivity per cell of a $16\times8\times1$ mesh (128 values). Also checks gradients with respect to the heat source.
 
 [Problem `thermal-mesh`, suites forward, gradient, cost, optimization]{.domain-meta}
 
@@ -158,31 +164,21 @@ Solver
 Backend
 : The runtime or AD framework a solver is built on, such as JAX or PyTorch, as recorded in its `metadata.mosaic.backend`.
 
-## Evaluation protocol {#evaluation-protocol}
-
-Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), so it can compare solvers built on incompatible AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints) without a shared dependency. The protocol is solver-agnostic, since it only uses `apply` and `vjp` and never inspects how a solver computes its gradient.
-
-The settings of every experiment (grid sizes, sweep ranges, finite-difference steps, iteration caps and pass criteria) live next to it in the problem configurations under [`mosaic/benchmarks/problems/`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/benchmarks/problems), and each [results page](results.qmd) describes the experiments of its setup.
-
-**Forward accuracy.** Resolution sweeps against a reference: an analytic solution where one exists (the 2D Taylor–Green vortex, the laminar Kolmogorov shear flow), the Schäfer–Turek literature value for the cylinder, converged high-resolution spectral runs for the 3D Taylor–Green vortex and the turbulent Kolmogorov flow, and for the mesh setups the trimmed mean of all solvers, stored as a precomputed reference. Where it applies, the suite also checks physical laws such as a divergence-free velocity field.
-
-**Gradient accuracy.** Central finite differences through the Tesseract interface serve as the solver-agnostic ground truth. For a scalar loss of the output, the harness compares the VJP's directional derivatives $d^\text{ad}_k = \langle g, v_k \rangle$ along random directions $v_k$ with central-difference estimates $d^\text{fd}_k$ along the same directions. It reports the cosine similarity between the vectors $d^\text{ad}$ and $d^\text{fd}$ (direction agreement, $1$ is identical) and the median over directions of $|d^\text{ad}_k - d^\text{fd}_k| / \max(|d^\text{ad}_k|, |d^\text{fd}_k|)$ (magnitude agreement, $0$ is exact). The step size $\varepsilon$ is swept relative to the magnitude of the input, and the check uses the best $\varepsilon$, which avoids both the truncation regime (large $\varepsilon$) and the round-off regime (small $\varepsilon$). Depending on the setup, the gradient suite also compares against analytic gradients, follows the gradient error as a physical parameter or the rollout length grows, differentiates through a chain of solver calls, and inspects the singular-value spectrum of the Jacobian, where a wide spread signals an ill-conditioned gradient that can stall an optimizer.
-
-**Optimization.** Each optimization setup runs a gradient-based optimizer (L-BFGS or Adam, depending on the setup) through the solver up to an iteration cap. The check passes when the objective falls below a set fraction of its initial value. Drag minimization also requires the final drag to land close to the other solvers' median. This catches solvers whose gradients pass the finite-difference check but still fail to drive a full optimization.
-
-**Cost.** Forward and VJP wall-clock time and peak memory, swept over problem size and rollout length on each solver's hardware target. Each sweep point starts with an untimed warm-up call, which covers compilation, followed by repeated timed trials.
-
 ## Benchmark suites {#suites}
 
-Experiments are grouped into suites, which you select with `mosaic run --suites`. Each [results page](results.qmd) lists the experiments of its setup.
+Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax). It never inspects how a solver computes its gradient, so it can compare solvers built on JAX, PyTorch, Julia or hand-written C++ adjoints without a shared dependency.
 
-| Suite | What it does |
-|:------|:-------------|
-| `forward` | Forward accuracy against references, and physical-law checks |
-| `gradient` | Gradients against finite differences and analytic solutions, gradient behavior across parameters and rollout lengths, and Jacobian spectra |
-| `optimization` | Gradient-based optimization through the solver |
-| `cost` | Forward and VJP wall-clock time and peak memory across problem sizes and rollout lengths |
-| `ics` | Generates and plots the initial conditions, without running a solver |
+Experiments are grouped into suites, which you select with `mosaic run --suites`. The settings of every experiment (grid sizes, sweep ranges, finite-difference steps, iteration caps and pass criteria) live next to it in the problem configurations under [`mosaic/benchmarks/problems/`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/benchmarks/problems), and each [results page](results/index.qmd) describes the experiments of its setup.
+
+**Forward accuracy (`forward`).** Resolution sweeps against a reference: an analytic solution where one exists (the 2D Taylor–Green vortex, the laminar Kolmogorov shear flow), the Schäfer–Turek literature value for the cylinder, converged high-resolution spectral runs for the 3D Taylor–Green vortex and the turbulent Kolmogorov flow, and for the mesh setups the trimmed mean of all solvers, stored as a precomputed reference. Where it applies, the suite also checks physical laws such as a divergence-free velocity field.
+
+**Gradient accuracy (`gradient`).** Central finite differences through the Tesseract interface serve as the solver-agnostic ground truth. For a scalar loss of the output, the harness compares the VJP's directional derivatives $d^\text{ad}_k = \langle g, v_k \rangle$ along random directions $v_k$ with central-difference estimates $d^\text{fd}_k$ along the same directions. It reports the cosine similarity between the vectors $d^\text{ad}$ and $d^\text{fd}$ (direction agreement, $1$ is identical) and the median over directions of $|d^\text{ad}_k - d^\text{fd}_k| / \max(|d^\text{ad}_k|, |d^\text{fd}_k|)$ (magnitude agreement, $0$ is exact). The step size $\varepsilon$ is swept relative to the magnitude of the input, and the check uses the best $\varepsilon$, which avoids both the truncation regime (large $\varepsilon$) and the round-off regime (small $\varepsilon$). Depending on the setup, the suite also compares against analytic gradients, follows the gradient error as a physical parameter or the rollout length grows, differentiates through a chain of solver calls, and inspects the singular-value spectrum of the Jacobian, where a wide spread signals an ill-conditioned gradient that can stall an optimizer.
+
+**Optimization (`optimization`).** A gradient-based optimizer (L-BFGS or Adam, depending on the setup) runs through the solver up to an iteration cap. The check passes when the objective falls below a set fraction of its initial value, and drag minimization also requires the final drag to land close to the other solvers' median. This catches solvers whose gradients pass the finite-difference check but still fail to drive a full optimization.
+
+**Cost (`cost`).** Forward and VJP wall-clock time and peak memory, swept over problem size and rollout length on each solver's hardware target. Each sweep point starts with an untimed warm-up call, which covers compilation, followed by repeated timed trials.
+
+**Initial conditions (`ics`).** Generates and plots the initial conditions, without running a solver.
 
 A run writes metrics as JSON, fields as NPZ, and plots as PNG with a Vega-Lite `.vl.json` spec next to each, under `mosaic-results/<problem>/<suite>/<experiment>/`. [Reading the output](getting-started.qmd#reading-the-output) explains the layout.
 

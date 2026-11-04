@@ -2,7 +2,7 @@
 title: Add a solver
 ---
 
-A solver wraps one library as a Tesseract under the directory of an existing domain. Once its directory is in place, the harness discovers it and runs it against every experiment of the problems that use that domain. This page walks through every step, from the directory layout to the pull request. To add a new family of solvers with its own canonical schema, see [Add a domain](add-domain.qmd).
+A solver wraps one library as a Tesseract under the directory of an existing domain. Once its directory is in place, the harness discovers it and runs it against every experiment of the problems that use that domain. This page walks through every step, from the directory layout to the pull request. To add new physics with its own canonical schema, see [Add a problem](add-problem.qmd).
 
 The running example adds a solver called `my-spectral-solver` to the `navier-stokes-grid` domain. Its physics is deliberately minimal, a single line of viscous decay in Fourier space, so that the page can focus on how a solver plugs into Mosaic.
 
@@ -97,11 +97,13 @@ Almost any solver passes a benchmark if someone works around its problems hard e
 |:------|:--------|
 | `abstraction` | What counts as ordinary use of the library. `application` means running the program as its documentation intends, e.g. OpenFOAM case files written as in its tutorials. `framework` means expressing the setup through the library's API, e.g. FEniCS or XLB. `kernel-toolkit` means writing the solver with the library's primitives, e.g. Warp, where only what was added for the benchmark is recorded. |
 | `interventions` | Everything beyond that ordinary use, one entry each (below). |
-| `deviations` | Places where the solver runs a substitute for the prescribed setup, such as a different outflow condition. Each has an `id`, the `setups` it applies to, `what` it is, its `consequences`, which say why it exists (usually `cannot-express`), its `effect` on the results ("Not measured." if unknown) and optional `evidence`. |
+| `deviations` | Places where the solver runs a substitute for the prescribed setup, such as a different outflow condition. Each has an `id`, a `title`, the `setups` it applies to, `what` it is, its `consequences`, which say why it exists (usually `cannot-express`), its `effect` on the results ("Not measured." if unknown) and optional `evidence`. |
 
 Each intervention has these fields:
 
-- `id`, in kebab-case, and `what`, one or two sentences on what was done.
+- `id`, a stable kebab-case key that the code markers refer to.
+- `title`, a few words in sentence case that name the intervention for readers of the results, such as "Sets the body force through a private attribute". The results pages show it when you hover over an effort level, and the solver reference uses it as the heading.
+- `what`, one or two sentences on what was done, in the library's terms. Leave file paths and internal names to `notes`.
 - `level`, by mechanism:
   - `L0`, nothing beyond expected tweaks, meaning the library's public API with its defaults or documented options, such as a solver tolerance.
   - `L1`, undocumented configuration, found by reading the source.
@@ -110,13 +112,15 @@ Each intervention has these fields:
 
   Fixes that exist only in unreleased upstream code are not accepted.
 - `necessity`: `required` if the setup fails without it, `choice` if it isn't needed to pass (say what it gains), or `unknown`.
-- `why`, per setup: the `consequences` a user who skips the intervention would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, with a measured number where one exists, and the `evidence`, such as a pull request, issue, test or log. The setups a solver can name are the ones its domain serves. For `navier-stokes-grid` they are `ns-2d-periodic`, `ns-2d-cylinder`, `ns-2d-kolmogorov` and `ns-3d`, for `structural-mesh` it is `structural`, and for `thermal-mesh` it is `heat`.
+- `why`, per setup: the `consequences` a user who skips the intervention would see (`cannot-express`, `crash`, `non-finite`, `inaccurate-forward`, `no-gradient`, `incorrect-gradient`, `optimizer-stall`, `too-slow`, `out-of-memory`, `non-reproducible`), the `symptom`, which says what that user would see in a sentence or two, with a measured number where one exists, optional `notes` for the full measurements, the history and open questions, and the `evidence`, such as a pull request, issue, test or log. The setups a solver can name are the ones its domain serves. For `navier-stokes-grid` they are `ns-2d-periodic`, `ns-2d-cylinder`, `ns-2d-kolmogorov` and `ns-3d`, for `structural-mesh` it is `structural`, and for `thermal-mesh` it is `heat`.
 - `provenance`: `mosaic-team`, `contributor`, `maintainer-authored` or `maintainer-advised`.
 - Optionally `upstream` (a link to the upstream issue, or why there is none), `tuned`, and `active: false` for code that no experiment exercises.
 
+The solver reference shows the title, `what` and `symptom` to every reader, and the notes, evidence and upstream link behind a disclosure. Write the first three for someone choosing a solver, who wants to know what was done and what would go wrong without it, and keep the detail a maintainer or reviewer needs in `notes`. The symptom appears without its field name, so make it clear that it describes a run without the intervention, for example by starting with "Without it".
+
 Evidence is required above `L0` unless the necessity is `unknown`, and for every setting picked by measuring alternatives (`tuned: true`), such as a tolerance, linear solver, preconditioner, device or parallel layout. If you don't know why an intervention is needed, say `necessity: unknown` instead of guessing. The same holds for a setup on which the intervention was never measured, and since necessity applies to the whole entry, such a setup gets an entry of its own.
 
-The effort a solver needs on a setup is the highest level among its active, required interventions there, and `L0` if there are none. The results pages show it next to the checks (see [how to read the results](results.qmd#how-to-read-the-results)), and the [solver reference](solvers.qmd) lists every intervention with its reason and evidence. Record `L0` changes too, so that readers can see which options were set and why.
+The effort a solver needs on a setup is the highest level among its active, required interventions there, and `L0` if there are none. The results pages show it next to the checks, and the [solver reference](solvers.qmd) lists every intervention with its reason and evidence. Record `L0` changes too, so that readers can see which options were set and why.
 
 ```yaml
 metadata:
@@ -126,6 +130,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: custom-outflow
+        title: Writes the pressure outlet by hand
         level: L2
         necessity: required
         what: >
@@ -133,7 +138,8 @@ metadata:
         why:
           ns-2d-cylinder:
             consequences: [cannot-express]
-            symptom: The library ships no pressure outlet.
+            symptom: The library ships no pressure outlet, so the channel cannot be set up.
+            notes: Checked against the boundary conditions of release 2.1.
             evidence: https://example.org/docs/boundary-conditions
         upstream: https://github.com/example/solver/issues/1
         provenance: contributor
@@ -390,7 +396,7 @@ The solvers of `navier-stokes-grid` also serve the `ns-3d-grid` problem, so run 
 mosaic status -p ns-grid -f
 ```
 
-`-f` lists the reason for every failed or anomalous cell, and `--format json` writes a machine-readable snapshot. [How to read the results](results.qmd#how-to-read-the-results) explains what each state means.
+`-f` lists the reason for every failed or anomalous cell, and `--format json` writes a machine-readable snapshot. [How to read the results](results/index.qmd#how-to-read-the-results) explains what each state means.
 
 If your solver doesn't appear, check that its `tesseract_config.yaml` parses as YAML, that it has a `metadata.mosaic` block with a `name`, and that its directory sits directly under `mosaic/tesseracts/navier-stokes-grid/`.
 

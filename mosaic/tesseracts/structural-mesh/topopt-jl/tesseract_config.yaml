@@ -65,23 +65,28 @@ metadata:
     abstraction: framework
     interventions:
       - id: julia-cpu-target-generic
+        title: Precompiles Julia packages for a generic CPU
         level: L0
         necessity: unknown
         what: >
-          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
-          precompiles at build time target a generic x86-64 CPU rather than
-          the build machine's. Code compiled at run time is unaffected.
+          Sets JULIA_CPU_TARGET=generic in the image, so the package images
+          Julia precompiles at build time target a generic x86-64 CPU instead
+          of the build machine's. Code compiled at run time is unaffected.
         why:
           structural:
             consequences: []
             symptom: >
-              No reason recorded; added in #6 ("ensure all Tesseracts build on
-              CI"). Julia's docs recommend it where images run on CPUs other
-              than the one that built them. Whether the precompiled solver code
-              is slower for it has not been measured.
+              No reason is recorded, and its effect on speed has not been
+              measured.
+            notes: >
+              Added in #6 ("ensure all Tesseracts build on CI"). Julia's docs
+              recommend it where images run on CPUs other than the one that
+              built them. Whether the precompiled solver code is slower for it
+              has not been measured.
         provenance: mosaic-team
     deviations:
       - id: nodal-load
+        title: Applies the cantilever load as nodal forces
         setups: [structural]
         what: >
           The harness gives TopOpt.jl the cantilever load as nodal forces

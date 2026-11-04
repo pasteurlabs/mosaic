@@ -346,7 +346,7 @@ p > img {
 
 // ── Sortable results tables ──────────────────────────────────────────────────
 // The per-suite results tables (wrapped in `.sortable-table`) get click-to-sort
-// behaviour from docs/sortable-tables.html. Style the headers as affordances:
+// behaviour from docs/assets/sortable-tables.html. Style the headers as affordances:
 // pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
 .sortable-table table th.sortable-th {
   cursor: pointer;
@@ -399,7 +399,7 @@ p > img {
     padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.5rem) clamp(1.5rem, 3vw, 2.25rem);
   }
 
-  // Wordmark tiled with benchmark fields (docs/logo.webp, docs/figures/make_logo.py).
+  // Wordmark tiled with benchmark fields (docs/figures/logo.webp, docs/scripts/make_logo.py).
   img.hero-wordmark {
     display: block;
     width: min(100%, 560px) !important;
@@ -459,7 +459,7 @@ p > img {
   }
 }
 
-// Three "axes" summary strip under the hero.
+// The questions Mosaic answers, under the Overview hero.
 .axis-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -552,6 +552,15 @@ p > img {
       display: none !important;
     }
 
+    .domain-id {
+      min-width: 1.8rem;
+      height: 1.5rem;
+      padding: 0 0.35rem;
+      margin-right: 0.4rem;
+      font-size: 0.78rem;
+      vertical-align: 0.1em;
+    }
+
     a {
       color: var(--m-ink);
       text-decoration: none;
@@ -582,6 +591,16 @@ p > img {
       z-index: 1;
     }
   }
+}
+
+// Setup badges in the navbar's Results menu.
+.dropdown-item .domain-id {
+  min-width: 1.6rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  margin-right: 0.45rem;
+  font-size: 0.7rem;
+  box-shadow: none;
 }
 
 .domain-id {
@@ -1111,30 +1130,22 @@ table.ck-table {
   }
 
   thead th {
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--m-muted);
     background: var(--m-surface);
   }
 
   tr.ck-group > * {
     padding: 0.35rem 0.7rem;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--m-ink-2);
     background: var(--m-surface-2);
 
     span {
       margin-left: 0.4rem;
       font-weight: 500;
-      letter-spacing: normal;
-      text-transform: none;
-      letter-spacing: 0;
-      text-transform: none;
       color: var(--m-muted);
     }
   }
@@ -1147,13 +1158,23 @@ table.ck-table {
     font-weight: 600;
 
     a {
-      color: var(--m-ink);
-      text-decoration: none;
+      color: var(--m-accent-ink);
+      text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, var(--m-accent) 35%, transparent);
+      text-underline-offset: 0.18em;
 
       &:hover {
-        color: var(--m-accent);
+        text-decoration-color: currentColor;
       }
     }
+  }
+
+  // Effort and deviations show their detail on hover.
+  .ck-effort span[title],
+  .ck-dev span[title] {
+    text-decoration: underline dotted;
+    text-underline-offset: 0.18em;
+    cursor: help;
   }
 
   .ck-part {
@@ -1535,9 +1556,160 @@ figure.m-chart {
 }
 
 // ── Effort and deviations columns ────────────────────────────────────────────
-// Cells with details on hover (docs/intervention_views.py).
+// Cells with details on hover (docs/scripts/intervention_views.py).
 .m-tip[title] {
   cursor: help;
   text-decoration: underline dotted;
   text-underline-offset: 2px;
+}
+
+// One intervention in a solver's record on the solver reference.
+.iv-item {
+  padding: 0.7rem 0 0.2rem;
+  border-top: 1px solid var(--m-border);
+
+  > p:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .iv-title {
+    font-weight: 600;
+  }
+
+  .iv-level {
+    padding: 0 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--m-surface-2);
+    border: 1px solid var(--m-border);
+  }
+
+  .iv-tag {
+    font-size: 0.8rem;
+    color: var(--m-muted);
+  }
+
+  ul {
+    padding-left: 1.1rem;
+  }
+
+  .iv-details {
+    margin-bottom: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--m-ink-2);
+
+    summary {
+      cursor: pointer;
+      color: var(--m-muted);
+    }
+  }
+}
+
+// ── Paper page ───────────────────────────────────────────────────────────────
+.paper-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+  padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.5rem);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  .paper-title {
+    display: block;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 0.6rem;
+  }
+
+  .paper-authors {
+    display: block;
+    color: var(--m-muted);
+    margin-bottom: 1rem;
+  }
+
+  .paper-hero-text > p {
+    margin: 0;
+  }
+
+  .paper-video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 0.35rem;
+    background: var(--m-surface-2);
+  }
+
+  .paper-media-caption {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--m-muted);
+  }
+}
+
+.finding-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.9rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.finding {
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 0.4rem;
+  padding: 1rem 1.1rem;
+  box-shadow: var(--m-shadow-sm);
+
+  p {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--m-ink-2);
+  }
+
+  .finding-number {
+    display: block;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0.4rem;
+    color: var(--m-accent-ink);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.paper-chart {
+  margin: 1rem 0;
+}
+
+.paper-use {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.9rem;
+  margin: 1rem 0;
+
+  > div {
+    background: var(--m-surface);
+    border: 1px solid var(--m-border);
+    border-radius: 0.4rem;
+    padding: 1rem 1.1rem;
+  }
+}
+
+.paper-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
 }

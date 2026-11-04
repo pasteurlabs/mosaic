@@ -428,7 +428,7 @@ jobs:
       # The docs are rendered here (where the full mosaic/jax stack is already
       # installed and memory is ample) rather than on Read the Docs, whose
       # constrained builders OOM-kill the heavy `import mosaic`. RTD only
-      # downloads and serves the pre-rendered _site/ (see .readthedocs.yaml).
+      # downloads and serves the pre-rendered docs/_site/ (see .readthedocs.yaml).
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
@@ -442,14 +442,11 @@ jobs:
       - name: Regenerate plots from merged results
         run: uv run mosaic run --plots-only
 
-      - name: Generate results pages
-        run: uv run python docs/generate_results.py
-
       - name: Render docs site
         # Always render the full site, so doc-only (benchmark:none) PRs preview
         # their prose changes, not just the results pages. Results pages are
         # populated from the merged PR+baseline result tree above.
-        run: uv run quarto render --output-dir _site
+        run: make -C docs html
 
       # ── Metadata for the downstream publish workflow ───────────────────
       # The RTD trigger, preview-URL lookup, and PR comment all need repo
@@ -501,7 +498,7 @@ jobs:
           # One artifact per PR (RTD serves it keyed off the PR number). For
           # non-PR runs (e.g. workflow_dispatch) fall back to the commit SHA.
           name: docs-site-pr-${{ github.event.pull_request.number || github.sha }}
-          path: _site/
+          path: docs/_site/
           overwrite: true
           retention-days: 90
 

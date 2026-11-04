@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from docs import generate, generate_results  # noqa: E402
+from docs.scripts import generate, generate_results  # noqa: E402
 
 views = generate_results.views
 
@@ -72,8 +72,10 @@ def test_effort_block_covers_one_setup(results: Path) -> None:
     # A solver without a record says so instead of claiming no effort.
     assert "| Unrecorded | not recorded | not recorded | not recorded |" in block
     cylinder = "\n".join(generate_results._effort_block("ns-grid", "ns-2d-cylinder"))
-    # XLB's sub-stepping deviation shows on hover.
-    assert "ma-targeted-substepping" in cylinder
+    # XLB's sub-stepping deviation shows its title on hover.
+    xlb = views.records_for("ns-2d-cylinder")["XLB"]
+    substepping = next(d for d in xlb.deviations if d.id == "ma-targeted-substepping")
+    assert views.title(substepping) in cylinder
 
 
 def test_ranking_table_gains_effort_columns(results: Path) -> None:
@@ -125,15 +127,14 @@ def test_every_setup_gets_a_page_without_results(tmp_path: Path, monkeypatch) ->
     monkeypatch.setattr(generate_results, "OUTPUT_DIR", tmp_path)
     for name in ("SCOREBOARD_INCLUDE", "EXPLORER_INCLUDE", "SCORES_JSON"):
         monkeypatch.setattr(generate_results, name, tmp_path / name)
-    for name in ("GATES_INCLUDE", "SETUPS_INCLUDE"):
-        monkeypatch.setattr(generate_results, name, tmp_path / name)
+    monkeypatch.setattr(generate_results, "GATES_INCLUDE", tmp_path / "GATES_INCLUDE")
     generate_results.main()
     for setup in generate_results.scoreboard.SETUPS:
-        page = (tmp_path / generate_results.setup_page(setup["key"])).read_text()
+        page = (
+            tmp_path / "results" / generate_results.setup_page(setup["key"])
+        ).read_text()
         assert f'title: "{setup["setup"]}"' in page
         assert "No benchmark results are available" in page
-    setups = (tmp_path / "SETUPS_INCLUDE").read_text()
-    assert "[Forced Kolmogorov flow](results_ns_2d_kolmogorov.qmd)" in setups
 
 
 def test_setup_pages_only_show_their_experiments() -> None:
@@ -166,7 +167,8 @@ def test_effort_cell_names_the_required_interventions() -> None:
     record = views.records_for("ns-2d-cylinder")["PICT"]
     cell = views.effort_cell(record, "ns-2d-cylinder")
     assert cell.startswith("[L2]{.m-tip")
-    assert "body-force-integration" in cell
+    force = next(i for i in record.interventions if i.id == "body-force-integration")
+    assert views.title(force) in cell
 
 
 def test_attribute_text_cannot_break_a_pipe_table() -> None:

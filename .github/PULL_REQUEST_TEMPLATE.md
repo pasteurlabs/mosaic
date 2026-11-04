@@ -29,7 +29,7 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 
 <!--
 A maintainer applies a benchmark label, and CI posts a comment comparing the results against `main`.
-See https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/contributing.html#benchmark-labels
+See https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html#benchmark-labels
 -->
 
 ## Notes for reviewers
