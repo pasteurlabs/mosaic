@@ -10,6 +10,7 @@ description: >
   linear solves stop at an absolute residual and would cut the adjoint solves
   short for small cotangents. PICT has no releases; this runs commit 72a6e86.
 build_config:
+  base_image: "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
   package_data: []
   target_platform: "linux/amd64"
   # skip_checks: PISOtorch_simulation asserts torch.cuda.is_available() at

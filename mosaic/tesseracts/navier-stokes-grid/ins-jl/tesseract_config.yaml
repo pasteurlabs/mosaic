@@ -6,7 +6,11 @@ description: >
   spectral pressure solve; the channel a direct one, with the cylinder as a Brinkman
   penalization. Differentiates through the time loop via Zygote.jl reverse-mode AD.
 build_config:
+  base_image: "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
   package_data:
+    - ["./Project.toml", "/app/julia_env/Project.toml"]
+    - ["./Manifest.toml", "/app/julia_env/Manifest.toml"]
+    - ["./LocalPreferences.toml", "/app/julia_env/LocalPreferences.toml"]
     - ["./solver.jl", "/tesseract/solver.jl"]
   custom_build_steps:
     - "RUN apt-get update -qq && apt-get install -y -q --no-install-recommends wget ca-certificates gcc g++ && rm -rf /var/lib/apt/lists/*"
@@ -16,13 +20,17 @@ build_config:
     # one container across many calls, so a one-time JIT cost on first call
     # is a net win over paying the sysimage build cost every push. Removed
     # PackageCompiler from the package list — it's no longer imported.
-    # The build has no GPU, so CUDA.jl cannot pick its toolkit from the driver.
-    # set_runtime_version! fixes it at 12.6, and the second Pkg call downloads
-    # that runtime and compiler.
-    # CUDA.jl waits for the GPU on Julia threads it adopts by default. Julia
-    # stops threads for GC through signals that juliacall leaves unhandled, so
-    # the server segfaults once a GC meets such a wait; blocking
-    # synchronization keeps the waits on the calling thread.
+    # Project.toml and Manifest.toml pin IncompressibleNavierStokes 5.0.0,
+    # Zygote 0.7.10, CUDA 6.4.2 and everything they depend on, and
+    # Pkg.instantiate() installs exactly that Manifest. LocalPreferences.toml
+    # holds two CUDA.jl settings:
+    # - The build has no GPU, so CUDA.jl cannot pick its toolkit from the
+    #   driver. The runtime and compiler are fixed at 12.6, and Pkg downloads
+    #   them.
+    # - CUDA.jl waits for the GPU on Julia threads it adopts by default. Julia
+    #   stops threads for GC through signals that juliacall leaves unhandled,
+    #   so the server segfaults once a GC meets such a wait; blocking
+    #   synchronization keeps the waits on the calling thread.
     # Without a GPU, one precompile worker dumps a core even though
     # precompilation succeeds; ulimit keeps it out of the image.
     #
@@ -43,7 +51,7 @@ build_config:
     # check finds the environment resolved (juliapkg skips straight past it).
     # Keep the install, the warm-up and the chmod in one RUN: as separate
     # layers the chmod would copy up every file under /app (~3 GB with CUDA).
-    - 'RUN ulimit -c 0 && mkdir -p /app/julia_env /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.add([Pkg.PackageSpec(name="IncompressibleNavierStokes", version="5.0.0"), Pkg.PackageSpec(name="Zygote", version="0.7.10"), Pkg.PackageSpec(name="CUDA", version="6.4.2")]); using CUDA; CUDA.set_runtime_version!(v"12.6"); CUDA.CUDACore.Preferences.set_preferences!(CUDA.CUDACore, "nonblocking_synchronization" => false; force = true)'' && julia --project=/app/julia_env -e ''using Pkg; Pkg.instantiate(); Pkg.precompile()'' && python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote, CUDA")'' && chmod -R 777 /app'
+    - 'RUN ulimit -c 0 && mkdir -p /app/julia_depot && julia --project=/app/julia_env -e ''using Pkg; Pkg.instantiate(); Pkg.precompile()'' && python -c ''import juliacall; juliacall.Main.seval("using Pkg; Pkg.activate(ENV[\"JULIA_PROJECT\"]); using IncompressibleNavierStokes, Zygote, CUDA")'' && chmod -R 777 /app'
 env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"

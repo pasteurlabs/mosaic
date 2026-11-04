@@ -6,6 +6,7 @@ description: >
   staggered grid, a staircase cylinder and a conjugate-gradient pressure Poisson solve.
   Gradients via wp.Tape kernel-level VJP, with adjoint CG solves.
 build_config:
+  base_image: "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
