@@ -532,30 +532,30 @@ The minimum rises as the rollout grows, and for several solvers it moves from $\
 \paragraph{Optimizer configurations}
 All optimization runs use Adam (\texttt{optax.adam}, default
 $\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$), L-BFGS
-(\texttt{optax.lbfgs} with the default zoom line search and a 10-step
-inverse-Hessian memory), or, on H, SciPy's L-BFGS-B with its default memory
-of 10 correction pairs. Unless stated otherwise, runs use patience-based
-early stopping on the loss:
+(SciPy's L-BFGS-B with its default memory of 10 correction pairs), or, on S,
+MMA. Adam runs use patience-based early stopping on the loss:
 the run terminates as soon as the loss has not strictly improved over
 the running minimum for \emph{patience} consecutive iterations, or when
-the maximum iteration budget is reached.
+the maximum iteration budget is reached. L-BFGS stops at the iteration
+budget, when the gradient's 2-norm falls below $10^{-7}$, or when its line
+search fails.
 The 3D NS recovery plots use
 \emph{gradient evaluations} on the x-axis rather than outer iterations:
-Adam costs one value-and-gradient call per step, while L-BFGS's zoom line
-search adds an empirically observed average of $\sim$3 probes per outer
-step, so a per-iteration x-axis would understate L-BFGS's true
-forward-and-backward cost.
+Adam costs one value-and-gradient call per step, while L-BFGS's line
+search can evaluate several trial points per step, so a per-iteration
+x-axis would understate L-BFGS's true forward-and-backward cost. The plots
+count every evaluation the optimizer made.
 Per-task settings:
 \begin{itemize}\itemsep0pt
-  \item \textbf{H (conductivity recovery)}: L-BFGS-B, 1\,000 iters, on a
+  \item \textbf{H (conductivity recovery)}: L-BFGS, 1\,000 iters, on a
         sigmoid reparametrization that keeps the density in $[10^{-3},1]$ and
-        makes the SIMP conductivity affine in the latent variable. It stops at
-        the iteration budget, when the gradient's 2-norm falls below $10^{-7}$,
-        or when its line search fails.
+        makes the SIMP conductivity affine in the latent variable.
   \item \textbf{S (topology optimization)}: Adam $\eta{=}5{\times}10^{-2}$,
         2\,500 iters, patience 100, with a soft volume-fraction penalty
-        of weight 50; L-BFGS, 100 iters, patience 20 (fails to reach Adam's optimum, see below);
-        MMA via NLopt~\citep{svanberg1987mma}, 200 iters, patience 30,
+        of weight 50; L-BFGS, 100 iters, with the same penalty and box
+        constraints (fails to reach Adam's optimum, see below);
+        MMA via NLopt~\citep{svanberg1987mma}, at most 200 objective
+        evaluations, stopping after 30 evaluations without a lower compliance,
         with a hard volume inequality and native box constraints.
   \item \textbf{F2 (drag minimization, Re=20)}: Adam $\eta{=}10^{-2}$, at
         most 100 iters, stopping once the loss has not dropped by 0.1\% in 10
@@ -563,7 +563,7 @@ Per-task settings:
         with the benchmark's flow rate and a peak of at most the benchmark's
         $U_m$.
   \item \textbf{F3 (3D NS IC recovery)}: Adam $\eta{=}10^{-3}$, 500 iters,
-        patience 50; L-BFGS, 100 iters, patience 20.
+        patience 50; L-BFGS, 100 iters.
         L-BFGS+proj and Adam+proj variants apply a solenoidal projection to
         the gradient at each step (see next paragraph) with otherwise
         identical settings. All variants start from $u\equiv 0$ and minimize
@@ -584,7 +584,7 @@ where $\hat g$ is the FFT of the gradient on the periodic box. This
 restricts the search direction to the divergence-free subspace and is
 exact to machine precision on the periodic NS state space. The
 projection is implemented once in the harness and applied uniformly to
-all six fluid solvers; we do not project elsewhere because the
+all seven fluid solvers; we do not project elsewhere because the
 divergence-free constraint is specific to the incompressible NS state.
 
 \paragraph{2D drag minimization}
