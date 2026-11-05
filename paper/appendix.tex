@@ -36,7 +36,7 @@ using a single code path.
 
 Each backend is defined by three files: a Python module implementing the
 entry points above, a YAML configuration declaring solver metadata (name,
-AD strategy, backend framework, plot style), and a requirements file listing
+AD strategy, backend framework, interventions), and a requirements file listing
 dependencies. The evaluation harness discovers solvers automatically from
 their configuration metadata and runs five benchmark suites (forward
 accuracy, gradient quality, computational cost, optimization convergence,
@@ -53,7 +53,7 @@ New benchmark domains can be scaffolded from built-in templates and require
 interface schemas, at least one solver backend, and a problem configuration
 defining initial conditions, error metrics, and suite defaults. Existing
 solver configurations can also be improved via pull requests; CI re-runs
-the full evaluation suite and posts a before/after comparison.
+the affected experiments and posts a before/after comparison.
 
 \subsection{Maintenance and versioning}
 
@@ -65,13 +65,13 @@ breaks due to a dependency update, we document version pins and accept
 community fixes but do not patch upstream code ourselves.
 
 Each release is tagged with a semantic version and accompanied by a pinned
-dependency lockfile. Continuous integration runs the benchmark suite on
-every push to
-\texttt{main} that touches a solver or the harness, committing results
-to a dedicated branch with a machine-readable diff against the previous
-baseline. Tagged releases run the full suite and publish a result archive
-as a GitHub release artifact. This keeps published results current as
-solvers evolve and new backends land.
+dependency lockfile. Continuous integration runs the affected parts of the
+benchmark suite on every pull request that touches a solver or the harness
+and posts a machine-readable diff against the current baseline, which the
+results update once the pull request is merged. Release pull requests run
+the full suite and publish a result archive as a GitHub release artifact.
+This keeps published results current as solvers evolve and new backends
+land.
 
 \section{Extended experimental results}
 \label{app:extended}
@@ -79,34 +79,42 @@ solvers evolve and new backends land.
 \subsection{Benchmark specifications}
 \label{app:effort}
 
-\paragraph{Integration effort}
-The \textbf{IO}, \textbf{Num.}, and \textbf{Conf.}\ columns in \cref{tab:merged}
-report bespoke lines of code by category.
-\emph{IO} covers serialization and file-based data exchange with external solver processes.
-\emph{Num.}\ is problem-specific numerical code (assembly, time-stepping, boundary
-conditions, and gradient plumbing).
-\emph{Conf.}\ covers solver initialization and mesh setup.
-Glue code (Tesseract schema definitions and entry-point boilerplate) is excluded; it
-consistently amounts to 100--400\,LOC across all backends.
+\paragraph{Intervention columns}
+The \textbf{\#} column in \cref{tab:merged} counts a solver's interventions
+(\cref{app:interventions}) that apply to the setups of the domain, and
+\textbf{max L (req.)} is the highest level among those marked as required.
 
 \paragraph{Error column definitions}
-\textit{Ref.}: $\|\mathbf{f}_{\text{solver}} - \mathbf{f}_{\text{ref}}\|_2 / \|\mathbf{f}_{\text{ref}}\|_2$,
-where $\mathbf{f}_{\text{ref}}$ is the forward state from the reference solver (OpenFOAM for F2/F3; deal.II for S/H).
+All errors are relative.
+\textit{Ref.}: $\|\mathbf{f}_{\text{solver}} - \mathbf{f}_{\text{ref}}\|_2 / \|\mathbf{f}_{\text{ref}}\|_2$
+for a forward output $\mathbf{f}$, where $\mathbf{f}_{\text{ref}}$ is a checked-in
+consensus of all solvers on the multimode flow (F2), a converged Exponax run at
+$N=64$ spectrally truncated to the benchmark grid (F3), or a checked-in trimmed mean
+of all solvers' compliances (S, H).
 This is a forward accuracy metric, not a gradient comparison.
-\textit{An.}: $\|\mathbf{f}_{\text{solver}} - \mathbf{f}_{\text{TGV}}\|_2 / \|\mathbf{f}_{\text{TGV}}\|_2$,
-where $\mathbf{f}_{\text{TGV}}$ is the TGV closed-form forward solution (F2/F3 only).
-\textit{FD}: minimum over $\varepsilon \in \{10^{-6}, \ldots, 10^{-1}\}$ of
-$\|\mathbf{g}_{\text{solver}} - \mathbf{g}_{\text{FD},\varepsilon}\|_2 / \|\mathbf{g}_{\text{FD},\varepsilon}\|_2$,
-where $\mathbf{g}_{\text{FD},\varepsilon}$ is a central finite-difference gradient estimate at step size $\varepsilon$.
+\textit{An.}: the same error against the closed-form TGV solution
+$\mathbf{u}(t)=\mathbf{u}(0)e^{-2\nu t}$ (F2 only).
+\textit{FD}: for $K$ random directions $\mathbf{d}_k$, the error
+$|D_k - \langle \mathbf{g}, \mathbf{d}_k\rangle| / \max(|D_k|, |\langle \mathbf{g}, \mathbf{d}_k\rangle|)$
+of the solver's gradient $\mathbf{g}$ of $J(\mathbf{x})=\sum \mathbf{f}(\mathbf{x})^2$
+against the central difference
+$D_k = [J(\mathbf{x}+\varepsilon s\mathbf{d}_k) - J(\mathbf{x}-\varepsilon s\mathbf{d}_k)]/(2\varepsilon s)$,
+where $s$ is the root mean square of the input $\mathbf{x}$. We report the median over
+directions at the best $\varepsilon$ in $\{5, 1, 10^{-1}, \ldots, 10^{-4}\}$ (F2, F3),
+$\{2, \ldots, 10^{-4}\}$ (S), or $\{1, \ldots, 10^{-4}\}$ (H).
 
 \paragraph{Hardware and timing protocol}
 All experiments ran on an Azure Standard\_NC24ads\_A100\_v4 instance
 (24 vCPUs of an AMD EPYC 7V13, 216\,GiB RAM, one NVIDIA A100 80\,GB PCIe);
-CPU-only solvers ran on the same instance's CPU.
+CPU-only solvers ran on the same instance's CPU, and no other containers or GPU
+processes ran alongside.
 The results on the project website are regenerated by continuous integration
 on NVIDIA T4 runners, so their absolute times differ from the ones reported here.
-Wall times use one warmup call (excluded, absorbs JIT compilation and CUDA kernel
-caching) followed by three timed trials; the reported value is the mean.
+Each solver and problem size gets one warmup call, which absorbs JIT compilation
+and CUDA kernel caching and is excluded from the mean (its time is recorded
+separately), followed by timed trials: 3 on F2 and F3, and 10 on S and H, whose
+fastest points take tens of milliseconds and vary most between trials. The
+reported value is the mean.
 A forward time covers one \texttt{apply} request and a VJP time one
 \texttt{vector\_jacobian\_product} request, whose cotangent comes from an untimed
 \texttt{apply} beforehand. Every solver recomputes its forward solution inside the
@@ -115,49 +123,76 @@ plus an adjoint pass. TopOpt.jl's compliance gradient is self-adjoint and needs 
 second solve, so its VJP costs about one forward solve.
 The timed window covers host-side serialization, the Tesseract HTTP round-trip, solver
 compute, and response deserialization; container startup is excluded.
+A trial longer than 1\,000\,s ends the sweep for that solver, and every request to a
+solver container times out after 7\,200\,s.
+Peak VRAM is NVML's used memory of the whole device over the warmup and the trials.
+It includes the CUDA context and the allocator pools and excludes the 768\,MiB the
+driver reserves. Peak RAM is the solver container's cgroup memory as reported by
+Docker. Allocator pools persist while a container serves a sweep, which runs in
+increasing size, so each recorded peak is the running maximum of the true per-size
+peaks. All JAX-based solvers run with the same allocator settings (no preallocation,
+memory fraction 0.95).
 
 \paragraph{F2 (2D NS, grid)}
-Periodic domain $[0,2\pi)^2$, uniform Cartesian grid, Taylor--Green vortex IC\@.
-\textbf{Fwd/VJP}: $64\times64$ grid (4\,096 cells), $\nu=0.01$, $\Delta t=0.01$, 100 steps.
+Periodic domain $[0,2\pi)^2$ on a uniform Cartesian grid. The cylinder experiments
+use the Sch\"afer--Turek DFG 2D-1 channel~\cite{schafer1996benchmark}
+instead: $[0,2.2]\times[0,0.41]$ with a cylinder of diameter $D=0.1$ at $(0.2,0.2)$,
+a parabolic inflow of peak speed $U_m=0.3$ (mean $\bar{U}=0.2$), a zero-gradient outflow
+at $p=0$, no-slip walls, and $\nu=10^{-3}$, so that $\mathrm{Re}=\bar{U}D/\nu=20$.
+\textbf{Fwd/VJP}: $64\times64$ grid (4\,096 cells), multimode IC, $\nu=0.01$,
+$\Delta t=0.01$, 100 steps.
+\textbf{Cost}: $N\in\{64,128,192,256\}$ (4\,k--66\,k cells) at 100 steps.
 \textbf{Error (Ref., An.)}: agreement experiment, $64\times64$ grid, $\nu=0.01$,
-$\Delta t=0.05$, 20 steps; Ref.\ vs.\ fine JAX-CFD reference ($\Delta t=0.01$, 100 steps),
-An.\ vs.\ TGV closed-form $\mathbf{u}(t)=\mathbf{u}(0)e^{-2\nu t}$.
-\textbf{Error (FD)}: finite-difference gradient check, $16\times16$ grid, multimode IC,
+$\Delta t=0.05$, 20 steps; Ref.\ on the multimode IC, An.\ on the TGV.
+\textbf{Error (FD)}: $16\times16$ grid, multimode IC,
 $\nu=0.001$, $\Delta t=0.05$, 20 steps, 20 random directions.
-\textbf{Convergence}: drag-reduction optimization, $32\times32$ grid, channel domain
-$[0,1]^2$, cylinder at $(0.5,0.5)$ radius $0.05$, Re\,=\,20 ($\nu=0.0025$),
-$\Delta t=0.02$, 400 steps, Adam ($\eta=5\times10^{-4}$), up to 500 iterations.
-An L-BFGS variant with the same physics is reported in \cref{app:recovery}.
+\textbf{Convergence}: drag minimization in the DFG channel at 10 cells per diameter
+to $t=4$. The control is the inlet profile (41 cells), projected onto non-negative
+profiles with the benchmark's flow rate and a peak of at most $U_m$, and the loss is
+$C_d/C_{d,0}$ relative to the parabolic profile. Adam ($\eta=10^{-2}$), at most 100
+iterations, stopping once $C_d$ has not dropped by 0.1\% in 10 iterations.
 
 \paragraph{F3 (3D NS, grid)}
-Periodic domain $[0,2\pi)^3$, uniform Cartesian grid, TGV IC\@.
-\textbf{Fwd/VJP}: $16^3$ grid (4\,096 cells), $\nu=0.01$, $\Delta t=0.01$, 50 steps.
-\textbf{Error (Ref., An.)}: forward agreement, $16^3$ grid, $\nu=0.01$, $\Delta t=0.01$,
-50 steps; Ref.\ vs.\ fine Exponax reference ($\Delta t=0.002$, 250 steps),
-An.\ vs.\ TGV closed-form.
-\textbf{Error (FD)}: finite-difference gradient check, $\nu=0.001$, $\Delta t=0.05$,
+Periodic domain $[0,2\pi)^3$, uniform Cartesian grid.
+\textbf{Fwd/VJP}: $32^3$ grid (32\,768 cells), TGV IC, $\nu=0.01$, $\Delta t=0.01$, 50 steps.
+\textbf{Cost}: $N\in\{16,32,48,64,96,128\}$ (4\,k--2.1\,M cells) at 50 steps.
+\textbf{Error (Ref.)}: TGV IC on a $16^3$ grid, $\nu=0.01$, $\Delta t=0.01$, 50 steps,
+against an Exponax run at $N=64$ truncated to $N=16$. The 3D TGV is not
+advection-free, so its linearized decay holds only for the first steps; the truncation
+itself changes the reference by less than $10^{-5}$.
+\textbf{Error (FD)}: $16^3$ grid, TGV IC, $\nu=0.001$, $\Delta t=0.05$,
 10 steps, 10 random directions.
-\textbf{Convergence}: IC recovery, $\nu=0.01$, $\Delta t=0.02$, 100 steps,
-Adam ($\eta=10^{-3}$), up to 500 iterations.
+\textbf{Convergence}: recovery of a random divergence-free IC (\cref{app:ics}) on a
+$16^3$ grid from its state after 100 steps ($\nu=0.01$, $\Delta t=0.02$), starting from
+zero. SciPy's L-BFGS-B with the gradient projected onto divergence-free fields, up
+to 100 iterations, for three target seeds.
 
 \paragraph{S (Structural mechanics, mesh)}
-Cantilever beam $[0,2]\times[0,1]\times[0,1]$, HEX8 elements, SIMP penalization
-($p=3$, $E_\text{max}=70\,000$\,MPa, $\nu_\text{mat}=0.3$, $x_\text{min}=10^{-3}$).
-\textbf{Fwd/VJP}: $128\times2\times64$ mesh (${\approx}16\text{k}$ elements), uniform
-density $\rho_0=0.5$, distributed unit load $F=1$.
-\textbf{Error (FD)}: $8\times2\times4$ mesh (64 elements), corner point load,
-6 random directions.
+Cantilever beam $[0,2]\times[0,1]\times[0,1]$ clamped at $x=0$, HEX8 elements, SIMP
+penalization ($p=3$, $E_\text{max}=70\,000$\,MPa, $\nu_\text{mat}=0.3$, $x_\text{min}=10^{-3}$).
+\textbf{Fwd/VJP}: $128\times2\times64$ mesh (16\,384 elements), uniform
+density $\rho_0=0.5$, uniform traction with total force $F=1$ on the right face.
+\textbf{Cost}: $n_x\times2\times n_x/2$ meshes with $n_x\in\{4,\ldots,128\}$
+(16--16\,k elements).
+\textbf{Error (FD)}: $8\times2\times4$ mesh (64 elements), random density, corner
+point load, 6 random directions.
 \textbf{Convergence}: compliance minimization, $16\times2\times8$ mesh (256 elements),
-volume fraction $0.5$, Adam ($\eta=5\times10^{-2}$), up to 2\,500 iterations.
+volume fraction $0.5$ as a quadratic penalty, Adam ($\eta=5\times10^{-2}$),
+2\,500 iterations.
 
 \paragraph{H (Heat transfer, mesh)}
 Quasi-2D heated slab $[0,2]\times[0,1]$, HEX8 elements (single layer), SIMP
-penalization ($p=3$, $k_\text{max}=1$, $k_\text{min}/k_\text{max}=10^{-3}$).
-\textbf{Fwd/VJP}: $256\times128\times1$ mesh (${\approx}33\text{k}$ elements), uniform
-conductivity $k_0=0.5$, unit distributed heat source.
-\textbf{Error (FD)}: $8\times4\times1$ mesh (32 elements), 6 random directions.
-\textbf{Convergence}: conductivity recovery from two-Gaussian target,
-$16\times8\times1$ mesh, L-BFGS, up to 1\,000 iterations.
+penalization ($p=3$, $k_\text{max}=1$, $k_\text{min}/k_\text{max}=10^{-3}$),
+$T=0$ at $x=0$.
+\textbf{Fwd/VJP}: $256\times128\times1$ mesh (32\,768 elements), uniform
+density $\rho_0=0.5$, Neumann flux $Q_\text{total}=1$ uniformly over the right face.
+\textbf{Cost}: $n_x\times n_x/2\times1$ meshes with $n_x\in\{16,\ldots,1024\}$
+(128--524\,k elements).
+\textbf{Error (FD)}: $8\times4\times1$ mesh (32 elements), random density,
+6 random directions.
+\textbf{Convergence}: conductivity recovery from a two-Gaussian target,
+$16\times8\times1$ mesh (128 elements), starting from $\rho_0=0.5$, SciPy's L-BFGS-B,
+1\,000 iterations.
 
 \subsection{Initial conditions}
 \label{app:ics}
@@ -173,8 +208,11 @@ enabling exact error measurement without a reference solver.
 \textbf{Multimode:} solenoidal field constructed from a spectral-space
 stream function with energy concentrated in a ring at wavenumber $k=2$
 ($\sigma_k=0.5$) and random phases; peak speed normalized to~0.3.
-\textbf{Uniform inflow} and \textbf{flat inlet profile} are spatially
-constant fields; not shown.
+\textbf{Rest:} the zero field, from which a body force drives the laminar
+Kolmogorov transient (\cref{app:kolmogorov}).
+\textbf{DFG inflow:} the parabolic inlet profile $u_x(y)=4U_m y(H-y)/H^2$ of the
+DFG 2D-1 channel ($U_m=0.3$, $H=0.41$), the inflow of the cylinder experiments
+and the starting point of the drag optimization.
 \textbf{Taylor--Green vortex (TGV, 3D):}
 $u = \sin(x)\cos(y)\cos(z)$, $v = -\cos(x)\sin(y)\cos(z)$, $w = 0$
 on $[0,2\pi)^3$.
@@ -183,11 +221,14 @@ Evolves into a vortex-dominated turbulent state under the NS dynamics.
 $u = A\sin(z)+C\cos(y)$, $v = B\sin(x)+A\cos(z)$,
 $w = C\sin(y)+B\cos(x)$ with $A=B=C=1$ on $[0,2\pi)^3$.
 A steady Euler solution with chaotic particle trajectories.
+\textbf{Random divergence-free (3D):} the curl of a random spectral vector
+potential with energy in a shell at $|k|=2$ (width~1), normalized to unit peak
+speed; the target of the F3 recovery task, one field per seed.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_ics_ns_combined.pdf}
-  \caption{Initial conditions for the F2 and F3 domains (vorticity; 3D shown as $z{=}0$ slice).}
+  \caption{Initial conditions for the F2 and F3 domains (vorticity; 3D fields as $z{=}0$ slices).}
   \label{fig:app:ics_ns}
 \end{figure}
 
@@ -228,20 +269,33 @@ $(0.7\,L_x,\,0.5\,L_y)$ with width $\sigma=0.15\,\min(L_x,L_y)$.
 \subsection{Cost}
 \label{app:cost}
 
-\Cref{fig:app:scaling,fig:app:scaling:fem} show forward time, VJP time, and VJP/forward ratio vs.\ element count for all four domains.
-The x-axis is total element count, parameterized by a single integer $N$:
-F2 uses an $N\times N$ uniform Cartesian grid ($N\in\{64,128,192,256\}$, giving $4\text{k}$--$66\text{k}$ cells);
-F3 uses an $N\times N\times N$ Cartesian grid ($N\in\{16,32,48,64\}$, giving $4\text{k}$--$262\text{k}$ cells);
-S uses an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{8,\ldots,3200\}$, giving $64$--$10\text{M}$ elements);
-H uses an $N\times\lfloor N/2\rfloor\times 1$ hex mesh ($N\in\{16,\ldots,4500\}$, giving $128$--$10\text{M}$ elements).
-Table~\ref{tab:merged} wall times are at $N=64$ (F2), $N=16$ (F3), $N=128$ (S), $N=256$ (H).
+\Cref{fig:app:scaling,fig:app:scaling:fem} show forward time, VJP time, and VJP/forward ratio against element count for all four domains.
+A single integer $N$ sets the size:
+F2 uses an $N\times N$ grid ($N\in\{64,128,192,256\}$, $4\text{k}$--$66\text{k}$ cells);
+F3 an $N\times N\times N$ grid ($N\in\{16,32,48,64,96,128\}$, $4\text{k}$--$2.1\text{M}$ cells);
+S an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{4,\ldots,128\}$, $16$--$16\text{k}$ elements);
+and H an $N\times\lfloor N/2\rfloor\times 1$ hexahedral mesh ($N\in\{16,\ldots,1024\}$, $128$--$524\text{k}$ elements).
+\Cref{tab:merged} reports wall times at $N=64$ (F2), $N=32$ (F3), $N=128$ (S), and $N=256$ (H).
+The rollout-length sweeps run F2 at $N=128$ for 10--1000 steps and F3 at $N=48$ for 10--2000 steps.
 
 The fixed RPC overhead (host serialization and HTTP round-trip) adds approximately 2--20\,ms per call and is visible as a floor for the fastest solvers at small problem sizes.
-Lines that terminate before the full size range indicate that the solver either raised an exception (typically an out-of-memory error) or exceeded the 1\,000\,s per-trial wall limit at that problem size (the underlying Tesseract HTTP request has a separate 1\,200\,s watchdog); all larger sizes for that solver are omitted.
+A line that ends before the full size range means that the solver raised an exception (typically an out-of-memory error) or that its first trial exceeded the 1\,000\,s per-trial wall limit; larger sizes are then skipped.
+The underlying Tesseract request times out separately after 7\,200\,s.
 Forward times span several orders of magnitude across solver families at identical resolution, reflecting differences in algorithmic complexity and hardware target (CPU vs.\ GPU).
-VJP overhead tracks forward cost for source-transformation AD (JAX).
-For the NS domains the VJP/forward ratio is roughly constant across problem sizes: both forward and backward passes integrate the same $T$ timesteps, so their costs scale identically with $N$.
-For structural and thermal domains the ratio sits close to~1 at moderate sizes because the adjoint of a symmetric elliptic system shares the same stiffness matrix as the forward solve and can reuse its factorization; at the largest problem sizes the adjoint-based solvers (FEniCS, Firedrake) show steeper VJP scaling as the adjoint solve cost begins to dominate.
+Three points need care when reading the curves. Warp-NS's times spike at sizes that are not powers of two ($N=192$ on F2, $N=48$ and 96 on F3).
+OpenFOAM's F3 forward times at $N\geq64$ are 1.5--3$\times$ longer than in a rehearsal of the run, and back-to-back measurements attribute the difference to load on the host rather than to the solver image.
+PICT's F3 VJP at $N=128$ ended when its container exited after two of three trials.
+
+The VJP request includes a forward pass, so a ratio near~2 means that the gradient costs about one adjoint solve of the forward's cost.
+On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises (F2 2.2 to 4.1, F3 1.9 to 4.6) and PhiFlow's falls on F2 (5.3 to 3.1).
+Along the rollout sweeps, the ratio grows with the number of steps for most NS solvers, most strongly for INS.jl (to 7.1) and XLB (to 7.0) on F3.
+On the mesh domains, TopOpt.jl's VJP costs about one forward solve and torch-fem's 1.3--1.6.
+Firedrake stays near~2, while FEniCS falls from 4.3 (S) and 3.2 (H) at the smallest sizes to 2.1--2.3, and JAX-FEM from about 2.5 to 1.5--1.8.
+Ratios thus move in both directions within each differentiation strategy.
+
+\Cref{fig:horizon_sweep} extends the F3 rollout to 81\,920 steps at $N=20$, one VJP per horizon.
+Peak GPU memory is device-wide and excludes the 768\,MiB the driver reserves.
+Two memory readings need care: INS.jl's peak is dominated by the CUDA.jl memory pool, and Warp-NS's peak cannot be read against $N$ because its memory pools carry over between sizes.
 
 \begin{figure}
   \centering
@@ -258,63 +312,147 @@ For structural and thermal domains the ratio sits close to~1 at moderate sizes b
   \includegraphics[width=\linewidth]{figures/scaling_fem_combined.pdf}
   \caption{Gradient overhead scaling for the mesh domains (Structural,
     top; Thermal, bottom). Same layout as \cref{fig:app:scaling}.
-    deal.II VJP times are omitted (no native adjoint).
-    Source-transformation AD (JAX-FEM) maintains a nearly constant
-    ratio; adjoint-based solvers (FEniCS, Firedrake) show steeper VJP
-    scaling at large problem sizes.}
+    deal.II VJP times are omitted (no adjoint).}
   \label{fig:app:scaling:fem}
 \end{figure}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\linewidth]{figures/horizon_sweep_limits.pdf}
+  \caption{VJP against rollout length on F3 ($N=20$, $\nu=10^{-3}$, $\Delta t=0.05$): peak GPU memory, wall time, and gradient norm.
+    Each line ends at the solver's last successful horizon. Memory failures (out of memory, container exit) are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.}
+  \label{fig:horizon_sweep}
+\end{figure}
+
+\subsection{VJP/forward ratios}
+\label{app:ratios}
+
+\Cref{tab:app:ratios} lists the ratio of VJP to forward time at the \cref{tab:merged} sizes and its range over each sweep.
+Earlier development runs measured far larger ratios, $270\times$ (F2) and $1100\times$ (F3) for XLB and 8--10$\times$ for Exponax and JAX-CFD.
+Three causes were found and fixed: the JAX solvers had fallen back to the CPU; the VJP timing counted a second forward solve, because a gradient through tesseract-jax sends a forward request before the VJP request, which recomputes the forward solution; and XLB's checkpointing wrapped single steps rather than blocks of steps, so it stored the full trajectory.
+We did not measure how much each fix contributed.
+Three cases remain above $5\times$.
+INS.jl reaches 5.8--7.8 on F3 at $N\geq48$ and up to 6.2 on F2; we have not established why.
+XLB's ratio on F3 rises with the rollout to 7.0 at 2000 steps, plausibly from the recomputation its block checkpointing adds, although we have not verified this.
+PhiFlow's 5.3 at F2 $N=64$ falls to 3.1 at $N=256$, consistent with a fixed per-call overhead.
+TopOpt.jl's extremes (0.23 and 6.6) come from single slow trials at sub-second times (\cref{app:variance}).
+
+\input{tables/vjp_ratios}
+
+\subsection{Timing variance}
+\label{app:variance}
+
+\Cref{tab:app:variance} lists the coefficient of variation (CV) of the timed trials per configuration, with the sample standard deviation.
+The NS suites take 3 trials per configuration and the mesh suites 10.
+Across 513 configurations, the median CV is 2.4\% and 40 configurations exceed 15\%.
+Of these 40, 26 belong to the two Julia solvers, TopOpt.jl (12) and INS.jl (14), all at sub-second times, and 3 to OpenFOAM on F3 at $N\geq64$, which host load slowed (\cref{app:cost}).
+Dropping the single slowest trial brings 36 of the 40 below 15\%.
+
+\input{tables/variance}
+
+\subsection{Outcomes of the \texorpdfstring{16\,GB}{16 GB} failures}
+\label{app:outcomes}
+
+\Cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in the V100 submission run or the T4 CI run, together with its outcome on the A100.
+Every NS configuration that failed on 16\,GB from lack of memory, by losing its container, or without a recorded reason completes on 80\,GB, apart from two solvers no longer in the suite, while the non-finite gradients of the F3 horizon sweep recur.
+The longer sweeps then reach new limits, listed in the lower part of the table.
+For the mesh domains, the table gives the A100 outcome where the run covers the configuration.
+
+\input{tables/outcomes16gb}
 
 \subsection{Physical accuracy}
 \label{app:physical_accuracy}
 
-As a basic sanity check, we run agreement and baseline experiments on each NS domain: agreement measures relative $\ell_2$ error vs.\ the analytic TGV solution across a $\nu$ sweep at fixed resolution, and baseline measures convergence with resolution at one timestep.
-All solvers that support the periodic TGV domain pass both checks with errors below $10^{-2}$.
+As a basic sanity check, we run baseline and agreement experiments on each NS domain.
+The baseline refines space and time together at a fixed CFL number of about 0.2 up to
+$t=1.28$, against the exact TGV solution on $N\in\{16,32,64,128\}$ (F2) and a converged
+Exponax run on $N\in\{8,16,32\}$ (F3), and reports each solver's observed order of
+convergence. Agreement measures the error across a $\nu$ sweep at fixed resolution
+($N=64$ for F2, $N=16$ for F3).
+On the 2D baseline, the errors of JAX-CFD, PhiFlow, INS.jl, and OpenFOAM are
+$3.6$--$4.9\times10^{-2}$ at $N=16$ and fall at second order (observed orders 2.0--2.3)
+to below $6\times10^{-4}$ at $N=128$; Warp-NS and XLB converge at order 2.0--2.1 from lower
+errors. PICT levels off near $2.5\times10^{-3}$, which is consistent with the splitting
+error of PISO with two pressure correctors, and Exponax represents the single-mode TGV
+exactly, leaving only float32 round-off ($\leq 3\times10^{-5}$).
+On the 3D baseline, the grid-based solvers converge at observed orders 1.6--2.4.
+In the 3D agreement experiment, errors at $N=16$ range from $3\times10^{-3}$ (Warp-NS) to
+$4.2\times10^{-2}$ (INS.jl and JAX-CFD); Exponax's $5$--$9\times10^{-4}$ largely
+measures agreement with its own finer run.
 
-\paragraph{F2 cylinder-flow forward accuracy}
-The F2 domain uses a cylinder obstacle in a channel.
-Unlike the periodic TGV, no analytic solution exists, so solvers are compared against the cross-solver consensus (mean over valid solvers).
-This experiment uses a unit-square domain $[0,1]^2$ with a cylinder at $(0.5, 0.5)$, radius $0.1$, $N=64$, 500 steps at $\Delta t=0.01$; the physical accuracy sweeps below use the full channel domain $[0,8]\times[0,2]$. The F2 drag-optimization convergence experiment (\cref{app:effort}) uses the same unit-square domain but a smaller cylinder (radius $0.05$, $D=0.1$), which sets $\text{Re}=U D/\nu=20$ at the fixed $U=0.5$, $\nu=0.0025$ used there; both setups are F2 cylinder-channel flows but exercise different aspects of the benchmark.
-Three solvers (JAX-CFD, INS.jl, Warp-NS) produce invalid results on this geometry due to boundary condition incompatibilities.
-\Cref{fig:app:cylinder} shows consensus error vs.\ $\nu$ and final vorticity fields for the four solvers that run successfully.
+\paragraph{F2 cylinder benchmark}
+The cylinder experiments use the DFG 2D-1 channel (\cref{app:effort}), whose steady
+drag coefficient $C_d=5.5795$ is known from the literature~\cite{schafer1996benchmark}.
+Each solver runs at 10 and 20 cells per diameter until $C_d$ is steady, and its $C_d$ at
+20 cells per diameter must lie within 5\% of the literature value, a tolerance that
+admits staircase representations of the cylinder as well as body-fitted meshes.
+Six solvers run it: OpenFOAM and PICT on body-fitted O-grids, PhiFlow, Warp-NS, and XLB
+on a shared staircase mask, and INS.jl with Brinkman penalization on the same mask.
+At 20 cells per diameter, their $C_d$ errors are 0.05\% (OpenFOAM), 1.3\% (PhiFlow),
+1.8\% (Warp-NS), 2.6\% (XLB), 2.9\% (INS.jl), and 3.0\% (PICT; \cref{fig:app:cylinder}).
+PICT has no pressure outlet and uses an advective outflow instead, a recorded setup
+deviation whose share of its error has not been measured.
+Exponax and JAX-CFD do not run the channel. A Fourier pseudo-spectral method represents
+only periodic fields, and JAX-CFD~0.2.1 supports neither inflow nor a zero-gradient
+outflow for staggered velocities nor obstacles, so running it would take hand-written
+boundary conditions on its grid primitives.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_cylinder.pdf}
-  \caption{F2 cylinder-flow forward accuracy: relative $\ell_2$ error vs.\ the cross-solver consensus as a function of $\nu$ at $N=64$, 500 steps (left), and final vorticity fields at $\nu=0.01$ (right). Solvers that fail on this geometry are omitted.}
+  \caption{F2 cylinder benchmark (DFG 2D-1, $\mathrm{Re}=20$). Left: signed error of
+    each solver's drag coefficient against the literature value $C_d=5.5795$ at 10 and 20
+    cells per diameter. Right: steady velocity magnitude of the most accurate solver at
+    20 cells per diameter.}
   \label{fig:app:cylinder}
 \end{figure}
 
 \paragraph{Physical accuracy sweeps}
-For the two fluid domains, \cref{fig:app:pa_ns2d,fig:app:pa_ns3d} show resolution~$N$, viscosity~$\nu$, and rollout length against three physical metrics.
-F2 uses the $[0,8]\times[0,2]$ cylinder-channel at Re\,=\,20, sweeping $N\in\{16,32,64,128\}$, $\nu\in\{0.001,0.005,0.01,0.05,0.1\}$, and up to 100 steps.
-F3 uses the $[0,2\pi]^3$ TGV box at $N=16$, sweeping $\nu\in\{0.001,0.01,0.05,0.1\}$ and up to 50 steps.
-\textbf{Analytic TGV error} is the relative $\ell_2$ error against the Taylor--Green vortex closed-form solution. Lower is better, with values below $10^{-2}$ indicating good accuracy.
-\textbf{Divergence RMS} measures how strongly the solver violates the incompressibility constraint $\nabla \cdot \mathbf{u} = 0$. For a well-posed incompressible solver this should be near machine precision ($\lesssim 10^{-6}$), while values above $10^{-2}$ indicate a solver that does not enforce incompressibility exactly (e.g.\ LBM methods).
+For the two fluid domains, \cref{fig:app:pa_ns2d,fig:app:pa_ns3d} show resolution~$N$,
+viscosity~$\nu$, and rollout length against three physical metrics on the periodic TGV.
+F2 sweeps $N\in\{16,32,64,128\}$, $\nu\in\{0.001,0.005,0.01,0.05,0.1\}$, and 5 to 100 steps;
+F3 sweeps $N\in\{8,16,32\}$, $\nu\in\{0.001,0.01,0.05,0.1\}$, and 5 to 50 steps.
+\textbf{TGV error} is the relative $\ell_2$ error against the closed-form TGV solution,
+which is exact in 2D and only a short-horizon linearization in 3D.
+\textbf{Divergence RMS} is the root mean square of $\nabla\cdot\mathbf{u}$, evaluated with
+central differences on the collocated output velocity, so it measures incompressibility
+on a common stencil that differs from each solver's own discrete divergence.
 \textbf{Kinetic energy} is the domain-averaged $\frac{1}{2}\|\mathbf{u}\|^2$.
-For 2D NS the analytical ground truth is $\mathrm{KE}(t) = \tfrac{1}{4}e^{-4\nu t}$, shown as a dashed reference line, and solvers should track it closely.
-For 3D NS no closed-form solution exists, so all solvers should at least agree with each other; spread at a given parameter value indicates a physical accuracy problem.
-Solvers that enforce the divergence-free constraint exactly at each step by construction (PhiFlow, Warp-NS, PICT, JAX-CFD, INS.jl, Exponax) sit at or near machine precision regardless of resolution or viscosity.
-XLB exhibits a compressibility floor in divergence RMS and analytic error that is largely independent of $\nu$ or resolution, consistent with the $O(\mathrm{Ma}^2)$ compressibility error inherent to the LBM formulation.
+For 2D NS the analytical ground truth is $\mathrm{KE}(t) = \tfrac{1}{4}e^{-4\nu t}$, shown as a
+dashed reference line. For 3D NS no closed-form solution exists, so solvers are compared
+with each other.
+On the 2D TGV, JAX-CFD, PhiFlow, INS.jl, and Exponax keep the divergence RMS at float32
+round-off (below $10^{-6}$). PICT and Warp-NS lie between $1.6\times10^{-5}$ and
+$2\times10^{-3}$, falling at second order with resolution, and OpenFOAM, whose
+cell-centered velocity is not itself projected, between $3\times10^{-5}$ and
+$2\times10^{-2}$. XLB stays between $4\times10^{-4}$ and $3\times10^{-3}$ without a trend in
+$N$, consistent with the weak compressibility of the lattice Boltzmann method at the
+Mach number its sub-stepping targets (\cref{app:solver-issues}).
+In 3D, the nonlinear dynamics move the flow away from a single Fourier mode, so on
+the common stencil all solvers apart from OpenFOAM measure up to $3.4\times10^{-3}$,
+and OpenFOAM up to $2.2\times10^{-2}$.
 
-For the mesh domains, all structural and thermal solvers agree to machine precision across the full load range, consistent with the expected $C \propto F^2$ scaling of linear compliance.
+For the mesh domains, all structural and thermal solvers return identical float32
+compliances across the full load range, consistent with the expected $C \propto F^2$ scaling of
+linear compliance.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_pa_ns2d.pdf}
-  \caption{2D NS physical accuracy. Each panel sweeps one parameter (resolution, $\nu$, or steps) on the x-axis against one physical metric on the y-axis.}
+  \caption{2D NS physical accuracy on the periodic TGV. Rows sweep resolution $N$,
+    viscosity $\nu$, and rollout length; columns report the error against the exact TGV
+    solution, divergence RMS, and kinetic energy.}
   \label{fig:app:pa_ns2d}
 \end{figure}
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_pa_ns3d.pdf}
-  \caption{3D NS physical accuracy on the triply-periodic TGV domain $[0,2\pi)^3$.
-    Rows sweep resolution $N$ (top), viscosity $\nu$ (middle), and rollout length (bottom).
-    Columns report analytic TGV error, divergence RMS, and kinetic energy.
+  \caption{3D NS physical accuracy on the triply periodic TGV domain $[0,2\pi)^3$.
+    Rows sweep resolution $N$, viscosity $\nu$, and rollout length; columns report the
+    error against the linearized TGV decay, divergence RMS, and kinetic energy.
     No closed-form kinetic-energy reference exists for 3D NS, so solvers are compared
-    against each other; spread at a given parameter value indicates a physical accuracy
-    discrepancy.}
+    against each other.}
   \label{fig:app:pa_ns3d}
 \end{figure}
 
@@ -324,16 +462,14 @@ For the mesh domains, all structural and thermal solvers agree to machine precis
 \paragraph{Finite-difference verification}
 \Cref{fig:app:fdcheck} extends the FD verification from \cref{sec:quality} to all four domains.
 The U-shaped error curve (truncation error at large~$\varepsilon$, floating-point roundoff at small~$\varepsilon$) is visible in every domain and for every solver that provides gradients.
-The optimal~$\varepsilon$ shifts noticeably between solver families and between domains: spectral solvers (Exponax) tolerate larger perturbations than projection-based solvers, and structural/thermal solvers operate at a different optimal scale than fluid solvers.
-All differentiable solvers reach cosine similarity $>0.999$ at their optimal~$\varepsilon$, confirming gradient correctness across domains.
+The best~$\varepsilon$ lies between 0.1 and 5 for the NS solvers and between 0.003 and 0.03 for the mesh solvers' density gradients, and every differentiable solver reaches a cosine similarity above $0.999\,999\,9$ at its best~$\varepsilon$.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_fd_check.pdf}
   \caption{FD gradient verification across all four domains.
     Top row: relative $\ell_2$ error vs.\ perturbation size~$\varepsilon$.
-    Bottom row: subspace cosine similarity vs.~$\varepsilon$.
-    All differentiable solvers achieve cosine similarity $>0.999$ at their optimal~$\varepsilon$.}
+    Bottom row: subspace cosine similarity vs.~$\varepsilon$.}
   \label{fig:app:fdcheck}
 \end{figure}
 
@@ -342,59 +478,62 @@ All differentiable solvers reach cosine similarity $>0.999$ at their optimal~$\v
   \includegraphics[width=0.85\linewidth]{figures/fd_check.pdf}
   \caption{FD gradient verification on the 2D NS domain (focused view of the leftmost column of \cref{fig:app:fdcheck}).
     Relative $\ell_2$ error (left) and cosine similarity (right) vs.\ perturbation size~$\varepsilon$, normalized by the RMS magnitude of the initial condition.
-    The U-shaped curve reflects the truncation/roundoff tradeoff; optimal~$\varepsilon$ varies by orders of magnitude across solvers.}
+    The best~$\varepsilon$ lies between 0.1 and 5.}
   \label{fig:app:fdcheck:ns2d}
 \end{figure}
 
+\paragraph{Exact-gradient checks}
+On F2, two checks compare against the exact Taylor--Green solution at $N=32$ after 20 steps of $\Delta t=0.05$, for $\nu\in\{0.001,0.005,0.01,0.02,0.05\}$.
+The first compares the gradient of $J=\sum|\mathbf{u}(T)|^2$ with respect to the initial field against $\nabla J = 2e^{-4\nu T}\mathbf{u}_0$, after projecting out the gradient's curl-free part, since the closed form holds for divergence-free perturbations.
+The second compares $\mathrm{d}J/\mathrm{d}\nu$ against $-4TJ$.
+Neither needs a step size, but both include the forward discretization error.
+Exponax represents the Taylor--Green mode exactly, and its errors of about $10^{-5}$ are consistent with float32 roundoff.
+JAX-CFD, PhiFlow, and INS.jl average the collocated input onto their staggered grids and back, which scales the mode by $\cos^2(\Delta x/2)$, a factor the gradient picks up twice. At $N=32$ this accounts for their shared initial-state error of $1.9\times10^{-2}$; their viscosity errors also coincide, at $2.2\times10^{-2}$.
+XLB's initial-state error grows with~$\nu$ from $7\times10^{-5}$ to $8\times10^{-4}$, Warp-NS's stays near $5\times10^{-3}$, and PICT's grows from $4\times10^{-3}$ to $2\times10^{-2}$; PICT's viscosity error reaches $5.4\times10^{-2}$ at $\nu=0.001$.
+All solvers pass the checks' thresholds (error at most 0.1 and within $3\times$ the peer median), which are provisional.
+\Cref{tab:gradchecks} reports the errors at $\nu=0.01$.
+
 \paragraph{Jacobian singular value spectra}
-\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_0$ of the solver Jacobian for 2D NS across varying viscosity and rollout length; the 3D NS spectra appear in \cref{fig:conditioning} in the main text.
-Faster spectral decay indicates a more ill-conditioned Jacobian and correspondingly harder gradient-based optimization.
-Across both domains, increasing rollout length ($T$) consistently steepens the decay, while higher viscosity ($\nu$) slightly moderates it.
-Solver families cluster: spectral solvers retain flatter spectra at longer horizons, while projection-based solvers exhibit sharper decay.
-The sharp spectral drop-off in projection-based solvers is attributable to singular vectors associated with non-solenoidal velocity modes, which incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}; these higher modes are mostly attributed to divergence and are correspondingly less relevant for gradient-based optimization.
+\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_0$ of the solver Jacobian for 2D NS across rollout length and viscosity; the 3D NS spectra appear in \cref{fig:conditioning}.
+Faster spectral decay indicates a more ill-conditioned Jacobian.
+Rollout length and viscosity change individual condition numbers by up to two orders of magnitude without a consistent direction, while the ordering of the solvers stays the same in every configuration: in 2D, XLB has the smallest condition number (20--48), followed by PICT ($2\times10^5$--$2\times10^6$), with the other solvers between $2\times10^7$ and $10^{11}$.
+Exponax, which solves the 2D problem in vorticity form, joins the projection solvers at about $10^{10}$ there, unlike in 3D. This is consistent with attributing the drop-off to non-solenoidal velocity modes~\citep{guermond2006overview,bhatia2013helmholtz}, since the vorticity form discards the curl-free part of its input.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_jacobian_svd_2d.pdf}
   \caption{Normalized Jacobian singular value spectra for 2D NS.
     Each panel shows a different $(\nu, T)$ configuration.
-    Faster decay corresponds to a more ill-conditioned Jacobian and harder gradient optimization.}
+    Faster decay corresponds to a more ill-conditioned Jacobian.}
   \label{fig:app:svd2d}
 \end{figure}
 
 \paragraph{Gradient quality over rollout length}
-\Cref{fig:app:horizon} shows how FD gradient quality evolves with rollout length on the 2D NS domain.
-Even solvers with correct gradients at short horizons can degrade at longer rollouts, consistent with the Jacobian conditioning analysis in \cref{fig:conditioning}: solvers with rapidly decaying singular value spectra lose useful gradient signal faster.
-The optimal perturbation size~$\varepsilon$ also drifts with horizon, reinforcing that a fixed FD step used for validation can give misleading results at longer rollout lengths.
+\Cref{fig:app:horizon} shows how FD agreement evolves with rollout length on F2 ($N=16$, 5 to 320 steps).
+The best relative FD error grows from $3\times10^{-6}$--$4\times10^{-5}$ at 5 steps to $2\times10^{-4}$--$6\times10^{-4}$ at 320 steps, and $1-{}$cosine stays below $10^{-7}$ throughout, so no solver loses gradient accuracy within this range.
+The growth does not follow the conditioning: XLB, the best-conditioned solver, ends within the range of the others.
+For several solvers, the best~$\varepsilon$ moves from 1 to 0.1 at the longest rollouts.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/horizon_sweep.pdf}
   \caption{Gradient quality vs.\ rollout length (2D NS).
-    Left: gradient norm over rollout length.
-    Middle: best-achievable FD relative error at each horizon.
-    Right: $1-{}$cosine similarity at the best~$\varepsilon$.
-    Solvers with poor Jacobian conditioning degrade fastest with increasing rollout length.}
+    Left: gradient norm.
+    Middle: best FD relative error over~$\varepsilon$.
+    Right: $1-{}$cosine similarity at the best~$\varepsilon$.}
   \label{fig:app:horizon}
 \end{figure}
 
 \paragraph{FD U-curves}
-\Cref{fig:app:ucurves_f2,fig:app:ucurves_f3} show full FD U-curves (relative error vs.\ perturbation size~$\varepsilon$) at each rollout length, for the 2D and 3D NS domains respectively.
-Each U-curve has a characteristic minimum: too-small $\varepsilon$ is dominated by floating-point cancellation; too-large $\varepsilon$ by nonlinear truncation error.
-The minimum shifts rightward and rises as the rollout grows, reflecting increasing Jacobian ill-conditioning.
+\Cref{fig:app:ucurves_f2} shows the full FD U-curves (relative error vs.\ perturbation size~$\varepsilon$) at each rollout length on F2.
+Each U-curve has a characteristic minimum: too-small $\varepsilon$ is dominated by floating-point cancellation, and too-large $\varepsilon$ by nonlinear truncation error.
+The minimum generally rises as the rollout grows.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_ucurves_f2.pdf}
   \caption{FD U-curves for F2 (2D NS): relative FD error vs.\ perturbation size~$\varepsilon$ at each rollout length~$T$.}
   \label{fig:app:ucurves_f2}
-\end{figure}
-
-\begin{figure}
-  \centering
-  \includegraphics[width=\linewidth]{figures/appendix_ucurves_f3.pdf}
-  \caption{FD U-curves for F3 (3D NS): relative FD error vs.\ perturbation size~$\varepsilon$ at each rollout length~$T$.}
-  \label{fig:app:ucurves_f3}
 \end{figure}
 
 \subsection{Forced Kolmogorov flow}
@@ -446,14 +585,13 @@ run-to-run variation of the unchanged code.
 
 \paragraph{Ground truth}
 The ground truth is an Exponax run at $1024^2$ (ETDRK2 with 2/3-rule dealiasing,
-CFL number about 0.1) from eight states, each spun up from a random field for
-100 time units at $512^2$. A $512^2$ run from the same state differs from it by
+CFL number about 0.1) from three test states, each spun up from a random field
+for 100 time units at $512^2$. A $512^2$ run from the same state differs from it by
 0.3\% after one time unit and by 2.3--3.2\% after four, at a vorticity
 correlation of at least 0.997. It stays above 0.95 correlation for 6.5 to 7.5
 time units, beyond the scored horizon of four. As an independent check, JAX-CFD
 converges to the truth at observed orders 1.6 and 1.9 between $64^2$ and
-$256^2$, down to the 0.3\% floor at $512^2$. Three of the eight states are the
-test states of the checks below.
+$256^2$, down to the 0.3\% floor at $512^2$.
 
 \paragraph{Checks}
 \textit{Laminar forcing} (\texttt{forward/kolmogorov\_laminar}). From rest at
@@ -513,12 +651,13 @@ the peer median.
     \cmidrule(lr){2-6}\cmidrule(l){7-7}
     \textbf{Solver} & $32^2$ & $64^2$ & $128^2$ & $256^2$ & order & error / cosine \\
     \midrule
-    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 1.8e-3 / 1.000 \\
-    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.4e-4 / 1.000 \\
-    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.0e-4 / 1.000 \\
-    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 9.8e-5 / 1.000 \\
-    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.4e-3 / 1.000 \\
-    PhiFlow & 0.206 & 0.082 & 0.028 & diverged & $-$ & 5.0e-2 / 0.997 \\
+    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 6.4e-4 / 1.000 \\
+    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.1e-4 / 1.000 \\
+    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.6e-4 / 1.000 \\
+    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 1.2e-4 / 1.000 \\
+    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.8e-4 / 1.000 \\
+    PhiFlow & 0.206 & 0.082 & 0.028 & 0.0076 & 1.72 & 5.3e-5 / 1.000 \\
+    Warp-NS & \multicolumn{5}{c}{non-finite on every grid by $t = 3$} & excluded \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -526,19 +665,23 @@ the peer median.
 \paragraph{Results}
 \Cref{tab:app:kolmogorov} lists the results. Every solver passes the laminar
 check. Exponax represents the single forced mode exactly, so its laminar error
-is float32 round-off. On the turbulent flow, every solver passes both remaining
-checks except PhiFlow, which fails both: its $256^2$ run turns non-finite
-between $t = 3$ and $t = 4$ from two of the three states, and its finite
-differences on the chain change erratically with $\varepsilon$, while every
-other solver's agree with its VJP to within 3\% at every $\varepsilon$. We have
-not established the cause of either failure. JAX-CFD and INS.jl, which share a
-discretization (\cref{tab:solvers}), agree to every printed digit on both
-forward checks.
+is float32 round-off. Every solver that runs the turbulent flow stably passes
+both remaining checks. On the chain, each solver's finite differences agree
+with its VJP to within 2\% (median over directions) at every $\varepsilon$.
+JAX-CFD and INS.jl, which share a discretization (\cref{tab:solvers}), agree to
+every printed digit on both forward checks. PhiFlow passes because its periodic
+pressure solve runs CG on the singular system directly. With PhiFlow's default,
+which adds a Lagrange multiplier and makes the system indefinite, some CG solves
+stopped unconverged without raising: two of the three $256^2$ runs turned
+non-finite in CI, and the chained gradient was off by 12\% on the A100.
 
-Two solvers are excluded from the turbulent checks. Warp-NS integrates with
-explicit Euler and central differences, which is linearly unstable on this flow
-unless $\Delta t \lesssim 4\nu/u^2$, a bound that does not shrink with the grid.
-OpenFOAM's icoFoam has no momentum source term, and OpenFOAM has no VJP.
+Warp-NS integrates with explicit Euler and central differences, which is
+linearly unstable on this flow unless $\Delta t \lesssim 4\nu/u^2$, a bound that
+does not shrink with the grid. Its turbulent runs turn non-finite on every grid,
+which the forward check records as an explained anomaly, and it is excluded from
+the chained check, where the unstable modes dominate both the VJP and the finite
+differences. OpenFOAM's icoFoam has no momentum source term, so OpenFOAM runs
+neither forward check, and it has no VJP.
 
 \paragraph{PICT's adjoint tolerance}
 PICT's linear solves stop once the RMS of their residual falls below an absolute
@@ -551,92 +694,113 @@ a state 1, 3, 8 and 16 calls before the loss disagreed with finite differences b
 0.04\%, 3.7\%, 10\% and 73\%, and the chained check reported a median error of
 0.89 at a cosine of 0.51. The wrapper now scales each cotangent to a largest
 entry of one before PICT's backward pass and scales the gradient back, which is
-exact for a linear VJP and makes the tolerance relative to the cotangent. This
-deviates from PICT's defaults and is documented with the solver.
+exact for a linear VJP and makes the tolerance relative to the cotangent. It is
+recorded as an L2 intervention (\cref{app:interventions}).
 
 \subsection{Optimization}
 \label{app:recovery}
 
 \paragraph{Optimizer configurations}
-All optimization runs use either Adam (\texttt{optax.adam}, default
-$\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$) or L-BFGS
-(\texttt{optax.lbfgs} with the default zoom line search and a 10-step
-inverse-Hessian memory), with patience-based early stopping on the loss:
-the run terminates as soon as the loss has not strictly improved over
-the running minimum for \emph{patience} consecutive iterations, or when
-the maximum iteration budget is reached.
-The 3D NS recovery and thermal conductivity convergence plots use
-\emph{gradient evaluations} on the x-axis rather than outer iterations:
-Adam costs one value-and-gradient call per step, while L-BFGS's zoom line
-search adds an empirically observed average of $\sim$3 probes per outer
-step, so a per-iteration x-axis would understate L-BFGS's true
-forward-and-backward cost.
-Per-task settings:
+The optimization tasks use Adam (\texttt{optax.adam} with the defaults
+$\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$) or SciPy's
+L-BFGS-B with its default memory of 10 correction pairs. L-BFGS-B iterates in
+float64 and passes each iterate to the solver in the solver's input precision.
+Adam stops at the iteration budget or after \emph{patience} iterations without
+improving the best loss by more than a relative threshold. L-BFGS-B stops at
+the iteration budget, when the gradient's 2-norm falls below $10^{-7}$, or when
+its line search fails; SciPy's own convergence tests are disabled. A trial point
+with a non-finite loss or gradient is reported to the line search as a worse
+loss, so that the line search rejects it. Per-task settings:
 \begin{itemize}\itemsep0pt
-  \item \textbf{H (conductivity recovery)}: Adam $\eta{=}10^{-2}$,
-        2\,000 iters, patience 200; L-BFGS, 200 iters, patience 30.
-  \item \textbf{S (topology optimization)}: Adam $\eta{=}5{\times}10^{-2}$,
-        2\,500 iters, patience 100, with a soft volume-fraction penalty
-        of weight 50; L-BFGS, 100 iters, patience 20 (fails to reach Adam's optimum, see below);
-        MMA via NLopt~\citep{svanberg1987mma}, 200 iters, patience 30,
-        with a hard volume inequality and native box constraints.
-  \item \textbf{F2 (drag minimization, Re=20)}: Adam $\eta{=}5{\times}10^{-4}$,
-        500 iters, patience 100, with a flow-rate penalty of weight 50;
-        L-BFGS, 50 iters, patience 15 (diverges, see below).
-  \item \textbf{F3 (3D NS IC recovery)}: Adam $\eta{=}10^{-3}$, 500 iters,
-        patience 50; L-BFGS, 100 iters, patience 20.
-        L-BFGS+proj and Adam+proj variants apply a solenoidal projection to
-        the gradient at each step (see next paragraph) with otherwise
-        identical settings. All variants start from $u\equiv 0$ and minimize
-        the $\ell_2$ distance to the target final state, averaged over three
-        IC seeds. The seeds vary the \emph{ground-truth target field}
-        (\texttt{rand\_div\_free} regenerated with seeds $0,1,2$), not the
-        optimizer initialization, which is identically zero across seeds;
-        this measures recovery of arbitrary div-free targets from a cold
-        start rather than re-running the same problem three times.
+  \item \textbf{F2 (drag minimization)}: Adam, $\eta{=}10^{-2}$, at most 100
+        iterations, stopping once the loss has not dropped by 0.1\% in 10
+        iterations. Each iterate is projected onto non-negative inlet profiles
+        with the benchmark's flow rate and a peak of at most the benchmark's
+        $U_m$.
+  \item \textbf{F3 (IC recovery)}: L-BFGS-B with solenoidal gradient
+        projection (L-BFGS+proj, next paragraph), 100 iterations, starting from
+        $u\equiv 0$, for three targets.
+  \item \textbf{S (topology optimization)}: Adam, $\eta{=}5{\times}10^{-2}$,
+        2\,500 iterations, patience 100, with a soft volume-fraction penalty
+        of weight 50 and densities clipped to $[10^{-3},1]$.
+  \item \textbf{H (conductivity recovery)}: L-BFGS-B, 1\,000 iterations, on a
+        sigmoid reparametrization that keeps the density in $[10^{-3},1]$ and
+        makes the SIMP conductivity affine in the latent variable.
 \end{itemize}
 
-\paragraph{Solenoidal gradient projection (F3 variants)}
-The L-BFGS+proj and Adam+proj variants on F3 apply a spectral
-Helmholtz projection to the gradient \emph{before} each optimizer
-update,
+\paragraph{Solenoidal gradient projection (F3)}
+L-BFGS+proj applies a spectral Helmholtz projection to every gradient the
+optimizer sees,
 $\hat g^{\mathrm{df}}_i = \hat g_i - k_i (k\!\cdot\!\hat g) / |k|^2$,
-where $\hat g$ is the FFT of the gradient on the periodic box. This
-restricts the search direction to the divergence-free subspace and is
-exact to machine precision on the periodic NS state space. The
-projection is implemented once in the harness and applied uniformly to
-all six fluid solvers; we do not project elsewhere because the
-divergence-free constraint is specific to the incompressible NS state.
+where $\hat g$ is the FFT of the gradient on the periodic box. This restricts
+the search direction to divergence-free fields. The projection is implemented
+once in the harness and applied uniformly to all seven fluid solvers; we do not
+project elsewhere because the divergence-free constraint is specific to the
+incompressible NS state.
 
 \paragraph{2D drag minimization}
-\Cref{fig:app:dragopt} shows convergence for the 2D cylinder-flow drag minimization task.
-This task is notably difficult to deploy: the channel geometry with advective outflow requires non-periodic pressure boundary conditions that exclude spectral solvers, while Brinkman penalization of the cylinder obstacle is incompatible with LU-factored Poisson projections, collectively ruling out four of the seven F2 backends (detailed in \cref{app:solver-issues}).
-XLB and PICT converge to consistent drag reduction of around 60\% at Re\,=\,20; PhiFlow partially converges, reducing drag by ${\sim}35\%$ before stalling.
-We also attempted L-BFGS on this task.
-It failed universally: XLB diverged to NaN within 50 iterations (drag coefficients blowing up from 0.083 to over 8) and PICT produced no converged result.
-The failure is structural: the inflow-to-drag map is strongly non-convex (advection-driven, with separation and re-attachment regimes), so secant pairs $s_k = x_{k+1} - x_k$ taken across iterations sample regions where the local Hessian differs in sign, violating the positive-curvature condition and causing the limited-memory model to blow up.
-This contrasts with the quasi-static problems in \cref{fig:app:topopt,fig:app:conductivity_recovery}, where L-BFGS converges reliably; the determining factor is whether the landscape is stationary enough to sustain a coherent curvature model across iterations.
+\Cref{fig:app:dragopt} shows the drag minimization on the DFG 2D-1 channel at
+Re\,=\,20 with 10 cells per cylinder diameter, run to $t=4$, by which time the
+drag coefficient $C_d$ is within 0.1\% of its steady value at this resolution.
+The loss is $C_d/C_{d,0}$, where $C_{d,0}$ is the drag of the benchmark's
+parabolic inlet profile. From initial drag coefficients of 5.3--5.9, all five
+solvers that run the channel reduce drag by 46--48\% in 44--69 iterations:
+INS.jl by 48.0\%, PhiFlow by 47.7\%, XLB by 47.1\%, PICT by 46.8\%, and
+Warp-NS by 46.3\%. Their loss levels off after 27--34 iterations.
+Exponax represents only periodic fields, and JAX-CFD~0.2.1 cannot express the
+channel's inflow, outflow, and obstacle through its API
+(\cref{app:solver-issues}).
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/drag_opt_re20.pdf}
-  \caption{2D drag minimization at Re\,=\,20. XLB and PICT converge to ${\sim}60\%$ drag reduction; PhiFlow stalls at ${\sim}35\%$.}
+  \caption{2D drag minimization on the DFG 2D-1 channel at Re\,=\,20.
+    Top left: $C_d/C_{d,0}$ per Adam iteration, with a dot where the loss
+    levels off. Top right: initial and optimized inlet profiles. Bottom:
+    velocity magnitude near the cylinder before and after optimization for
+    the solver with the largest drag reduction.}
   \label{fig:app:dragopt}
 \end{figure}
 
 \paragraph{3D NS IC recovery}
-\Cref{fig:app:recovery} compares three optimizer configurations on the 3D NS IC recovery task ($[0,2\pi)^3$ TGV box, $16^3$ grid).
-Each run starts from a constant zero-velocity field and minimizes the $\ell_2$ distance to a target final state.
-We report the \emph{IC error} as the relative $\ell_2$ distance between the recovered and true initial velocity fields,
-$\|\mathbf{u}^{*}_0 - \mathbf{u}_0\|_2 / \|\mathbf{u}_0\|_2$,
-where $\mathbf{u}_0$ is the ground-truth IC and $\mathbf{u}^{*}_0$ is the optimizer iterate at the reported checkpoint.
-Solver color and marker encode the backend; line style encodes the optimizer.
-Adam stagnates above 40\% normalized IC error across all solvers, while L-BFGS converges below 6\% in fewer gradient evaluations.
-Adding a solenoidal projection after each L-BFGS update (L-BFGS+proj) reduces the final IC error to below 0.5\% and keeps the recovered IC divergence at the physical level of the true IC throughout.
-The projection benefit is specific to the second-order optimizer, and the asymmetry has a structural cause.
-L-BFGS builds its Hessian approximation from secant pairs $s_k = x_{k+1} - x_k$; without projection these steps carry large irrotational components orthogonal to the solenoidal manifold, corrupting the curvature model, whereas projection confines $s_k$ to the correct tangent space and recovers the superlinear convergence behavior associated with projected Newton-type methods~\citep{bertsekas1982projected}.
-Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the iterate does not repair the miscalibrated scaling; \cref{fig:app:recovery:adamproj} confirms this.
-The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (L-BFGS+proj/PhiFlow).
+The task starts from a zero velocity field on a $16^3$ grid of the
+$[0,2\pi)^3$ periodic box and recovers the initial state of a 100-step rollout
+($\nu=0.01$, $\Delta t=0.02$) by minimizing the $\ell_2$ distance to the target
+final state. We report the \emph{IC error}
+$\|\mathbf{u}^{*}_0 - \mathbf{u}_0\|_2 / \|\mathbf{u}_0\|_2$, where
+$\mathbf{u}_0$ is the true initial state and $\mathbf{u}^{*}_0$ the final
+iterate. The three targets regenerate the \texttt{rand\_div\_free} field with
+seeds $0,1,2$, while the optimizer always starts from zero, so the runs measure
+recovery of different divergence-free targets from a cold start.
+\Cref{fig:recovery_main} shows the L-BFGS+proj runs, whose mean IC errors are
+given in \cref{sec:optimization}. The loss levels off after 45 (Exponax) to
+86 (Warp-NS) iterations.
+
+On this task we also compared Adam ($\eta{=}10^{-3}$, up to 500 iterations),
+plain L-BFGS, and Adam with the same projection (Adam+proj;
+\cref{fig:app:recovery,fig:app:recovery:adamproj}).
+Adam stagnated above 40\% IC error for all solvers: the loss decreased, but the
+recovered initial state differed noticeably from the target. Plain L-BFGS
+reached below 6\% in fewer gradient evaluations, and adding the projection
+brought the error to the sub-percent level reported above.
+The projection helped only the second-order optimizer, and we attribute the
+asymmetry to the curvature model. L-BFGS builds its Hessian approximation from
+secant pairs $s_k = x_{k+1} - x_k$, which without projection carry large
+irrotational components orthogonal to the solenoidal manifold; projection
+confines $s_k$ to the correct tangent space, as in projected Newton-type
+methods~\citep{bertsekas1982projected}. Adam's per-coordinate second-moment
+scaling has no cross-coordinate curvature model that could exploit the
+constraint geometry~\citep{kingma2015adam}, and Adam+proj leaves IC error and
+loss essentially unchanged.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\linewidth]{figures/recovery_main.pdf}
+  \caption{F3 IC recovery with L-BFGS+proj. Left and middle: loss and IC error
+    against iteration for the first target. Right: final IC error per solver,
+    mean (dot) and range (bar) over three targets.}
+  \label{fig:recovery_main}
+\end{figure}
 
 \begin{figure}
   \centering
@@ -657,15 +821,28 @@ The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (
 \end{figure}
 
 \paragraph{Topology optimization}
-\Cref{fig:app:topopt} summarizes the structural topology optimization task ($[0,2]\times[0,1]\times[0,1]$ cantilever beam, $16\times2\times8$ mesh, SIMP with $p=3$, Adam).
-All solvers converge to the same final compliance (${\approx}0.001$): for smooth, well-conditioned physics, gradient quality does not limit solution quality.
-The optimized density fields (bottom row) are visually identical across solvers, recovering the classic cantilever-beam truss topology.
+\Cref{fig:app:topopt} summarizes the structural topology optimization task
+($[0,2]\times[0,1]\times[0,1]$ cantilever beam, $16\times2\times8$ mesh, SIMP
+with $p=3$). With Adam, the compliance of all five differentiable solvers
+levels off after about 1\,460 of the 2\,500 iterations, and the final values
+agree to seven significant digits ($1.003330\times10^{-3}$): for smooth,
+well-conditioned physics, gradient quality does not limit solution quality.
+The optimized density fields are visually identical across solvers, recovering
+the classic cantilever-beam truss topology.
 
 We also evaluated L-BFGS and MMA~\citep{svanberg1987mma} on this task.
-After 100 quasi-Newton steps, L-BFGS final compliance ranged from $0.001$ (TopOpt.jl) to $0.008$ (JAX-FEM), well above the Adam solution.
-L-BFGS fails for two reinforcing reasons: the SIMP penalization ($p=3$) makes the objective globally non-convex, so the positive-curvature condition $y_k^\top s_k > 0$ required for valid BFGS updates is frequently violated and updates are skipped~\citep{fu2023quasinewton}; and box constraints $\rho \in [0,1]$ cause rapid active-set changes that invalidate the limited curvature history.
-MMA, by contrast, converges to compliance ${\approx}0.00099$ in only 40 iterations, matching Adam's solution in under 2\% of its iteration budget, because it builds a strictly convex separable approximation at each step that sidesteps the SIMP non-convexity and handles box constraints and the volume inequality natively.
-MMA is therefore the recommended optimizer for this task class, consistent with standard practice in the topology optimization community.
+After 100 quasi-Newton steps, L-BFGS final compliance ranged from $0.001$
+(TopOpt.jl) to $0.008$ (JAX-FEM), well above the Adam solution. Two properties
+of the problem plausibly explain this: the SIMP penalization ($p=3$) makes the
+objective non-convex, so the curvature condition $y_k^\top s_k > 0$ required
+for valid BFGS updates is often violated and updates are
+skipped~\citep{fu2023quasinewton}; and the box constraints $\rho \in [0,1]$
+cause rapid active-set changes that invalidate the limited curvature history.
+MMA converged to a compliance of ${\approx}0.00099$ in about 40 iterations,
+matching Adam's solution in under 2\% of its iteration budget, because it
+builds a strictly convex separable approximation at each step and handles the
+box constraints and the volume inequality natively. This agrees with standard
+practice in topology optimization, where MMA is the usual choice.
 
 \begin{figure}
   \centering
@@ -678,18 +855,25 @@ MMA is therefore the recommended optimizer for this task class, consistent with 
 \end{figure}
 
 \paragraph{Conductivity recovery}
-\Cref{fig:app:conductivity_recovery} shows convergence for the thermal conductivity inversion task.
-The ground-truth conductivity field has two Gaussian peaks; the solver observes the steady-state temperature distribution under a known heat source and recovers the conductivity by minimizing the $\ell_2$ error between simulated and observed temperature.
-Adam and L-BFGS are compared across solvers that support differentiation w.r.t.\ the conductivity field.
-FEniCS and Firedrake form a distinct cluster: with Adam their final error is modestly higher ($\sim\!1{,}600$ vs.\ $\sim\!1{,}300$), and with L-BFGS the gap widens sharply ($\sim\!8.5{\times}10^4$ vs.\ $\sim\!1{,}100$).
-The cause is a gradient inconsistency in the adjoint-based solvers: the forward pass reports $\sum_i(T_i - T_i^*)^2$ (a nodal sum), while the adjoint differentiates $\int(T-T^*)^2\,\mathrm{d}\Omega$ (an area-weighted integral) and applies a scalar correction factor $n_\text{nodes}/|\Omega|$ to bridge the two.
-This correction is only approximate, so the returned gradient is not the exact derivative of the reported objective.
-First-order methods tolerate this mismatch because they use only gradient direction; L-BFGS accumulates gradient differences to estimate curvature, so an inconsistent gradient corrupts the Hessian approximation and causes convergence to a suboptimal point.
+\Cref{fig:app:conductivity_recovery} shows the thermal conductivity inversion.
+The ground-truth conductivity has two Gaussian peaks; each solver observes the
+steady-state temperature under a known heat flux and recovers the conductivity
+by minimizing the squared $\ell_2$ misfit between simulated and observed
+temperatures. Starting from a uniform field, L-BFGS-B lowers the misfit of all
+four solvers from $6.1\times10^{9}$ to 34--51 within 1\,000 iterations
+(JAX-FEM 34, Firedrake 39, torch-fem 49, FEniCS 51), leveling off after
+735--846 iterations. The recovered conductivity is 4.2--5.9\% from the truth in
+relative $\ell_2$ norm, and the four recovered fields differ from each other by
+1--3.5\% of the truth's norm. We attribute the spread to the poor conditioning
+of the inversion: many conductivity fields fit the temperatures almost equally
+well, and which one the optimizer reaches depends on its path. Consistent with
+this, the same solver's final misfit differs by up to 21\% between the A100 run
+and our T4 CI run.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/conductivity_recovery_overview.pdf}
-  \caption{Thermal conductivity recovery comparing Adam and L-BFGS optimizers. \emph{Top:} identification error vs.\ gradient evaluations; color encodes solver, linestyle encodes optimizer. \emph{Bottom:} final recovered conductivity profiles (all solvers) vs.\ ground truth (dashed).}
+  \caption{Thermal conductivity recovery with L-BFGS-B. \emph{Top:} temperature misfit and relative error of the recovered conductivity against iteration, per solver. \emph{Bottom:} ground-truth and recovered conductivity fields.}
   \label{fig:app:conductivity_recovery}
 \end{figure}
 
@@ -709,7 +893,9 @@ the same architecture from the same initialization.
 \paragraph{Training}
 Each solver runs the coarse configuration of \cref{app:kolmogorov} ($64^2$,
 $\Delta t = 0.01$) and is corrected every 0.1 time units. Its targets are its
-own $256^2$ run from the ground truth's training states, restricted to $64^2$.
+own $256^2$ run, restricted to $64^2$, from four training states and one
+validation state. These are burned in like the three test states of
+\cref{app:kolmogorov} and stored separately, without trajectories.
 The three trained arms are \emph{supervised}, on fixed pairs (the solver's output
 from reference frame $k$, and reference frame $k+1$) with no solver in the
 training graph; \emph{stopped}, on a corrected 16-interval rollout with the
@@ -717,21 +903,29 @@ gradient stopped at every solver output; and \emph{SIL}, on the same rollout
 differentiated through the solver. All arms see the same windows and use Adam
 with learning rate $10^{-3}$ and global-norm clipping for 256 updates, for each
 of three network seeds. The loss is the mean over the rollout of
-$\|s - t\|^2 / \|t\|^2$, without per-solver normalization. Validation on a
+$\|s - t\|^2 / \|t\|^2$, without per-solver normalization. Validation on the
 separate state every 32 updates selects the checkpoint, with update 0, the
 uncorrected solver, as a candidate. Every selected and final corrector is then
 evaluated on the three test states for 40 intervals, and rolled out for 200
 intervals to check stability.
 
-\paragraph{Gates}
+\paragraph{Gates and solvers}
 A solver is admitted if its $256^2$ reference differs from a $512^2$ run by at
-most a quarter of the gap between its coarse run and the reference (observed
-ratios 0.003 to 0.093), if chained calls reproduce one long call, and if the
-gradient of the training loss through 16 intervals matches central finite
-differences to within 5\% at a zero and at a random nonzero readout (observed
-errors $1.2\times10^{-4}$ to $1.9\times10^{-3}$). All five solvers pass every
-gate. Warp-NS and PhiFlow are not part of the study, for the reasons given in
-\cref{app:kolmogorov}.
+most a quarter of the gap between its coarse run and the reference, if chained
+calls reproduce one long call, and if the gradient of the training loss through
+16 intervals matches central finite differences to within 5\% at a zero and at
+a random nonzero readout. A short version of the study (4-interval rollouts,
+32 updates, one seed) checks these gates and that every arm trains to finite
+losses. JAX-CFD, Exponax, XLB, INS.jl and PICT pass all of them, with reference
+ratios of 0.003 to 0.093 and gradient errors of $5.8\times10^{-5}$ to
+$1.8\times10^{-3}$. Warp-NS diverges on the flow (\cref{app:kolmogorov}).
+PhiFlow is excluded because its $256^2$ run, which the corrector would train
+against, turns non-finite within the study's horizon from some of the
+reference states.
+The full study runs only solvers that complete it in about an hour on the A100
+(29 to 67 minutes for the four that do). That excludes PICT, whose updates
+through the solver take 12 times as long as JAX-CFD's in the short version and
+whose full run takes most of a day.
 
 \paragraph{Native solver state}
 For staggered and lattice solvers, a chain of calls that restarts from the
@@ -768,8 +962,7 @@ steps, so they restart exactly without it.
   \centering\small
   \caption{Solver-in-the-loop results. Mean relative test error over 40
     intervals for each of the three network seeds, the uncorrected solver's
-    error, and the wall time per training update at a 16-interval rollout. The
-    runs partly shared the GPU with other jobs, so the times are rough.}
+    error, and the wall time per training update at a 16-interval rollout.}
   \label{tab:app:sil}
   \setlength{\tabcolsep}{4pt}
   \begin{tabular}{@{}lccccc@{}}
@@ -778,58 +971,59 @@ steps, so they restart exactly without it.
     \cmidrule(lr){2-4}\cmidrule(l){6-6}
     \textbf{Solver} & Supervised & Stopped & SIL & Uncorrected & stopped / SIL \\
     \midrule
-    JAX-CFD & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 0.69 / 1.00 \\
-    INS.jl & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 0.87 / 2.35 \\
-    Exponax & 0.068 0.075 0.067 & 0.063 0.061 0.065 & 0.076 0.068 0.063 & 0.091 & 0.75 / 1.02 \\
-    XLB & 0.069 0.061 0.063 & 0.078 0.085 0.068 & 0.084 0.073 0.102 & 0.086 & 0.85 / 1.38 \\
-    PICT & 0.145 0.143 0.147 & 0.186 0.169 0.150 & 0.228 0.161 0.192 & 0.277 & 4.73 / 26.8 \\
+    JAX-CFD & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 0.79 / 1.02 \\
+    INS.jl & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 1.22 / 2.84 \\
+    Exponax & 0.068 0.075 0.067 & 0.063 0.061 0.065 & 0.076 0.068 0.063 & 0.091 & 0.80 / 1.04 \\
+    XLB & 0.069 0.061 0.063 & 0.078 0.085 0.068 & 0.084 0.073 0.102 & 0.086 & 0.85 / 1.39 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \paragraph{Results}
-All 45 trainings complete their 256 updates. The SIL arm's gradient norms are
-10 to 20 times those of the stopped arm but stay bounded. None of the 270 long
+All 36 trainings complete their 256 updates. The SIL arm's gradient norms are
+10 to 20 times those of the stopped arm but stay bounded. None of the 216 long
 rollouts turns non-finite, and no arm leaves a corrector less stable than the
 uncorrected solver: the peak kinetic energy of a corrected rollout reaches 1.06
 to 1.50 times the uncorrected mean, against 1.09 to 1.45 for the uncorrected
 solver itself. Averaged over the seeds (\cref{tab:app:sil}), supervised training
 gives the lowest error on every solver except Exponax, where the stopped arm is
-lower, and SIL is never better than the stopped arm. On individual seeds it is.
+lower, and SIL is never better than the stopped arm. It is better on one seed of
+each solver, such as XLB's second (0.073 against 0.085). On XLB, SIL's mean
+matches the uncorrected error (0.086), since its third seed ends above it.
 Supervised updates take about 0.02\,s, since the solver's outputs for the pairs
-are computed once in advance. JAX-CFD and INS.jl agree to every printed digit throughout, as
-on the forward checks.
+are computed once in advance. JAX-CFD and INS.jl agree to every printed digit
+throughout, as on the forward checks.
 
 \paragraph{Reproduction}
-The study is not part of the benchmark release. Its code, consisting of the
-native solver state, the training experiment, a smaller version of it that
-checks feasibility in minutes per solver, and the scripts that produce these
-tables, is archived with the paper's reproduction materials.
-% TODO: link the archived tag of pasteurlabs/mosaic#316 once it exists.
-
+The study is not part of the benchmark. Its code (the native solver state, the
+full and short training experiments, and the scripts that produce these tables)
+is on the \texttt{paper} branch of the released code, and
+\texttt{studies/kolmogorov-sil/} there describes how to run it.
 
 \section{Solver interventions}
 \label{app:interventions}
 
 Mosaic records every departure from a solver's default usage, so that a
 reader can tell a solver used as documented from one whose wrapper works
-around its limitations. This appendix describes the record format and the
-rules around it, and reports an audit of all 19 solver wrappers in the
-repository (commit \texttt{6517f75}, October 2026).
+around its limitations. The records ship in each solver's
+\texttt{tesseract\_config.yaml} and are shown with its results in the
+documentation. This appendix describes the record format and the rules
+around it, and summarizes the records of the code that produced the results
+in this paper.
 
 \subsection{Record format}
 
 \begin{table}[h]
   \centering\small
-  \caption{Intervention levels, assigned by mechanism. Examples are from the
-    audit.}
+  \caption{Intervention levels, assigned by mechanism, with examples from the
+    records.}
   \label{tab:app:ladder}
   \begin{tabularx}{\linewidth}{@{}l l X@{}}
     \toprule
     \textbf{Level} & \textbf{Mechanism} & \textbf{Example} \\
     \midrule
     L0 & Documented options & MUMPS as FEniCS's forward linear solver \\
-    L1 & Undocumented settings & An undocumented collision-operator switch threshold in XLB \\
+    L1 & Undocumented settings & Re-initializing XLB's global velocity set and precision before building each operator set \\
     L2 & User code on public primitives & A custom pyadjoint block for a nodal misfit in FEniCS \\
     L3 & Changes to the solver & A monkeypatch of phiml's NumPy backend for 64-bit indices in PhiFlow \\
     L4 & Unreleased upstream fixes & Not accepted \\
@@ -840,17 +1034,20 @@ repository (commit \texttt{6517f75}, October 2026).
 \paragraph{Fields}
 Each intervention records what was done, its level (\cref{tab:app:ladder}),
 its necessity (required, a choice among library alternatives, or unknown),
-whether its value was tuned by measurement, and, per setup, why it is
-needed: the consequences of skipping it (the setup cannot be expressed, a
-crash, non-finite output, an inaccurate forward solution, a missing or
-incorrect gradient, an optimizer stall, excessive run time or memory, or
+whether its value was tuned by measurement, who wrote it (the Mosaic team, a
+contributor, or a solver maintainer), and, per setup, why it is needed: the
+consequences of skipping it (the setup cannot be expressed, a crash,
+non-finite output, an inaccurate forward solution, a missing or incorrect
+gradient, an optimizer stall, excessive run time or memory, or
 non-reproducible results), the symptom with a number where one exists, and
-the evidence. Workarounds of upstream bugs link the upstream issue. Fixes to
-Mosaic's own code, failure detection that changes no result, and build
-infrastructure are not recorded. What counts as ordinary use depends on the
-library's abstraction level: writing the assembly loop is ordinary use of
-deal.II, and for a kernel toolkit such as NVIDIA Warp the hand-written solver
-is the baseline, so only interventions made for the benchmark are recorded.
+the evidence. Workarounds of upstream bugs link the upstream issue. The code
+of every L2 and L3 intervention is marked in the wrapper, and the test suite
+validates each record and its markers. Fixes to Mosaic's own code, failure
+detection that changes no result, and build infrastructure are not recorded.
+What counts as ordinary use depends on the library's abstraction level:
+writing the assembly loop is ordinary use of deal.II, and for a kernel
+toolkit such as NVIDIA Warp the hand-written solver is the baseline, so only
+interventions made for the benchmark are recorded.
 
 \paragraph{Policies}
 (i) \emph{Choice of scheme.} A solver may run any scheme its library
@@ -879,55 +1076,54 @@ bug. A change to the discrete method itself, as opposed to how it is used,
 creates a separate solver entry. An intervention shown to be unnecessary is
 removed.
 
-\subsection{Audit}
+\subsection{Records}
 
-The audit used a first version of the format that recorded only the level.
-\Cref{tab:app:audit} summarizes it.
+\Cref{tab:app:records} counts the 72 interventions recorded in the 19 solver
+wrappers; only Firedrake's structural wrapper has none. Of the 72, 19 have a
+tuned value, and 62 carry evidence for every setup they apply to.
+Three setup deviations are recorded: PICT, which has no pressure outlet, runs
+the cylinder channel with an advective outflow; XLB sub-steps every
+prescribed time step to keep the lattice Mach number at its target, since the
+lattice Boltzmann method ties the time step to the grid; and TopOpt.jl, whose
+input reader takes surface loads only as normal pressure, receives the
+cantilever's tangential load as nodal forces, which on the uniform mesh equal
+the integrated traction.
 
 \begin{table}[h]
   \centering\small
-  \caption{Interventions found in all 19 solver wrappers, by level, by how
-    well their reason is supported, and by the consequence of skipping
-    them. \emph{Verified}: backed by a test, a measurement, or an upstream
-    issue. \emph{Stated}: asserted in a code comment or pull request.
-    \emph{Inferred}: no reason recorded.}
-  \label{tab:app:audit}
-  \begin{tabular}{@{}lr@{\qquad}lr@{\qquad}lr@{}}
+  \caption{Interventions in the 19 solver wrappers by level and necessity, and
+    by the consequence of skipping them on any setup. An intervention can
+    record several consequences, and 13 record none, mostly because no
+    reason or measurement exists.}
+  \label{tab:app:records}
+  \begin{tabular}{@{}lrrrr@{\qquad}lr@{}}
     \toprule
-    \multicolumn{2}{@{}l}{\textbf{Level}} & \multicolumn{2}{l}{\textbf{Reason}} & \multicolumn{2}{l@{}}{\textbf{Consequence}} \\
+    \textbf{Level} & \textbf{Required} & \textbf{Choice} & \textbf{Unknown} & \textbf{Total} & \textbf{Consequence} & \\
     \midrule
-    L0 & 39 & Verified & 8 & Too slow & 27 \\
-    L1 & 22 & Stated & 50 & Inaccurate forward & 17 \\
-    L2 & 23 & Inferred & 34 & Crash & 14 \\
-    L3 & 8 & & & Cannot express & 9 \\
-       &   & & & Out of memory & 9 \\
-       &   & & & Incorrect gradient & 8 \\
-       &   & & & Other & 8 \\
+    L0 & 9 & 25 & 8 & 42 & Too slow & 25 \\
+    L1 & 0 & 0 & 2 & 2 & Crash & 10 \\
+    L2 & 12 & 6 & 5 & 23 & Cannot express & 8 \\
+    L3 & 3 & 2 & 0 & 5 & Incorrect gradient & 8 \\
+    \midrule
+    Total & 24 & 33 & 15 & 72 & Inaccurate forward & 6 \\
+          &    &    &    &    & Other & 7 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \paragraph{Findings}
-The same need lands at very different levels across libraries. Running the
-adjoint solve with MUMPS takes an L3 monkeypatch in FEniCS and nothing in
-Firedrake; a nodal-sum misfit gradient takes a 78-line custom block in FEniCS
-and 14 lines of documented API in Firedrake; the drag force is hand-written
-(L2) in PICT and a documented function object in OpenFOAM. Asking for the
-reason behind each intervention surfaced dead code, interventions that turned
-out unnecessary, workarounds of upstream bugs that had never been reported,
-comments whose stated reason did not hold, and departures from library
-default schemes without a recorded measurement. It also showed that the
-level alone is not enough: it conflates how something was done with whether
-it was needed, it hides deviations from the prescribed setup, and what counts
-as ordinary use depends on the library's abstraction level. Necessity, setup
-deviations, and the abstraction-dependent baseline above were added in
-response.
-
-Resolving the findings changed several solvers after the pinned release, for
-example running XLB with its default BGK collision operator, Exponax with its
-default dealiasing, and PhiFlow with the schemes its documentation
-recommends. These changes are published with the continuously updated
-results; the tables in this paper reflect the pinned release.
+The same need lands at different levels across libraries. Besides the MUMPS
+adjoint of \cref{sec:baselines} (L3 in FEniCS, nothing in Firedrake), the drag
+force on the cylinder is user code (L2) in PICT and PhiFlow and a documented
+function object in OpenFOAM. The format grew out of an audit of
+all 19 wrappers at commit \texttt{6517f75}, which recorded only the level.
+Of the 92 interventions it found, 8 had a reason backed by a test, a
+measurement, or an upstream issue, and asking for the others' reasons
+surfaced dead code, unnecessary interventions, unreported upstream bugs, and
+departures from default schemes without a recorded measurement. The audit
+also showed that the level alone conflates how something was done with
+whether it was needed, which is why the records now include necessity, setup
+deviations, and the abstraction-dependent baseline.
 
 \section{Solver documentation}
 \label{app:solvers}
@@ -943,59 +1139,82 @@ Excluded solvers and the reasons for their exclusion are listed in
 
 \paragraph{JAX-CFD~\cite{kochkov2021machine}}
 JAX-native incompressible flow solver on a staggered MAC grid with
-finite-difference advection and spectral (FFT) pressure projection.
-Gradients via JAX source-transformation AD.
-The spectral pressure solve requires periodic BCs in all spatial directions,
-so JAX-CFD is included in periodic benchmarks (TGV, multimode
-agreement) but excluded from the cylinder-wake experiment.
+finite-difference advection and spectral (FFT) pressure projection, run with
+central advection and classic RK4 instead of its default van Leer advection
+with forward Euler. Gradients via JAX AD through the time loop.
+Runs the periodic setups of F2 and F3. JAX-CFD~0.2.1 cannot express the DFG
+channel, so it is excluded from the cylinder experiments
+(\cref{app:solver-issues}).
 
 \paragraph{PhiFlow~\cite{holl2024phiflow}}
-Semi-Lagrangian advection with pressure projection.
-Supports PyTorch, JAX, and TensorFlow backends, enabling gradient
-computation through the same simulation code across AD frameworks.
+On the periodic boxes, second-order central differences under PhiFlow's
+incompressible RK4 integrator, the pairing its documentation recommends for
+accurate periodic flow. In the channel, PhiFlow's default semi-Lagrangian
+advection with operator splitting and a staircase cylinder. Both use CG pressure
+solves. PhiFlow supports PyTorch, JAX, and TensorFlow backends; Mosaic runs it
+on JAX, whose AD differentiates the time loop while each pressure solve is
+differentiated by an adjoint CG solve.
 
 \paragraph{INS.jl~\cite{agdestein2024ins}}
-IncompressibleNavierStokes.jl: Julia finite-difference pressure-projection
-solver. Differentiates through the time loop via Zygote.jl reverse-mode AD.
-CPU only.
+IncompressibleNavierStokes.jl: Julia staggered finite-volume solver with
+pressure projection and RK4 time integration, run on the GPU through its CUDA
+backend. The periodic boxes use its spectral pressure solve. The channel uses a
+direct pressure solve on the separable Laplacian and represents the cylinder as
+a Brinkman penalization on the shared staircase mask. Gradients, including the
+one with respect to $\nu$, via Zygote.jl reverse-mode AD through the time loop.
 
 \paragraph{XLB~\cite{ataei2024xlb}}
-JAX-native lattice Boltzmann solver supporting D2Q9 (2D) and D3Q27 (3D) stencils on
-GPU. Gradients via source-transformation AD through the collision-streaming
-loop.
+JAX-native lattice Boltzmann solver with D2Q9 (2D) and D3Q27 (3D) stencils and
+BGK collision, run in float64 on the GPU. Each prescribed time step runs as
+several lattice steps that hold the lattice Mach number at a target, a recorded
+setup deviation (\cref{app:solver-issues}). The channel's boundary conditions
+are written by hand on XLB's operators. Gradients via JAX AD through the
+collision--streaming loop, checkpointed in nested blocks of about $\sqrt{T}$ steps.
 
 \paragraph{PICT~\cite{franz2025pict}}
-GPU-accelerated differentiable incompressible Navier--Stokes solver built on
-PyTorch with custom CUDA kernels implementing the PISO algorithm. Supports
-reverse-mode AD through the full time loop and handles multi-block
-curvilinear grids. The Mosaic Tesseract exposes periodic, lid-driven cavity,
-inflow/channel (with advective outflow), and cylinder-wake modes via an
-8-block ring topology.
+GPU-accelerated differentiable PISO solver built on PyTorch with custom CUDA
+kernels. Its differentiable mode supplies a backward pass for each PISO
+operation, including adjoint linear solves, which PyTorch's autograd chains
+through the time loop; gradients with respect to the initial velocity, the
+inflow profile, and $\nu$ are available. The Mosaic Tesseract runs the
+periodic boxes on a single block and the DFG channel on a body-fitted mesh of
+eight Cartesian blocks and four O-grid blocks around the cylinder. PICT has no
+pressure outlet, so the channel uses an advective outflow, a recorded setup
+deviation. PICT's linear solves stop at an absolute residual, so the VJP
+rescales each cotangent to unit maximum before the backward pass.
 
 \paragraph{Warp-NS~\cite{macklin2024warp}}
-Custom incompressible NS solver built with NVIDIA Warp CUDA kernels,
-implementing the IPCS projection scheme with an FFT-based Poisson solve
-(following a reference spectral example; a non-periodic solver was not
-implemented). Gradients via the \texttt{wp.Tape} kernel-level VJP.
+Custom incompressible NS solver built with NVIDIA Warp CUDA kernels: Chorin
+projection with explicit Euler time stepping. The periodic boxes solve the
+pressure Poisson equation with an on-device FFT; the channel uses a staggered
+grid, a staircase cylinder, and a preconditioned CG pressure solve.
+Gradients via Warp's \texttt{wp.Tape} kernel-level AD, with a hand-written
+adjoint CG solve for each channel pressure solve.
 The Warp framework provides differentiable kernels but no ready-made
-incompressible flow solver, so the FD stencils, pressure Poisson solve,
-and time integration were implemented from scratch using Warp primitives.
+incompressible flow solver, so the stencils, pressure solves,
+and time integration were implemented from scratch using Warp primitives,
+with the periodic solver restructured on a Warp developer's advice.
 Warp-NS represents a best-effort implementation by the Mosaic team and
 illustrates the integration cost when a kernel toolkit provides no
 built-in solver.
 
 \paragraph{Exponax~\cite{koehler2024apebench}}
-Spectral incompressible Navier--Stokes solver supporting both 2D
-(streamfunction-vorticity) and 3D (Leray-projected velocity) formulations,
-integrated with an exponential time-differencing Runge-Kutta (ETDRK) scheme.
-Incompressibility is enforced to machine precision by construction.
-Gradients via JAX source-transformation AD.
-Used in Mosaic for the periodic setups of F2 and F3, and as the ground truth
-of the Kolmogorov-flow checks (\cref{app:kolmogorov}).
+Spectral incompressible Navier--Stokes solver integrated with a second-order
+exponential time-differencing Runge--Kutta scheme (ETDRK2). The 2D path runs
+Exponax's vorticity formulation, with the wrapper converting the velocity to
+vorticity and back; the 3D path uses a Leray-projected velocity.
+Incompressibility holds by construction. Gradients via JAX AD.
+Used in Mosaic for the periodic setups of F2 and F3, and as the converged
+reference for F3 and for the Kolmogorov-flow checks (\cref{app:kolmogorov}).
 
 \paragraph{FEniCS~\cite{farrell2013automated}}
 Finite-element solver using P1 elements for thermal and structural problems.
-dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
+dolfin-adjoint derives the adjoint from the variational forms recorded on its
+tape. Forward and adjoint solves use the direct solver MUMPS; dolfin-adjoint
+does not pass the forward solver's settings to the adjoint solve, so a
+monkeypatch selects MUMPS there. The thermal misfit is a sum over mesh nodes
+rather than an integral, so a custom block with a hand-written adjoint puts it
+on the tape.
 
 \paragraph{Firedrake~\cite{rathgeber2016firedrake}}
 Mirrors the FEniCS P1/CG1 formulation for structural and thermal problems.
@@ -1004,24 +1223,31 @@ tape-based adjoint implementation for cross-validation.
 
 \paragraph{JAX-FEM~\cite{xue2023jaxfem}}
 Solves heat conduction and linear elasticity with trilinear HEX8 finite
-elements in JAX. Gradients via AD through the assembled system.
+elements in JAX on the GPU. Forward and adjoint systems are solved with JAX-FEM's
+Jacobi-preconditioned BiCGSTAB, compiled once per matrix size. Gradients via
+JAX AD through the assembly, with the linear solve differentiated by an adjoint
+solve.
 
 \paragraph{TopOpt.jl~\cite{huang2021topoptjl}}
 SIMP topology optimization for linear elasticity with HEX8 elements in
 Julia, using analytical adjoint sensitivities.
 
 \paragraph{torch-fem~\cite{meyer2024torchfem}}
-PyTorch finite-element solver for heat conduction with linear HEX8 elements.
-Gradients via PyTorch autograd through the assembled system.
-GPU-accelerated via PyTorch sparse operations.
+PyTorch finite-element solver for heat conduction and linear elasticity with
+linear HEX8 elements, run on the GPU in float64 with Jacobi-preconditioned CG
+for the forward and adjoint solves. Gradients via PyTorch autograd through the
+assembly, with the linear solve differentiated by an adjoint solve.
 
 \paragraph{OpenFOAM~\cite{weller1998tensorial} (reference)}
-Runs the icoFoam incompressible PISO solver as a forward-only reference
-baseline. No reverse-mode AD available.
+Forward-only reference baseline. The periodic boxes run the icoFoam PISO
+solver; the DFG channel runs \texttt{foamRun} with the incompressibleFluid
+solver (PIMPLE) on a body-fitted O-grid mesh. Standard OpenFOAM has no
+reverse-mode AD.
 
 \paragraph{deal.II~\cite{bangerth2007dealii,arndt2023dealii} (reference)}
 Solves thermal and structural problems with Q1 elements using the
-industry-grade C++ finite-element library.
+industry-grade C++ finite-element library, with the direct solver UMFPACK
+for S and CG preconditioned by algebraic multigrid for H.
 No native reverse-mode AD is available; used as a forward-only reference
 baseline for S and H, analogously to OpenFOAM for the fluid domains.
 
@@ -1038,8 +1264,6 @@ Forward-mode AD only, via \texttt{ForwardDiff.jl} dual numbers. No
 Zygote reverse-mode support is documented. A VJP can be emulated by
 contracting $N$ forward-mode JVPs, but the cost scales as
 $O(N^d \cdot T_{\mathrm{fwd}})$, matching central finite differences.
-Excluded from gradient benchmarks. Forward accuracy is reported where
-applicable.
 
 \paragraph{JAX-Fluids~\cite{jaxfluids2022}}
 Targets compressible flow. Recovering the incompressible limit at low Mach
@@ -1061,86 +1285,46 @@ Without SUPG/GLS advection stabilization, stability requires
 $\mathrm{Pe}_h = Uh/(2\nu) \lesssim 1$; at $\nu < 0.01$ on the $N=64$
 benchmark grid, relative errors reach 31--212 while other solvers stay in
 0.02--0.16.
-Independently, wall-clock scaling is empirically $O(N^{2.45})$ in serial;
-the VJP at $N=64$ takes 1248\,s, and the forward pass alone for the drag
-optimization task ($N=32$, 400 steps) requires approximately 25{,}000\,s,
-exceeding the 1200\,s HTTP watchdog by a factor of 40.
+Independently, wall-clock scaling is empirically $O(N^{2.45})$ in serial,
+and the VJP at $N=64$ takes 1248\,s, beyond the 1\,000\,s per-trial limit of
+the cost sweeps.
 FEniCS remains included for structural and heat-transfer domains (H, S),
 where neither constraint applies.
 
 \subsection{Observed solver limitations}
 \label{app:solver-issues}
 
-The following limitations were identified during benchmarking and resulted
-in task-specific exclusions. Solvers excluded globally are documented in
-\cref{app:excluded}.
+The following limitations were identified during benchmarking. The first two
+exclude solvers from specific tasks, and the third affects cost. Solvers
+excluded globally are documented in \cref{app:excluded}.
 
-\paragraph{PICT: viscosity not differentiable in PISOtorch\_diff}
-PISOtorch\_diff tracks autograd through velocity fields and boundary
-conditions, but treats viscosity as a static scalar: passing a
-\texttt{requires\_grad=True} tensor as the viscosity argument produces a
-result with no \texttt{grad\_fn} (confirmed by direct inspection of the
-autograd graph). Differentiation w.r.t.\ $\nu$ would require adding
-viscosity as an explicit differentiable parameter inside the PISOtorch\_diff
-C++/CUDA kernels; this is outside the scope of the Mosaic wrapper.
+\paragraph{JAX-CFD: no inflow, outflow, or obstacles}
+JAX-CFD~0.2.1 cannot express the DFG channel through its API. Its advection
+raises an error for any inflow, since only periodic and no-penetration
+boundaries are supported. It pads a zero-gradient boundary only for
+cell-centered fields, so the outlet's face-centered velocity cannot have one.
+Its boundary values are scalars, so the inlet cannot carry a profile, and it
+has no obstacles. Running the channel would take a hand-written convection,
+inlet, outlet, and obstacle on JAX-CFD's grid primitives. The Mosaic wrapper
+does not have them, so the exclusion is recorded as not implemented.
 
-\paragraph{JAX-CFD: spectral pressure solve requires periodic boundary conditions}
-JAX-CFD uses an FFT-based pressure Poisson solver that requires doubly-periodic
-boundary conditions by construction. The 2D cylinder drag optimization
-domain is a channel with inlet, outlet, and obstacle boundaries, none of
-which are periodic. Volume penalization masks velocity inside the solid
-region but does not remove the periodicity requirement from the pressure
-solve. JAX-CFD is structurally excluded from the drag optimization task.
+\paragraph{Exponax: periodic fields only}
+A Fourier pseudo-spectral method represents only periodic fields, so Exponax
+cannot express a channel with walls, an inflow, and an outflow.
 
-\paragraph{Warp-NS: no non-periodic pressure solver available within the time budget}
-The Warp-NS implementation was built following a reference example that uses an
-FFT-based spectral Poisson solver, which inherits the same doubly-periodic BC
-requirement. Unlike JAX-CFD, this is not a structural limitation of the Warp
-framework: a non-periodic iterative Poisson solver could in principle be
-implemented using Warp primitives. However, no suitable example was available,
-and implementing one from scratch was outside the time budget of this work;
-the drag optimization was therefore not attempted.
-
-\paragraph{INS.jl: viscosity gradient not available}
-Zygote.jl cannot differentiate through the diffusion term in
-IncompressibleNavierStokes.jl because its \texttt{ChainRulesCore} rule for
-the diffusion operator returns \texttt{NoTangent()} for the viscosity
-argument. Gradients w.r.t.\ $\nu$ are therefore not reported for INS.jl.
-Fixing this requires either upstreaming a correct rrule into INS.jl or
-implementing a custom adjoint that accounts for the diffusion term.
-
-\paragraph{INS.jl: Brinkman penalization incompatible with spectral pressure solve}
-INS.jl (IncompressibleNavierStokes.jl)~\cite{agdestein2024ins} supports periodic,
-Dirichlet, symmetric, and advective outlet boundary conditions, but not
-immersed boundary (IBM) or cut-cell methods. Applying Brinkman volume
-penalization to represent the cylinder obstacle introduces a velocity
-discontinuity at the solid boundary after each spectral LU pressure
-projection step; the Poisson solve amplifies this discontinuity, and the
-velocity field diverges to NaN at all tested resolutions ($N \geq 16$). A
-correct approach requires incorporating the penalization term directly into
-the pressure Poisson system~\cite{angot1999penalization}, which is outside
-the scope of the current solver implementation. INS.jl is excluded from the
-drag optimization task.
-
-\paragraph{XLB: intrinsic $O(\mathrm{Ma}^2)$ compressibility error}
-The D2Q9 BGK lattice Boltzmann method~\cite{qian1992lattice} recovers the
-incompressible Navier--Stokes equations only to $O(\mathrm{Ma}^2)$ via
-Chapman-Enskog expansion. At fixed $\Delta t$, the Mach number
-$\mathrm{Ma} = u\,\Delta t / \Delta x$ grows with grid refinement, so the
-compressibility error does not decrease with spatial resolution for
-incompressible problems. At $N = 128$, $\Delta t = 0.01$,
-$\mathrm{Ma} \approx 0.2$, giving an $O(0.04)$ error floor independent of
-solver correctness~\cite{ataei2024xlb}. XLB forward accuracy results at
-fine grids should be interpreted with this limit in mind.
-
-\paragraph{XLB: BGK collision instability at low viscosity}
-The BGK relaxation time $\tau = \nu/c_s^2\,\Delta t + 0.5$ approaches the
-stability boundary $\tau \to 0.5$ as $\nu \to 0$~\cite{qian1992lattice}.
-The XLB tesseract automatically selects the KBC (entropic) collision
-operator~\cite{ataei2024xlb} when $\omega > 1.8$ ($\tau < 0.556$), which is
-unconditionally entropy-stable.
-Results at $\nu \in \{10^{-4},\, 5\times10^{-4}\}$ are pending re-validation
-under the KBC operator and should be interpreted with caution.
+\paragraph{XLB: lattice Mach number and the cost of sub-stepping}
+The lattice Boltzmann method~\cite{qian1992lattice} recovers the incompressible
+Navier--Stokes equations only to $O(\mathrm{Ma}^2)$. At a fixed physical
+$\Delta t$, the lattice Mach number $\mathrm{Ma} = u\,\Delta t / \Delta x$ grows
+with grid refinement, so the compressibility error would not fall with
+resolution. Run at the prescribed steps, the Taylor--Green case reached
+$\mathrm{Ma}\approx 0.88$, with errors 84 to 114 times the peer median. The
+wrapper therefore runs each prescribed step as
+$k=\lceil \mathrm{Ma}/\mathrm{Ma}_\text{target}\rceil$ lattice steps of
+$\Delta t/k$, with $\mathrm{Ma}_\text{target}=0.1$, lowered in proportion to $1/N$
+above $N=64$ on the periodic boxes. This removes the error floor at the price of
+$k$ times as many steps ($k=9$ at $N=256$ on the 2D box), which XLB's forward and
+VJP times include.
 
 % ===========================================================================
 \section{Excluded tasks and what would lift each exclusion}
