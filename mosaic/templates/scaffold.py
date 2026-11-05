@@ -222,6 +222,12 @@ def scaffold_domain(
 
     # 1. Schema stubs under ``mosaic_shared/problems/<slug>``.
     schema_dir = target_dir / "mosaic_shared" / "problems" / slug
+    pkg_dir = target_dir / "benchmarks" / "problems" / slug
+    for existing in (schema_dir, pkg_dir):
+        if existing.exists():
+            raise FileExistsError(
+                f"{existing} already exists; pick a name no domain uses yet."
+            )
     schema_dir.mkdir(parents=True, exist_ok=True)
 
     schema_init = schema_dir / "__init__.py"
@@ -258,7 +264,6 @@ def scaffold_domain(
     created["tesseracts_dir"] = tess_dir
 
     # 3. Two-file Problem package: __init__ stub + everything in config.py.
-    pkg_dir = target_dir / "benchmarks" / "problems" / slug
     pkg_dir.mkdir(parents=True, exist_ok=True)
 
     pkg_init = pkg_dir / "__init__.py"
