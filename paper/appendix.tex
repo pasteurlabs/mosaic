@@ -530,7 +530,11 @@ is float32 round-off. Every solver that runs the turbulent flow stably passes
 both remaining checks. On the chain, each solver's finite differences agree
 with its VJP to within 2\% (median over directions) at every $\varepsilon$.
 JAX-CFD and INS.jl, which share a discretization (\cref{tab:solvers}), agree to
-every printed digit on both forward checks.
+every printed digit on both forward checks. PhiFlow passes because its periodic
+pressure solve runs CG on the singular system directly. With PhiFlow's default,
+which adds a Lagrange multiplier and makes the system indefinite, some CG solves
+stopped unconverged without raising: two of the three $256^2$ runs turned
+non-finite in CI, and the chained gradient was off by 12\% on the A100.
 
 Warp-NS integrates with explicit Euler and central differences, which is
 linearly unstable on this flow unless $\Delta t \lesssim 4\nu/u^2$, a bound that
