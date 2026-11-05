@@ -3,14 +3,14 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Draw the four benchmark-task schematics as SVG (docs/figures/domain_*.svg).
+"""Draw the setup schematics as SVG (docs/figures/setup_*.svg).
 
-Each figure shows the control variable, the physical process and the
-optimization objective of one benchmark task, in the docs palette. The SVGs are
+Each figure shows what one setup varies, the physical process and the
+objective or check, in the docs palette. The SVGs are
 written by hand (no plotting library) so they stay small, crisp and editable.
 
 Usage:
-    python docs/figures/make_domain_figures.py
+    python docs/scripts/make_domain_figures.py
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent
+OUT = Path(__file__).resolve().parents[1] / "figures"
 
 W, H = 720, 380
 
@@ -36,7 +36,6 @@ PLUM = "#6e3f8f"
 
 SANS = "Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
 SERIF = "Georgia, 'Times New Roman', serif"
-MONO = "'JetBrains Mono', Menlo, Consolas, monospace"
 
 
 # ── Building blocks ──────────────────────────────────────────────────────────
@@ -83,8 +82,8 @@ def _svg(body: str, title: str, extra_defs: str = "") -> str:
         f'width="{W}" height="{H}" role="img" aria-label="{title}">'
         f"<title>{title}</title>"
         f"<style>text{{font-family:{SANS};fill:{INK}}}"
-        f".eyebrow{{font-family:{MONO};font-size:11px;font-weight:500;letter-spacing:.04em;fill:{ACCENT}}}"
-        f".eyebrow.quiet{{fill:{MUTED}}}"
+        f".key{{font-size:13px;font-weight:600;fill:{ACCENT}}}"
+        f".key.quiet{{fill:{MUTED}}}"
         f".label{{font-size:15px;fill:{INK2}}}"
         f".small{{font-size:12px;fill:{MUTED}}}"
         f".m{{font-family:{SERIF};font-style:italic}}"
@@ -97,26 +96,26 @@ def _svg(body: str, title: str, extra_defs: str = "") -> str:
 def _label(
     x: float,
     y: float,
-    eyebrow: str,
+    key: str,
     text: str,
     anchor: str = "start",
     quiet: bool = False,
 ) -> str:
-    cls = "eyebrow quiet" if quiet else "eyebrow"
+    cls = "key quiet" if quiet else "key"
     return (
-        f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}">{eyebrow}</text>'
+        f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}">{key}</text>'
         f'<text x="{x}" y="{y + 21}" class="label" text-anchor="{anchor}">{text}</text>'
     )
 
 
-def _objective(formula: str, width: float = 360) -> str:
-    """Bottom-centred objective box: eyebrow on the left, formula on the right."""
+def _objective(formula: str, width: float = 360, key: str = "Objective") -> str:
+    """Bottom-centred objective box: key on the left, formula on the right."""
     x0 = (W - width) / 2
     y0 = 314
     return (
         f'<rect x="{x0}" y="{y0}" width="{width}" height="46" rx="8" fill="{SAND}" '
         f'stroke="{BORDER}"/>'
-        f'<text x="{x0 + 16}" y="{y0 + 27}" class="eyebrow quiet">OBJECTIVE</text>'
+        f'<text x="{x0 + 16}" y="{y0 + 27}" class="key quiet">{key}</text>'
         f'<text x="{x0 + 100 + (width - 100) / 2}" y="{y0 + 29}" text-anchor="middle" '
         f'style="font-size:17px">{formula}</text>'
     )
@@ -279,9 +278,9 @@ def fig_ns_grid() -> str:
         parts.append(_arrow(x1 - 26, y, x1 - 6, y, "muted", 1.4))
 
     parts += [
-        _label(x0, 40, "CONTROL", f"inflow profile {_m('u')}({_m('y')})"),
+        _label(x0, 40, "Control", f"inflow profile {_m('u')}({_m('y')})"),
         _label(
-            x1, 40, "PROCESS", "incompressible Navier–Stokes", anchor="end", quiet=True
+            x1, 40, "Process", "incompressible Navier–Stokes", anchor="end", quiet=True
         ),
         _objective(
             f"{_up('min')}{_sub(_m('u') + '(' + _m('y') + ')')} {_m('F')}{_sub(_m('D'))}",
@@ -364,11 +363,11 @@ def fig_ns_3d_grid() -> str:
         ),
         '<text x="363" y="128" class="small" text-anchor="middle">Navier–Stokes rollout</text>',
         f'<text x="363" y="195" class="label" text-anchor="middle">{_m("t")} = 0 → {_m("T")}</text>',
-        _label(70, 40, "CONTROL", f"initial velocity {_b('v')}{_sub('0')}"),
+        _label(70, 40, "Control", f"initial velocity {_b('v')}{_sub('0')}"),
         _label(
             650,
             40,
-            "TARGET",
+            "Target",
             f"velocity at time {_m('T')}, {_b('v')}({_m('T')})",
             anchor="end",
         ),
@@ -436,7 +435,7 @@ def fig_structural_mesh() -> str:
         _arrow(tip[0] + 34, tip[1] - 46, tip[0] + 34, tip[1] + 30, "accent", 2.6),
         f'<text x="{tip[0] + 48}" y="{tip[1] - 2}" class="label">{_m("F")}</text>',
         f'<text x="{tip[0] + 48}" y="{tip[1] + 16}" class="small">tip load</text>',
-        _label(x0, 48, "CONTROL", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
+        _label(x0, 48, "Control", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
         f'<text x="{x1}" y="{y1 + 34}" class="small" text-anchor="end">dark = material, light = void</text>',
         _objective(
             f"{_up('min')}{_sub(_m('ρ'))} {_b('f')}{_sup('⊤')}"
@@ -520,9 +519,9 @@ def fig_thermal_mesh() -> str:
             f'<text x="381" y="242" class="small" text-anchor="middle" style="fill:{ACCENT}">'
             f"that reproduces {_m('T')}{_sub('obs')}</text>"
         ),
-        _label(lx, 40, "CONTROL", f"conductivity {_m('k')}({_m('x')}, {_m('y')})"),
+        _label(lx, 40, "Control", f"conductivity {_m('k')}({_m('x')}, {_m('y')})"),
         _label(
-            rx + s, 40, "OBSERVATION", "temperature field", anchor="end", quiet=True
+            rx + s, 40, "Observation", "temperature field", anchor="end", quiet=True
         ),
         _objective(
             f"{_up('min')}{_sub(_m('k'))} ‖{_m('T')}({_m('k')}) − {_m('T')}{_sub('obs')}‖{_sup('2')}",
@@ -536,11 +535,190 @@ def fig_thermal_mesh() -> str:
     )
 
 
+# ── F2: periodic box, Taylor–Green decay ─────────────────────────────────────
+
+
+def _vortex(cx: float, cy: float, r: float, ccw: bool, color: str) -> str:
+    """A circular arrow around (cx, cy), three quarters of a turn."""
+    a0, a1 = (200, -70) if ccw else (160, 430)
+    sx, sy = cx + r * math.cos(math.radians(a0)), cy - r * math.sin(math.radians(a0))
+    ex, ey = cx + r * math.cos(math.radians(a1)), cy - r * math.sin(math.radians(a1))
+    return (
+        f'<path d="M{sx:.1f},{sy:.1f} A{r:.1f},{r:.1f} 0 1 {1 if ccw else 0} {ex:.1f},{ey:.1f}" '
+        f'fill="none" stroke="{color}" stroke-width="1.8" stroke-opacity="0.85" '
+        f'marker-end="url(#ah-{"accent" if color == ACCENT else "indigo"}-sm)"/>'
+    )
+
+
+def _periodic_box(x0: float, y0: float, s: float, field: str, cid: str) -> str:
+    """A square field with dashed edges and wrap-around arrows on two sides."""
+    wrap = (
+        f'<path d="M{x0 + s * 0.35},{y0 - 8} C{x0 + s * 0.35},{y0 - 30} '
+        f'{x0 + s * 0.65},{y0 - 30} {x0 + s * 0.65},{y0 - 8}" fill="none" '
+        f'stroke="{MUTED}" stroke-width="1.3" marker-end="url(#ah-muted)"/>'
+        f'<path d="M{x0 + s + 8},{y0 + s * 0.35} C{x0 + s + 30},{y0 + s * 0.35} '
+        f'{x0 + s + 30},{y0 + s * 0.65} {x0 + s + 8},{y0 + s * 0.65}" fill="none" '
+        f'stroke="{MUTED}" stroke-width="1.3" marker-end="url(#ah-muted)"/>'
+    )
+    return (
+        f'<clipPath id="{cid}"><rect x="{x0}" y="{y0}" width="{s}" height="{s}"/></clipPath>'
+        f'<rect x="{x0}" y="{y0}" width="{s}" height="{s}" fill="{PAPER}"/>'
+        f'<g clip-path="url(#{cid})">{field}</g>'
+        f'<rect x="{x0}" y="{y0}" width="{s}" height="{s}" fill="none" stroke="{INK2}" '
+        f'stroke-width="1.5" stroke-dasharray="6 4"/>{wrap}'
+    )
+
+
+def fig_ns_2d_periodic() -> str:
+    s, y0 = 170, 104
+    lx, rx = 90, 460
+    q = s / 4
+    tgv = "".join(
+        _blob(lx + q * (1 + 2 * i), y0 + q * (1 + 2 * j), q * 1.25, c)
+        + _vortex(
+            lx + q * (1 + 2 * i),
+            y0 + q * (1 + 2 * j),
+            q * 0.55,
+            c == "accent",
+            ACCENT if c == "accent" else INDIGO,
+        )
+        for i in range(2)
+        for j in range(2)
+        for c in ["accent" if (i + j) % 2 == 0 else "indigo"]
+    )
+    mixed = "".join(
+        _blob(rx + s * x, y0 + s * y, s * r, c)
+        for x, y, r, c in (
+            (0.2, 0.25, 0.22, "accent"),
+            (0.55, 0.15, 0.16, "indigo"),
+            (0.8, 0.35, 0.2, "accent"),
+            (0.35, 0.6, 0.18, "indigo"),
+            (0.68, 0.72, 0.24, "plum"),
+            (0.15, 0.85, 0.14, "accent"),
+            (0.5, 0.42, 0.1, "accent"),
+        )
+    )
+    parts = [
+        _periodic_box(lx, y0, s, tgv, "tg0"),
+        _periodic_box(rx, y0, s, mixed, "tg1"),
+        (
+            f'<path d="M296,170 C340,140 400,140 444,170" fill="none" stroke="{INK2}" '
+            f'stroke-width="2" marker-end="url(#ah-ink)"/>'
+        ),
+        '<text x="370" y="128" class="small" text-anchor="middle">Navier–Stokes rollout</text>',
+        f'<text x="370" y="195" class="label" text-anchor="middle">{_m("t")} = 0 → {_m("T")}</text>',
+        _label(lx, 40, "Initial state", "Taylor–Green or multimode"),
+        _label(
+            rx + s, 40, "Boundaries", "periodic, no walls", anchor="end", quiet=True
+        ),
+        _objective(
+            f"{_b('u')}({_m('T')}) vs. analytic, "
+            f"∂{_m('L')}/∂{_b('u')}{_sub('0')} vs. finite differences",
+            470,
+            key="Checks",
+        ),
+    ]
+    return _svg(
+        "".join(parts),
+        "Navier–Stokes 2D, periodic box: decaying vortices, checked against the "
+        "analytic solution and finite differences",
+    )
+
+
+# ── F2: forced Kolmogorov flow, chained solver calls ────────────────────────
+
+
+def fig_ns_2d_kolmogorov() -> str:
+    s, x0, y0 = 170, 60, 104
+    turb = "".join(
+        _blob(x0 + s * x, y0 + s * y, s * r, c, 0.55)
+        for x, y, r, c in (
+            (0.25, 0.2, 0.18, "accent"),
+            (0.7, 0.3, 0.2, "indigo"),
+            (0.45, 0.55, 0.16, "plum"),
+            (0.2, 0.8, 0.2, "indigo"),
+            (0.78, 0.8, 0.18, "accent"),
+        )
+    )
+    # Body force f = (sin 4y, 0): two periods across the box keep it legible.
+    force = []
+    for y in _frange(y0 + 8, y0 + s - 8, 11.5):
+        f = math.sin(2 * math.pi * 2 * (y - y0) / s)
+        if abs(f) < 0.15:
+            continue
+        xm = x0 + s / 2
+        force.append(_arrow(xm, y, xm + 58 * f, y, "accent", 1.6))
+    curve = [
+        (x0 + s / 2 + 58 * math.sin(2 * math.pi * 2 * (y - y0) / s) + 0, y)
+        for y in _frange(y0, y0 + s, 2)
+    ]
+    box = (
+        f'<clipPath id="kf"><rect x="{x0}" y="{y0}" width="{s}" height="{s}"/></clipPath>'
+        f'<rect x="{x0}" y="{y0}" width="{s}" height="{s}" fill="{PAPER}"/>'
+        f'<g clip-path="url(#kf)">{turb}'
+        f'<path d="{_path(curve)}" fill="none" stroke="{ACCENT}" stroke-width="1.4" '
+        f'stroke-dasharray="4 3" stroke-opacity="0.8"/>{"".join(force)}</g>'
+        f'<rect x="{x0}" y="{y0}" width="{s}" height="{s}" fill="none" stroke="{INK2}" '
+        f'stroke-width="1.5" stroke-dasharray="6 4"/>'
+    )
+    # Chain of solver calls, with the gradient flowing back through it.
+    cy, w, gap = 189, 52, 26
+    xs = [300 + i * (w + gap) for i in range(3)] + [300 + 3 * (w + gap) + 22]
+    chain = [_arrow(x0 + s + 10, cy, xs[0] - 4, cy, "ink", 1.8)]
+    for i, x in enumerate(xs):
+        chain.append(
+            f'<rect x="{x}" y="{cy - 22}" width="{w}" height="44" rx="7" fill="{SAND}" '
+            f'stroke="{INK2}" stroke-width="1.4"/>'
+            f'<text x="{x + w / 2}" y="{cy + 6}" class="label" text-anchor="middle">'
+            f"{_m('Φ')}</text>"
+        )
+        if i < 2:
+            chain.append(_arrow(x + w + 2, cy, x + w + gap - 4, cy, "ink", 1.8))
+    chain.append(
+        f'<text x="{xs[2] + w + 22}" y="{cy + 5}" class="label" text-anchor="middle">…</text>'
+    )
+    chain += [
+        (
+            f'<text x="{(xs[0] + xs[-1] + w) / 2}" y="{cy - 36}" class="small" '
+            'text-anchor="middle">16 solver calls</text>'
+        ),
+        (
+            f'<path d="M{xs[-1] + w / 2},{cy + 30} C{xs[-1]},{cy + 62} {xs[0] + w},{cy + 62} '
+            f'{xs[0] + w / 2},{cy + 30}" fill="none" stroke="{ACCENT}" stroke-width="2" '
+            f'stroke-dasharray="5 4" marker-end="url(#ah-accent)"/>'
+        ),
+        (
+            f'<text x="{(xs[0] + xs[-1] + w) / 2}" y="{cy + 76}" class="small" '
+            f'text-anchor="middle" style="fill:{ACCENT}">gradient through the chain</text>'
+        ),
+    ]
+    parts = [
+        box,
+        *chain,
+        _label(x0, 40, "Forcing", f"body force {_b('f')} = (sin 4{_m('y')}, 0)"),
+        _label(
+            660, 40, "Process", "forced, damped turbulence", anchor="end", quiet=True
+        ),
+        _objective(
+            f"{_b('u')} vs. converged run, chained VJP vs. finite differences",
+            560,
+            key="Checks",
+        ),
+    ]
+    return _svg(
+        "".join(parts),
+        "Navier–Stokes 2D, Kolmogorov flow: forced turbulence, with gradients "
+        "through a chain of solver calls",
+    )
+
+
 FIGURES = {
-    "domain_ns_grid.svg": fig_ns_grid,
-    "domain_ns_3d_grid.svg": fig_ns_3d_grid,
-    "domain_structural_mesh.svg": fig_structural_mesh,
-    "domain_thermal_mesh.svg": fig_thermal_mesh,
+    "setup_ns_2d_periodic.svg": fig_ns_2d_periodic,
+    "setup_ns_2d_cylinder.svg": fig_ns_grid,
+    "setup_ns_2d_kolmogorov.svg": fig_ns_2d_kolmogorov,
+    "setup_ns_3d.svg": fig_ns_3d_grid,
+    "setup_structural.svg": fig_structural_mesh,
+    "setup_heat.svg": fig_thermal_mesh,
 }
 
 

@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 TESSERACTS = ROOT / "mosaic" / "tesseracts"
 _REPO_URL = "https://github.com/pasteurlabs/mosaic"
 
@@ -44,35 +44,17 @@ iv = _load_records_module()
 
 EFFORT_LABEL = "Effort"
 DEVIATIONS_LABEL = "Deviations"
-NOTHING_REQUIRED = "none"
+# The effort of a solver that needs no intervention beyond the baseline.
+BASELINE_LEVEL = "L0"
 NOT_RECORDED = "not recorded"
 
-# Explains the two columns and the filter; shown once per results page.
+# Explains the two columns on a results page without check tables.
 EFFORT_EXPLAINER = (
-    "**Effort** is the highest level among the interventions a solver *needs* "
-    "on this setup: L0 documented use (public API and documented options), "
-    "L1 undocumented configuration, L2 user code on the library's public "
-    "primitives, L3 changes to the solver itself (monkeypatches, private "
-    "APIs, patched sources). *none* means nothing beyond ordinary use is "
-    "required. **Deviations** counts the places where a solver runs a "
-    "substitute for the prescribed setup. Hover over a cell for the details; "
-    "the [Solver Reference](solvers.qmd) lists every intervention with its "
-    "reason and evidence."
-)
-
-# The select is read by docs/effort-filter.html; its values are the highest
-# level shown.
-LEVEL_FILTER_HTML = (
-    "```{=html}\n"
-    '<div class="m-effort-filter"><label>Show solvers whose effort is at most '
-    '<select class="m-effort-select">'
-    '<option value="L3" selected>any level</option>'
-    '<option value="L2">L2, user code</option>'
-    '<option value="L1">L1, undocumented configuration</option>'
-    '<option value="L0">L0, documented use</option>'
-    '<option value="none">none required</option>'
-    "</select></label></div>\n"
-    "```"
+    "**Effort** is the highest level, from L0 to L3, among the interventions a "
+    "solver *needs* on this setup, and **deviations** counts the places where "
+    "it runs a substitute for part of the setup. The "
+    "[solver reference](../solvers.qmd#effort-levels) explains the levels and "
+    "lists every intervention."
 )
 
 
@@ -103,6 +85,11 @@ def records_for(setup: str) -> dict[str, object]:
     return iv.load_records(TESSERACTS, domain) if domain else {}
 
 
+def title(item: object) -> str:
+    """An intervention's or deviation's title, or its id if it has none."""
+    return item.title or item.id
+
+
 def effort_parts(record: object | None, setup: str) -> tuple[str, str]:
     """The effort of one solver on one setup, as ``(text, detail)``.
 
@@ -113,9 +100,12 @@ def effort_parts(record: object | None, setup: str) -> tuple[str, str]:
     required = [i for i in record.interventions_for(setup) if i.necessity == "required"]
     level = record.effort(setup)
     if level is None:
-        return NOTHING_REQUIRED, "No intervention is required on this setup."
+        return BASELINE_LEVEL, (
+            f"{BASELINE_LEVEL}, {iv.LEVEL_NAMES[BASELINE_LEVEL]}. "
+            "No intervention is required on this setup."
+        )
     detail = "; ".join(
-        f"{i.level} {i.id}"
+        f"{i.level} {title(i)}"
         for i in sorted(required, key=lambda i: iv.LEVELS.index(i.level), reverse=True)
     )
     return level, f"{level}, {iv.LEVEL_NAMES[level]}. Required: {detail}."
@@ -128,8 +118,15 @@ def deviations_parts(record: object | None, setup: str) -> tuple[str, str]:
     devs = record.deviations_for(setup)
     if not devs:
         return "—", ""
-    detail = " ".join(f"{d.id}: {d.what} Effect: {d.effect}" for d in devs)
+    detail = " ".join(f"{title(d)}. Effect: {d.effect}" for d in devs)
     return str(len(devs)), detail
+
+
+def deviation_items(record: object | None, setup: str) -> list[tuple[str, str]]:
+    """The setup deviations of one solver on one setup, as ``(title, effect)``."""
+    if record is None:
+        return []
+    return [(title(d), _one_line(d.effect)) for d in record.deviations_for(setup)]
 
 
 def _hover_cell(parts: tuple[str, str]) -> str:
@@ -156,7 +153,7 @@ def interventions_cell(record: object | None, setup: str) -> str:
         return "—"
     unknown = sum(i.reason_unknown for i in items)
     text = f"{len(items)}" + (f" ({unknown} unknown reason)" if unknown else "")
-    detail = "; ".join(f"{i.id} ({i.level}, {i.necessity})" for i in items)
+    detail = "; ".join(f"{title(i)} ({i.level}, {i.necessity})" for i in items)
     return tip(text, detail)
 
 
@@ -172,43 +169,61 @@ def linkify(text: str) -> str:
     return _PR_REF.sub(rf"[#\1]({_REPO_URL}/pull/\1)", text)
 
 
-def _cell(text: str) -> str:
-    return linkify(text).replace("|", "\\|")
-
-
 def _setup_label(key: str) -> str:
     setup = iv.SETUPS.get(key)
     return setup.label if setup else key
 
 
-def mentioned_setups(record: object, setups: tuple[str, ...]) -> tuple[str, ...]:
-    """The setups of ``setups`` that the record says anything about."""
-    named = {s for i in record.interventions for s in i.why}
-    named |= {s for d in record.deviations for s in d.setups}
-    return tuple(s for s in setups if s in named)
+def _consequences(reason: object) -> str:
+    return ", ".join(c.replace("-", " ") for c in reason.consequences)
 
 
-def summary_line(record: object, setups: tuple[str, ...]) -> str:
-    """One line: effort per setup and how many records have no known reason."""
-    setups = mentioned_setups(record, setups)
-    if not setups:
-        return "**Effort:** nothing beyond ordinary use is recorded"
-    efforts = " · ".join(
-        f"{_setup_label(s)} {record.effort(s) or NOTHING_REQUIRED}" for s in setups
-    )
-    n = len(record.interventions)
-    unknown = sum(i.reason_unknown for i in record.interventions)
-    parts = [f"**Effort:** {efforts}"]
-    parts.append(
-        f"{n} intervention{'s' if n != 1 else ''}"
-        + (f", {unknown} with unknown reason" if unknown else "")
-    )
-    d = len(record.deviations)
-    parts.append(f"{d} setup deviation{'s' if d != 1 else ''}")
-    return " — ".join(parts)
+def _intervention_item(i: object) -> list[str]:
+    """One intervention: title, what was done and why per setup, with the
+    notes, evidence and upstream link behind a disclosure."""
+    tags = [i.necessity] + (["tuned"] if i.tuned else [])
+    lines = [
+        "::: {.iv-item}",
+        f"[{title(i)}]{{.iv-title}} [{i.level}]{{.iv-level}} "
+        + " ".join(f"[{t}]{{.iv-tag}}" for t in tags),
+        "",
+        linkify(i.what),
+        "",
+    ]
+    # Setups with the same reason are listed once.
+    grouped: dict[object, list[str]] = {}
+    for s, r in i.why.items():
+        grouped.setdefault(r, []).append(_setup_label(s))
+    lines += [
+        f"- *{', '.join(names)}*"
+        + (f" ({_consequences(r)})" if r.consequences else "")
+        + f": {linkify(r.symptom)}"
+        for r, names in grouped.items()
+    ]
+    lines.append("")
+    details = []
+    for r, names in grouped.items():
+        parts = [linkify(r.notes)] if r.notes else []
+        if r.evidence:
+            parts.append(f"Evidence: {linkify(r.evidence)}")
+        if parts:
+            details.append(f"- *{', '.join(names)}*: {' '.join(parts)}")
+    if i.upstream:
+        details.append(f"- Upstream: {linkify(i.upstream)}")
+    details.append(f"- Record id: `{i.id}`")
+    lines += [
+        '<details class="iv-details"><summary>Details</summary>',
+        "",
+        *details,
+        "",
+        "</details>",
+        ":::",
+        "",
+    ]
+    return lines
 
 
-def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]:
+def developer_block(record: object | None) -> list[str]:
     """Markdown lines describing a solver's record on the solver reference."""
     if record is None:
         return [
@@ -216,74 +231,35 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
             "",
         ]
     lines = [
-        summary_line(record, setups),
-        "",
-        '::: {.callout-note collapse="true"}',
+        "::: {.callout-note}",
         "#### Interventions and deviations",
         "",
-        (
-            f"Abstraction level: **{record.abstraction}**. Effort counts only "
-            "`required` interventions. Each item is an invitation to contribute: "
-            "an upstream fix or a better configuration moves the solver down the "
-            "ladder."
-        ),
+        f"Abstraction level: **{record.abstraction}**.",
         "",
     ]
     active = [i for i in record.interventions if i.active]
     if active:
-        lines += [
-            "| Intervention | Level | Necessity | Why, per setup | Upstream |",
-            "|---|---|---|---|---|",
-        ]
         for i in active:
-            name = f"`{i.id}`" + (" (tuned)" if i.tuned else "")
-            # Setups that share one reason (YAML anchors) are listed once.
-            grouped: dict[object, list[str]] = {}
-            for s, r in i.why.items():
-                grouped.setdefault(r, []).append(_setup_label(s))
-            why = "<br>".join(
-                f"*{', '.join(names)}*"
-                + (f" ({', '.join(r.consequences)})" if r.consequences else "")
-                + f": {_cell(r.symptom)}"
-                + (f" Evidence: {_cell(r.evidence)}" if r.evidence else "")
-                for r, names in grouped.items()
-            )
-            lines.append(
-                f"| {name}: {_cell(i.what)} | {i.level} | {i.necessity} | {why} "
-                f"| {_cell(i.upstream) if i.upstream else '—'} |"
-            )
-        lines.append("")
+            lines += _intervention_item(i)
     else:
-        lines += ["No interventions beyond ordinary use.", ""]
+        lines += ["No interventions are recorded.", ""]
 
     if record.deviations:
         lines += ["**Setup deviations**", ""]
         for d in record.deviations:
             where = ", ".join(_setup_label(s) for s in d.setups)
             lines.append(
-                f"- `{d.id}` ({where}): {linkify(d.what)} "
+                f"- **{title(d)}** ({where}): {linkify(d.what)} "
                 f"*Effect:* {linkify(d.effect)}"
                 + (f" *Evidence:* {linkify(d.evidence)}" if d.evidence else "")
             )
         lines.append("")
 
-    unknown = [i for i in active if i.reason_unknown]
-    if unknown:
-        lines += [
-            (
-                "**Reason unknown.** Nobody has measured whether these are "
-                "needed; a measurement, or removing them, would settle it:"
-            ),
-            "",
-        ]
-        lines += [f"- `{i.id}` ({i.level}): {linkify(i.what)}" for i in unknown]
-        lines.append("")
-
     inactive = [i for i in record.interventions if not i.active]
     if inactive:
         lines += [
-            "**Inactive** (present in the code, exercised by no experiment): "
-            + ", ".join(f"`{i.id}`" for i in inactive),
+            "**Inactive** (present in the code, but exercised by no experiment): "
+            + ", ".join(title(i) for i in inactive),
             "",
         ]
     lines += [":::", ""]

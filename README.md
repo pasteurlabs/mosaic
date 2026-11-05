@@ -1,176 +1,88 @@
 <p align="center">
-  <img src="docs/logo.webp" width="560" alt="Mosaic">
+  <img src="docs/figures/logo.webp" width="560" alt="Mosaic">
 </p>
 
 # Mosaic
 
-**A benchmark suite and reusable collection of differentiable physics solvers.** <br>
-Think OpenAI Gym, but for differentiable physics: a growing catalog of tasks across physical domains, with a standardized interface and evaluation protocol for every solver and their gradients.
+Mosaic benchmarks differentiable physics solvers on accuracy, gradient quality and cost, in compute and in development effort.
 
-<a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html"><img src="https://img.shields.io/badge/%F0%9F%93%8A_results-browse-3b6fb6" alt="Results"></a>
-<a href="#run-the-benchmarks"><img src="https://img.shields.io/badge/%E2%96%B6_run-the_benchmarks-555" alt="Run"></a>
-<a href="#use-tesseracts-in-your-own-code"><img src="https://img.shields.io/badge/%F0%9F%A7%A9_use-in_your_code-555" alt="Use"></a>
+<a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/results/"><img src="https://img.shields.io/badge/%F0%9F%93%8A_results-browse-3b6fb6" alt="Results"></a>
+<a href="#run-the-benchmark"><img src="https://img.shields.io/badge/%E2%96%B6_run-the_benchmark-555" alt="Run"></a>
+<a href="#use-solvers-in-your-own-code"><img src="https://img.shields.io/badge/%F0%9F%A7%A9_use-in_your_code-555" alt="Use"></a>
 <a href="#contribute"><img src="https://img.shields.io/badge/%F0%9F%A4%9D_contribute-add_a_solver-555" alt="Contribute"></a>
 <a href="https://docs.pasteurlabs.ai/projects/mosaic/stable/"><img src="https://img.shields.io/badge/docs-stable-3b6fb6" alt="Stable docs"></a>
 <a href="https://arxiv.org/abs/2606.27895"><img src="https://img.shields.io/badge/paper-arXiv-b31b1b" alt="Paper"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
 
-![Overview of Mosaic: diverse solver backends are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.](docs/visual_abstract.png)
-
-> [!NOTE]
-> :robot: **Disclaimer on LLM usage.** Mosaic is an ambitious project driven by a _(so far)_ small community. This is only made tractable through judicious use of our robot friends. Don't let this fool you! Mosaic is very much assembled, curated, and cared for by [humans](https://github.com/pasteurlabs/mosaic/graphs/contributors). You can always talk to us (and get a hand-written response) by [opening an issue](https://github.com/pasteurlabs/mosaic/issues) or joining the [Tesseract Forum](https://si-tesseract.discourse.group/).
+![Overview of Mosaic: diverse solvers are wrapped behind a uniform containerized interface (Tesseract), enabling cross-solver comparison on shared benchmark tasks across different physical domains.](docs/figures/visual_abstract.png)
 
 ## What Mosaic measures
 
-If you optimize or train _through_ a physics simulation, the solver must return two correct things: the forward prediction **and** its gradient (the vector–Jacobian product, VJP). Most benchmarks check only the forward pass. Mosaic checks both, and scores every solver on three axes:
+If you optimize or train _through_ a simulation, the solver has to return a correct forward prediction and a usable gradient (the vector–Jacobian product, VJP). Mosaic checks both. For every solver and setup, it reports:
 
-- **Gradient accuracy** — does the VJP match a finite-difference ground truth?
-- **Computational cost** — wall-clock time (forward + VJP) and peak memory.
-- **Setup compatibility** — does the solver even _run_ on the task, or do structural constraints rule it out?
+- **Forward accuracy**
+  - error against analytic solutions, literature values and converged high-resolution runs, across resolution and viscosity
+  - physical laws such as a divergence-free velocity field
+  - agreement with the other solvers
+- **Gradient quality**
+  - agreement with finite differences, in direction and magnitude, and with analytic gradients where they exist
+  - how accuracy holds up as the rollout lengthens, and through a chain of solver calls
+  - the conditioning of the Jacobian, from its singular values
+  - whether a gradient-based optimizer makes progress through the solver, and how many iterations it needs
+- **Compute cost**
+  - wall-clock time of the forward and VJP calls, across problem size and rollout length
+  - peak memory
+  - how large a problem or how long a rollout a solver handles before it runs out of memory or time
+- **Development cost**
+  - the effort it took to make the solver run each setup, from L0 (nothing beyond expected tweaks) to L3 (changing the solver itself)
+  - the reason and evidence for every intervention
+  - deviations, where a solver runs a substitute for part of the prescribed setup, and their effect on the results
 
-Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container exposing a uniform `apply` / `vjp` interface. A single harness can therefore compare solvers across languages and AD backends (JAX, PyTorch, Julia, hand-written C++ adjoints) by talking only to that common interface.
-
-## Domains & solvers
-
-| ID     | Domain                     | Optimization task              | Solvers                                                   |
-| :----- | :------------------------- | :----------------------------- | :-------------------------------------------------------- |
-| **H**  | Heat transfer              | Conductivity inversion         | deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem            |
-| **S**  | Structural mechanics       | Compliance minimization (SIMP) | deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem |
-| **F2** | Incompressible fluids (2D) | Inflow optimization (drag)     | JAX-CFD, PhiFlow, INS.jl, XLB, PICT, Warp-NS, OpenFOAM    |
-| **F3** | 3D Navier–Stokes           | Initial condition recovery     | PhiFlow, XLB, PICT, Warp-NS, Exponax, INS.jl, OpenFOAM    |
+Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container with a uniform `apply` / `vjp` interface, so a single harness can compare solvers across languages and AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints). The [solver reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/solvers.html) lists every solver with its numerics and its intervention record.
 
 ## 📊 Results
 
-**[Browse the benchmark results →](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html)** — no setup required.
+**[Browse the benchmark results →](https://docs.pasteurlabs.ai/projects/mosaic/stable/results/)**
 
-Per-domain pages with every plot, solver rankings, and the full evaluation protocol, refreshed on each release:
-[Navier–Stokes 2D](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_grid.html) ·
-[Navier–Stokes 3D](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_ns_3d_grid.html) ·
-[Structural mechanics](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_structural_mesh.html) ·
-[Heat transfer](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results_thermal_mesh.html)
-
-## So, which solver is best?
-
-It depends, and there likely isn't even a "best" solver for a given task. These solvers were built for different jobs, in different languages, with different differentiation strategies, and very different user experiences. Mosaic runs them side by side to make those differences visible, but also marginalizes over a lot of nuance.
-
-What we can offer are a few patterns that recur across domains and are unlikely to shift with more configuration tuning, because they follow from fundamental constraints rather than from how exactly a solver is set up.
-
-> [!NOTE]
-> These takeaways are the high-level version and are glossing over a lot of detail. For the full analysis see our [paper](https://arxiv.org/abs/2606.27895).
-
-**On well-conditioned problems, compute performance and integration effort matter most.** Heat transfer and structural mechanics are our controlled cases, where the physics is linear and the objective is smooth. Every differentiable solver reproduces the finite-difference gradient direction almost exactly (cosine similarity above 0.999), and although pointwise accuracy still spans a few orders of magnitude, that spread does not decide the outcome, since all backends agree on the forward solution and converge to effectively the same optimum. What is left to distinguish them is how fast the forward-plus-VJP pass runs and how much work it took to wire up. For a large class of inverse and design problems, you can simply pick the solver that is fastest and/or easiest to integrate.
-
-**Rollout length is a fundamental bottleneck.** Pushing the 3D Navier–Stokes gradient out to longer and longer horizons separates a solver's success into two separate properties. The first is _gradient conditioning_, set by the numerical discretization: as the flow turns chaotic, projection-based schemes tend to accumulate spurious non-physical modes that corrupt the gradient (return non-finite values within a couple hundred steps), whereas lattice-Boltzmann and finite-volume schemes keep the gradient bounded far longer. The second is _memory_, set by the differentiation strategy: tape-based reverse-mode AD stores every step and eventually runs out, while methods that avoid unrolling the full trace stay within budget. So at long horizons, prefer a well-conditioned discretization with an AD strategy that does not grow with the rollout, and always check the gradient magnitude rather than trusting that a run which completes has produced a usable gradient.
-
-**Whether a solver can even run the task is a major constraint.** For example, on the 2D drag-minimization problem, only four of seven fluid solvers can participate at all. Some assume periodic boundaries and cannot represent the obstacle, others rely on a spectral projection incompatible with the geometry. Before comparing gradient quality, check whether a solver's assumptions match your problem.
-
-Note that today's tasks are deliberately on the simpler end — laminar flow, linear elasticity, modest horizons — and configurations are mostly out-of-the-box rather than expert-tuned. Harder regimes may well surface cases where raw gradient quality becomes the binding constraint.
-
-> [!TIP]
-> Browse the [per-domain pages](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/results.html) for the numbers behind each of these claims.
+The results overview, refreshed on each release, shows the checks, cost, effort and deviations of every solver on every setup. Each setup has its own page with every plot. For findings drawn from these results, see the [paper](https://arxiv.org/abs/2606.27895).
 
 ## 📖 Documentation
 
-Two versions are published. **You most likely want to use [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/) — it tracks the latest release and is the most reliable (all solvers benchmarked in the same run).** [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may aggregate results from different runs.
+Two versions are published. You most likely want [stable](https://docs.pasteurlabs.ai/projects/mosaic/stable/), which tracks the latest release and shows results from a single run of all solvers. [Latest](https://docs.pasteurlabs.ai/projects/mosaic/latest/) tracks the `main` branch and may combine results from different runs.
 
-Start here:
-[Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html) ·
-[Use Solvers Elsewhere](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/standalone.html) ·
-[Solver Reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/solvers.html) ·
-[How it works](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/internals.html) ·
-[Add a Backend](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/tutorial.html)
+- [Overview](https://docs.pasteurlabs.ai/projects/mosaic/stable/)
+- [Results](https://docs.pasteurlabs.ai/projects/mosaic/stable/results/)
+- [Solvers](https://docs.pasteurlabs.ai/projects/mosaic/stable/solvers.html)
+- [Run the benchmark](https://docs.pasteurlabs.ai/projects/mosaic/stable/getting-started.html)
+- [Use a solver in your code](https://docs.pasteurlabs.ai/projects/mosaic/stable/standalone.html)
+- [Contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html)
+- [Paper](https://arxiv.org/abs/2606.27895)
 
 > [!TIP]
 > **Reproducing our paper?** See the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions.
 
 ---
 
-## Run the benchmarks
+## Run the benchmark
 
-**Requires** Python ≥ 3.11, Docker, and — for GPU solvers — the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
-
-> [!WARNING]
-> We strongly recommend **Linux with Docker Engine**. Docker Desktop on macOS/Windows runs containers in a VM, adding significant overhead and ARM compatibility issues on Apple Silicon. On macOS/Windows, prefer a Linux VM or WSL 2 with Docker Engine installed natively.
+Mosaic needs Python ≥ 3.11 and Docker. To run every solver, you need Linux with Docker Engine, an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Without a GPU, `--gpus none` restricts a run to the CPU-only solvers. macOS and Windows are not supported ([why](https://docs.pasteurlabs.ai/projects/mosaic/stable/getting-started.html#requirements)).
 
 ```bash
 git clone https://github.com/pasteurlabs/mosaic && cd mosaic
-uv sync          # or: pip install -e .
-mosaic run       # builds containers, runs experiments, generates plots
+uv sync && source .venv/bin/activate   # or: pip install -e .
+mosaic run -p thermal-mesh --suites forward --gpus none --debug
 ```
 
-**Verify your setup** with a single-problem `--debug` run (reduced grid sizes, finishes in minutes):
+The last command builds the CPU-only heat-transfer solvers and runs a reduced forward check, which works without a GPU. [Run the benchmark](https://docs.pasteurlabs.ai/projects/mosaic/stable/getting-started.html) covers the full run, choosing what runs, resuming, reading the output and troubleshooting.
+
+## Use solvers in your own code
+
+Every solver is a standalone Tesseract that you can call from your own JAX or PyTorch code without the benchmark harness. Build the image once, then differentiate through it with [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax):
 
 ```bash
-$ mosaic run -p thermal-mesh --suites forward --debug
-──────────────────────────── problem: thermal-mesh ─────────────────────────────
-──────────────────────────────────── build ─────────────────────────────────────
-  deal.II          → dealii_heat_thermal_mesh:latest     (3.6s)
-  FEniCS           → fenics_heat_thermal_mesh:latest     (3.2s)
-  Firedrake        → firedrake_heat_thermal_mesh:latest  (2.4s)
-  JAX-FEM          → jax_fem_thermal_mesh:latest         (5.1s)
-  torch-fem        → torch_fem_thermal_mesh:latest       (4.8s)
-─────────────────────────────────── summary ────────────────────────────────────
-┏━━━━━━━━━━━━━━┳━━━━━━━━━┓
-┃ problem      ┃ forward ┃
-┡━━━━━━━━━━━━━━╇━━━━━━━━━┩
-│ thermal-mesh │   ok    │
-└──────────────┴─────────┘
+pip install -e mosaic/mosaic_shared tesseract-jax
+tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 ```
-
-<details>
-<summary><strong>Common workflows</strong> — inspect results, pick solvers, re-run a subset</summary>
-
-#### Inspect results
-
-```bash
-mosaic status                        # per-experiment completion table
-mosaic status -p ns-grid -f          # single domain with failure reasons
-mosaic status --format md > report.md
-mosaic status --format json > snap.json
-```
-
-#### Pick which solvers run
-
-`-s` / `--solvers` takes either a flat CSV (union across every problem) or a per-problem map:
-
-```bash
-# Flat CSV — each problem keeps only the listed solvers that exist there.
-mosaic run -s OpenFOAM,XLB,deal.II,JAX-FEM
-
-# Per-problem map — explicit picks per domain.
-mosaic run -s "ns-grid=XLB,jax-cfd;structural-mesh=Firedrake,JAX-FEM"
-```
-
-#### Re-run a subset
-
-`mosaic run --only <state[,…]>` re-executes only cells in the given state, leaving fresh-ok cells alone — handy for iterating on one solver or recovering from a partial failure.
-
-```bash
-mosaic run --only failed              # re-run only failed cells
-mosaic run --only failed,stale        # plus anything invalidated by the harness/source
-mosaic run --only missing             # first-time runs only
-mosaic run -s PhiFlow --only excluded # re-check after dropping an exclusion
-```
-
-States: `failed`, `anom`, `missing`, `stale`, `excluded`. Combine with `-p` / `--suites` / `-e` / `-s` for finer scoping.
-
-</details>
-
-The full CLI reference and smoke-test workflow live in [Getting Started](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/getting-started.html).
-
-## Use Tesseracts in your own code
-
-Every solver is a standalone [Tesseract](https://github.com/pasteurlabs/tesseract-core) you can call from your own research code — no benchmark harness required.
-
-```bash
-# Shared schemas (deps: pydantic + tesseract-core only)
-pip install -e mosaic/mosaic_shared
-
-# For containerised usage (recommended): also install tesseract-jax
-pip install tesseract-core tesseract-jax jax
-```
-
-**Via container** (works for every solver regardless of language). Build the image once, then call it from JAX with full `grad` support:
 
 ```python
 import jax
@@ -179,48 +91,26 @@ from tesseract_core import Tesseract
 from tesseract_jax import apply_tesseract
 from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
 
-ic = make_vortex_ic(N=64, seed=42)
-inputs = {"v0": ic, "viscosity": jnp.array([0.01]), "steps": 50}
+inputs = {"v0": make_vortex_ic(N=64, seed=42), "viscosity": jnp.array([0.01]), "steps": 50}
 
 with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
-    outputs = apply_tesseract(t, inputs)
-    grad_v0 = jax.grad(lambda v0: jnp.mean(
-        apply_tesseract(t, {**inputs, "v0": v0})["result"] ** 2
-    ))(inputs["v0"])
+    def loss(v0):
+        return jnp.mean(apply_tesseract(t, {**inputs, "v0": v0})["result"] ** 2)
+
+    grad_v0 = jax.grad(loss)(inputs["v0"])
 ```
 
-A **local (no Docker)** path is also available for Python-only solvers — see the full guide below.
-
-📖 [Standalone Usage](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/standalone.html) (GPU, mesh-based solvers, gotchas) · [Solver Reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/solvers.html) (per-solver catalog with image names)
-
-<details>
-<summary><strong>Programmatic API</strong> — run evaluations without the CLI</summary>
-
-```python
-from mosaic import get_config, PROBLEMS
-
-cfg = get_config("ns-grid")           # Problem for 2-D Navier-Stokes
-print(cfg.solver_names)               # available solver backends
-
-# Each (suite, experiment) is registered on the Problem as an Experiment
-# closure. Invoke one directly with a {solver_name: image_tag} mapping:
-tags = {s.name: s.image_tag for s in cfg.solvers}
-results = cfg.experiments["gradient/fd_check"].fn(cfg, tags)
-```
-
-Top-level imports: `PROBLEMS`, `get_config`, `Problem`, `SolverSpec`, `IcSpec`, and the shared suite-kernel modules `forward`, `gradient`, `cost`, `optimization` (from `mosaic.benchmarks.problems.shared`).
-
-</details>
+[Use a solver in your code](https://docs.pasteurlabs.ai/projects/mosaic/stable/standalone.html) covers the inputs and outputs, PyTorch, running without Docker, mesh solvers and GPUs.
 
 ## Contribute
 
-Mosaic is designed to grow with the community. Three ways in, roughly by scope:
+Mosaic is designed to grow with its community. There are three main ways to contribute, roughly in order of scope:
 
-- **Tune an existing solver** — improve an out-of-the-box config. Snapshot `mosaic status --format json` before/after and include the diff. → [CONTRIBUTING.md](CONTRIBUTING.md#tuning-an-existing-solver)
-- **Add a solver** to an existing domain — three files under `mosaic/tesseracts/<domain>/<solver-name>/`. → [Add a Solver tutorial](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/tutorial.html#part-a--add-a-solver-to-an-existing-domain)
-- **Add a benchmark domain** — scaffold with `mosaic new-domain <name> --from-template <template>`. → [Add a Domain tutorial](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/tutorial.html#part-b--add-a-new-benchmark-domain)
+- **Tune an existing solver** and record what you changed in its intervention record. See [tuning an existing solver](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html#tuning-an-existing-solver).
+- **Add a solver** to an existing domain, with three files under `mosaic/tesseracts/<domain>/<solver-name>/`. See [Add a solver](https://docs.pasteurlabs.ai/projects/mosaic/stable/add-solver.html).
+- **Add a problem** for new physics, scaffolded with `mosaic new-domain <name> --from-template <template>`. See [Add a problem](https://docs.pasteurlabs.ai/projects/mosaic/stable/add-problem.html).
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers code style, the PR workflow, and building the docs locally. For questions, visit the [Tesseract Forum](https://si-tesseract.discourse.group/).
+The [contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html) covers the development setup, the pull request workflow and the conventions. [CONTRIBUTING.md](CONTRIBUTING.md) has the contributor license agreement and the code of conduct. For questions, [open an issue](https://github.com/pasteurlabs/mosaic/issues) or visit the [Tesseract Forum](https://si-tesseract.discourse.group/).
 
 ## Project structure
 
@@ -228,18 +118,24 @@ Mosaic is designed to grow with the community. Three ways in, roughly by scope:
 mosaic/
   benchmarks/             # evaluation harness (Python package: mosaic.benchmarks)
     cli/                  # command-line interface, one module per subcommand
-    core/                 # runner, config, hardware detection, solver auto-discovery
-    problems/             # per-domain packages (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
-      shared/             # cross-domain suite kernels (forward, gradient, cost, optimization)
+    core/                 # runner, config, hardware detection, solver discovery, intervention records
+    problems/             # one package per problem (ns-grid, ns-3d-grid, structural-mesh, thermal-mesh)
+      shared/             # suite kernels shared across problems (forward, gradient, cost, optimization, ics)
         plots/            # plotting infrastructure
-  mosaic_shared/          # shared Tesseract interface schemas (also pip-installable)
-  templates/              # task templates for scaffolding new domains
-  tesseracts/             # solver backends (each is a Tesseract container)
-    navier-stokes-grid/   # JAX-CFD, PhiFlow, XLB, PICT, Warp-NS, etc.
-    structural-mesh/      # deal.II, FEniCS, Firedrake, JAX-FEM, TopOpt.jl, torch-fem
-    thermal-mesh/         # deal.II, FEniCS, Firedrake, JAX-FEM, torch-fem
-tests/                    # unit tests (run with pytest)
-docs/                     # Quarto documentation site
+  mosaic_shared/          # canonical schemas and shared types for the solvers (also pip-installable)
+  templates/              # templates for scaffolding new domains
+  tesseracts/             # solvers, one Tesseract per directory
+    navier-stokes-grid/   # incompressible flow on grids, 2D and 3D
+    structural-mesh/      # linear elasticity on hexahedral meshes
+    thermal-mesh/         # steady heat conduction on hexahedral meshes
+tests/                    # unit and integration tests (run with pytest)
+docs/                     # Quarto documentation site (_quarto.yml)
+  *.qmd                   # the pages: overview, guides, solver reference
+  results/                # results overview and one page per setup
+  figures/                # images shown on the pages
+  assets/                 # theme and page scripts
+  scripts/                # generators for the results pages and the solver reference, figure scripts
+  Makefile                # builds the site (cd docs && make html)
 ```
 
 ## Citation
@@ -260,4 +156,4 @@ If you use Mosaic in your research, please cite the paper ([arXiv:2606.27895](ht
 
 ## License
 
-Apache 2.0. Individual solver backends retain their upstream licenses, documented per solver in the repository.
+Apache 2.0. Individual solvers retain their upstream licenses, documented per solver in the repository.

@@ -1,0 +1,65 @@
+---
+title: Results
+---
+
+::: {.callout-tip appearance="simple"}
+**These are example results from GitHub-hosted runners, refreshed on every release.** Wall-clock times vary between runs, so treat absolute times as indicative and compare solvers by their relative cost. For numbers that reflect your own hardware, [run the benchmark yourself](../getting-started.qmd).
+:::
+
+::: {.callout-warning appearance="simple"}
+**Faster does not mean better.** So far, Mosaic's setups are kept simple so that many solvers can run them. That favors solvers built for exactly these problems and hides what general-purpose libraries offer, like support for complex geometries, boundary conditions, and turbulence schemes. The table shows how each solver does on the Mosaic setups, not which solver is *better*.
+:::
+
+::: {.callout-note appearance="simple"}
+**The integrations may not make the best use of each library.** They're written by Mosaic team or a contributor, and the effort column and the modified-setup notes record what was needed to do so. If you know a solver well and can improve its configuration, [please contribute!](../contributing.qmd#tuning-an-existing-solver)
+:::
+
+## How to read the results {#how-to-read-the-results}
+
+Rows are ordered by checks passed, then by forward cost. Mosaic does not combine the columns into a single score.
+
+| Column | Meaning |
+|---|---|
+| Forward, Gradient, Optimization | Whether the setup's experiments in that suite met their pass criteria. Hover for the numbers. *k of n run*: only some of the experiments behind the check ran. |
+| Forward cost, VJP cost | Wall-clock time at the size N in the group's header, the largest that every solver in the group completed, and its multiple of the fastest. A solver that completed fewer than half of the sizes is left out, and the cell says where it stopped. |
+| Cost to 10% error | On the Kolmogorov flow, the wall time per simulated time unit a solver needs to stay within 10% relative error of the converged truth at t = 4, interpolated between the grids it ran. *≤* means the coarsest grid already got there. |
+| Time to plateau | How far into the optimization run the loss had made 95% of its improvement, on a log scale, and its multiple of the fastest. Results recorded before the harness kept this time estimate it as the run's wall time times the share of its iterations run by then, which includes startup and compilation pro rata. Where a run's iteration counts were not all recorded, the column counts iterations instead. |
+| Peak memory | Of the VJP pass (the forward pass for forward-only solvers): device memory on a GPU, container memory on a CPU. |
+| Effort | The most invasive intervention the solver needs on the setup, from [L0]{.eff .eff-L0} (nothing beyond documented options) to [L3]{.eff .eff-L3} (changes to the solver itself). See [effort levels](../solvers.qmd#effort-levels). |
+
+A solver marked *modified setup* runs a substitute for part of the setup, such as a different outflow condition, so its checks hold for the modified setup. The notes below the table say what it changes and how that affects the results.
+
+::: {.ck-legend}
+| State | Meaning |
+|---|---|
+| [✓ Pass]{.ck .ck-pass} | Every experiment met its criteria. |
+| [! Flagged]{.ck .ck-flagged} | An experiment ran but missed its criteria. |
+| [✗ Fail]{.ck .ck-fail} | An experiment errored or produced no valid result. |
+| [⊘ Blocked]{.ck .ck-blocked} | Excluded for a recorded reason, such as an instability or an upstream bug, which the cell names. |
+| [— Not supported]{.ck .ck-na} | The method cannot express the experiment, e.g. a forward-only solver has no gradient. |
+| [· Not run]{.ck .ck-notrun} | Not run in this campaign. |
+:::
+
+::: {.callout-note collapse="true" title="Experiments behind each check"}
+{{< include ../_generated/gates.qmd >}}
+
+Some criteria are absolute, such as an error bound against an analytic solution, an observed order of convergence or a minimum agreement with finite differences. Others compare a solver with its peers on the same experiment, for example an error more than three times their median, so a flag on such a criterion marks an outlier that may still be accurate enough for a given task. The thresholds are provisional and will be refined with the solver maintainers. They live next to each experiment in `mosaic/benchmarks/problems/<problem>/config.py`.
+:::
+
+## Checks by setup {#checks}
+
+::: {.column-page}
+{{< include ../_generated/scoreboard.qmd >}}
+:::
+
+## Download the data {#data}
+
+The full result tree of every release, with the metrics, fields and plot specs behind these pages, is attached to its [GitHub release](https://github.com/pasteurlabs/mosaic/releases) as `mosaic-results-<version>.zip`, for your own analyses.
+
+## Experiment explorer {#explorer}
+
+Every experiment across all setups. Search or filter, then click a card to see its plots.
+
+::: {.column-page}
+{{< include ../_generated/explorer.qmd >}}
+:::

@@ -3,7 +3,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Draw the Mosaic wordmark (docs/logo.webp) from the benchmark's own fields.
+"""Draw the Mosaic wordmark (docs/figures/logo.webp) from the benchmark's own fields.
 
 The letters MOSAIC are tiled with irregular stones (a relaxed Voronoi
 tessellation clipped to the glyphs). Each stone shows a crop of a real
@@ -17,7 +17,7 @@ heavy sans font (Arial Black by default). The output is committed; rerun only
 to redesign it.
 
 Usage:
-    uv run python docs/figures/make_logo.py
+    uv run python docs/scripts/make_logo.py
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "mosaic-results"
-OUT = ROOT / "docs" / "logo.webp"
+OUT = ROOT / "docs" / "figures" / "logo.webp"
 
 FONTS = [
     "/System/Library/Fonts/Supplemental/Arial Black.ttf",

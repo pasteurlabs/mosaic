@@ -44,6 +44,8 @@ env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
   JULIA_DEPOT_PATH: "/app/julia_depot"
+  # Images run on other machines than the one that builds them, so the
+  # precompiled package images must not target the build machine's CPU.
   JULIA_CPU_TARGET: "generic"
   JULIA_EXECUTABLE: "/usr/local/bin/julia"
 
@@ -63,25 +65,10 @@ metadata:
     # What it took to run TopOpt.jl here, beyond loading the setup as an INP
     # problem. Format: mosaic/benchmarks/core/interventions.py.
     abstraction: framework
-    interventions:
-      - id: julia-cpu-target-generic
-        level: L0
-        necessity: unknown
-        what: >
-          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
-          precompiles at build time target a generic x86-64 CPU rather than
-          the build machine's. Code compiled at run time is unaffected.
-        why:
-          structural:
-            consequences: []
-            symptom: >
-              No reason recorded; added in #6 ("ensure all Tesseracts build on
-              CI"). Julia's docs recommend it where images run on CPUs other
-              than the one that built them. Whether the precompiled solver code
-              is slower for it has not been measured.
-        provenance: mosaic-team
+    interventions: []
     deviations:
       - id: nodal-load
+        title: Applies the cantilever load as nodal forces
         setups: [structural]
         what: >
           The harness gives TopOpt.jl the cantilever load as nodal forces

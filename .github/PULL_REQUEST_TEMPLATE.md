@@ -9,37 +9,29 @@ For a full list of commit types visit https://www.conventionalcommits.org/en/v1.
 
 ## Type of change
 
-- [ ] New solver backend
-- [ ] Solver tuning / improvement
-- [ ] New benchmark domain
-- [ ] Harness / infrastructure change
+- [ ] New solver
+- [ ] Solver tuning
+- [ ] New domain
+- [ ] Harness or infrastructure
 - [ ] Documentation
 - [ ] Bug fix
 
-### For new solvers
+### For solver PRs
 
-- [ ] `tesseract_config.yaml` has a `metadata.mosaic:` block with at least `name` and `backend`
+- [ ] `metadata.mosaic` in `tesseract_config.yaml` sets at least `name`, `backend` and `scheme`
 - [ ] `tesseract build mosaic/tesseracts/<domain>/<solver>` succeeds
-- [ ] `mosaic run -p <domain> --suites forward -s <solver> --debug` completes
-- [ ] `mosaic status -p <domain> -f` output pasted below
-- [ ] Exclusions and explained anomalies documented (if any)
-- [ ] Intervention record (`abstraction`, `interventions`, `deviations`) in the `metadata.mosaic:` block, with markers around L2/L3 code
+- [ ] `mosaic run -p <problem> --suites forward -s "<Display Name>" --debug` completes
+- [ ] The intervention record (`abstraction`, `interventions`, `deviations`) is filled in, with markers around L2 and L3 code
 
-### For solver tuning
+### For domain PRs
 
-- [ ] Before/after `mosaic status --format json` snapshots compared
-- [ ] No regressions to other solvers
-- [ ] Intervention record updated for every intervention added, changed or removed
+- [ ] `mosaic validate-domain <problem>` passes
 
-## Benchmark label
-
-<!-- If this PR touches mosaic/ code, CI will block until a maintainer adds one of these labels:
-  - benchmark:none    — skip benchmarks (no answer-changing code)
-  - benchmark:solver  — benchmark only the solvers whose Tesseract code changed (scoped to their problems)
-  - benchmark:domain  — benchmark every solver in the domain whose problem definition changed (single domain only)
-  - benchmark:all     — full benchmark suite from scratch
+<!--
+A maintainer applies a benchmark label, and CI posts a comment comparing the results against `main`.
+See https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html#benchmark-labels
 -->
 
-## Notes
+## Notes for reviewers
 
 <!-- Anything reviewers should know: exclusions, anomalies, GPU requirements, etc. -->

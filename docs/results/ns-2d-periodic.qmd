@@ -1,0 +1,1 @@
+{{< include ../_generated/results/ns-2d-periodic.qmd >}}

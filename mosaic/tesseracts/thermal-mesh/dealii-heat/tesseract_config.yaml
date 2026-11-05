@@ -34,6 +34,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: amg-preconditioner
+        title: Preconditions the CG solve with algebraic multigrid
         level: L0
         necessity: choice
         tuned: true
@@ -45,13 +46,18 @@ metadata:
           heat:
             consequences: [too-slow]
             symptom: >
-              With SSOR every forward metric is the same, and spatial_cost at
-              nx = 1024 takes 61.1 s against 25.6 s (UMFPACK: 35.6 s). AMG wins
-              from nx = 256 on; at nx = 16 its setup makes it slower, 0.020 s
+              With the tutorial's SSOR preconditioner the largest mesh solves
+              about 2.4 times slower (61.1 s against 25.6 s), with the same
+              forward results.
+            notes: >
+              The times are spatial_cost at nx = 1024, where UMFPACK takes
+              35.6 s. Every forward metric is the same with SSOR. AMG is faster
+              from nx = 256 on. At nx = 16 its setup makes it slower, 0.020 s
               against 0.014 s.
             evidence: "#305, notes table."
         provenance: mosaic-team
       - id: cg-tolerance
+        title: Loosens the CG stopping tolerance to 1e-8
         level: L0
         necessity: choice
         tuned: true
@@ -62,10 +68,12 @@ metadata:
           heat:
             consequences: [too-slow]
             symptom: >
-              At the earlier 1e-12 every forward metric is identical and the
-              largest mesh is slower: spatial_cost at nx = 1024 took 60.1 s
-              against 51.1 s. Measured with SSOR; with AMG, #305 checked only
-              that the forward metrics are unchanged at 1e-8.
+              At the earlier tolerance of 1e-12 the largest mesh solves more
+              slowly (60.1 s against 51.1 s), with identical forward metrics.
+            notes: >
+              The times are spatial_cost at nx = 1024, measured with SSOR.
+              With AMG, #305 checked only that the forward metrics are
+              unchanged at 1e-8.
             evidence: "#266, before/after table; #305, notes."
         provenance: mosaic-team
     deviations: []

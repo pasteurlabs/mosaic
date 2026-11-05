@@ -247,7 +247,7 @@ def scaffold_domain(
         f"from pydantic import BaseModel\n\n\n"
         f"# TODO: declare your domain's canonical fields here. Every solver\n"
         f"# subclasses these so cross-solver comparison is well-defined. See\n"
-        f"# docs/add-domain.qmd for the Array / Differentiable typing.\n"
+        f"# docs/add-problem.qmd for the Array / Differentiable typing.\n"
         f"class InputSchema(BaseModel):\n"
         f'    """Inputs for {domain_name} solvers."""\n\n'
         f"    pass\n\n\n"

@@ -29,45 +29,54 @@ metadata:
     abstraction: framework
     interventions:
       - id: vorticity-velocity-conversion
+        title: Runs the 2-D flow in vorticity form
         level: L2
         necessity: required
         what: >
-          The 2-D path converts the velocity to Exponax's vorticity variable
-          (q = -curl u) with a spectral curl, runs Exponax's vorticity
-          stepper, and converts back with a spectral Biot-Savart inversion.
-          The mean velocity, which the vorticity form drops, is carried
-          separately, under the mean force and drag when there are any.
+          The 2-D path converts velocity to Exponax's vorticity (q = -curl u)
+          with a spectral curl, runs the vorticity stepper, and converts back
+          with a spectral Biot-Savart inversion.
         why:
           ns-2d-periodic: &vorticity-velocity-conversion-periodic
             consequences: [cannot-express]
             symptom: >
+              Exponax offers only the vorticity form in 2-D, so the benchmark's
+              velocity state cannot be stepped directly.
+            notes: >
               The benchmark's state is velocity, and Exponax 0.2.0's velocity
               steppers (NavierStokesVelocity, KolmogorovFlowVelocity) accept
-              only three spatial dimensions; in 2-D it offers the vorticity
-              form only.
+              only three spatial dimensions. The mean velocity, which the vorticity form drops,
+              is carried separately, under the mean force and drag when there
+              are any.
             evidence: >
               https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/stepper/_navier_stokes.py
               (num_spatial_dims checks).
           ns-2d-kolmogorov: *vorticity-velocity-conversion-periodic
         provenance: mosaic-team
       - id: canonical-force-injection
+        title: Sets the Kolmogorov forcing through a private attribute
         level: L3
         necessity: required
         what: >
-          With a body force, the 2-D path sets the injection term inside
-          Exponax's KolmogorovFlowVorticity stepper (the private
-          _integrator._nonlinear_fun.injection) to the spectral curl of the
-          force, as complex coefficients.
+          With a body force, the 2-D path overwrites the injection term inside
+          Exponax's KolmogorovFlowVorticity stepper with the spectral curl of
+          the force.
         why:
           ns-2d-kolmogorov:
             consequences: [cannot-express]
             symptom: >
-              Exponax 0.2.0 builds the injection from injection_mode and
-              injection_scale as a real coefficient on one mode, which samples
-              sin(κy) at y = j·h. The canonical force is sampled at
-              (j + ½)h, so the public options put it half a cell off, a phase
-              error of κh/2 or about 20% of the laminar Kolmogorov solution at
-              N = 64.
+              The public forcing options place the force half a cell off the
+              canonical grid, an error of about 20% of the laminar Kolmogorov
+              solution at N = 64.
+            notes: >
+              The injection term is the private
+              _integrator._nonlinear_fun.injection, set as complex
+              coefficients. Exponax 0.2.0 builds the injection from
+              injection_mode and injection_scale as a real coefficient on one
+              mode, which samples sin(κy) at y = j·h. The canonical force is
+              sampled at (j + ½)h, so the public options put it half a cell
+              off, a phase error of κh/2 or about 20% of the laminar
+              Kolmogorov solution at N = 64.
             evidence: >
               https://github.com/Ceyron/exponax/blob/v0.2.0/exponax/nonlin_fun/_vorticity_convection.py
               (the injection term);

@@ -322,6 +322,16 @@ def test_status_unknown_format_is_a_usage_error(monkeypatch, tmp_path):
     assert "markdown" in result.output
 
 
+def test_status_unknown_suite_is_a_usage_error(monkeypatch, tmp_path):
+    """`status --suites forwrd` errors instead of printing an empty table."""
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    result = runner.invoke(app, ["status", "-p", "thermal-mesh", "--suites", "forwrd"])
+    assert result.exit_code == 2
+    assert "forwrd" in result.output
+
+
 def test_status_json_keeps_warnings_out_of_stdout(monkeypatch, tmp_path):
     """A warning about one problem goes to stderr, so stdout still parses as JSON."""
     from mosaic.benchmarks.core.io import RESULTS_DIR_ENV

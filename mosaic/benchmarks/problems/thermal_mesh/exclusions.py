@@ -26,13 +26,13 @@ if TYPE_CHECKING:
 
 DEALII_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "deal.II thermal tesseract is forward-only: this tesseract exposes no "
-    "AD path (no VJP endpoint, no differentiable inputs), so cost/vjp and "
-    "gradient experiments are categorically out of scope.",
+    "The deal.II thermal tesseract is forward-only. It exposes no AD path "
+    "(no VJP endpoint, no differentiable inputs), so cost/vjp and gradient "
+    "experiments are categorically out of scope.",
 )
 DEALII_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
-    "deal.II thermal tesseract exposes no AD path; conductivity recovery "
+    "The deal.II thermal tesseract exposes no AD path, and conductivity recovery "
     "(gradient-based ρ updates that minimize the misfit to a target "
     "temperature field) requires a differentiable identification-error "
     "output.",

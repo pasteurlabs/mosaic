@@ -1,71 +1,57 @@
 ---
-title: Use Mosaic solvers elsewhere
+title: Use a solver in your code
 ---
 
-You do not need the full benchmark harness to use a Mosaic solver. This page introduces the Tesseract interface every solver exposes, then shows the two ways to call one from your own code.
+Every Mosaic solver is a [Tesseract](https://github.com/pasteurlabs/tesseract-core) that you can call from your own JAX or PyTorch code, without the benchmark harness. This page shows how to install what you need, load a solver, differentiate through it, and set up mesh solvers and GPUs.
 
-## How Tesseracts work
+## Setup
 
-Each solver is wrapped as a **Tesseract**: a Docker container exposing two entry points (see [endpoint contract](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html)):
-
-- [`apply(inputs) -> outputs`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#apply) --- run the forward simulation.
-- [`vector_jacobian_product(inputs, cotangents) -> vjp`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#vector-jacobian-product) --- compute the reverse-mode gradient.
-
-The container isolates all dependencies (language, libraries, GPU runtime). A Python client calls the container over a local socket via [tesseract-core](https://github.com/pasteurlabs/tesseract-core); [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) wraps those calls as native JAX functions with full `jit` and `grad` support. Containerization adds a fixed per-call overhead (a few ms of IPC) that is independent of solver complexity.
-
-Forward-only solvers (OpenFOAM, deal.II) implement `apply` only. Mosaic's finite-difference-through-Tesseract mode provides gradients automatically at O(N) cost.
-
-Each domain defines a canonical `InputSchema` / `OutputSchema` (Pydantic, all fields with defaults) in `mosaic/mosaic_shared/problems/<domain>/schemas.py`. Field shapes use the [`Array[(shape,), dtype]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema) annotation and the [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability) wrapper from tesseract-core. Solvers subclass the canonical schema and may add solver-specific parameters:
-
-```python
-from mosaic_shared.problems.navier_stokes_grid import InputSchema as _Base
-
-class InputSchema(_Base):
-    inner_steps: int = Field(default=1, description="Sub-steps per outer step")
-```
-
-## Prerequisites
+The canonical schemas and input helpers live in `mosaic_shared`, which is not on PyPI yet, so install it from a clone of the repository. For automatic differentiation, add [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) or [tesseract-torch](https://github.com/pasteurlabs/tesseract-torch), both of which need Python 3.12 or later:
 
 ```bash
-# Schemas and types for all Mosaic domains (only deps: pydantic + tesseract-core)
-pip install -e mosaic/mosaic_shared
-
-# Option A --- also install the solver's native dependencies
-pip install tesseract-core exponax jax
-
-# Option B --- container path (also enables jax.grad through containers)
-pip install tesseract-core tesseract-jax jax
+git clone https://github.com/pasteurlabs/mosaic && cd mosaic
+pip install -e mosaic/mosaic_shared   # schemas and helpers (pydantic and tesseract-core only)
+pip install tesseract-jax             # or: pip install tesseract-torch
 ```
 
-`mosaic_shared` alone is enough to import schema types (`InputSchema`, `OutputSchema`, `GridBC`, `MeshBC`, `HexMesh`, `make_differentiable`, …) without Docker or any specific solver installed.
+There are two ways to load a solver.
 
-## Option A: Local usage (no Docker)
-
-Point [`Tesseract.from_tesseract_api`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_tesseract_api) at the solver's `tesseract_api.py` and call it directly --- no container, no build step. Requires the solver's native dependencies, so this path is limited to Python-only solvers (no Julia, no C++).
-
-```python
-import numpy as np
-from tesseract_core import Tesseract
-from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
-
-ic = make_vortex_ic(N=64, seed=42)
-inputs = {"v0": ic, "viscosity": np.array([0.01], dtype=np.float32), "steps": 50}
-
-t = Tesseract.from_tesseract_api(
-    "mosaic/tesseracts/navier-stokes-grid/exponax/tesseract_api.py"
-)
-outputs = t.apply(inputs)
-```
-
-## Option B: Via Tesseract container
-
-The canonical path: works for every solver regardless of language, pins all dependencies, integrates with `jax.grad` through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax).
-
-[`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) compiles the solver into a Docker image (one-time):
+**From a built image.** This works for every solver, whatever language it is written in, and pins all of its dependencies. [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build) builds the image once. The image is named after the `name` field in the solver's `tesseract_config.yaml` and tagged `latest`:
 
 ```bash
 tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 ```
+
+[`Tesseract.from_image`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_image) then starts the container, and stops it when the `with` block ends:
+
+```python
+from tesseract_core import Tesseract
+
+with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
+    ...
+```
+
+**Without a container.** [`Tesseract.from_tesseract_api`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_tesseract_api) loads the solver's `tesseract_api.py` into your Python process, with no build step:
+
+```python
+t = Tesseract.from_tesseract_api("mosaic/tesseracts/navier-stokes-grid/exponax/tesseract_api.py")
+```
+
+This requires the solver's dependencies, listed in its `tesseract_requirements.txt`, to be installed in your environment, which is practical for solvers built on pip-installable Python libraries. Solvers that need a separate toolchain, system packages or a conda environment, such as OpenFOAM, deal.II, FEniCS, Firedrake and JAX-FEM, are easier to use from the image.
+
+## Inputs and outputs
+
+Each solver exposes the Tesseract [endpoints](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html) [`apply`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#apply), which runs the forward simulation, and, if it is differentiable, [`vector_jacobian_product`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html#vector-jacobian-product), which computes the reverse-mode gradient. Both take a dictionary of inputs and return a dictionary of outputs.
+
+The inputs and outputs follow the canonical schema of the solver's domain, defined in `mosaic/mosaic_shared/problems/<domain>/schemas.py`. For the `navier-stokes-grid` domain, for example, the main inputs are the initial velocity `v0` with shape `(nx, ny, 1, 2)` in 2D or `(nx, ny, nz, 3)` in 3D, the kinematic `viscosity`, the timestep `dt` and the number of `steps`, and the main output is the final velocity `result`. All of its inputs have defaults, so `t.apply({})` runs a default simulation. The mesh domains have required inputs (see [Mesh solvers](#mesh-solvers)).
+
+A solver may add inputs of its own on top of the canonical schema, and it declares which inputs and outputs it can differentiate. The [solver reference](solvers.qmd) lists both for every solver. On a loaded solver, `t.available_endpoints` lists the endpoints it implements, and `t.openapi_schema` returns its full schema.
+
+OpenFOAM and the two deal.II solvers are forward-only. They implement `apply` but not `vector_jacobian_product`, so you can run them but cannot differentiate through them.
+
+## Differentiate through a solver
+
+With tesseract-jax, `apply_tesseract` calls the solver as a JAX function that works with `jax.grad` and `jax.jit`, and taking a gradient calls the solver's `vector_jacobian_product` endpoint:
 
 ```python
 import jax
@@ -87,23 +73,53 @@ with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
     grad_v0 = jax.grad(loss)(inputs["v0"])
 ```
 
-[`Tesseract.from_image`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-api.html#tesseract_core.Tesseract.from_image) starts and tears down the container. For GPU solvers (marked **GPU** in the [Solver Reference](solvers.qmd)), pass `gpus=["0"]` to `from_image`; CPU-only solvers ignore the argument. A CUDA-capable GPU is recommended for the GPU-enabled solvers to run efficiently. Autodiff without gradient checkpointing materialises the entire trajectory in memory, so RAM/VRAM can saturate quickly on longer rollouts — more memory is better.
-
-## Mesh solvers
-
-Mesh schemas carry hexahedral / tetrahedral connectivity and per-face boundary conditions, so they take more setup than grid solvers. Each mesh schema module ships a `make_default_inputs(...)` helper that builds a minimal valid input dict you can then mutate:
+With tesseract-torch, the solver joins PyTorch's autograd graph, and `.backward()` calls the same endpoint:
 
 ```python
+import torch
 from tesseract_core import Tesseract
+from tesseract_torch import apply_tesseract
+from mosaic_shared.problems.navier_stokes_grid.schemas import make_vortex_ic
+
+v0 = torch.tensor(make_vortex_ic(N=64, seed=42), requires_grad=True)
+inputs = {"v0": v0, "viscosity": torch.tensor([0.01]), "steps": 50}
+
+with Tesseract.from_image("exponax_navier_stokes_grid:latest") as t:
+    loss = apply_tesseract(t, inputs)["result"].pow(2).mean()
+    loss.backward()
+
+grad_v0 = v0.grad
+```
+
+tesseract-torch supports PyTorch's standard autograd API but not the `torch.func` transforms. See its [documentation](https://docs.pasteurlabs.ai/projects/tesseract-torch/latest/) for details.
+
+## Mesh solvers {#mesh-solvers}
+
+Mesh schemas carry hexahedral connectivity and per-face boundary conditions, and these inputs have no defaults. Each mesh domain's schema module provides `make_default_inputs(...)`, which builds a minimal valid input dictionary you can then modify. For the structural cantilever with a FEniCS image built from `mosaic/tesseracts/structural-mesh/fenics-structural`:
+
+```python
+import jax
+import jax.numpy as jnp
+import numpy as np
+from tesseract_core import Tesseract
+from tesseract_jax import apply_tesseract
 from mosaic_shared.problems.structural_mesh import make_default_inputs
 
 inputs = make_default_inputs(nx=16, ny=8, nz=1)
-inputs["rho"] = np.random.uniform(0.2, 0.8, size=16 * 8).astype(np.float32)
+rho = np.random.uniform(0.2, 0.8, size=16 * 8).astype(np.float32)  # one density per cell
 
-t = Tesseract.from_tesseract_api(
-    "mosaic/tesseracts/structural-mesh/jax-fem/tesseract_api.py"
-)
-print("Compliance:", t.apply(inputs)["compliance"])
+with Tesseract.from_image("fenics_structural_mesh:latest") as t:
+    def compliance(rho):
+        return apply_tesseract(t, {**inputs, "rho": rho})["compliance"]
+
+    print("Compliance:", compliance(rho))
+    grad_rho = jax.grad(compliance)(jnp.asarray(rho))
 ```
 
-The thermal domain follows the same pattern with `thermal_mesh.make_default_inputs(...)`.
+The thermal domain follows the same pattern with `mosaic_shared.problems.thermal_mesh.make_default_inputs(...)`.
+
+## GPU and memory
+
+`Tesseract.from_image` gives the container no GPU unless you ask for one. For solvers that use a GPU (shown in the [solver reference](solvers.qmd)), pass the device, for example `Tesseract.from_image(image, gpus=["0"])`. Without it, some of them fall back to the CPU, which can be much slower.
+
+Solvers that differentiate with reverse-mode AD usually keep every state of the rollout in memory, so memory use grows with the number of steps and can exhaust RAM or VRAM on long rollouts. The [solver reference](solvers.qmd) lists each solver's AD strategy, and the [results](results/index.qmd) show where each one ran out of memory or time in the benchmark. `from_image` also accepts `memory` to cap the container's memory.
