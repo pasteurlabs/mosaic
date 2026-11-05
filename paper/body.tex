@@ -455,9 +455,8 @@ causes are detailed in \cref{sec:optimization,app:solver-issues}.
 
 \Cref{tab:merged} also lists what each solver needed: the number of
 interventions on each domain's setups and the highest level among the
-required ones. On F2, every differentiable solver needs a required
-intervention at L2 or above, mostly for the cylinder channel or the
-Kolmogorov forcing, and Exponax and PhiFlow need L3 patches of private
+required ones. On F2, every differentiable solver except JAX-CFD needs a
+required intervention at L2, and PhiFlow one at L3, a patch of private
 internals, while OpenFOAM needs only documented options. On the mesh
 domains, only FEniCS has required interventions above L0, both on H: a
 custom adjoint block for the nodal misfit (L2), and an L3 patch because
