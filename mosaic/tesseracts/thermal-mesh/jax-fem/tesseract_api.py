@@ -46,7 +46,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _compute_identification_error(
+def _compute_identification_error(  # mosaic:physics
     T_nodes: jnp.ndarray, target_temperature: jnp.ndarray
 ) -> jnp.ndarray:
     """Compute ||T - target_temperature||²_2 (scalar, float32).
@@ -69,7 +69,7 @@ def _compute_identification_error(
 #
 
 
-class HeatConduction(Problem):
+class HeatConduction(Problem):  # mosaic:physics
     """Steady-state heat conduction problem with SIMP conductivity interpolation."""
 
     def custom_init(self, von_neumann_value_fns: list[Callable]) -> None:
@@ -190,7 +190,7 @@ class HeatConduction(Problem):
 # the same solve, compiled once per matrix size and number of nonzeros, and
 # passed to `ad_wrapper` through JAX-FEM's `custom_solver` option.
 @partial(jax.jit, static_argnames=("shape",))
-def _bicgstab(
+def _bicgstab(  # mosaic:physics
     data: jnp.ndarray,
     indices: jnp.ndarray,
     b: jnp.ndarray,
@@ -205,7 +205,9 @@ def _bicgstab(
     return x, jnp.linalg.norm(A @ x - b)
 
 
-def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> Any:
+def _jitted_jax_solve(
+    A: Any, b: np.ndarray, x0: Any, solver_options: dict
+) -> Any:  # mosaic:physics
     """`jax_fem.solver.jax_solve` with the BiCGSTAB iteration compiled once."""
     indptr, indices, data = A.getValuesCSR()
     A_csr = scipy.sparse.csr_array((data, indices, indptr), shape=A.getSize())
@@ -222,7 +224,7 @@ _SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
 # mosaic-intervention-end: jitted-bicgstab-solver
 
 
-def setup(
+def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
     boundary_conditions: dict | None = None,
@@ -340,7 +342,7 @@ def setup(
 _SETUP_CACHE: dict[str, tuple[HeatConduction, Callable]] = {}
 
 
-def _setup_cache_key(
+def _setup_cache_key(  # mosaic:util
     pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
 ) -> str:
     """Hash the mesh and boundary conditions that `setup` depends on."""
@@ -360,7 +362,7 @@ def _setup_cache_key(
     return h.hexdigest()
 
 
-def _cached_setup(
+def _cached_setup(  # mosaic:util
     pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
 ) -> tuple[HeatConduction, Callable]:
     key = _setup_cache_key(pts, cells, boundary_conditions)
@@ -372,7 +374,7 @@ def _cached_setup(
     return _SETUP_CACHE[key]
 
 
-def apply_fn(inputs: dict) -> dict:
+def apply_fn(inputs: dict) -> dict:  # mosaic:physics
     """Compute the thermal compliance given a density field.
 
     Args:
@@ -424,7 +426,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_fn(inputs.model_dump())
 
 
-def jacobian_vector_product(
+def jacobian_vector_product(  # mosaic:grad:rho,source:autodiff
     inputs: InputSchema,
     jvp_inputs: set[str],
     jvp_outputs: set[str],
@@ -451,7 +453,7 @@ def jacobian_vector_product(
     )[1]
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

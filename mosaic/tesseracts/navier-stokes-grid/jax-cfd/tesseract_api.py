@@ -52,7 +52,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["result", "state
     """Output schema for jax-cfd Navier-Stokes solver."""
 
 
-def cfd_fwd(
+def cfd_fwd(  # mosaic:physics
     v0: jnp.ndarray,
     density: float,
     viscosity: float,
@@ -207,12 +207,12 @@ def cfd_fwd(
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:
+def apply_jit(inputs: dict) -> dict:  # mosaic:io
     """JIT-compiled jax-cfd forward pass."""
     return cfd_fwd(**inputs)
 
 
-def _unpack_scalars(d: dict) -> dict:
+def _unpack_scalars(d: dict) -> dict:  # mosaic:io
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in ("density", "viscosity", "dt", "linear_drag"):
         if d.get(key) is not None:
@@ -225,7 +225,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,state,viscosity,dt,density:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

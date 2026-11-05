@@ -60,17 +60,17 @@ jl.include(str(Path(__file__).parent / "solver.jl"))
 # ---------------------------------------------------------------------------
 
 
-def _to_julia(arr: np.ndarray):
+def _to_julia(arr: np.ndarray):  # mosaic:util
     """Convert a numpy array to a Julia array (zero-copy if contiguous)."""
     return juliacall.convert(jl.Array, np.ascontiguousarray(arr))
 
 
-def _to_numpy(jl_arr: Any) -> np.ndarray:
+def _to_numpy(jl_arr: Any) -> np.ndarray:  # mosaic:util
     """Convert a Julia array back to numpy."""
     return np.asarray(jl_arr).copy()
 
 
-def _body_force(inputs: InputSchema) -> dict[str, Any]:
+def _body_force(inputs: InputSchema) -> dict[str, Any]:  # mosaic:io
     """Keyword arguments for the body force, drag and native state.
 
     Empty when there are none. All are 2-D only.
@@ -91,7 +91,7 @@ def _body_force(inputs: InputSchema) -> dict[str, Any]:
     return kwargs
 
 
-def _run(
+def _run(  # mosaic:physics
     v0: np.ndarray,
     viscosity: float,
     dt: float,
@@ -141,7 +141,7 @@ def _run(
         )  # (nx, ny, nz, 3)
 
 
-def _vjp(
+def _vjp(  # mosaic:grad:v0,state,viscosity,dt:adjoint
     v0: np.ndarray,
     cotangent: np.ndarray,
     viscosity: float,
@@ -203,7 +203,7 @@ def _vjp(
         }
 
 
-def _channel_args(inputs: InputSchema) -> tuple:
+def _channel_args(inputs: InputSchema) -> tuple:  # mosaic:io
     """Positional arguments of ``channel_apply`` and ``channel_vjp`` for the DFG channel."""
     nx, ny = inputs.v0.shape[:2]
     obstacle = inputs.obstacle
@@ -221,7 +221,7 @@ def _channel_args(inputs: InputSchema) -> tuple:
     )
 
 
-def _channel_apply(inputs: InputSchema) -> dict[str, np.ndarray]:
+def _channel_apply(inputs: InputSchema) -> dict[str, np.ndarray]:  # mosaic:physics
     """Forward pass on the DFG channel: velocity, pressure and the force on the cylinder."""
     velocity, pressure, force = jl.channel_apply(*_channel_args(inputs))
     return {
@@ -231,7 +231,9 @@ def _channel_apply(inputs: InputSchema) -> dict[str, np.ndarray]:
     }
 
 
-def _channel_vjp(inputs: InputSchema, cotangent_vector: dict[str, Any]) -> dict:
+def _channel_vjp(
+    inputs: InputSchema, cotangent_vector: dict[str, Any]
+) -> dict:  # mosaic:grad:v0,inflow_profile,viscosity,dt:adjoint
     """VJP on the DFG channel, from the cotangents of the velocity and the force."""
     nx, ny = inputs.v0.shape[:2]
     ct_result = cotangent_vector.get("result")
@@ -300,7 +302,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"result": result.astype(np.float32)}
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,state,viscosity,dt,inflow_profile:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
