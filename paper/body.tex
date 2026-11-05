@@ -408,9 +408,9 @@ available gradient strategies and per-setup effort
 
 \paragraph{Inclusion and exclusion criteria}
 A solver is included if it provides a general-purpose reverse-mode VJP
-at cost proportional to a single forward solve. Forward-only solvers
-serve as reference baselines. Excluded solvers and reasons are documented
-in \cref{app:solvers}.
+whose cost does not grow with the number of inputs. Forward-only solvers
+serve as reference baselines. Excluded solvers and per-task exclusions
+are documented in \cref{app:solvers,app:exclusions}.
 
 % ===========================================================================
 \section{Experiments}
@@ -542,8 +542,9 @@ $O(\sqrt{T}\cdot S)$, and steady adjoints need $O(S)$. The F3 measurements
 match (\cref{fig:memory_rollout}): memory grows linearly with the rollout for
 the solvers that store their trajectory, while XLB's block checkpointing only
 doubles it from 500 to 2000 steps. On 80\,GB, Warp-NS runs out of memory at
-1000 steps and INS.jl, JAX-CFD, and PhiFlow at 2000, while the mesh solvers
-stay below 11\,GB. Memory is not always the first limit, however. Over longer
+1000 steps and INS.jl, JAX-CFD, and PhiFlow at 2000, while Exponax, XLB, and
+PICT complete 2000 steps (PICT at 74\,GB) and the mesh solvers stay below
+11\,GB. Memory is not always the first limit, however. Over longer
 F3 horizons (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite
 gradients at 160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run
 out of memory only beyond 20\,000 steps. Every NS configuration that ran out
@@ -561,9 +562,8 @@ stepper with a slower non-mutating rollout that Zygote can differentiate, and
 for PhiFlow on small F2 grids (5.3), plausibly a fixed per-call overhead
 (\cref{app:ratios}). Across all timed trials, the median coefficient of
 variation is 2.4\% (\cref{tab:app:variance}).
-All timings are measured on one A100 GPU;
-relative rankings may differ on other hardware, particularly between
-GPU and CPU solvers.
+All timings come from one A100 GPU, and some rankings swap on other GPUs
+(\cref{app:cost}).
 
 \subsection{Optimization task performance}
 \label{sec:optimization}
