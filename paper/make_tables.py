@@ -22,6 +22,7 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
+import count_loc
 from plots import (
     by_solver,
     device_mib,
@@ -30,6 +31,7 @@ from plots import (
     load_result,
     results_dir,
     solver_metadata,
+    solver_wrappers,
 )
 
 PROBLEMS = ["ns-grid", "ns-3d-grid", "structural-mesh", "thermal-mesh"]
@@ -262,44 +264,20 @@ BLOCKS = [
     },
 ]
 
-# Bespoke lines of code (IO, Num., Conf.) per solver wrapper, counted on the
-# reviewed release. The Navier--Stokes wrappers serve both grid problems, so F2
-# and F3 share their counts, including Exponax on F2 and JAX-CFD on F3, which the
-# reviewed release listed under the other grid problem only.
-_LOC_NS = {
-    "Exponax": (41, 160, 0),
-    "INS.jl": (117, 1097, 97),
-    "jax-cfd": (38, 286, 21),
-    "OpenFOAM": (275, 127, 437),
-    "PhiFlow": (38, 262, 36),
-    "PICT": (48, 329, 892),
-    "Warp-NS": (0, 1631, 0),
-    "XLB": (13, 464, 58),
-}
-LOC_REVIEWED: dict[str, dict[str, tuple[int, int, int]]] = {
-    "ns-grid": _LOC_NS,
-    "ns-3d-grid": _LOC_NS,
-    "structural-mesh": {
-        "deal.II": (408, 344, 147),
-        "FEniCS": (0, 222, 63),
-        "Firedrake": (39, 221, 137),
-        "JAX-FEM": (0, 150, 133),
-        "TopOpt.jl": (124, 155, 42),
-    },
-    "thermal-mesh": {
-        "deal.II": (381, 263, 75),
-        "FEniCS": (0, 513, 61),
-        "Firedrake": (0, 420, 102),
-        "JAX-FEM": (0, 211, 95),
-        "torch-fem": (0, 268, 122),
-    },
-}
 LOC_COLUMNS = ("IO", "Num.", "Conf.")
 
 
 def line_counts(problem: str) -> dict[str, tuple[int, int, int]]:
-    """Bespoke lines (IO, Num., Conf.) per solver of *problem*; solvers without counts are absent."""
-    return LOC_REVIEWED[problem]
+    """Bespoke lines (IO, Num., Conf.) per solver wrapper of *problem*.
+
+    The Navier--Stokes wrappers serve both grid problems, so F2 and F3 share
+    their counts.
+    """
+    counts = count_loc.line_counts()
+    return {
+        solver: tuple(counts[key][col] for col in ("IO", "Num", "Conf"))
+        for solver, key in solver_wrappers(problem).items()
+    }
 
 
 def grad_symbol(cell: dict | None, ad_strategy: str | None) -> str:
@@ -379,8 +357,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
                     cells[s] = missing or ("$-$" if no_grad else "$?$")
             cols[key] = cells
         for i, col in enumerate(LOC_COLUMNS):
-            vals = {s: loc[s][i] for s in solvers if s in loc}
-            cells = {s: (str(vals[s]) if s in vals else "$-$") for s in solvers}
+            vals = {s: loc[s][i] for s in solvers}
+            cells = {s: str(vals[s]) for s in solvers}
             cols[col] = bold_min(cells, vals)
 
         heads = [h for h, _ in b["grads"]] + [""] * (n_grad - len(b["grads"]))
@@ -418,7 +396,6 @@ def merged_table(status: dict) -> tuple[str, dict]:
     Wall-clock times are means of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
     1 warmup, at $N={TABLE_SIZE["ns-grid"]}$ (F2), $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
     $n_x={TABLE_SIZE["structural-mesh"]}$ (S), and $n_x={TABLE_SIZE["thermal-mesh"]}$ (H).
-    Line counts were taken on the reviewed release.
     Full specifications in \cref{{app:effort}}; initial conditions in
     \cref{{app:ics}}. Legend below table.}}
   \label{{tab:merged}}

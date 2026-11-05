@@ -88,7 +88,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
+def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:init
     """Convert numpy hex mesh arrays to a FEniCS Mesh via meshio XDMF.
 
     DOLFIN XML only supports triangles/tetrahedra; XDMF supports hexahedra.
@@ -119,7 +119,7 @@ def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
     return mesh
 
 
-def _cell_reorder_map(
+def _cell_reorder_map(  # mosaic:util
     pts: np.ndarray, input_cells: np.ndarray, fenics_mesh: Mesh
 ) -> np.ndarray:
     """Build FEniCS-cell-index → input-cell-index permutation via centroid matching.
@@ -154,7 +154,9 @@ def _cell_reorder_map(
 # ---------------------------------------------------------------------------
 
 
-def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunction:
+def _mark_neumann_facets(
+    mesh: Mesh, neumann_mask_vals: np.ndarray
+) -> MeshFunction:  # mosaic:init
     """Mark boundary facets by Neumann group from a per-node mask.
 
     A boundary facet is assigned group k if ALL of its vertices carry
@@ -206,7 +208,9 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
 # functional rather than two that have to be kept in step by hand.
 
 
-def _nodal_residual(T: Function, target: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def _nodal_residual(
+    T: Function, target: np.ndarray, mask: np.ndarray
+) -> np.ndarray:  # mosaic:physics
     """Masked residual mask · (T − target), in dof order."""
     if MPI.comm_world.size > 1:
         raise RuntimeError(
@@ -216,7 +220,7 @@ def _nodal_residual(T: Function, target: np.ndarray, mask: np.ndarray) -> np.nda
     return mask * (T.vector().get_local() - target)
 
 
-class NodalSquaredErrorBlock(Block):
+class NodalSquaredErrorBlock(Block):  # mosaic:grad:rho,source:adjoint
     """Tape block for I(T) = Σ_v mask_v (T_v − target_v)², T in a CG1 space.
 
     `target` and `mask` are constants of the problem, not controls, so `T` is
@@ -279,7 +283,9 @@ class NodalSquaredErrorBlock(Block):
         return 2.0 * float(np.dot(r, T_dot.vector().get_local()))
 
 
-def nodal_squared_error(T: Function, target: np.ndarray, mask: np.ndarray) -> Any:
+def nodal_squared_error(
+    T: Function, target: np.ndarray, mask: np.ndarray
+) -> Any:  # mosaic:grad:rho,source:adjoint
     """Σ_v mask_v (T_v − target_v)², recorded on the tape as an AdjFloat."""
     annotate = annotate_tape()
     with stop_annotating():
@@ -345,7 +351,7 @@ def nodal_squared_error(T: Function, target: np.ndarray, mask: np.ndarray) -> An
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def _setup_cache_key(
+def _setup_cache_key(  # mosaic:util
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -376,7 +382,7 @@ def _setup_cache_key(
     return h.hexdigest()
 
 
-def _build_reduced_functionals(
+def _build_reduced_functionals(  # mosaic:physics
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -516,7 +522,7 @@ def _build_reduced_functionals(
     }
 
 
-def _get_reduced_functionals(
+def _get_reduced_functionals(  # mosaic:util
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -562,7 +568,7 @@ def _get_reduced_functionals(
     return entry
 
 
-def _gradient_pair(
+def _gradient_pair(  # mosaic:grad:rho,source:adjoint
     reduced_functional: Any, n_input_cells: int, fenics_to_input: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """(d/drho, d/dsource) from one adjoint sweep, mapped to input cell order."""
@@ -574,7 +580,7 @@ def _gradient_pair(
     return d_rho, d_source
 
 
-def _solve_forward(
+def _solve_forward(  # mosaic:physics
     rho_values: np.ndarray,
     source_values: np.ndarray,
     pts: np.ndarray,
@@ -689,7 +695,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
