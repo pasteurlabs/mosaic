@@ -22,6 +22,7 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
+import count_loc
 from plots import (
     by_solver,
     device_mib,
@@ -30,6 +31,7 @@ from plots import (
     load_result,
     results_dir,
     solver_metadata,
+    solver_wrappers,
 )
 
 PROBLEMS = ["ns-grid", "ns-3d-grid", "structural-mesh", "thermal-mesh"]
@@ -229,7 +231,6 @@ BLOCKS = [
             ("$\\nu$", "gradient/analytic_check_nu"),
             ("inflow", "optimization/drag_opt"),
         ],
-        "setups": ("ns-2d-periodic", "ns-2d-cylinder"),
     },
     {
         "problem": "ns-3d-grid",
@@ -239,7 +240,6 @@ BLOCKS = [
         "an": None,
         "task": "optimization/recovery_constant_ic_bfgs_proj",
         "grads": [("$v_0$", "gradient/fd_check")],
-        "setups": ("ns-3d",),
     },
     {
         "problem": "structural-mesh",
@@ -249,7 +249,6 @@ BLOCKS = [
         "an": None,
         "task": "optimization/topopt",
         "grads": [("$\\rho$", "gradient/fd_check")],
-        "setups": ("structural",),
     },
     {
         "problem": "thermal-mesh",
@@ -262,26 +261,23 @@ BLOCKS = [
             ("$\\rho$", "gradient/fd_check"),
             ("src", "gradient/source_fd_check"),
         ],
-        "setups": ("heat",),
     },
 ]
 
-LEVELS = ("L0", "L1", "L2", "L3")
+LOC_COLUMNS = ("IO", "Num.", "Conf.")
 
 
-def interventions(
-    problem: str, solver: str, setups: tuple[str, ...]
-) -> tuple[int, str | None]:
-    """Active interventions with a reason on any of *setups*, and the highest
-    level among the required ones (as ``InterventionRecord.effort`` in
-    mosaic/benchmarks/core/interventions.py, taken over several setups)."""
-    ivs = [
-        i
-        for i in solver_metadata(problem)[solver].get("interventions") or []
-        if i.get("active", True) and set(i.get("why") or {}) & set(setups)
-    ]
-    req = [i["level"] for i in ivs if i["necessity"] == "required"]
-    return len(ivs), (max(req, key=LEVELS.index) if req else None)
+def line_counts(problem: str) -> dict[str, tuple[int, int, int]]:
+    """Bespoke lines (IO, Num., Conf.) per solver wrapper of *problem*.
+
+    The Navier--Stokes wrappers serve both grid problems, so F2 and F3 share
+    their counts.
+    """
+    counts = count_loc.line_counts()
+    return {
+        solver: tuple(counts[key][col] for col in ("IO", "Num", "Conf"))
+        for solver, key in solver_wrappers(problem).items()
+    }
 
 
 def grad_symbol(cell: dict | None, ad_strategy: str | None) -> str:
@@ -341,6 +337,7 @@ def merged_table(status: dict) -> tuple[str, dict]:
         ref = errors_at(p, *b["ref"])
         an = errors_at(p, *b["an"]) if b["an"] else {}
         fd = fd_errors(p)
+        loc = line_counts(p)
         summary[PROBLEM_LABEL[p]] = {"fwd": fwd, "vjp": vjp, "fd": fd}
 
         cols = {}
@@ -359,6 +356,10 @@ def merged_table(status: dict) -> tuple[str, dict]:
                     no_grad = meta[s]["ad_strategy"] is None and key in ("vjp", "fd")
                     cells[s] = missing or ("$-$" if no_grad else "$?$")
             cols[key] = cells
+        for i, col in enumerate(LOC_COLUMNS):
+            vals = {s: loc[s][i] for s in solvers}
+            cells = {s: str(vals[s]) for s in solvers}
+            cols[col] = bold_min(cells, vals)
 
         heads = [h for h, _ in b["grads"]] + [""] * (n_grad - len(b["grads"]))
         g0 = 8
@@ -366,14 +367,13 @@ def merged_table(status: dict) -> tuple[str, dict]:
         rows.append(
             f"\\multicolumn{{7}}{{@{{}}l}}{{\\textit{{{b['title']}}}}}\n      & "
             + " & ".join(f"\\textit{{{h}}}" if h else "" for h in heads)
-            + " & & \\\\"
+            + " & & & \\\\"
         )
         rows.append(f"\\cmidrule(lr){{{g0}-{g0 + len(b['grads']) - 1}}}")
         for s in solvers:
             ad = meta[s]["ad_strategy"]
             grads = [grad_symbol(status.get((p, exp, s)), ad) for _, exp in b["grads"]]
             grads += [""] * (n_grad - len(grads))
-            n_iv, lreq = interventions(p, s, b["setups"])
             cells = [
                 solver_cell(s),
                 cols["fwd"][s],
@@ -383,8 +383,7 @@ def merged_table(status: dict) -> tuple[str, dict]:
                 cols["fd"][s],
                 conv_symbol(status.get((p, b["task"], s)), ad),
                 *grads,
-                str(n_iv),
-                lreq or "$-$",
+                *(cols[col][s] for col in LOC_COLUMNS),
             ]
             rows.append("  " + " & ".join(cells) + " \\\\")
 
@@ -393,7 +392,7 @@ def merged_table(status: dict) -> tuple[str, dict]:
     text = rf"""\begin{{table}}
   \centering\footnotesize
   \setlength{{\tabcolsep}}{{2.5pt}}
-  \caption{{Benchmark results, gradient support, and interventions per solver.
+  \caption{{Benchmark results, gradient support, and integration effort per solver.
     Wall-clock times are means of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
     1 warmup, at $N={TABLE_SIZE["ns-grid"]}$ (F2), $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
     $n_x={TABLE_SIZE["structural-mesh"]}$ (S), and $n_x={TABLE_SIZE["thermal-mesh"]}$ (H).
@@ -401,17 +400,18 @@ def merged_table(status: dict) -> tuple[str, dict]:
     \cref{{app:ics}}. Legend below table.}}
   \label{{tab:merged}}
   \vspace{{2pt}}
-  \begin{{tabular}}{{@{{}}l r r c c c c | {"c" * n_grad} | r c@{{}}}}
+  \begin{{tabular}}{{@{{}}l r r c c c c | {"c" * n_grad} | r r r@{{}}}}
     \toprule
     \textbf{{Solver}}
       & \multicolumn{{2}}{{c}}{{\textbf{{Wall time}}}}
       & \multicolumn{{3}}{{c}}{{\textbf{{Error}}}}
       & \textbf{{Conv.}}
       & \multicolumn{{{n_grad}}}{{c|}}{{\textbf{{Grad.\ support}}}}
-      & \multicolumn{{2}}{{c@{{}}}}{{\textbf{{Interv.}}}} \\
-    \cmidrule(lr){{2-3}}\cmidrule(lr){{4-6}}\cmidrule(lr){{8-{7 + n_grad}}}\cmidrule(lr){{{8 + n_grad}-{9 + n_grad}}}
+      & \multicolumn{{3}}{{c@{{}}}}{{\textbf{{Integ.\ effort}}}} \\
+    \cmidrule(lr){{2-3}}\cmidrule(lr){{4-6}}\cmidrule(lr){{8-{7 + n_grad}}}\cmidrule(lr){{{8 + n_grad}-{10 + n_grad}}}
     & \textit{{Fwd}} & \textit{{VJP}} & \textit{{Ref.}} & \textit{{An.}} & \textit{{FD}} &
-      & \multicolumn{{{n_grad}}}{{c|}}{{\textit{{input variables}}}} & \textit{{\#}} & \textit{{$L_\mathrm{{req}}$}} \\
+      & \multicolumn{{{n_grad}}}{{c|}}{{\textit{{input variables}}}}
+      & \textit{{IO}} & \textit{{Num.}} & \textit{{Conf.}} \\
     {body}
     \bottomrule
   \end{{tabular}}
@@ -427,10 +427,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
     hand-written VJP for at least part of it; $\times$\,=\,incorrect; $?$\,=\,not obtained;
     inflow evidenced only by a converged drag optimization.
     $\bot$\,=\,excluded (\cref{{app:solver-issues}}); $-$\,=\,not applicable.
-    \textit{{Interv.}}: \#\,=\,interventions recorded for the domain's setups (F2: periodic box
-    and cylinder channel); $L_\mathrm{{req}}$\,=\,highest level among the required ones
-    (L0 documented use, L1 undocumented configuration, L2 user code on public primitives,
-    L3 changing the solver; \cref{{sec:scope}}).
+    \textit{{Integ.\ effort}} (bespoke LOC): IO\,=\,input/output marshalling;
+    Num.\,=\,numerics \& gradient code; Conf.\,=\,solver configuration.
   \end{{minipage}}
 \end{{table}}
 """
@@ -814,6 +812,7 @@ def outcomes_table(
                         f"  {PROBLEM_LABEL[p]} & {SWEEP_LABEL[exp]} & {SOLVERS[s][0]} & {size_label(key, v)} & "
                         f"{lab} & {gb(m['vram_peak_mib'])} \\\\"
                     )
+
     body = "\n    ".join(rows)
     new_body = "\n    ".join(new_rows)
     died_note = (

@@ -67,7 +67,7 @@ class OutputSchema(_CanonicalOutputSchema):
 # ---------------------------------------------------------------------------
 
 
-def _infer_grid_dims(
+def _infer_grid_dims(  # mosaic:io
     inputs: InputSchema,
 ) -> tuple[int, int, int, float, float, float]:
     """Infer structured grid dimensions from the HexMesh point array."""
@@ -94,7 +94,7 @@ def _infer_grid_dims(
 # ---------------------------------------------------------------------------
 
 
-def _write_inputs(inputs: InputSchema, wd: Path) -> None:
+def _write_inputs(inputs: InputSchema, wd: Path) -> None:  # mosaic:io
     """Serialise inputs to ``input.json``, ``rho.npy``, and ``source.npy`` in *wd*."""
     nx, ny, nz, Lx, Ly, Lz = _infer_grid_dims(inputs)
 
@@ -154,7 +154,7 @@ _WORKER: subprocess.Popen | None = None
 _WORKER_LOCK = threading.Lock()
 
 
-def _run_solver(wd: Path) -> None:
+def _run_solver(wd: Path) -> None:  # mosaic:physics
     """Send ``wd/input.json`` to the deal.II heat_solver worker and wait for it."""
     global _WORKER
     with _WORKER_LOCK:
@@ -175,7 +175,7 @@ def _run_solver(wd: Path) -> None:
         )
 
 
-def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:
+def _parse_outputs(inputs: InputSchema, wd: Path) -> OutputSchema:  # mosaic:io
     """Read compliance.txt and (if present) temperature.npy to compute id-error."""
     with open(wd / "compliance.txt") as f:
         compliance = float(f.read().strip())

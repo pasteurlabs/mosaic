@@ -299,6 +299,33 @@ problem.add_experiment(
     ],
     plot=plot_cost,
 )
+# Extension of the cost sweep to the submitted paper's range. nx=128 overlaps the
+# main sweep as a consistency check; the other points are the sizes the V100 run
+# used. Three trials: the spread between trials is large only at sub-second
+# points, which this sweep doesn't have.
+_COST_NX_LARGE = [128, 256, 512, 1024, 2048, 3200]
+_COST_TRIALS_LARGE = {"n_trials": 3}
+problem.add_experiment(
+    "cost/spatial_cost_large",
+    spatial_cost,
+    plot_description="Forward-pass wall-clock time vs mesh resolution $N$ at one assembly step.",
+    physics={**_MESH_PHYS, "steps": 1, "nx": _COST_NX_LARGE},
+    cost=_COST_TRIALS_LARGE,
+    plot=plot_cost,
+)
+problem.add_experiment(
+    "cost/vjp_cost_large",
+    vjp_cost,
+    plot_description="VJP wall-clock time vs mesh resolution $N$ for differentiable solvers.",
+    runs=[
+        {
+            "name": "by_N",
+            "physics": {**_MESH_PHYS, "steps": 1, "nx": _COST_NX_LARGE},
+            "cost": _COST_TRIALS_LARGE,
+        },
+    ],
+    plot=plot_cost,
+)
 
 # Gradient
 problem.add_experiment(
