@@ -15,12 +15,15 @@ Usage:
 
 from __future__ import annotations
 
+import base64
 import math
+import struct
+import zlib
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent
 
-W, H = 720, 380
+W, H = 600, 340
 
 INK = "#1d1e20"
 INK2 = "#2f3134"
@@ -28,11 +31,13 @@ MUTED = "#5f6368"
 BORDER = "#e1e2e4"
 PAPER = "#f7f7f6"
 SAND = "#f1f1ef"
-ACCENT = "#a8401f"
+# One colour per concept across all figures.
+ACCENT = "#a8401f"  # forces and forcing: load, drag, heat flux
 SAFFRON = "#e3a02f"
-INDIGO = "#2f4b8f"
-GREEN = "#2f7a57"
-PLUM = "#6e3f8f"
+INDIGO = "#2f4b8f"  # the control the optimizer changes
+GREEN = "#2f7a57"  # the observation or target
+TINT = "#eef0f4"
+WALL = 11  # thickness of a fixed-boundary band
 
 SANS = "Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
 SERIF = "Georgia, 'Times New Roman', serif"
@@ -64,7 +69,6 @@ def _defs(extra: str = "") -> str:
             ("accent", ACCENT),
             ("indigo", INDIGO),
             ("green", GREEN),
-            ("plum", PLUM),
             ("saffron", SAFFRON),
         )
     )
@@ -72,9 +76,18 @@ def _defs(extra: str = "") -> str:
         f'<marker id="ah-{name}-sm" viewBox="0 0 10 10" refX="8.5" refY="5" '
         f'markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">'
         f'<path d="M0,1 L9,5 L0,9 z" fill="{color}"/></marker>'
-        for name, color in (("accent", ACCENT), ("indigo", INDIGO))
+        for name, color in (
+            ("accent", ACCENT),
+            ("indigo", INDIGO),
+            ("white", "#ffffff"),
+        )
     )
-    return f"<defs>{markers}{blobs}{extra}</defs>"
+    wall = (
+        '<pattern id="wall" width="5.5" height="5.5" patternUnits="userSpaceOnUse" '
+        'patternTransform="rotate(45)"><rect width="5.5" height="5.5" fill="#dcdee3"/>'
+        f'<line x1="0" y1="0" x2="0" y2="5.5" stroke="{MUTED}" stroke-width="1.1"/></pattern>'
+    )
+    return f"<defs>{markers}{blobs}{wall}{extra}</defs>"
 
 
 def _svg(body: str, title: str, extra_defs: str = "") -> str:
@@ -83,10 +96,13 @@ def _svg(body: str, title: str, extra_defs: str = "") -> str:
         f'width="{W}" height="{H}" role="img" aria-label="{title}">'
         f"<title>{title}</title>"
         f"<style>text{{font-family:{SANS};fill:{INK}}}"
-        f".eyebrow{{font-family:{MONO};font-size:11px;font-weight:500;letter-spacing:.04em;fill:{ACCENT}}}"
+        f".eyebrow{{font-family:{MONO};font-size:13px;font-weight:500;letter-spacing:.04em;fill:{INDIGO}}}"
+        f".eyebrow.target{{fill:{GREEN}}}"
         f".eyebrow.quiet{{fill:{MUTED}}}"
-        f".label{{font-size:15px;fill:{INK2}}}"
-        f".small{{font-size:12px;fill:{MUTED}}}"
+        f".label{{font-size:19px;fill:{INK2}}}"
+        f".small{{font-size:16px;fill:{MUTED}}}"
+        f".dim{{font-size:15px;fill:{MUTED}}}"
+        f".halo{{paint-order:stroke;stroke:#ffffff;stroke-width:4px;stroke-linejoin:round}}"
         f".m{{font-family:{SERIF};font-style:italic}}"
         f".up{{font-family:{SERIF};font-style:normal}}"
         "</style>"
@@ -100,25 +116,25 @@ def _label(
     eyebrow: str,
     text: str,
     anchor: str = "start",
-    quiet: bool = False,
+    kind: str = "",
 ) -> str:
-    cls = "eyebrow quiet" if quiet else "eyebrow"
+    cls = f"eyebrow {kind}".strip()
     return (
         f'<text x="{x}" y="{y}" class="{cls}" text-anchor="{anchor}">{eyebrow}</text>'
-        f'<text x="{x}" y="{y + 21}" class="label" text-anchor="{anchor}">{text}</text>'
+        f'<text x="{x}" y="{y + 24}" class="label" text-anchor="{anchor}">{text}</text>'
     )
 
 
 def _objective(formula: str, width: float = 360) -> str:
     """Bottom-centred objective box: eyebrow on the left, formula on the right."""
     x0 = (W - width) / 2
-    y0 = 314
+    y0 = H - 50
     return (
-        f'<rect x="{x0}" y="{y0}" width="{width}" height="46" rx="8" fill="{SAND}" '
+        f'<rect x="{x0}" y="{y0}" width="{width}" height="42" rx="6" fill="{SAND}" '
         f'stroke="{BORDER}"/>'
-        f'<text x="{x0 + 16}" y="{y0 + 27}" class="eyebrow quiet">OBJECTIVE</text>'
-        f'<text x="{x0 + 100 + (width - 100) / 2}" y="{y0 + 29}" text-anchor="middle" '
-        f'style="font-size:17px">{formula}</text>'
+        f'<text x="{x0 + 16}" y="{y0 + 26}" class="eyebrow quiet">OBJECTIVE</text>'
+        f'<text x="{x0 + 100 + (width - 100) / 2}" y="{y0 + 28}" text-anchor="middle" '
+        f'style="font-size:20px">{formula}</text>'
     )
 
 
@@ -153,26 +169,42 @@ def _blob(cx: float, cy: float, r: float, color: str, opacity: float = 1.0) -> s
     return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#blob-{color})" opacity="{opacity}"/>'
 
 
-def _hatch(x: float, y0: float, y1: float, side: int = -1, step: float = 12) -> str:
-    """A wall: solid line with 45° hatch ticks on one side (side=-1 → left/top)."""
-    ticks = "".join(
-        f'<line x1="{x}" y1="{y}" x2="{x + side * 10}" y2="{y + 10}" />'
-        for y in _frange(y0, y1 - 10, step)
-    )
+def _wall(x: float, y: float, w: float, h: float, edge: tuple) -> str:
+    """A fixed boundary: hatched band with a solid edge facing the domain."""
+    x1, y1, x2, y2 = edge
     return (
-        f'<g stroke="{INK2}" stroke-width="1.4">{ticks}</g>'
-        f'<line x1="{x}" y1="{y0}" x2="{x}" y2="{y1}" stroke="{INK2}" stroke-width="3"/>'
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="url(#wall)"/>'
+        f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{INK2}" stroke-width="2"/>'
     )
 
 
-def _hatch_h(y: float, x0: float, x1: float, side: int = -1, step: float = 12) -> str:
-    ticks = "".join(
-        f'<line x1="{x}" y1="{y}" x2="{x + 10}" y2="{y + side * 10}" />'
-        for x in _frange(x0, x1 - 10, step)
-    )
+def _hatch(x: float, y0: float, y1: float, side: int = -1) -> str:
+    """Vertical wall band on the left (side=-1) or right of *x*."""
+    left = x - WALL if side < 0 else x
+    return _wall(left, y0, WALL, y1 - y0, (x, y0, x, y1))
+
+
+def _hatch_h(y: float, x0: float, x1: float, side: int = -1) -> str:
+    """Horizontal wall band above (side=-1) or below *y*."""
+    top = y - WALL if side < 0 else y
+    return _wall(x0, top, x1 - x0, WALL, (x0, y, x1, y))
+
+
+def _inflow_arrow(x0: float, x1: float, y: float) -> str:
+    """Filled arrow in one shape, with a thin outline for use on dark fields."""
+    head = min(8.0, (x1 - x0) * 0.6)
+    pts = [
+        (x0, y - 1.3),
+        (x1 - head, y - 1.3),
+        (x1 - head, y - 4),
+        (x1, y),
+        (x1 - head, y + 4),
+        (x1 - head, y + 1.3),
+        (x0, y + 1.3),
+    ]
     return (
-        f'<g stroke="{INK2}" stroke-width="1.2" opacity="0.7">{ticks}</g>'
-        f'<line x1="{x0}" y1="{y}" x2="{x1}" y2="{y}" stroke="{INK2}" stroke-width="2.5"/>'
+        f'<path d="{_path(pts)} z" fill="{INDIGO}" stroke="#ffffff" '
+        'stroke-width="0.7" stroke-linejoin="round"/>'
     )
 
 
@@ -198,94 +230,100 @@ def _arrow(x1, y1, x2, y2, color="ink", width=2.0, dash="") -> str:
     )
 
 
-# ── F2: 2D channel flow, inflow optimization for drag ────────────────────────
+# ── F2: DFG 2D-1 channel, inflow optimization for drag ───────────────────────
+
+
+def _speed_field_png(nx: int, ny: int, cx: float, cy: float, r: float) -> str:
+    """Illustrative speed field as a PNG data URI, in the overview figure's colormap."""
+    stops = [
+        (0x2E, 0x1E, 0x3B),
+        (0x41, 0x3D, 0x7B),
+        (0x37, 0x65, 0x9E),
+        (0x34, 0x8F, 0xA7),
+        (0x40, 0xB7, 0xAD),
+        (0x8B, 0xDA, 0xB2),
+        (0xDE, 0xF5, 0xE5),
+    ]
+    rows = []
+    for j in range(ny):
+        y = (j + 0.5) / ny
+        row = bytearray([0])
+        for i in range(nx):
+            x = (i + 0.5) / nx * 2.2
+            yy = (1 - y) * 0.41
+            speed = 4 * y * (1 - y)
+            d = math.hypot(x - cx, yy - cy)
+            speed *= 1 + 0.22 * math.exp(-(((x - cx) / 0.09) ** 2))
+            if x > cx:
+                wake = math.exp(-(((yy - cy) / (0.05 + 0.03 * (x - cx))) ** 2))
+                speed *= 1 - 0.97 * wake * math.exp(-(x - cx) / 0.9)
+            speed *= 1 - math.exp(-((((d / r) - 1) / 0.7) ** 2)) if d > r else 0.0
+            t = max(0.0, min(0.999, speed / 1.2)) * (len(stops) - 1)
+            k = int(t)
+            row += bytes(
+                round(a + (b - a) * (t - k))
+                for a, b in zip(stops[k], stops[k + 1], strict=True)
+            )
+        rows.append(bytes(row))
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        body = tag + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", nx, ny, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(b"".join(rows), 9))
+        + chunk(b"IEND", b"")
+    )
+    return "data:image/png;base64," + base64.b64encode(png).decode()
 
 
 def fig_ns_grid() -> str:
-    x0, x1, yt, yb = 40, 680, 96, 256
-    yc = (yt + yb) / 2
-    cx, cy, r = 236, yc, 19
+    # To scale: channel 2.2 x 0.41, cylinder D = 0.1 centered at (0.2, 0.2).
+    px = 250
+    x0, x1, yt = 12, 12 + 2.2 * px, 112
+    yb = yt + 0.41 * px
+    cx, cy, r = x0 + 0.2 * px, yb - 0.2 * px, 0.05 * px
+    field = _speed_field_png(330, 62, 0.2, 0.2, 0.05)
     parts = [
-        f'<rect x="{x0}" y="{yt}" width="{x1 - x0}" height="{yb - yt}" fill="#eef0f4"/>',
+        (
+            f'<image href="{field}" x="{x0}" y="{yt}" width="{x1 - x0}" height="{yb - yt}" '
+            'preserveAspectRatio="none"/>'
+        ),
         _hatch_h(yt, x0, x1, side=-1),
         _hatch_h(yb, x0, x1, side=1),
     ]
 
-    # Streamlines: deflect around the cylinder, then oscillate in the wake.
-    for y0 in (112, 128, 144, 160, 192, 208, 224, 240):
-        off = y0 - yc
-        pts = []
-        for i in range(141):
-            x = 110 + i * 4
-            push = (
-                22
-                * math.copysign(1, off)
-                * math.exp(-(((x - cx) / 38) ** 2))
-                * math.exp(-abs(off) / 45)
-            )
-            ramp = max(0.0, min(1.0, (x - 270) / 120))
-            wig = (
-                7
-                * ramp
-                * math.sin(2 * math.pi * (x - 270) / 115 + (0.0 if off < 0 else 0.9))
-            )
-            pts.append((x, y0 + push + wig * math.exp(-abs(off) / 70)))
-        parts.append(
-            f'<path d="{_path(pts)}" fill="none" stroke="{INDIGO}" stroke-opacity="0.35" stroke-width="1.3"/>'
-        )
-
-    # Von Kármán street: alternating vortices.
-    for i, vx in enumerate((318, 388, 458, 528, 598)):
-        up = i % 2 == 0
-        vy = yc - 20 if up else yc + 20
-        col, mk = (ACCENT, "accent") if up else (INDIGO, "indigo")
-        rr = 9 - i * 0.6
-        a0, a1 = (200, -70) if up else (160, 430)
-        sx, sy = (
-            vx + rr * math.cos(math.radians(a0)),
-            vy - rr * math.sin(math.radians(a0)),
-        )
-        ex, ey = (
-            vx + rr * math.cos(math.radians(a1)),
-            vy - rr * math.sin(math.radians(a1)),
-        )
-        sweep = 1 if up else 0
-        parts.append(
-            f'<path d="M{sx:.1f},{sy:.1f} A{rr:.1f},{rr:.1f} 0 1 {sweep} {ex:.1f},{ey:.1f}" '
-            f'fill="none" stroke="{col}" stroke-width="1.6" stroke-opacity="0.8" marker-end="url(#ah-{mk}-sm)"/>'
-        )
-
-    # Inflow profile (the control): parabolic arrows plus the profile curve.
-    tips = []
-    for y in _frange(yt + 10, yb - 10, 15):
-        s = 1 - ((y - yc) / (yc - yt)) ** 2
-        L = 10 + 56 * s
-        parts.append(_arrow(x0 + 6, y, x0 + 6 + L, y, "indigo", 1.6))
-        tips.append((x0 + 6 + L + 3, y))
-    parts.append(
-        f'<path d="{_path([(x0 + 9, yt + 4), *tips, (x0 + 9, yb - 4)])}" fill="none" '
-        f'stroke="{ACCENT}" stroke-width="2" stroke-dasharray="4 3"/>'
-    )
+    # Inflow (the control): arrows from the inlet, scaled by the profile.
+    n = 8
+    for i in range(1, n):
+        u = 4 * (i / n) * (1 - i / n)
+        parts.append(_inflow_arrow(x0 + 2, x0 + 8 + 30 * u, yt + (yb - yt) * i / n))
 
     # Cylinder and drag force.
     parts += [
-        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{INK2}"/>',
-        _arrow(cx + r + 4, cy, cx + r + 44, cy, "accent", 2.4),
-        f'<text x="{cx + 8}" y="{cy + r + 22}" class="label">drag {_m("F")}{_sub(_m("D"))}</text>',
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{INK}"/>',
+        _arrow(cx + r + 2, cy, cx + r + 40, cy, "accent", 1.9),
+        (
+            f'<text x="{cx + r + 46}" y="{cy + 6}" class="label halo" style="fill:{ACCENT}">'
+            f"{_m('F')}{_sub(_m('D'))}</text>"
+        ),
     ]
 
     # Outflow.
-    for y in _frange(yt + 22, yb - 22, 23):
-        parts.append(_arrow(x1 - 26, y, x1 - 6, y, "muted", 1.4))
+    for i in (1, 2, 3):
+        y = yt + (yb - yt) * i / 4
+        parts.append(_arrow(x1 + 3, y, x1 + 20, y, "muted", 1.3))
 
     parts += [
-        _label(x0, 40, "CONTROL", f"inflow profile {_m('u')}({_m('y')})"),
-        _label(
-            x1, 40, "PROCESS", "incompressible Navier–Stokes", anchor="end", quiet=True
-        ),
+        f'<text x="{(x0 + x1) / 2}" y="{yt - WALL - 9}" class="small" text-anchor="middle">no-slip walls</text>',
+        f'<text x="{x1}" y="{yb + WALL + 22}" class="small" text-anchor="end">outlet {_m("p")} = 0</text>',
+        _label(x0, 22, "CONTROL", f"inflow {_m('u')}({_m('y')}), fixed flow rate"),
+        _label(W - 14, 22, "PROCESS", "steady, Re = 20", anchor="end", kind="quiet"),
         _objective(
-            f"{_up('min')}{_sub(_m('u') + '(' + _m('y') + ')')} {_m('F')}{_sub(_m('D'))}",
-            300,
+            f"{_up('min')}{_sub(_m('u'))} {_m('F')}{_sub(_m('D'))}",
+            250,
         ),
     ]
     return _svg(
@@ -334,50 +372,56 @@ def _cube(
 
 
 def fig_ns_3d_grid() -> str:
-    tgv = "".join(
-        _blob(
-            0.25 + 0.5 * i,
-            0.25 + 0.5 * j,
-            0.3,
-            "accent" if (i + j) % 2 == 0 else "indigo",
-        )
-        for i in range(2)
-        for j in range(2)
-    ) + _blob(0.5, 0.5, 0.12, "indigo", 0.6)
-    evolved = "".join(
-        _blob(x, y, r, c)
-        for x, y, r, c in (
-            (0.22, 0.3, 0.26, "green"),
-            (0.62, 0.22, 0.2, "plum"),
-            (0.75, 0.68, 0.3, "green"),
-            (0.35, 0.75, 0.22, "plum"),
-            (0.5, 0.48, 0.16, "plum"),
+    # The recovery runs start from a random divergence-free field.
+    initial = "".join(
+        _blob(x, y, r, "indigo", o)
+        for x, y, r, o in (
+            (0.2, 0.24, 0.24, 1.0),
+            (0.62, 0.16, 0.2, 0.55),
+            (0.86, 0.5, 0.22, 1.0),
+            (0.44, 0.52, 0.2, 0.55),
+            (0.16, 0.74, 0.22, 0.55),
+            (0.64, 0.84, 0.24, 1.0),
         )
     )
-    s, dx, dy = 150, 58, -40
+    evolved = "".join(
+        _blob(x, y, r, "green", o)
+        for x, y, r, o in (
+            (0.26, 0.3, 0.36, 0.85),
+            (0.74, 0.28, 0.32, 0.45),
+            (0.3, 0.78, 0.32, 0.45),
+            (0.76, 0.76, 0.36, 0.85),
+        )
+    )
+    s, dx, dy = 118, 44, -30
+    xa, xb, y0 = 40, 396, 112
     parts = [
-        _cube(70, 120, s, dx, dy, tgv, "c0"),
-        _cube(440, 120, s, dx, dy, evolved, "c1"),
+        _cube(xa, y0, s, dx, dy, initial, "c0"),
+        _cube(xb, y0, s, dx, dy, evolved, "c1"),
         (
-            f'<path d="M296,170 C340,140 390,140 430,170" fill="none" stroke="{INK2}" '
-            f'stroke-width="2" marker-end="url(#ah-ink)"/>'
+            f'<path d="M{xa + s + dx + 14},{y0 + 42} C262,{y0 + 18} 336,{y0 + 18} '
+            f'{xb - 12},{y0 + 42}" '
+            f'fill="none" stroke="{INK2}" stroke-width="2" marker-end="url(#ah-ink)"/>'
         ),
-        '<text x="363" y="128" class="small" text-anchor="middle">Navier–Stokes rollout</text>',
-        f'<text x="363" y="195" class="label" text-anchor="middle">{_m("t")} = 0 → {_m("T")}</text>',
-        _label(70, 40, "CONTROL", f"initial velocity {_b('v')}{_sub('0')}"),
+        f'<text x="299" y="{y0 + 66}" class="small" text-anchor="middle">Navier–Stokes</text>',
+        f'<text x="299" y="{y0 + 90}" class="label" text-anchor="middle">{_m("t")} = 0 → {_m("T")}</text>',
+        (
+            f'<text x="299" y="{y0 + s + 24}" class="small" text-anchor="middle">'
+            f"periodic in {_m('x')}, {_m('y')}, {_m('z')}</text>"
+        ),
+        _label(14, 22, "CONTROL", f"initial velocity {_b('v')}{_sub('0')}"),
         _label(
-            650,
-            40,
+            W - 14,
+            22,
             "TARGET",
-            f"velocity at time {_m('T')}, {_b('v')}({_m('T')})",
+            f"velocity {_b('v')}({_m('T')})",
             anchor="end",
+            kind="target",
         ),
         _objective(
             f"{_up('min')}{_sub(_b('v') + '₀')} "
-            f"‖{_b('v')}({_m('T')}; "
-            f"{_b('v')}₀) − "
-            f"{_b('v')}{_sub('target')}‖{_sup('2')}",
-            400,
+            f"‖{_b('v')}({_m('T')}; {_b('v')}₀) − {_b('v')}{_sub('target')}‖{_sup('2')}",
+            410,
         ),
     ]
     return _svg(
@@ -390,37 +434,40 @@ def fig_ns_3d_grid() -> str:
 
 
 def fig_structural_mesh() -> str:
-    x0, x1, y0, y1 = 170, 510, 100, 270
-    tip = (x1, (y0 + y1) / 2)
+    # To scale: 2 x 1 slab, clamped at x = 0, loaded upward at the free bottom corner.
+    x0, x1, y0, y1 = 150, 450, 84, 234
+    load = (x1, y1)
 
     def chord(x: float, top: bool) -> float:
-        t = ((x - x0) / (x1 - x0)) ** 1.5
-        edge = y0 + 8 if top else y1 - 8
-        return edge + (tip[1] - edge) * t
+        if not top:
+            return y1 - 8
+        t = (x - x0) / (x1 - x0)
+        return y0 + 8 + (y1 - y0 - 16) * t**2.2
 
     struts = []
-    for top in (True, False):
-        pts = [(x, chord(x, top)) for x in _frange(x0, x1, 6)]
-        struts.append(f'<path d="{_path(pts)}" stroke-width="15"/>')
-    xs = [x0 + 6, 250, 325, 395, 455]
+    for top, width in ((True, 12), (False, 12)):
+        pts = [(x, chord(x, top)) for x in _frange(x0, x1, 5)]
+        struts.append(f'<path d="{_path(pts)}" stroke-width="{width}"/>')
+    xs = [x0 + 5, 221, 285, 343, 390, 426]
     for i in range(len(xs) - 1):
         a, b = xs[i], xs[i + 1]
-        w = 11 - i * 2
+        w = 9 - i * 1.4
         struts.append(
             f'<path d="M{a},{chord(a, True)} L{b},{chord(b, False)} M{a},{chord(a, False)} '
             f'L{b},{chord(b, True)}" stroke-width="{w}"/>'
         )
+    cell = 14
     grid = "".join(
         f'<line x1="{x}" y1="{y0}" x2="{x}" y2="{y1}"/>'
-        for x in _frange(x0 + 17, x1 - 1, 17)
+        for x in _frange(x0 + cell, x1 - 1, cell)
     ) + "".join(
         f'<line x1="{x0}" y1="{y}" x2="{x1}" y2="{y}"/>'
-        for y in _frange(y0 + 17, y1 - 1, 17)
+        for y in _frange(y0 + cell, y1 - 1, cell)
     )
-    blur = '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.2"/></filter>'
+    blur = '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.7"/></filter>'
     parts = [
         f'<clipPath id="beam"><rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}"/></clipPath>',
-        f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" fill="#eef0f4"/>',
+        f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" fill="{TINT}"/>',
         (
             f'<g clip-path="url(#beam)"><g filter="url(#soft)" fill="none" stroke="{INDIGO}" '
             f'stroke-linecap="round" stroke-linejoin="round">{"".join(struts)}</g></g>'
@@ -431,20 +478,19 @@ def fig_structural_mesh() -> str:
             f'stroke="{INK2}" stroke-width="1.5"/>'
         ),
         _hatch(x0, y0 - 10, y1 + 10, side=-1),
-        f'<text x="{x0 - 14}" y="{y1 + 34}" class="small" text-anchor="middle">clamped</text>',
-        f'<circle cx="{tip[0]}" cy="{tip[1]}" r="4" fill="{ACCENT}"/>',
-        _arrow(tip[0] + 34, tip[1] - 46, tip[0] + 34, tip[1] + 30, "accent", 2.6),
-        f'<text x="{tip[0] + 48}" y="{tip[1] - 2}" class="label">{_m("F")}</text>',
-        f'<text x="{tip[0] + 48}" y="{tip[1] + 16}" class="small">tip load</text>',
-        _label(x0, 48, "CONTROL", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
-        f'<text x="{x1}" y="{y1 + 34}" class="small" text-anchor="end">dark = material, light = void</text>',
+        f'<text x="{x0 - WALL - 10}" y="{(y0 + y1) / 2 + 6}" class="small" text-anchor="end">clamped</text>',
+        _arrow(load[0], load[1] + 44, load[0], load[1] + 8, "accent", 2.6),
+        f'<circle cx="{load[0]}" cy="{load[1]}" r="4.5" fill="{ACCENT}"/>',
+        f'<text x="{load[0] + 12}" y="{load[1] + 26}" class="label" style="fill:{ACCENT}">{_m("F")}</text>',
+        f'<text x="{load[0] + 30}" y="{load[1] + 26}" class="small">corner load</text>',
+        _label(14, 22, "CONTROL", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
         _objective(
             f"{_up('min')}{_sub(_m('ρ'))} {_b('f')}{_sup('⊤')}"
             f"{_b('u')}({_m('ρ')})"
-            f'<tspan dx="14" class="small" style="font-size:13px">s.t.</tspan>'
+            f'<tspan dx="12" class="small" style="font-size:15px">s.t.</tspan>'
             f'<tspan dx="8">Σ</tspan>{_sub(_m("e"))} {_m("v")}{_sub(_m("e"))}{_m("ρ")}{_sub(_m("e"))} ≤ '
             f"{_m('V')}{_sub(_m('f'))}",
-            470,
+            430,
         ),
     ]
     return _svg(
@@ -457,82 +503,116 @@ def fig_structural_mesh() -> str:
 # ── H: steady heat conduction, conductivity inversion ────────────────────────
 
 
+def _temperature(nx: int, ny: int) -> list[list[float]]:
+    """Solve div(k grad T) = 0 on the slab by SOR: T = 0 left, unit flux in on the right."""
+    h = 2.0 / nx
+
+    def k(x: float, y: float) -> float:
+        g = sum(
+            math.exp(-((x - cx) ** 2 + (y - 0.5) ** 2) / (2 * 0.15**2))
+            for cx in (0.6, 1.4)
+        )
+        return 0.1 + 0.9 * min(g, 1.0)
+
+    kk = [[k(i * h, j * h) for i in range(nx + 1)] for j in range(ny + 1)]
+    temp = [[0.0] * (nx + 1) for _ in range(ny + 1)]
+    for _ in range(900):
+        for j in range(ny + 1):
+            jm, jp = max(j - 1, 0), min(j + 1, ny)
+            for i in range(1, nx + 1):
+                ip = min(i + 1, nx)
+                kw = (kk[j][i] + kk[j][i - 1]) / 2
+                ke = (kk[j][i] + kk[j][ip]) / 2 if i < nx else 0.0
+                ks = (kk[j][i] + kk[jm][i]) / 2 if j > 0 else 0.0
+                kn = (kk[j][i] + kk[jp][i]) / 2 if j < ny else 0.0
+                flux = h if i == nx else 0.0
+                new = (
+                    kw * temp[j][i - 1]
+                    + ke * temp[j][ip]
+                    + ks * temp[jm][i]
+                    + kn * temp[jp][i]
+                    + flux
+                ) / (kw + ke + ks + kn)
+                temp[j][i] += 1.8 * (new - temp[j][i])
+    return temp
+
+
+def _isotherms(temp, x0, y0, sx, sy, levels) -> str:
+    """Marching squares: one path of line segments per contour level."""
+    out = []
+    for level in levels:
+        d = []
+        for j in range(len(temp) - 1):
+            for i in range(len(temp[0]) - 1):
+                corners = (
+                    (i, j, temp[j][i]),
+                    (i + 1, j, temp[j][i + 1]),
+                    (i + 1, j + 1, temp[j + 1][i + 1]),
+                    (i, j + 1, temp[j + 1][i]),
+                )
+                hits = []
+                for (ax, ay, a), (bx, by, b) in zip(
+                    corners, corners[1:] + corners[:1], strict=True
+                ):
+                    if (a < level) != (b < level):
+                        t = (level - a) / (b - a)
+                        hits.append((ax + (bx - ax) * t, ay + (by - ay) * t))
+                if len(hits) == 2:
+                    (px, py), (qx, qy) = hits
+                    d.append(
+                        f"M{x0 + px * sx:.1f},{y0 + py * sy:.1f}"
+                        f"L{x0 + qx * sx:.1f},{y0 + qy * sy:.1f}"
+                    )
+        out.append(f'<path d="{"".join(d)}"/>')
+    return "".join(out)
+
+
 def fig_thermal_mesh() -> str:
-    s = 160
-    lx, rx, y0 = 80, 480, 92
-    temp = (
-        '<radialGradient id="temp" cx="0.45" cy="0.42" r="0.75">'
-        f'<stop offset="0" stop-color="{ACCENT}"/><stop offset="0.3" stop-color="#d9773f"/>'
-        f'<stop offset="0.55" stop-color="{SAFFRON}" stop-opacity="0.75"/>'
-        f'<stop offset="0.8" stop-color="#efe6d6"/><stop offset="1" stop-color="#c9d3ea"/>'
-        "</radialGradient>"
-    )
+    # To scale: 2 x 1 slab, two Gaussian conductivity peaks as in the recovery target.
+    x0, x1, y0, y1 = 150, 450, 84, 234
+    w, h = x1 - x0, y1 - y0
+    nx, ny = 64, 32
+    temp = _temperature(nx, ny)
+    tmax = max(max(row) for row in temp)
+    levels = [tmax * (i + 0.5) / 9 for i in range(9)]
     cond = "".join(
-        _blob(lx + s * x, y0 + s * y, s * r, c)
-        for x, y, r, c in (
-            (0.3, 0.3, 0.3, "indigo"),
-            (0.48, 0.48, 0.2, "indigo"),
-            (0.72, 0.68, 0.3, "green"),
-        )
+        _blob(x0 + w * fx, (y0 + y1) / 2, 0.37 * h, "indigo") for fx in (0.3, 0.7)
     )
-    squiggles = []
-    for y in _frange(y0 + 22, y0 + s - 20, 29):
-        pts = [
-            (lx + s + 5 + t, y + 2.5 * math.sin(2 * math.pi * t / 12))
-            for t in range(19)
-        ]
-        pts.append((lx + s + 5 + 30, y))
-        squiggles.append(
-            f'<path d="{_path(pts)}" fill="none" stroke="{SAFFRON}" stroke-width="2" marker-end="url(#ah-saffron)"/>'
-        )
+    flux = [
+        _arrow(x1 + 38, y0 + h * f, x1 + 7, y0 + h * f, "accent", 1.8)
+        for f in (0.1, 0.3, 0.5, 0.7, 0.9)
+    ]
     parts = [
-        # Conductivity field (control) with Dirichlet edge and heat input.
-        f'<clipPath id="kclip"><rect x="{lx}" y="{y0}" width="{s}" height="{s}"/></clipPath>',
-        f'<rect x="{lx}" y="{y0}" width="{s}" height="{s}" fill="#eef0f4"/>',
+        f'<clipPath id="kclip"><rect x="{x0}" y="{y0}" width="{w}" height="{h}"/></clipPath>',
+        f'<rect x="{x0}" y="{y0}" width="{w}" height="{h}" fill="{TINT}"/>',
         f'<g clip-path="url(#kclip)">{cond}</g>',
-        f'<rect x="{lx}" y="{y0}" width="{s}" height="{s}" fill="none" stroke="{INK2}" stroke-width="1.5"/>',
-        f'<rect x="{lx - 6}" y="{y0}" width="6" height="{s}" fill="{MUTED}"/>',
         (
-            f'<text transform="translate({lx - 16},{y0 + s / 2}) rotate(-90)" class="small" '
-            f'text-anchor="middle">{_m("T")} = {_m("T")}{_sub("0")}</text>'
+            f'<g fill="none" stroke="{GREEN}" stroke-width="1.3" stroke-linecap="round">'
+            f"{_isotherms(temp, x0, y0, w / nx, h / ny, levels)}</g>"
         ),
-        *squiggles,
-        (
-            f'<text x="{lx + s / 2}" y="{y0 + s + 26}" class="label" text-anchor="middle">'
-            f"∇·({_m('k')}∇{_m('T')}) + {_m('q')} = 0</text>"
-        ),
-        # Observed temperature field.
-        f'<rect x="{rx}" y="{y0}" width="{s}" height="{s}" fill="url(#temp)"/>',
-        f'<rect x="{rx}" y="{y0}" width="{s}" height="{s}" fill="none" stroke="{INK2}" stroke-width="1.5"/>',
-        (
-            f'<text x="{rx + s / 2}" y="{y0 + s + 26}" class="label" text-anchor="middle">'
-            f"{_m('T')}{_sub('obs')} = {_m('T')}({_m('x')}, {_m('y')}; {_m('k')}*)</text>"
-        ),
-        # Forward solve and inversion.
-        _arrow(300, 140, 462, 140, "ink", 2.2),
-        '<text x="381" y="128" class="small" text-anchor="middle">steady-state solve</text>',
-        _arrow(462, 206, 300, 206, "accent", 2.2),
-        (
-            f'<text x="381" y="226" class="small" text-anchor="middle" style="fill:{ACCENT}">'
-            f"invert: find {_m('k')}({_m('x')}, {_m('y')})</text>"
-        ),
-        (
-            f'<text x="381" y="242" class="small" text-anchor="middle" style="fill:{ACCENT}">'
-            f"that reproduces {_m('T')}{_sub('obs')}</text>"
-        ),
-        _label(lx, 40, "CONTROL", f"conductivity {_m('k')}({_m('x')}, {_m('y')})"),
+        f'<rect x="{x0}" y="{y0}" width="{w}" height="{h}" fill="none" stroke="{INK2}" stroke-width="1.5"/>',
+        _hatch(x0, y0 - 10, y1 + 10, side=-1),
+        f'<text x="{x0 - WALL - 10}" y="{(y0 + y1) / 2 + 6}" class="label" text-anchor="end">{_m("T")} = 0</text>',
+        *flux,
+        f'<text x="{x1 + 22}" y="{y1 + 26}" class="label" text-anchor="middle" style="fill:{ACCENT}">{_m("q")}</text>',
+        f'<text x="{(x0 + x1) / 2}" y="{y1 + 26}" class="small" text-anchor="middle">insulated top and bottom</text>',
+        _label(14, 22, "CONTROL", f"conductivity {_m('k')}({_m('x')}, {_m('y')})"),
         _label(
-            rx + s, 40, "OBSERVATION", "temperature field", anchor="end", quiet=True
+            W - 14,
+            22,
+            "OBSERVATION",
+            f"isotherms of {_m('T')}{_sub('obs')}",
+            anchor="end",
+            kind="target",
         ),
         _objective(
             f"{_up('min')}{_sub(_m('k'))} ‖{_m('T')}({_m('k')}) − {_m('T')}{_sub('obs')}‖{_sup('2')}",
-            330,
+            320,
         ),
     ]
     return _svg(
         "".join(parts),
         "Heat transfer: invert for the conductivity field from an observed temperature",
-        temp,
     )
 
 
