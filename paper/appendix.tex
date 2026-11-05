@@ -1079,8 +1079,9 @@ benchmark altogether are described in \cref{app:excluded}.
         every grid.
       & A stable time integrator or advection scheme. \\
     PhiFlow & Solver-in-the-loop study & Unstable
-      & Its own finest-grid run, the training target, turns non-finite from
-        some test states. The cause has not been established.
+      & Its own finest-grid run, the training target, turns non-finite within
+        the study's horizon from some reference states. The cause has not been
+        established.
       & A diagnosis of the divergence. \\
     PICT & Full solver-in-the-loop study & Runtime
       & The full run would take most of a day, because PICT's linear solves
