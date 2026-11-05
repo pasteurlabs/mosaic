@@ -20,8 +20,23 @@ Mosaic benchmarks differentiable physics solvers on accuracy, gradient quality a
 
 If you optimize or train _through_ a simulation, the solver has to return a correct forward prediction and a usable gradient (the vector–Jacobian product, VJP). Mosaic checks both. For every solver and setup, it reports:
 
-- **Accuracy and gradients**: whether the forward solution matches a trusted reference, whether the gradient agrees with finite differences, and whether a gradient-based optimizer makes progress through the solver.
-- **Compute and development cost**: wall-clock time and peak memory of the forward and VJP calls, and the effort it took to make the solver run the setup, from L0 (nothing beyond expected tweaks) to L3 (changing the solver itself). Deviations record where a solver runs a substitute for part of the prescribed setup.
+- **Forward accuracy**
+  - error against analytic solutions, literature values and converged high-resolution runs, across resolution and viscosity
+  - physical laws such as a divergence-free velocity field
+  - agreement with the other solvers
+- **Gradient quality**
+  - agreement with finite differences, in direction and magnitude, and with analytic gradients where they exist
+  - how accuracy holds up as the rollout lengthens, and through a chain of solver calls
+  - the conditioning of the Jacobian, from its singular values
+  - whether a gradient-based optimizer makes progress through the solver, and how many iterations it needs
+- **Compute cost**
+  - wall-clock time of the forward and VJP calls, across problem size and rollout length
+  - peak memory
+  - how large a problem or how long a rollout a solver handles before it runs out of memory or time
+- **Development cost**
+  - the effort it took to make the solver run each setup, from L0 (nothing beyond expected tweaks) to L3 (changing the solver itself)
+  - the reason and evidence for every intervention
+  - deviations, where a solver runs a substitute for part of the prescribed setup, and their effect on the results
 
 Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesseract-core) container with a uniform `apply` / `vjp` interface, so a single harness can compare solvers across languages and AD frameworks (JAX, PyTorch, Julia, hand-written C++ adjoints). The [solver reference](https://docs.pasteurlabs.ai/projects/mosaic/stable/solvers.html) lists every solver with its numerics and its intervention record.
 
@@ -29,7 +44,7 @@ Each solver is packaged as a [Tesseract](https://github.com/pasteurlabs/tesserac
 
 **[Browse the benchmark results →](https://docs.pasteurlabs.ai/projects/mosaic/stable/results/)**
 
-The results overview, refreshed on each release, shows the checks, cost, effort and deviations of every solver on every setup. Each setup has its own page with every plot. For findings drawn from these results, see the [paper page](https://docs.pasteurlabs.ai/projects/mosaic/stable/paper.html).
+The results overview, refreshed on each release, shows the checks, cost, effort and deviations of every solver on every setup. Each setup has its own page with every plot. For findings drawn from these results, see the [paper](https://arxiv.org/abs/2606.27895).
 
 ## 📖 Documentation
 
@@ -41,7 +56,7 @@ Two versions are published. You most likely want [stable](https://docs.pasteurla
 - [Run the benchmark](https://docs.pasteurlabs.ai/projects/mosaic/stable/getting-started.html)
 - [Use a solver in your code](https://docs.pasteurlabs.ai/projects/mosaic/stable/standalone.html)
 - [Contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html)
-- [Paper](https://docs.pasteurlabs.ai/projects/mosaic/stable/paper.html)
+- [Paper](https://arxiv.org/abs/2606.27895)
 
 > [!TIP]
 > **Reproducing our paper?** See the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions.
@@ -97,10 +112,6 @@ Mosaic is designed to grow with its community. There are three main ways to cont
 
 The [contributing guide](https://docs.pasteurlabs.ai/projects/mosaic/stable/contributing.html) covers the development setup, the pull request workflow and the conventions. [CONTRIBUTING.md](CONTRIBUTING.md) has the contributor license agreement and the code of conduct. For questions, [open an issue](https://github.com/pasteurlabs/mosaic/issues) or visit the [Tesseract Forum](https://si-tesseract.discourse.group/).
 
-### How Mosaic is built
-
-Mosaic's code is written by coding agents, and curated and reviewed by the [people who maintain it](https://github.com/pasteurlabs/mosaic/graphs/contributors). The results stay accountable because every intervention a solver needs and every deviation from a setup is recorded with its reason and evidence, and linked from the results it affects. Issues and forum posts are answered by people.
-
 ## Project structure
 
 ```
@@ -119,7 +130,7 @@ mosaic/
     thermal-mesh/         # steady heat conduction on hexahedral meshes
 tests/                    # unit and integration tests (run with pytest)
 docs/                     # Quarto documentation site (_quarto.yml)
-  *.qmd                   # the pages: overview, guides, solver reference, paper
+  *.qmd                   # the pages: overview, guides, solver reference
   results/                # results overview and one page per setup
   figures/                # images shown on the pages
   assets/                 # theme and page scripts

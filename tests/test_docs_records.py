@@ -78,13 +78,14 @@ def test_effort_block_covers_one_setup(results: Path) -> None:
     assert views.title(substepping) in cylinder
 
 
-def test_ranking_table_gains_effort_columns(results: Path) -> None:
+def test_ranking_table_links_its_experiment(results: Path) -> None:
     block = "\n".join(
         generate_results._leaderboard_block(
             "ns-grid", "forward", "ns-2d-periodic", frozenset({"tgv_nu_sweep"})
         )
     )
-    assert "| Solver | Mean rel. error | Effort | Deviations |" in block
+    # Effort and deviations are in the check table at the top of the page.
+    assert "| Solver | Mean rel. error |" in block
     # The caption links to the experiment the ranking was measured in, or to
     # the suite when that experiment has no heading on the page.
     assert "(#exp-forward-tgv-nu-sweep)" in block
@@ -117,6 +118,54 @@ def test_optimization_table_shows_iterations_to_plateau(results: Path) -> None:
     assert "| PICT | 3.00e+00 | — |" in block
 
 
+def test_time_to_plateau_prorates_the_wall_time(results: Path) -> None:
+    d = results / "ns-grid" / "optimization" / "drag_opt"
+    d.mkdir(parents=True)
+    rows = [
+        {
+            "solver": "XLB",
+            "metrics": {"final_drag": 3.1, "iters_to_plateau": 30, "n_iters": 60},
+        },
+        {"solver": "PICT", "metrics": {"final_drag": 3.0, "iters_to_plateau": 10}},
+    ]
+    provenance = {"wall_time_s": {"XLB": 120.0, "PICT": 50.0}}
+    (d / "result.json").write_text(
+        json.dumps({"results": rows, "provenance": provenance})
+    )
+    block = "\n".join(
+        generate_results._leaderboard_block("ns-grid", "optimization", "ns-2d-cylinder")
+    )
+    assert "| Solver | Final drag | Iterations to plateau | Time to plateau |" in block
+    # Half of the 60 iterations of a 120 s run.
+    assert "| XLB | 3.10e+00 | 30 | 60 s |" in block
+    # Without the number of iterations run there is no estimate.
+    assert "| PICT | 3.00e+00 | 10 | — |" in block
+
+
+def test_recorded_time_to_plateau_wins_over_the_estimate(results: Path) -> None:
+    d = results / "ns-grid" / "optimization" / "drag_opt"
+    d.mkdir(parents=True)
+    metrics = {"final_drag": 3.1, "iters_to_plateau": 30, "n_iters": 60}
+    rows = [
+        {"solver": "XLB", "metrics": {**metrics, "seconds_to_plateau": 12.0}},
+        {"solver": "PICT", "metrics": {**metrics, "final_drag": 3.0}},
+    ]
+    provenance = {"wall_time_s": {"XLB": 120.0, "PICT": 50.0}}
+    (d / "result.json").write_text(
+        json.dumps({"results": rows, "provenance": provenance})
+    )
+    plateaus = generate_results.scoreboard.plateau(
+        json.loads((d / "result.json").read_text())
+    )
+    assert plateaus["XLB"] == {
+        "iters": 30.0,
+        "n_iters": 60,
+        "seconds": 12.0,
+        "estimated": False,
+    }
+    assert plateaus["PICT"]["estimated"] and plateaus["PICT"]["seconds"] == 25.0
+
+
 def test_no_results_means_no_effort_block(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(generate_results, "RESULTS_DIR", tmp_path)
     assert generate_results._effort_block("ns-grid", "ns-2d-periodic") == []
@@ -129,7 +178,7 @@ def test_every_setup_gets_a_page_without_results(tmp_path: Path, monkeypatch) ->
         monkeypatch.setattr(generate_results, name, tmp_path / name)
     monkeypatch.setattr(generate_results, "GATES_INCLUDE", tmp_path / "GATES_INCLUDE")
     generate_results.main()
-    for setup in generate_results.scoreboard.SETUPS:
+    for setup in generate_results.scoreboard.setups():
         page = (
             tmp_path / "results" / generate_results.setup_page(setup["key"])
         ).read_text()
@@ -191,5 +240,5 @@ def test_solver_reference_shows_every_record() -> None:
     qmd = generate.generate_qmd(categories)
     assert qmd.count("#### Interventions and deviations") == len(solvers)
     assert "`mumps-adjoint-monkeypatch`" in qmd
-    assert "**Reason unknown.**" in qmd
+    assert "| Setup | Effort |" in qmd
     assert "**Setup deviations**" in qmd

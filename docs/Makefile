@@ -20,7 +20,7 @@ help:
 	@echo "make preview    live-reloading preview"
 	@echo "make generated  regenerate the results pages, solver reference and plots"
 	@echo "make data       fetch the published baseline into mosaic-results/ (needs gh)"
-	@echo "make figures    redraw the setup schematics and the paper page's animation"
+	@echo "make figures    redraw the setup schematics"
 	@echo "make clean      remove _build/ and _site/"
 
 html: generated
@@ -47,11 +47,8 @@ data:
 		bash .github/scripts/fetch-artifact.sh baseline mosaic-results/
 	cd .. && $(RUN) mosaic run --plots-only
 
-# The animation needs Exponax and ffmpeg, which the project environment lacks.
 figures:
 	$(RUN) python scripts/make_domain_figures.py
-	uv run --no-project --with exponax==0.2.0 --with jax==0.10.0 \
-		--with matplotlib python scripts/make_kolmogorov_animation.py
 
 clean:
 	rm -rf $(BUILD) _site

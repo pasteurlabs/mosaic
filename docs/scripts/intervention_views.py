@@ -122,6 +122,13 @@ def deviations_parts(record: object | None, setup: str) -> tuple[str, str]:
     return str(len(devs)), detail
 
 
+def deviation_items(record: object | None, setup: str) -> list[tuple[str, str]]:
+    """The setup deviations of one solver on one setup, as ``(title, effect)``."""
+    if record is None:
+        return []
+    return [(title(d), _one_line(d.effect)) for d in record.deviations_for(setup)]
+
+
 def _hover_cell(parts: tuple[str, str]) -> str:
     text, detail = parts
     return tip(text, detail) if detail else text
@@ -165,24 +172,6 @@ def linkify(text: str) -> str:
 def _setup_label(key: str) -> str:
     setup = iv.SETUPS.get(key)
     return setup.label if setup else key
-
-
-def mentioned_setups(record: object, setups: tuple[str, ...]) -> tuple[str, ...]:
-    """The setups of ``setups`` that the record says anything about."""
-    named = {s for i in record.interventions for s in i.why}
-    named |= {s for d in record.deviations for s in d.setups}
-    return tuple(s for s in setups if s in named)
-
-
-def summary_line(record: object, setups: tuple[str, ...]) -> str:
-    """One line: the effort on each setup."""
-    setups = mentioned_setups(record, setups)
-    if not setups:
-        return f"**Effort:** {BASELINE_LEVEL} on every setup."
-    efforts = ", ".join(
-        f"{record.effort(s) or BASELINE_LEVEL} on {_setup_label(s)}" for s in setups
-    )
-    return f"**Effort:** {efforts}."
 
 
 def _consequences(reason: object) -> str:
@@ -234,7 +223,7 @@ def _intervention_item(i: object) -> list[str]:
     return lines
 
 
-def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]:
+def developer_block(record: object | None) -> list[str]:
     """Markdown lines describing a solver's record on the solver reference."""
     if record is None:
         return [
@@ -242,8 +231,6 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
             "",
         ]
     lines = [
-        summary_line(record, setups),
-        "",
         "::: {.callout-note}",
         "#### Interventions and deviations",
         "",
@@ -266,18 +253,6 @@ def developer_block(record: object | None, setups: tuple[str, ...]) -> list[str]
                 f"*Effect:* {linkify(d.effect)}"
                 + (f" *Evidence:* {linkify(d.evidence)}" if d.evidence else "")
             )
-        lines.append("")
-
-    unknown = [i for i in active if i.reason_unknown]
-    if unknown:
-        lines += [
-            (
-                "**Reason unknown.** Nobody has measured whether these are "
-                "needed. A measurement, or removing them, would settle it."
-            ),
-            "",
-        ]
-        lines += [f"- {title(i)} ({i.level})" for i in unknown]
         lines.append("")
 
     inactive = [i for i in record.interventions if not i.active]

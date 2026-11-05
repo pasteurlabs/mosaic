@@ -10,23 +10,23 @@ one owns are defined in ``mosaic/benchmarks/core/interventions.py``) they
 report:
 
 * **Checks** — forward, gradient and optimization, each one of pass,
-  borderline, fail, blocked, not supported or not run. A check
+  flagged, fail, blocked, not supported or not run. A check
   combines the status of the setup's gate experiments for that suite, using the
   pass criteria (``status_check``) each problem config declares for them; see
-  :func:`_check`. Diagnostic experiments (Jacobian spectra, horizon sweeps,
-  cost sweeps) are not gates, but count in the all-experiments column.
+  :func:`_check`. Cells excluded because the method cannot express the
+  experiment are "not supported", not failures; cells excluded for a recorded
+  reason such as an instability or an upstream bug are "blocked".
 * **Cost** — forward and VJP wall-clock time, and its multiple of the
-  fastest solver *on the same device class* (GPU or CPU), at the largest
-  problem size every solver of that class completed. A gap to the fastest
-  solver that is within the spread of the timed trials is marked. Next to it,
-  the peak memory of the VJP pass (the forward pass for forward-only solvers).
-* **All experiments** — counts of ok, flagged (anomaly), failed, blocked and
-  not-run experiment cells over every experiment of the setup, with the reason
-  for each, and the experiments where a solver reached a resource limit
-  partway through a sweep. Cells excluded because the method cannot express
-  the experiment are "not supported", not failures; cells excluded for a
-  recorded reason such as an instability or an upstream bug are "blocked".
+  fastest solver *on the same device class* (GPU or CPU, from each solver's
+  config), at one problem size per device class (see :func:`comparison_n`).
+  Next to it, the peak memory of the VJP pass (the forward pass for
+  forward-only solvers).
 * **Effort** and **deviations** — from each solver's intervention record.
+
+Below each table, notes list every experiment of the setup (diagnostics such
+as Jacobian spectra and cost sweeps included) that a solver did not complete
+within its criteria, with the reason, and the sweeps where a solver reached a
+resource limit.
 
 Everything is computed from ``mosaic-results/snapshot.json`` (the
 ``mosaic status`` snapshot), the cost ``result.json`` files and the
@@ -39,7 +39,6 @@ import html
 import json
 import math
 import sys
-from collections import Counter
 from pathlib import Path
 
 
@@ -77,14 +76,14 @@ PROBLEM_IDS = {
 # How each setup is shown, in display order. Which experiments belong to a
 # setup comes from ``interventions.SETUPS``; an entry whose key is not defined
 # there is skipped. ``gates`` are the experiments whose status decides each
-# check (an empty list drops the column for that setup).
+# check (an empty list drops the column for that setup). ``accuracy_cost``
+# adds a column with the cost of reaching an error (see :func:`cost_to_error`).
 SETUPS = [
     {
         "key": "heat",
         "short": "slab",
         "problem": "thermal-mesh",
         "label": "Heat transfer",
-        "setup": "Steady conduction in a slab",
         "task": "conductivity recovery",
         "gates": {
             "forward": [
@@ -108,7 +107,6 @@ SETUPS = [
         "short": "cantilever",
         "problem": "structural-mesh",
         "label": "Structural mechanics",
-        "setup": "Linear-elastic cantilever",
         "task": "compliance topology optimization",
         "gates": {
             "forward": [
@@ -125,7 +123,6 @@ SETUPS = [
         "short": "periodic",
         "problem": "ns-grid",
         "label": "Navier–Stokes (2D)",
-        "setup": "Periodic box (Taylor–Green, multimode)",
         "task": "",
         "gates": {
             "forward": [
@@ -148,7 +145,6 @@ SETUPS = [
         "short": "cylinder",
         "problem": "ns-grid",
         "label": "Navier–Stokes (2D)",
-        "setup": "Channel flow past a cylinder",
         "task": "inflow optimization for drag",
         "gates": {
             "forward": ["forward/cylinder"],
@@ -161,20 +157,21 @@ SETUPS = [
         "short": "Kolmogorov",
         "problem": "ns-grid",
         "label": "Navier–Stokes (2D)",
-        "setup": "Forced Kolmogorov flow",
         "task": "",
         "gates": {
             "forward": ["forward/kolmogorov_laminar", "forward/kolmogorov"],
             "gradient": ["gradient/chain_fd_check"],
             "optimization": [],
         },
+        # The flow is chaotic, so what separates the solvers is how much
+        # compute they need to track the converged truth.
+        "accuracy_cost": {"experiment": "forward/kolmogorov", "error": 0.1},
     },
     {
         "key": "ns-3d",
         "short": "periodic",
         "problem": "ns-3d-grid",
         "label": "Navier–Stokes (3D)",
-        "setup": "Triply periodic box (Taylor–Green)",
         "task": "initial-condition recovery",
         "gates": {
             "forward": [
@@ -189,10 +186,10 @@ SETUPS = [
 ]
 
 # Check states, in order of severity (worst last).
-STATES = ["pass", "borderline", "fail", "blocked", "na", "notrun"]
+STATES = ["pass", "flagged", "fail", "blocked", "na", "notrun"]
 STATE_LABELS = {
     "pass": "Pass",
-    "borderline": "Borderline",
+    "flagged": "Flagged",
     "fail": "Fail",
     "blocked": "Blocked",
     "na": "Not supported",
@@ -200,7 +197,7 @@ STATE_LABELS = {
 }
 STATE_GLYPHS = {
     "pass": "✓",
-    "borderline": "!",
+    "flagged": "!",
     "fail": "✗",
     "blocked": "⊘",
     "na": "—",
@@ -239,9 +236,14 @@ def _matches(label: str, prefixes: list[str]) -> bool:
     return any(label == p or label.startswith((p + "/", p + "_")) for p in prefixes)
 
 
-def _setups() -> list[dict]:
-    """The setups of :data:`SETUPS` that the intervention module defines."""
-    return [s for s in SETUPS if s["key"] in views.iv.SETUPS]
+def setups() -> list[dict]:
+    """The setups of :data:`SETUPS` that the intervention module defines, with
+    their display name (``setup``) from it."""
+    return [
+        {**s, "setup": views.iv.SETUPS[s["key"]].label}
+        for s in SETUPS
+        if s["key"] in views.iv.SETUPS
+    ]
 
 
 def _setup_rows(setup: dict, rows: list[dict]) -> list[dict]:
@@ -294,8 +296,7 @@ def _check(cells: list[tuple[str, dict]]) -> dict:
     """Combine the gate cells of one suite into a check.
 
     Any failed gate fails the check; otherwise any anomaly (explained or not)
-    makes it borderline, and the check is marked explained when every anomaly
-    has a documented cause. A solver whose every gate is a permanent exclusion
+    flags it. A solver whose every gate is a permanent exclusion
     is "not supported"; one with no gate run is "blocked" if a gate is
     excluded for a recorded reason, and "not run" otherwise.
     """
@@ -312,19 +313,14 @@ def _check(cells: list[tuple[str, dict]]) -> dict:
     elif any(k == "failed" for _, k, _ in run):
         state = "fail"
     elif any(k == "anomaly" for _, k, _ in run):
-        state = "borderline"
+        state = "flagged"
     else:
         state = "pass"
-    reasons = [(label, k, _reason(c)) for label, k, c in kinds if k not in ("ok",)]
-    anomalies = [c for _, k, c in kinds if k == "anomaly"]
     blocked_as = {_blocked_label(c) for c in blocked}
     return {
         "state": state,
         "n_run": len(run),
         "n_gates": len([k for k in kinds if k[1] != "na"]),
-        "reasons": reasons,
-        "explained": state == "borderline"
-        and all((c.get("explanation") or "").strip() for c in anomalies),
         "blocked_as": blocked_as.pop()
         if len(blocked_as) == 1
         else STATE_LABELS["blocked"],
@@ -402,31 +398,63 @@ def _gpu_names(record: dict) -> set[str]:
     return {str(g).split(",")[0].strip() for g in record.get("gpus") or []}
 
 
-def _relative_cost(
-    times: dict[str, dict[float, dict]], group: list[str]
-) -> dict[str, dict]:
-    """``t / t_fastest`` within ``group`` at the largest N all of them completed.
+def comparison_n(
+    passes: list[dict[str, dict[float, dict]]], group: list[str]
+) -> float | None:
+    """The one problem size N at which ``group``'s times are compared, in
+    every pass.
 
-    A solver is ``within_noise`` of the fastest when the gap between their
-    means is at most twice the combined standard deviation of their trials.
+    N is the largest size that every solver of the group completed in each of
+    its passes, leaving out solvers that completed fewer than half the sizes
+    the group reached in some pass, so that one solver failing early does not
+    pull every comparison down to a small size. Solvers without a time at N
+    are left out of the comparison.
     """
-    have = [s for s in group if times.get(s)]
-    if not have:
-        return {}
-    common = set.intersection(*(set(times[s]) for s in have))
-    if not common:
-        return {}
-    n = max(common)
-    fastest = min(have, key=lambda s: times[s][n]["mean"])
-    best = times[fastest][n]
-    if best["mean"] <= 0:
-        return {}
+    have = [s for s in group if any(t.get(s) for t in passes)]
+    reached = [{n for s in group for n in t.get(s, {})} for t in passes]
+
+    def falls_short(s: str) -> bool:
+        return any(
+            t.get(s) and len(t[s]) < len(sizes) / 2
+            for t, sizes in zip(passes, reached, strict=True)
+        )
+
+    core = [s for s in have if not falls_short(s)] or have
+    done = [set(t[s]) for s in core for t in passes if t.get(s)]
+    common = set.intersection(*done) if done else set()
+    return max(common) if common else None
+
+
+def _relative_cost(
+    times: dict[str, dict[float, dict]], group: list[str], n: float | None
+) -> dict[str, dict]:
+    """``t / t_fastest`` within ``group`` at the size ``n`` from
+    :func:`comparison_n`.
+
+    A solver without a time at ``n`` gets only ``reach``, the largest N it
+    completed. A solver is ``within_noise`` of the fastest when the gap
+    between their means is at most twice the combined standard deviation of
+    their trials.
+    """
+    compared = [s for s in group if n in times.get(s, {})]
+    best = min((times[s][n] for s in compared), key=lambda t: t["mean"], default=None)
     out = {}
-    for s in have:
+    for s in group:
+        if not times.get(s):
+            continue
+        if s not in compared or best["mean"] <= 0:
+            out[s] = {"ratio": None, "reach": max(times[s])}
+            continue
         t = times[s][n]
+        ratio = t["mean"] / best["mean"]
         spread = math.hypot(t["std"], best["std"])
+        within_noise = (
+            t is not best
+            and math.isfinite(spread)
+            and t["mean"] - best["mean"] <= 2 * spread
+        )
         out[s] = {
-            "ratio": t["mean"] / best["mean"],
+            "ratio": ratio,
             "seconds": t["mean"],
             "std": t["std"],
             "n_trials": t["n_trials"],
@@ -434,35 +462,128 @@ def _relative_cost(
             "vram": t["vram"],
             "ram": t["ram"],
             "n": n,
-            "within_noise": s != fastest
-            and math.isfinite(spread)
-            and t["mean"] - best["mean"] <= 2 * spread,
+            "within_noise": within_noise,
         }
     return out
 
 
-def _iters_to_plateau(
-    results_dir: Path, problem: str, gates: list[str] | None
-) -> dict[str, float]:
-    """Per solver, the optimizer iterations until the loss levelled off.
+def plateau(result: dict) -> dict[str, dict]:
+    """Per solver in an optimization ``result``, when the loss levelled off.
 
-    Read from the first optimization gate whose results carry it; results
-    recorded before the harness kept ``iters_to_plateau`` have none.
+    ``iters`` is the harness's ``iters_to_plateau`` and ``seconds`` its
+    ``seconds_to_plateau``. Results recorded before the harness kept the time
+    get an estimate (``estimated``): the experiment's wall time for the solver
+    times the share of its iterations run by then, which includes startup and
+    compilation pro rata. Without ``n_iters`` (several trials whose lengths
+    were not all recorded) or a wall time there is no estimate.
     """
-    for label in gates or []:
+    wall = (result.get("provenance") or {}).get("wall_time_s") or {}
+    out = {}
+    for r in result.get("results") or []:
+        m = r.get("metrics") or {}
+        iters = m.get("iters_to_plateau")
+        if not _finite(iters):
+            continue
+        n, t = m.get("n_iters"), wall.get(r["solver"])
+        seconds, estimated = m.get("seconds_to_plateau"), False
+        if not _finite(seconds):
+            estimated = True
+            seconds = t * iters / n if _finite(n) and n > 0 and _finite(t) else None
+        out[r["solver"]] = {
+            "iters": float(iters),
+            "n_iters": n,
+            "seconds": seconds,
+            "estimated": estimated,
+        }
+    return out
+
+
+def _plateau_for(
+    results_dir: Path, problem: str, gates: list[str] | None
+) -> dict[str, dict]:
+    """:func:`plateau` of the first optimization gate whose results carry it.
+
+    A gate names an experiment or the prefix of its directory, as in
+    :func:`_matches`.
+    """
+    suite_dir = results_dir / problem / "optimization"
+    dirs = sorted(p.name for p in suite_dir.iterdir()) if suite_dir.is_dir() else []
+    for label in [
+        f"optimization/{d}" for d in dirs if _matches(f"optimization/{d}", gates or [])
+    ]:
         path = results_dir / problem / label / "result.json"
         try:
-            results = json.loads(path.read_text(encoding="utf-8")).get("results")
+            out = plateau(json.loads(path.read_text(encoding="utf-8")))
         except Exception:  # noqa: S112 — no or malformed result file
             continue
-        out = {
-            r["solver"]: float(v)
-            for r in results or []
-            if _finite(v := (r.get("metrics") or {}).get("iters_to_plateau"))
-        }
         if out:
             return out
     return {}
+
+
+def cost_to_error(result: dict, target: float) -> dict[str, dict]:
+    """Per solver in a ``forward/kolmogorov`` result, the wall time per
+    simulated time unit needed to reach the relative error ``target`` at the
+    last scored time.
+
+    The runs are a ladder of grids. Between the last grid above the target
+    and the first one within it, the cost is interpolated linearly in
+    log(error) and log(cost). ``state`` is ``reached``, ``coarsest`` when the
+    coarsest grid that ran is already within the target, so that ``seconds``
+    is an upper bound, ``not_reached`` with the ``best`` error, or
+    ``diverged`` when no grid stayed finite.
+    """
+    out: dict[str, dict] = {}
+    for r in result.get("results") or []:
+        runs = sorted(
+            (r.get("metrics") or {}).get("runs") or [], key=lambda x: x["grid"]
+        )
+        points = [
+            (run["grid"], run["median_errors"][-1], run["seconds_per_time"])
+            for run in runs
+            if not run.get("diverged")
+            and _finite(run.get("seconds_per_time"))
+            and run.get("median_errors")
+            and _finite(run["median_errors"][-1])
+        ]
+        if not points:
+            if runs:
+                out[r["solver"]] = {"state": "diverged"}
+            continue
+        entry = {"state": "not_reached", "best": min(e for _, e, _ in points)}
+        prev = None
+        for grid, err, cost in points:
+            if err > target:
+                prev = (grid, err, cost)
+                continue
+            if prev is None:
+                entry = {"state": "coarsest", "seconds": cost, "grids": (grid,)}
+            else:
+                g0, e0, c0 = prev
+                frac = (
+                    (math.log(e0) - math.log(target)) / (math.log(e0) - math.log(err))
+                    if err > 0
+                    else 1.0
+                )
+                entry = {
+                    "state": "reached",
+                    "seconds": math.exp(
+                        math.log(c0) + frac * (math.log(cost) - math.log(c0))
+                    ),
+                    "grids": (g0, grid),
+                }
+            break
+        out[r["solver"]] = entry
+    return out
+
+
+def duration(t: float) -> str:
+    """``42 s``, ``11 min`` or ``1.5 h``."""
+    if t < 120:
+        return f"{t:.2g} s" if t < 10 else f"{t:.0f} s"
+    if t < 3600:
+        return f"{t / 60:.2g} min" if t < 600 else f"{t / 60:.0f} min"
+    return f"{t / 3600:.2g} h"
 
 
 # ── Assembly ─────────────────────────────────────────────────────────────────
@@ -471,8 +592,9 @@ def _iters_to_plateau(
 def _sort_key(row: dict, suites: list[str]):
     sev = [STATES.index(row["checks"][s]["state"]) for s in suites]
     blocking = sum(1 for v in sev if v >= STATES.index("fail"))
-    soft = sum(1 for v in sev if v == STATES.index("borderline"))
-    fwd = (row["cost"].get("Forward cost") or {}).get("ratio", math.inf)
+    soft = sum(1 for v in sev if v == STATES.index("flagged"))
+    fwd = (row["cost"].get("Forward cost") or {}).get("ratio")
+    fwd = math.inf if fwd is None else fwd
     return (blocking, soft, fwd, row["name"].lower())
 
 
@@ -487,8 +609,8 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
         return None
     snapshot = json.loads(snap_path.read_text(encoding="utf-8")).get("problems", {})
 
-    setups = []
-    for setup in _setups():
+    out = []
+    for setup in setups():
         problem = setup["problem"]
         snap = snapshot.get(problem)
         if not snap:
@@ -502,33 +624,38 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
 
         has_cost = any(r["suite"] == "cost" for r in rows)
         cost: dict[str, dict[str, dict]] = {}
-        # Each solver is compared within the device class its cost results
-        # were measured on, which can differ from its config when the results
-        # predate a move to the GPU. Without a hardware record the config
-        # decides.
-        configured = {n: bool(meta.get(n, {}).get("gpu", True)) for n in names}
-        measured: dict[str, bool] = {}
+        # Solvers are compared within the device class their config targets.
+        # The hardware records only give the GPU model: a record lists the
+        # machine's GPUs, whether or not the solver used them.
+        gpu = {n: bool(meta.get(n, {}).get("gpu", True)) for n in names}
         gpu_models: set[str] = set()
+        cost_n: dict[bool, float | None] = {}
         if has_cost:
-            passes = [
-                (label, cost_result(results_dir, problem, exp))
-                for label, exp in COST_PASSES
-            ]
-            for _, data in reversed(passes):  # the forward pass wins
+            times: dict[str, dict[str, dict[float, dict]]] = {}
+            for label, exp in COST_PASSES:
+                data = cost_result(results_dir, problem, exp)
                 for n, record in hardware(data).items():
-                    if n in configured:
-                        measured[n] = bool(record.get("gpus"))
-            for label, data in passes:
-                for n, record in hardware(data).items():
-                    if measured.get(n):
+                    if gpu.get(n):
                         gpu_models |= _gpu_names(record)
-                times = _times_by_n(data)
-                for gpu in (True, False):
-                    group = [n for n in names if measured.get(n, configured[n]) is gpu]
-                    for s, v in _relative_cost(times, group).items():
+                times[label] = _times_by_n(data)
+            for on_gpu in (True, False):
+                group = [n for n in names if gpu[n] is on_gpu]
+                n = comparison_n(list(times.values()), group)
+                cost_n[on_gpu] = n
+                for label, by_n in times.items():
+                    for s, v in _relative_cost(by_n, group, n).items():
                         cost.setdefault(s, {})[label] = v
 
-        iters = _iters_to_plateau(
+        spec = setup.get("accuracy_cost")
+        accuracy_cost = {}
+        if spec:
+            path = results_dir / problem / spec["experiment"] / "result.json"
+            try:
+                result = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:  # no or malformed result file
+                result = {}
+            accuracy_cost = cost_to_error(result, spec["error"])
+        plateaus = _plateau_for(
             results_dir, problem, setup["gates"].get("optimization")
         )
         records = views.records_for(setup["key"])
@@ -549,7 +676,7 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 for s in suites
             }
             # A cost cell flagged only for being slow ran fine: the cost
-            # columns already show its speed, so reliability counts it as ok.
+            # columns already show its speed.
             kinds = [
                 (
                     lab,
@@ -560,18 +687,6 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 )
                 for lab, c in cells
             ]
-            counted = [k for k in kinds if k[1] != "na"]
-            reliability = {
-                "ok": sum(1 for _, k, _ in counted if k == "ok"),
-                "flagged": sum(1 for _, k, _ in counted if k == "anomaly"),
-                "failed": sum(1 for _, k, _ in counted if k == "failed"),
-                "blocked": dict(
-                    Counter(_blocked_label(c) for _, k, c in counted if k == "blocked")
-                ),
-                "notrun": sum(1 for _, k, _ in counted if k == "notrun"),
-                "limits": sum(1 for _, _, c in counted if c.get("resource_frontier")),
-                "total": len(counted),
-            }
             flags = [
                 (lab, _blocked_label(c) if k == "blocked" else k, _reason(c))
                 for lab, k, c in kinds
@@ -587,27 +702,22 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 {
                     "name": m.get("display") or name,
                     "anchor": m.get("anchor", ""),
-                    "gpu": measured.get(name, configured[name]),
-                    # Cost measured on a different device class than the
-                    # solver's config targets, e.g. results that predate a
-                    # move to the GPU.
-                    "device_mismatch": name in measured
-                    and measured[name] is not configured[name],
+                    "gpu": gpu[name],
                     "checks": checks,
-                    "iters": iters.get(name),
+                    "plateau": plateaus.get(name),
+                    "accuracy_cost": accuracy_cost.get(name),
                     "cost": cost.get(name, {}),
-                    "reliability": reliability,
                     "flags": flags,
                     "limits": limits,
                     "unsupported": unsupported,
                     "effort": views.effort_parts(records.get(name), setup["key"]),
-                    "deviations": views.deviations_parts(
+                    "deviations": views.deviation_items(
                         records.get(name), setup["key"]
                     ),
                 }
             )
         out_rows.sort(key=lambda r: _sort_key(r, suites))
-        setups.append(
+        out.append(
             {
                 **{
                     k: setup[k]
@@ -616,15 +726,54 @@ def compute(results_dir: Path, solver_meta: dict[str, dict[str, dict]]) -> dict 
                 "id": PROBLEM_IDS.get(problem, problem),
                 "suites": suites,
                 "has_cost": has_cost and bool(cost),
+                "cost_n": cost_n,
+                "accuracy_target": spec["error"] if accuracy_cost else None,
                 "gpu_model": gpu_models.pop() if len(gpu_models) == 1 else "",
                 "has_effort": bool(records),
                 "rows": out_rows,
             }
         )
-    return {"setups": setups}
+    _mark_setups_elsewhere(out)
+    return {"setups": out}
+
+
+def _mark_setups_elsewhere(setups: list[dict]) -> None:
+    """Give each setup ``elsewhere``: per solver of its table, the other
+    setups of the same domain that the solver does not run, meaning that
+    none of its checks there passed or was flagged.
+
+    Solvers specialized to one kind of problem can top a table on it and run
+    nothing else, so the check tables say so next to the numbers.
+    """
+    ran = {
+        (st["key"], r["name"]): any(
+            c["state"] in ("pass", "flagged") for c in r["checks"].values()
+        )
+        for st in setups
+        for r in st["rows"]
+    }
+    for st in setups:
+        domain = views.iv.domain_of(st["key"])
+        others = [
+            o for o in setups if o is not st and views.iv.domain_of(o["key"]) == domain
+        ]
+        st["elsewhere"] = {
+            r["name"]: missing
+            for r in st["rows"]
+            if (
+                missing := [
+                    o for o in others if ran.get((o["key"], r["name"])) is False
+                ]
+            )
+        }
 
 
 # ── HTML rendering ───────────────────────────────────────────────────────────
+
+
+def _join(items: list[str]) -> str:
+    """``a``, ``a and b``, ``a, b and c``."""
+    return " and ".join([", ".join(items[:-1]), items[-1]] if len(items) > 1 else items)
 
 
 def _esc(s: str) -> str:
@@ -646,18 +795,13 @@ def _metric_text(metrics: dict) -> str:
     return ", ".join(parts)
 
 
-def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
-    """One check cell. ``notes`` is the id of the setup's notes below the table."""
+def _check_td(chk: dict) -> str:
+    """One check cell, sorted by severity."""
     st = chk["state"]
-    partial = st not in ("na", "notrun", "blocked") and chk["n_run"] < chk["n_gates"]
-    if st == "blocked":
-        label = chk["blocked_as"]
-    elif st == "pass" and partial:
-        label = "Partial"
-    else:
-        label = STATE_LABELS[st]
+    ran = st not in ("na", "notrun", "blocked")
+    label = chk["blocked_as"] if st == "blocked" else STATE_LABELS[st]
     tip = [label]
-    if chk["n_gates"] and st not in ("na", "notrun", "blocked"):
+    if chk["n_gates"] and ran:
         tip.append(
             f"Ran {chk['n_run']} of the {chk['n_gates']} experiments behind this check"
         )
@@ -666,27 +810,76 @@ def _check_td(chk: dict, notes: str, iters: float | None = None) -> str:
     tip += [
         f"{_short(lab)}: {txt}" for lab, m in chk["metrics"] if (txt := _metric_text(m))
     ]
-    if iters is not None:
-        tip.append(f"Loss leveled off after {iters:.0f} iterations")
-    tip += [f"{_short(lab)}: {why}" for lab, _, why in chk["reasons"] if why]
     extra = (
         f'<span class="ck-part">{chk["n_run"]} of {chk["n_gates"]} run</span>'
-        if partial
-        else ""
-    )
-    if iters is not None:
-        extra += f'<span class="ck-part">plateau at {iters:.0f}</span>'
-    explained = (
-        f'<a class="ck-explained" href="#{notes}" '
-        'aria-label="explained, see the notes below the table"><sup>i</sup></a>'
-        if chk["explained"]
+        if ran and chk["n_run"] < chk["n_gates"]
         else ""
     )
     return (
-        f'<td class="ck-cell"><span class="ck ck-{st}" title="{_esc(chr(10).join(tip))}">'
+        f'<td class="ck-cell" data-sort="{STATES.index(st)}">'
+        f'<span class="ck ck-{st}" title="{_esc(chr(10).join(tip))}">'
         f'<span class="ck-glyph" aria-hidden="true">{STATE_GLYPHS[st]}</span>'
-        f"{_esc(label)}</span>{explained}{extra}</td>"
+        f"{_esc(label)}</span>{extra}</td>"
     )
+
+
+def _ratio_text(r: float) -> str:
+    return "fastest" if r < 1.005 else (f"{r:.1f}×" if r < 10 else f"{r:.0f}×")
+
+
+def _plateau_td(p: dict | None, timed: bool, best: float | None) -> str:
+    """When the loss levelled off: the estimated time and its multiple of the
+    fastest solver ``best`` in the group, or iterations where no solver of
+    the setup has a time."""
+    if not p:
+        return '<td class="ck-cost ck-cost-na">—</td>'
+    tip = f"Loss leveled off after {p['iters']:.0f}"
+    if _finite(p["n_iters"]):
+        tip += f" of {p['n_iters']:.0f}"
+    tip += " iterations"
+    if not timed:
+        return (
+            f'<td class="ck-cost" data-sort="{p["iters"]}" title="{_esc(tip)}">'
+            f"{p['iters']:.0f}</td>"
+        )
+    t = p["seconds"]
+    if t is None:
+        return f'<td class="ck-cost ck-cost-na" title="{_esc(tip)}">—</td>'
+    tip += (
+        f", about {duration(t)} into the run (estimated from its wall time)"
+        if p.get("estimated")
+        else f", {duration(t)} into the run"
+    )
+    rel = f'<span class="ck-part">{_ratio_text(t / best)}</span>' if best else ""
+    return (
+        f'<td class="ck-cost" data-sort="{t}" title="{_esc(tip)}">'
+        f"{duration(t)}{rel}</td>"
+    )
+
+
+def _accuracy_cost_td(v: dict | None, target: float, best: float | None) -> str:
+    """The cost of reaching ``target`` error (:func:`cost_to_error`), and its
+    multiple of the cheapest solver ``best`` in the group."""
+    if not v:
+        return '<td class="ck-cost ck-cost-na">—</td>'
+    if v["state"] == "diverged":
+        return '<td class="ck-cost ck-cost-na">diverges</td>'
+    if v["state"] == "not_reached":
+        return (
+            '<td class="ck-cost ck-cost-na">not reached'
+            f'<span class="ck-part">best {v["best"]:.0%}</span></td>'
+        )
+    t = v["seconds"]
+    grids = " and ".join(f"{g}²" for g in v["grids"])
+    tip = f"Wall time per simulated time unit to reach {target:.0%} error, "
+    tip += (
+        f"interpolated between {grids}"
+        if v["state"] == "reached"
+        else f"at most that of {grids}, the coarsest grid that ran"
+    )
+    text = ("≤ " if v["state"] == "coarsest" else "") + _seconds(t)
+    rel = f'<span class="ck-part">{_ratio_text(t / best)}</span>' if best else ""
+    return f'<td class="ck-cost" data-sort="{t}" title="{_esc(tip)}">{text}{rel}</td>'
 
 
 def _seconds(t: float) -> str:
@@ -697,7 +890,13 @@ def _cost_td(v: dict | None) -> str:
     if not v:
         return '<td class="ck-cost ck-cost-na">—</td>'
     r = v["ratio"]
-    rel = "fastest" if r < 1.005 else (f"{r:.1f}×" if r < 10 else f"{r:.0f}×")
+    if r is None:
+        return (
+            f'<td class="ck-cost ck-cost-na" title="Left out: completed sizes only up '
+            f'to N={int(v["reach"])}">—<span class="ck-part">stops at N='
+            f"{int(v['reach'])}</span></td>"
+        )
+    rel = _ratio_text(r)
     tip = f"{v['seconds']:.3g} s"
     if math.isfinite(v["std"]) and v["n_trials"]:
         tip += f" ± {v['std']:.2g} s over {v['n_trials']} trials"
@@ -705,11 +904,10 @@ def _cost_td(v: dict | None) -> str:
     if math.isfinite(v["first"]):
         tip += f"\nFirst call {v['first']:.3g} s"
     if v["within_noise"]:
-        rel = f"≈ {rel}"
         tip += "\nWithin the spread of the fastest solver's trials"
     return (
-        f'<td class="ck-cost" title="{_esc(tip)}">{_seconds(v["seconds"])}'
-        f'<span class="ck-part">{rel}</span></td>'
+        f'<td class="ck-cost" data-sort="{v["seconds"]}" title="{_esc(tip)}">'
+        f'{_seconds(v["seconds"])}<span class="ck-part">{rel}</span></td>'
     )
 
 
@@ -719,48 +917,23 @@ def _memory_td(v: dict | None, gpu: bool) -> str:
         return '<td class="ck-cost ck-cost-na">—</td>'
     txt = f"{mib / 1024:.3g} GiB" if mib >= 1024 else f"{mib:.3g} MiB"
     tip = f"{'Device' if gpu else 'Container'} memory at N={int(v['n'])}"
-    return f'<td class="ck-cost" title="{_esc(tip)}">{txt}</td>'
+    return f'<td class="ck-cost" data-sort="{mib}" title="{_esc(tip)}">{txt}</td>'
 
 
-def _rel_td(rel: dict) -> str:
-    if not rel["total"]:
-        return '<td class="ck-rel ck-cost-na">—</td>'
-    parts = []
-    if rel["flagged"]:
-        parts.append(f'<span class="rl rl-flag">{rel["flagged"]} flagged</span>')
-    if rel["failed"]:
-        parts.append(f'<span class="rl rl-fail">{rel["failed"]} failed</span>')
-    for label, n in rel["blocked"].items():
-        parts.append(f'<span class="rl rl-blocked">{n} {_esc(label.lower())}</span>')
-    if rel["notrun"]:
-        parts.append(f'<span class="rl rl-notrun">{rel["notrun"]} not run</span>')
-    if rel["limits"]:
-        n = rel["limits"]
-        parts.append(
-            f'<span class="rl rl-limit">{n} resource limit{"s" if n != 1 else ""}</span>'
-        )
-    return (
-        f'<td class="ck-rel"><span class="rl-ok">{rel["ok"]}/{rel["total"]} ok</span>'
-        + "".join(parts)
-        + "</td>"
-    )
+def effort_pill(level: str, detail: str = "") -> str:
+    """An effort level as a pill shaded by level (L0 grey to L3 solid)."""
+    cls = f"eff eff-{level}" if level in views.iv.LEVELS else "eff"
+    title = f' title="{_esc(detail)}"' if detail else ""
+    return f'<span class="{cls}"{title}>{_esc(level)}</span>'
 
 
-def _record_td(parts: tuple[str, str], cls: str) -> str:
-    """An effort or deviations cell, with the detail on hover."""
-    text, detail = parts
-    if not detail:
-        return f'<td class="{cls}">{_esc(text)}</td>'
-    return f'<td class="{cls}"><span title="{_esc(detail)}">{_esc(text)}</span></td>'
-
-
-def _cost_n(setup: dict, label: str, gpu: bool) -> str:
-    ns = {
-        int(r["cost"][label]["n"])
-        for r in setup["rows"]
-        if r["gpu"] is gpu and label in r["cost"]
-    }
-    return f"N={ns.pop()}" if len(ns) == 1 else ""
+def _effort_td(parts: tuple[str, str]) -> str:
+    """The effort cell, sorted by level, with the required interventions on
+    hover."""
+    level, detail = parts
+    key = level.removeprefix("L")
+    sort = f' data-sort="{key}"' if key.isdigit() else ""
+    return f'<td class="ck-effort"{sort}>{effort_pill(level, detail)}</td>'
 
 
 # The pass whose peak memory the check tables show: the VJP, which holds the
@@ -772,17 +945,32 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     """One setup: check table grouped by device class, plus the notes."""
     suites = setup["suites"]
     cost_cols = [c for c, _ in COST_PASSES] if setup["has_cost"] else []
-    record_cols = (
-        [views.EFFORT_LABEL, views.DEVIATIONS_LABEL] if setup["has_effort"] else []
+    record_cols = [views.EFFORT_LABEL] if setup["has_effort"] else []
+    deviations = f"deviations-{setup['key']}"
+    plateaus = [r["plateau"] for r in setup["rows"] if r["plateau"]]
+    # Seconds where any solver has them, else iterations (see :func:`plateau`).
+    timed = any(p["seconds"] is not None for p in plateaus)
+    plateau_col = (
+        ["Time to plateau" if timed else "Iterations to plateau"] if plateaus else []
     )
-    notes = f"notes-{setup['key']}"
-    ncols = 1 + len(suites) + len(cost_cols) + bool(cost_cols) + 1 + len(record_cols)
+    target = setup.get("accuracy_target")
+    accuracy_col = [f"Cost to {target:.0%} error"] if target else []
+    ncols = (
+        1
+        + len(suites)
+        + len(cost_cols)
+        + len(plateau_col)
+        + len(accuracy_col)
+        + bool(cost_cols)
+        + len(record_cols)
+    )
     head = (
         '<th scope="col" class="ck-solver">Solver</th>'
         + "".join(f'<th scope="col">{SUITE_LABELS[s]}</th>' for s in suites)
-        + "".join(f'<th scope="col">{c}</th>' for c in cost_cols)
+        + "".join(
+            f'<th scope="col">{c}</th>' for c in cost_cols + accuracy_col + plateau_col
+        )
         + ('<th scope="col">Peak memory</th>' if cost_cols else "")
-        + f'<th scope="col" class="ck-rel">All experiments<a href="#{notes}">*</a></th>'
         + "".join(f'<th scope="col">{c}</th>' for c in record_cols)
     )
     bodies = []
@@ -790,16 +978,35 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         rows = [r for r in setup["rows"] if r["gpu"] is gpu]
         if not rows:
             continue
-        ns = [n for n in (_cost_n(setup, c, gpu) for c in cost_cols) if n]
+        n = setup["cost_n"].get(gpu)
         device = setup["gpu_model"] if gpu else ""
-        note = (
-            "Times"
-            + (f" at {', '.join(dict.fromkeys(ns))}" if ns else "")
-            + f", relative to the fastest {'GPU' if gpu else 'CPU'} solver"
-            + (f", measured on {device}" if device else "")
-            if cost_cols
-            else ""
+        best = min(
+            (
+                r["plateau"]["seconds"]
+                for r in rows
+                if r["plateau"] and r["plateau"]["seconds"] is not None
+            ),
+            default=None,
         )
+        cheapest = min(
+            (
+                r["accuracy_cost"]["seconds"]
+                for r in rows
+                if r["accuracy_cost"] and "seconds" in r["accuracy_cost"]
+            ),
+            default=None,
+        )
+        parts = []
+        if cost_cols:
+            parts.append(
+                "Forward and VJP" + (f" at N={int(n)}" if n is not None else "")
+            )
+        if cost_cols or best is not None or cheapest is not None:
+            parts.append(f"multiples of the fastest {'GPU' if gpu else 'CPU'} solver")
+        if device and parts:
+            parts.append(f"measured on {device}")
+        note = ", ".join(parts)
+        note = note[:1].upper() + note[1:]
         trs = [
             (
                 f'<tr class="ck-group"><th colspan="{ncols}" scope="colgroup">'
@@ -808,36 +1015,35 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
         ]
         for r in rows:
             href = f"../solvers.qmd#{r['anchor']}" if r["anchor"] else "../solvers.qmd"
-            mismatch = (
-                '<span class="ck-device" title="This solver targets the '
-                f"{'CPU' if gpu else 'GPU'}, but its cost results were measured "
-                f'on the {"GPU" if gpu else "CPU"}; they predate the change.">'
-                f"{'GPU' if gpu else 'CPU'} run</span>"
-                if r["device_mismatch"]
+            memory = next(
+                (
+                    r["cost"][c]
+                    for c in _MEMORY_PASSES
+                    if r["cost"].get(c, {}).get("ratio") is not None
+                ),
+                None,
+            )
+            # The checks of a solver that runs a substitute for part of the
+            # setup hold for that modified setup, which the notes describe.
+            tag = (
+                f'<a class="ck-dev-tag" href="#{deviations}" title="'
+                + _esc("; ".join(t for t, _ in r["deviations"]))
+                + '">modified setup</a>'
+                if r["deviations"]
                 else ""
             )
-            memory = next(
-                (r["cost"][c] for c in _MEMORY_PASSES if c in r["cost"]), None
-            )
             trs.append(
-                f'<tr><th scope="row" class="ck-solver"><a href="{href}">{_esc(r["name"])}</a>{mismatch}</th>'
-                + "".join(
-                    _check_td(
-                        r["checks"][s],
-                        notes,
-                        r["iters"] if s == "optimization" else None,
-                    )
-                    for s in suites
-                )
+                f'<tr><th scope="row" class="ck-solver"><a href="{href}">{_esc(r["name"])}</a>{tag}</th>'
+                + "".join(_check_td(r["checks"][s]) for s in suites)
                 + "".join(_cost_td(r["cost"].get(c)) for c in cost_cols)
-                + (_memory_td(memory, gpu) if cost_cols else "")
-                + _rel_td(r["reliability"])
                 + (
-                    _record_td(r["effort"], "ck-effort")
-                    + _record_td(r["deviations"], "ck-dev")
-                    if record_cols
+                    _accuracy_cost_td(r["accuracy_cost"], target, cheapest)
+                    if accuracy_col
                     else ""
                 )
+                + (_plateau_td(r["plateau"], timed, best) if plateau_col else "")
+                + (_memory_td(memory, gpu) if cost_cols else "")
+                + (_effort_td(r["effort"]) if record_cols else "")
                 + "</tr>"
             )
         bodies.append("<tbody>" + "".join(trs) + "</tbody>")
@@ -870,11 +1076,35 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
                 + (f". {_esc('; '.join(whys))}" if whys else "")
                 + "</li>"
             )
-    details = (
-        '<p class="ck-note">* Experiments of this setup that produced valid '
-        "results within their criteria, out of those the solver supports, "
-        "including experiments that no check uses. The lists below name every "
-        "flag, exclusion and resource limit.</p>"
+    dev_items = [
+        f"<li><strong>{_esc(r['name'])}</strong>: {_esc(what)}. "
+        f"<em>Effect:</em> {_esc(effect)}</li>"
+        for r in setup["rows"]
+        for what, effect in r["deviations"]
+    ]
+    # Solvers of this table that do not run the domain's other setups.
+    by_setup: dict[str, tuple[dict, list[str]]] = {}
+    for name, missing in sorted((setup.get("elsewhere") or {}).items()):
+        for o in missing:
+            by_setup.setdefault(o["key"], (o, []))[1].append(name)
+    elsewhere = (
+        '<p class="ck-elsewhere">Solvers differ in how general they are. '
+        + " ".join(
+            f"{_esc(_join(names))} {'does' if len(names) == 1 else 'do'} not run "
+            f'<a href="{_esc(o["key"])}.qmd">{_esc(o["setup"])}</a>.'
+            for o, names in by_setup.values()
+        )
+        + "</p>"
+        if by_setup
+        else ""
+    )
+    details = elsewhere + (
+        f'<details class="ck-flags" id="{deviations}" open><summary>Modified '
+        f"setups ({len(dev_items)})</summary><p>These solvers run a substitute "
+        "for part of the setup, so their checks hold for the modified setup.</p>"
+        f"<ul>{''.join(dev_items)}</ul></details>"
+        if dev_items
+        else ""
     )
     if flag_items:
         details += (
@@ -916,12 +1146,12 @@ def render_setup(setup: dict, *, link: str = "", heading: bool = True) -> str:
     return (
         f'<section class="checkboard" id="setup-{_esc(setup["key"])}">'
         + header
-        + '<div class="table-scroll"><table class="ck-table" data-quarto-disable-processing="true"><thead><tr>'
+        + '<div class="table-scroll"><table class="ck-table sortable" data-quarto-disable-processing="true"><thead><tr>'
         + head
         + "</tr></thead>"
         + "".join(bodies)
         + "</table></div>"
-        + f'<div class="ck-foot" id="{notes}">{details}</div>'
+        + (f'<div class="ck-foot">{details}</div>' if details else "")
         + "</section>"
     )
 
@@ -979,7 +1209,7 @@ def render_gates() -> str:
         "| Setup | Forward | Gradient | Optimization |",
         "|---|---|---|---|",
     ]
-    for setup in _setups():
+    for setup in setups():
         cells = [
             ", ".join(f"`{_short(g)}`" for g in setup["gates"].get(s, [])) or "—"
             for s in SUITES

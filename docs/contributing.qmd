@@ -47,7 +47,7 @@ You can change a solver's behavior in three places:
 - **Input overrides** in the problem package (`mosaic/benchmarks/problems/<package>/config.py`, via `_SOLVERS["<solver>"].input_overrides`), which set solver-specific values for input fields, such as `inner_steps` for JAX-CFD on `ns-3d-grid`.
 - **Schema defaults** in the solver's `InputSchema` subclass in `tesseract_api.py`.
 
-Record each change in the `interventions` list under `metadata.mosaic`. Set `tuned: true` when you picked a value by measuring alternatives, such as a tolerance, linear solver, preconditioner or device, and link the measurement under `evidence`. If a change makes the solver run a substitute for the prescribed setup, record it under `deviations` instead. [The intervention record](add-solver.qmd#the-intervention-record) describes every field, and the test suite checks each record.
+Record each change in the `interventions` list under `metadata.mosaic`. Set `tuned: true` when you picked a value by measuring alternatives, such as a tolerance, linear solver, preconditioner or device, and link the measurement under `evidence`. If a change makes the solver run a substitute for the prescribed setup, record it under `deviations` instead. [The intervention record](add-solver.qmd#the-intervention-record) points to the format, and the test suite checks each record.
 
 Before you ask for CI time, check that the solver still runs with a quick forward pass at reduced problem size:
 
@@ -159,7 +159,7 @@ The results pages and the solver reference include generated files from `_genera
 
 To preview the results pages with real data, put a result tree in `mosaic-results/`, either from a local run or from the published baseline. `make data` fetches the baseline, which is several hundred megabytes and needs the GitHub CLI for a token, and then runs `mosaic run --plots-only`. That command regenerates the plots from the `result.json` files without Docker or a GPU, which is needed because the baseline stores data only.
 
-`make figures` redraws the setup schematics and the animation on the paper page. The animation runs Exponax in a temporary environment and needs [ffmpeg](https://ffmpeg.org).
+`make figures` redraws the setup schematics.
 
 ## Maintainers {#maintainers}
 

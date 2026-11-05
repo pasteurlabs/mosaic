@@ -397,7 +397,7 @@ _CHECK_SUITES = ("forward", "gradient", "optimization")
 # Same words as the check states on the results pages.
 _CHECK_LABELS = {
     "pass": "Pass",
-    "borderline": "Borderline",
+    "flagged": "Flagged",
     "fail": "Fail",
     "blocked": "Blocked",
     "na": "Not supported",
@@ -500,25 +500,28 @@ def render_checks(solver: dict, score: list[dict] | None) -> list[str]:
     lines = [f"#### Setups and checks {{#{_anchor(solver)}-checks}}", ""]
     if not setups:
         lines += ["This solver runs none of the setups.", ""]
-    elif score:
-        by_setup = {v["key"]: v["states"] for v in score}
+    else:
+        record = solver["record"]
+        suites = _CHECK_SUITES if score else ()
+        by_setup = {v["key"]: v["states"] for v in score or ()}
+        header = ["Setup", "Effort", *(s.capitalize() for s in suites)]
         lines += [
-            "| Setup | " + " | ".join(s.capitalize() for s in _CHECK_SUITES) + " |",
-            "|---|" + ":-:|" * len(_CHECK_SUITES),
+            "| " + " | ".join(header) + " |",
+            "|---|" + ":-:|" * (len(header) - 1),
         ]
         for setup in setups:
+            level = (record.effort(setup) or views.BASELINE_LEVEL) if record else None
+            effort = f"[{level}]{{.eff .eff-{level}}}" if level else views.NOT_RECORDED
             # A setup missing from the results was not run at all.
-            states = by_setup.get(setup, dict.fromkeys(_CHECK_SUITES, "notrun"))
-            cells = [
+            states = by_setup.get(setup, dict.fromkeys(suites, "notrun"))
+            cells = [effort] + [
                 f"[{_CHECK_LABELS[states[s]]}]{{.ck .ck-{states[s]}}}"
                 if s in states
                 else "\u2014"
-                for s in _CHECK_SUITES
+                for s in suites
             ]
             lines.append(f"| {_setup_link(setup)} | " + " | ".join(cells) + " |")
         lines.append("")
-    else:
-        lines += [f"This solver runs {_join([_setup_link(s) for s in setups])}.", ""]
 
     # Exclusions with the same category and reason (one reason for several
     # experiments, or for both Navier\u2013Stokes problems) are listed once.
@@ -575,7 +578,7 @@ def render_solver(solver: dict, scores: dict) -> str:
     if solver["description"]:
         lines += [solver["description"], ""]
     lines += render_facts(solver)
-    lines += views.developer_block(solver["record"], solver["setups"])
+    lines += views.developer_block(solver["record"])
     lines += render_checks(solver, scores.get(_anchor(solver)))
     lines += render_usage(solver)
     return "\n".join(lines)
@@ -602,12 +605,10 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
         "---",
         "",
         (
-            "Each section on this page describes one solver: its numerical "
-            "method and backend, what it took to run it in Mosaic, its checks on "
-            "the setups it runs (a dash means the setup has no check of that "
-            "kind), and how to call it from your own code. Solvers "
-            "are grouped by domain, a family of solvers that share one input "
-            "and output schema."
+            "One section per solver: its method and backend, what it took to "
+            "run it in Mosaic, its checks on each setup, and how to call it from "
+            "your own code. Solvers that share an input and output schema form "
+            "a domain."
         ),
         "",
         "## Effort levels {#effort-levels}",
@@ -616,39 +617,41 @@ def generate_qmd(categories: dict[str, list[dict]]) -> str:
             "Every solver has an intervention record that lists everything done "
             "to run it beyond using the library as intended, with the reason and "
             "evidence for each item. Each intervention gets a level by its "
-            "mechanism:"
+            "mechanism, and a solver's effort on a setup is the highest level "
+            "among the interventions it requires there."
         ),
         "",
         "| Level | Mechanism | Example |",
         "|---|---|---|",
         (
-            "| L0 | Nothing beyond expected tweaks, meaning the public API with "
+            "| [L0]{.eff .eff-L0} | Nothing beyond expected tweaks, meaning the public API with "
             "its defaults or documented options | Setting a documented solver "
             "tolerance |"
         ),
         (
-            "| L1 | Undocumented configuration, found by reading the source "
+            "| [L1]{.eff .eff-L1} | Undocumented configuration, found by reading the source "
             "| An option that only the library's source code mentions |"
         ),
         (
-            "| L2 | User code on the library's public primitives | A boundary "
+            "| [L2]{.eff .eff-L2} | User code on the library's public primitives | A boundary "
             "condition or VJP rule that the library does not provide |"
         ),
         (
-            "| L3 | Changes to the solver itself | A monkeypatch, a private API "
+            "| [L3]{.eff .eff-L3} | Changes to the solver itself | A monkeypatch, a private API "
             "or a patched source file |"
         ),
         "",
+        "What counts as intended use depends on the solver's abstraction level:",
+        "",
+        "- `application`: running a program as documented.",
+        "- `framework`: expressing the setup through the library's API.",
+        "- `kernel-toolkit`: building on the library's primitives.",
+        "",
         (
-            "A solver's effort on a setup is the highest level among the "
-            "interventions it requires there. What counts as intended use "
-            "depends on the solver's abstraction level: running a program as "
-            "documented (`application`), expressing the setup through a "
-            "library's API (`framework`), or building on its primitives "
-            "(`kernel-toolkit`). The record also lists *deviations*, the places "
-            "where a solver runs a substitute for part of the prescribed setup, "
-            "with their effect on the results. An upstream fix or a better "
-            "configuration can lower a solver's effort, so "
+            "The record also lists *deviations*, the places where a solver runs "
+            "a substitute for part of the setup, with their effect on the "
+            "results. An upstream fix or a better configuration can lower a "
+            "solver's effort, so "
             "[contributions](contributing.qmd#tuning-an-existing-solver) are "
             "welcome on every item."
         ),

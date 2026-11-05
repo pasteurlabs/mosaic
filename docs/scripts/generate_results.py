@@ -510,37 +510,6 @@ def _rank_gradient(
     )
 
 
-def _cost_points(results: list[dict]) -> dict[str, dict[float, dict]]:
-    """``{solver: {N: metrics}}`` over the sizes each solver completed.
-
-    ``results`` is a flat cost ``results`` list (sweep_value = N).
-    """
-    out: dict[str, dict[float, dict]] = {}
-    for r in results:
-        m = r.get("metrics") or {}
-        if m.get("status") == "failed":
-            continue
-        mean_s = m.get("mean")
-        n = r.get("sweep_value")
-        if not isinstance(mean_s, int | float) or not math.isfinite(mean_s):
-            continue
-        nf = float(n) if isinstance(n, int | float | str) and str(n) else float("nan")
-        out.setdefault(r["solver"], {})[nf] = m
-    return out
-
-
-def _at_max_n(points: dict[float, dict] | None) -> tuple[float, dict] | None:
-    """The largest size a solver completed and its metrics there.
-
-    Picking the max successful size avoids flattering a solver that OOMs early.
-    """
-    if not points:
-        return None
-    finite = [n for n in points if math.isfinite(n)]
-    n = max(finite) if finite else next(iter(points))
-    return n, points[n]
-
-
 def _fmt_mib(v: object) -> str:
     if not isinstance(v, int | float) or not math.isfinite(v):
         return "—"
@@ -551,66 +520,83 @@ def _rank_cost(problem: str, setup: str) -> tuple[list[str], list[tuple], str] |
     """Rank by forward wall-clock, reporting forward and VJP time and memory.
 
     Forward time comes from the ``spatial_cost`` sweep and VJP time from
-    ``vjp_cost/by_N``; each is taken at the largest N that solver completed.
-    The VJP-to-forward ratio is taken at the largest N both passes completed.
-    Forward-only solvers have no VJP entry, which shows as "—". Sorted by
-    forward time; the device column keeps GPU and CPU timings apart, since
-    they are compared within a device class. The forward pass's first call at
-    that N, which includes compilation and setup, is shown next to it and does
-    not affect the order. Peak memory is device memory for solvers measured
-    on the GPU and container memory for those measured on the CPU.
+    ``vjp_cost/by_N``, both at the problem size the check tables compare the
+    solver's device class at (``scoreboard.comparison_n``). A solver without
+    a time at that size shows where it stopped, and forward-only solvers have
+    no VJP entry, which shows as "—". Sorted by forward time, GPU solvers
+    first, then the solvers left out. The forward pass's first call, which includes compilation and
+    setup, is shown next to it and does not affect the order. Peak memory is
+    device memory for GPU solvers and container memory for CPU solvers.
     """
     if not _owned(problem, setup, "cost", ["spatial_cost"]):
         return None
-    fwd = _cost_points(_load_suite_results(problem, "cost", "spatial_cost"))
-    vjp = _cost_points(_load_suite_results(problem, "cost", "vjp_cost/by_N"))
+    fwd, vjp = (
+        scoreboard._times_by_n(scoreboard.cost_result(RESULTS_DIR, problem, exp))
+        for exp in ("spatial_cost", "vjp_cost/by_N")
+    )
     if len(fwd) < 2:
         return None
+    gpu = {n: m.get("gpu", True) for n, m in _solver_meta().get(problem, {}).items()}
 
-    def _time(v: tuple[float, dict] | None) -> str:
-        # Annotate each time with its own N: forward and VJP can top out at
-        # different sizes (a solver may OOM on the heavier backward pass first).
+    compared_at: dict[str, float | None] = {}
+    for on_gpu in (True, False):
+        group = [s for s in fwd if gpu.get(s, True) is on_gpu]
+        n = scoreboard.comparison_n([fwd, vjp], group)
+        compared_at |= dict.fromkeys(group, n)
+
+    def _point(times: dict, s: str) -> tuple[float, dict | None] | None:
+        """``(N, metrics)`` at the compared size, ``(reach, None)`` for a
+        solver that stopped short of it, or None without results."""
+        t = times.get(s)
+        if not t:
+            return None
+        n = compared_at[s]
+        return (n, t[n]) if n in t else (max(t), None)
+
+    points = {s: (_point(fwd, s), _point(vjp, s)) for s in fwd}
+
+    def _common_n(column: int) -> float | None:
+        """The N of every time in a column, if it is the same for all."""
+        ns = {p[column][0] for p in points.values() if p[column] and p[column][1]}
+        return ns.pop() if len(ns) == 1 else None
+
+    fwd_n, vjp_n = _common_n(0), _common_n(1)
+
+    def _time(v: tuple[float, dict | None] | None, common: float | None) -> str:
+        # Without one N for the whole column, each time carries its own.
         if not v:
             return "—"
         n, m = v
-        n_str = f" @ N={int(n)}" if math.isfinite(n) else ""
-        return f"{m['mean']:.3g} s{n_str}"
+        if m is None:
+            return f"— (stops at N={int(n)})"
+        return f"{m['mean']:.3g} s" + (f" @ N={int(n)}" if common is None else "")
 
-    def _first(v: tuple[float, dict]) -> str:
-        first = v[1].get("first_call_s")
-        return f"{first:.3g} s" if isinstance(first, int | float) else "—"
+    def _at(label: str, common: float | None) -> str:
+        return f"{label} (N={int(common)})" if common is not None else label
 
-    def _ratio(s: str) -> str:
-        common = [
-            n for n in set(fwd.get(s, {})) & set(vjp.get(s, {})) if math.isfinite(n)
-        ]
-        if not common:
+    def _first(v: tuple[float, dict | None]) -> str:
+        first = v[1]["first"] if v[1] else math.nan
+        return f"{first:.3g} s" if math.isfinite(first) else "—"
+
+    def _ratio(f: tuple[float, dict | None], b: tuple[float, dict | None] | None):
+        if not (b and b[1] and f[1]) or f[1]["mean"] <= 0:
             return "—"
-        n = max(common)
-        f, b = fwd[s][n]["mean"], vjp[s][n]["mean"]
-        return f"{b / f:.3g}×" if f > 0 else "—"
+        return f"{b[1]['mean'] / f[1]['mean']:.3g}×"
 
-    def _memory(v: tuple[float, dict] | None, on_gpu: bool) -> str:
-        if not v:
-            return "—"
-        return _fmt_mib(v[1].get("vram_peak_mib" if on_gpu else "ram_peak_mib"))
+    def _memory(v: tuple[float, dict | None] | None, on_gpu: bool) -> str:
+        return _fmt_mib(v[1]["vram" if on_gpu else "ram"]) if v and v[1] else "—"
 
-    # The device the forward times were measured on, else the one configured.
-    gpu = {n: m.get("gpu", True) for n, m in _solver_meta().get(problem, {}).items()}
-    hardware = scoreboard.hardware(
-        scoreboard.cost_result(RESULTS_DIR, problem, "spatial_cost")
-    )
-    gpu |= {n: bool(record.get("gpus")) for n, record in hardware.items()}
-    tops = {s: _at_max_n(points) for s, points in fwd.items()}
-    rows = sorted(
-        tops.items(), key=lambda t: (not gpu.get(t[0], True), t[1][1]["mean"])
-    )
+    def _order(item) -> tuple:
+        s, (fv, _) = item
+        return (not gpu.get(s, True), fv[1] is None, fv[1]["mean"] if fv[1] else 0)
+
+    rows = sorted(points.items(), key=_order)
     header = [
         "Solver",
         "Device",
-        "Forward time",
+        _at("Forward time", fwd_n),
         "Forward first call",
-        "VJP time",
+        _at("VJP time", vjp_n),
         "VJP / forward",
         "Forward peak memory",
         "VJP peak memory",
@@ -621,14 +607,14 @@ def _rank_cost(problem: str, setup: str) -> tuple[list[str], list[tuple], str] |
             (
                 s,
                 "GPU" if gpu.get(s, True) else "CPU",
-                _time(fv),
+                _time(fv, fwd_n),
                 _first(fv),
-                _time(vv := _at_max_n(vjp.get(s))),
-                _ratio(s),
+                _time(vv, vjp_n),
+                _ratio(fv, vv),
                 _memory(fv, gpu.get(s, True)),
                 _memory(vv, gpu.get(s, True)),
             )
-            for s, fv in rows
+            for s, (fv, vv) in rows
         ],
         "cost/spatial_cost",
     )
@@ -648,26 +634,26 @@ _OPT_METRIC_LABELS = {
 }
 
 
-def _iterations(m: dict) -> str:
-    """Iterations until the loss levelled off, or "—" for results without it."""
-    v = m.get("iters_to_plateau")
-    if not isinstance(v, int | float) or not math.isfinite(v):
-        return "—"
-    return f"{v:.0f}" if float(v).is_integer() else f"{v:.1f}"
-
-
 def _rank_optimization(
     problem: str, setup: str
 ) -> tuple[list[str], list[tuple], str] | None:
-    """Rank by final optimization objective (lower is better)."""
+    """Rank by final optimization objective (lower is better), with the
+    iterations and estimated time until the loss levelled off
+    (``scoreboard.plateau``)."""
     # The first of the setup's optimization experiments with a recognised
     # final metric.
-    rows: list[tuple[str, float, str]] = []
+    rows: list[tuple[str, float]] = []
     metric_label = None
     for exp in _owned(
         problem, setup, "optimization", _experiment_dirs(problem, "optimization")
     ):
-        for r in _load_suite_results(problem, "optimization", exp):
+        path = RESULTS_DIR / problem / "optimization" / exp / "result.json"
+        try:
+            result = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: S112 — no or malformed result file
+            continue
+        plateaus = scoreboard.plateau(result)
+        for r in result.get("results") or []:
             m = r.get("metrics") or {}
             key = next((k for k in _OPT_FINAL_KEYS if k in m), None)
             if key is None:
@@ -677,7 +663,7 @@ def _rank_optimization(
                 metric_label = _OPT_METRIC_LABELS.get(
                     key, key.replace("final_", "final ").replace("_", " ").capitalize()
                 )
-                rows.append((r["solver"], float(val), _iterations(m)))
+                rows.append((r["solver"], float(val)))
         if rows:
             break
     else:
@@ -685,10 +671,23 @@ def _rank_optimization(
     if len(rows) < 2:
         return None
     rows.sort(key=lambda t: t[1])
+
+    def _iters(s: str) -> str:
+        p = plateaus.get(s)
+        if not p:
+            return "—"
+        return f"{p['iters']:.0f}" if p["iters"].is_integer() else f"{p['iters']:.1f}"
+
+    def _time(s: str) -> str:
+        p = plateaus.get(s)
+        return scoreboard.duration(p["seconds"]) if p and p["seconds"] else "—"
+
+    timed = any(p["seconds"] is not None for p in plateaus.values())
     header = ["Solver", metric_label, "Iterations to plateau"]
+    header += ["Time to plateau"] if timed else []
     return (
         header,
-        [(s, _fmt_sci(v), its) for s, v, its in rows],
+        [(s, _fmt_sci(v), _iters(s), *((_time(s),) if timed else ())) for s, v in rows],
         f"optimization/{exp}",
     )
 
@@ -698,28 +697,6 @@ _SUITE_RANKERS = {
     "gradient": _rank_gradient,
     "cost": _rank_cost,
     "optimization": _rank_optimization,
-}
-
-_SUITE_RANK_CAPTIONS = {
-    "forward": "Sorted by mean relative error against the reference solution "
-    "(lower is closer to the reference). Whether a difference matters depends on "
-    "the task, so see the checks at the top of the page.",
-    "gradient": "Sorted by the best-ε finite-difference error of the gradient "
-    "(lower is more trustworthy). A 1 − cosine near 0 confirms that the "
-    "gradient points the right way.",
-    "cost": "Forward and VJP wall-clock time, each at the largest problem size N "
-    "the solver completed for that pass, with GPU solvers first and each group "
-    "sorted by forward time. The VJP time covers one gradient from scratch "
-    "(a forward plus an adjoint pass), and VJP / forward is their ratio at the "
-    "largest N both passes completed. Forward-only solvers have no VJP entry. "
-    "Peak memory is the device memory in use for solvers measured on a GPU "
-    "(CUDA context and allocator pools included) and the solver container's "
-    "memory for those measured on a CPU, at the same N as the time.",
-    "optimization": "Sorted by the final objective reached within the iteration "
-    "budget (lower is better). Iterations to plateau counts the optimizer "
-    "iterations until the best loss so far had made 95% of the run's total "
-    "improvement, on a log scale. A value near the iteration budget means "
-    "that the loss was still falling.",
 }
 
 
@@ -742,17 +719,6 @@ def _leaderboard_block(
     if not ranked:
         return []
     header, rows, experiment = ranked
-    # Effort and deviations of each solver on this setup.
-    records = views.records_for(setup)
-    header = [*header, views.EFFORT_LABEL, views.DEVIATIONS_LABEL]
-    rows = [
-        (
-            *row,
-            views.effort_cell(records.get(row[0]), setup),
-            views.deviations_cell(records.get(row[0]), setup),
-        )
-        for row in rows
-    ]
     # Wrap the table in a .sortable-table div so docs/assets/sortable-tables.html
     # (injected via include-after-body) can attach click-to-sort handlers
     # (numeric-aware). Static and correctly sorted without JS, so it
@@ -762,20 +728,19 @@ def _leaderboard_block(
     lines = [
         "**Results by solver**",
         "",
+        "::: {.column-page}",
         "::: {.sortable-table .leaderboard}",
         "| " + " | ".join(header) + " |",
         "|" + "|".join("---" for _ in header) + "|",
     ]
     for row in rows:
         lines.append("| " + " | ".join(str(c) for c in row) + " |")
-    lines += [":::"]
+    lines += [":::", ":::"]
     exp_suite, exp_key = experiment.split("/", 1)
     anchor = (
         _exp_anchor(exp_suite, exp_key) if exp_key in shown else f"suite-{exp_suite}"
     )
-    measured = f"Measured in [{_exp_label(exp_key)}](#{anchor}) on this setup only."
-    caption = _SUITE_RANK_CAPTIONS.get(suite, "")
-    lines += ["", f"*{caption} {measured}*", ""]
+    lines += ["", f"*From [{_exp_label(exp_key)}](#{anchor}).*", ""]
     return lines
 
 
@@ -1093,7 +1058,7 @@ def generate_qmd_for_setup(
 ) -> str:
     """Generate QMD content for the results page of one setup.
 
-    ``setup`` is an entry of ``scoreboard.SETUPS``; ``suites`` the part of its
+    ``setup`` is an entry of ``scoreboard.setups()``; ``suites`` the part of its
     problem's result tree that belongs to it (empty without results).
     """
     key, problem = setup["key"], setup["problem"]
@@ -1175,9 +1140,8 @@ def generate_qmd_for_setup(
             "## Checks {.unnumbered}",
             "",
             (
-                "Checks per suite, from the same results as the sections below. "
-                "[How to read the results](index.qmd#how-to-read-the-results) "
-                "explains each column and state."
+                "The [results overview](index.qmd#how-to-read-the-results) "
+                "explains the columns and states."
             ),
             "",
             "::: {.column-page}",
@@ -1333,7 +1297,7 @@ def render_explorer(tree: dict) -> str:
     """Card grid of every experiment across setups, with a details dialog."""
     if not tree:
         return _NO_RESULTS
-    setups = {s["key"]: s for s in scoreboard.SETUPS}
+    setups = {s["key"]: s for s in scoreboard.setups()}
     tiles = [
         (problem, suite, experiment, pngs, owner.key)
         for problem in [p for p in scoreboard.PROBLEM_ORDER if p in tree]
@@ -1360,7 +1324,7 @@ def render_explorer(tree: dict) -> str:
         + "".join(
             f'<button type="button" class="chip-btn" data-value="{s["key"]}">'
             f"{s['setup']}</button>"
-            for s in scoreboard.SETUPS
+            for s in scoreboard.setups()
             if s["key"] in present
         )
         + '</div><div class="chip-filters" data-filter="suite"><button type="button" '
@@ -1460,7 +1424,7 @@ def copy_plots() -> int:
 def write_overview(tree: dict, scores: dict | None) -> None:
     """Write the overview includes and the per-solver check JSON."""
     if scores:
-        pages = {s["key"]: setup_page(s["key"]) for s in scoreboard.SETUPS}
+        pages = {s["key"]: setup_page(s["key"]) for s in scoreboard.setups()}
         SCOREBOARD_INCLUDE.write_text(
             scoreboard.render_overview(scores, pages), encoding="utf-8"
         )
@@ -1489,7 +1453,7 @@ def main() -> None:
 
     # Every setup gets a page, so the navbar links always resolve; setups
     # without results get a placeholder.
-    for setup in scoreboard.SETUPS:
+    for setup in scoreboard.setups():
         suites = _setup_suites(
             setup["problem"], tree.get(setup["problem"], {}), setup["key"]
         )

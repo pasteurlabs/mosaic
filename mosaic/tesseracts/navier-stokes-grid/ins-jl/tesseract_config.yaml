@@ -48,6 +48,8 @@ env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
   JULIA_DEPOT_PATH: "/app/julia_depot"
+  # Images run on other machines than the one that builds them, so the
+  # precompiled package images must not target the build machine's CPU.
   JULIA_CPU_TARGET: "generic"
   JULIA_EXECUTABLE: "/usr/local/bin/julia"
 
@@ -266,28 +268,5 @@ metadata:
               drag_opt's VJP (10 cells per diameter, t = 4) took 8.2 s against
               3.9 s. Warm calls. The A100 was not shared.
             evidence: "#325, notes."
-        provenance: mosaic-team
-      - id: julia-cpu-target-generic
-        title: Precompiles Julia packages for a generic CPU
-        level: L0
-        necessity: unknown
-        what: >
-          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
-          precompiles at build time target a generic x86-64 CPU rather than
-          the build machine's. Code compiled at run time is unaffected.
-        why:
-          ns-2d-periodic: &target-reason
-            consequences: []
-            symptom: >
-              No reason is recorded, and its effect has not been measured.
-            notes: >
-              Present since the initial commit. Julia's docs recommend it where
-              images run on CPUs other than the one that built them. The
-              solver's kernels run on the GPU (#307) and are compiled at run
-              time, so only host-side code from the package images could be
-              slower. Not measured.
-          ns-2d-kolmogorov: *target-reason
-          ns-3d: *target-reason
-          ns-2d-cylinder: *target-reason
         provenance: mosaic-team
     deviations: []

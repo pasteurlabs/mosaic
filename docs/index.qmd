@@ -31,11 +31,9 @@ Wall-clock time and peak memory of the forward and VJP calls, and the effort it 
 :::
 :::
 
-### Development effort {#effort}
-
-Time and memory are only part of what a solver costs. Making it run a given problem can take anything from setting a documented option to patching the library, and comparisons of solvers rarely report that work. Since it often decides whether a solver is practical for a new problem, Mosaic records it alongside the checks.
-
-Every solver has an intervention record in its `tesseract_config.yaml` that lists everything done beyond using the library as intended, with the reason, the evidence and any upstream issue. From it, each solver gets an effort level per setup, from L0 (the public API with documented options) to L3 (changes to the solver itself). Where a solver runs a substitute for part of a setup, such as a different outflow condition, the record lists a deviation and its effect on the results. The [solver reference](solvers.qmd#effort-levels) defines the levels and lists every intervention.
+::: {.callout-note title="Development effort"}
+Comparisons of solvers rarely report what it took to make each one run a problem, from setting a documented option to patching the library. Mosaic records every such intervention, with its reason and evidence, and rates each solver's effort per setup from L0 (the public API with documented options) to L3 (changes to the solver itself). The [solver reference](solvers.qmd#effort-levels) defines the levels and lists every intervention.
+:::
 
 ## Setups {#setups}
 
@@ -47,7 +45,7 @@ Results are reported per setup, meaning one problem statement with its own exper
 ![](figures/setup_ns_2d_periodic.svg){.nolightbox fig-alt="Schematic of the periodic box: four Taylor–Green vortices in a box with periodic edges evolve into a mixed field over a Navier–Stokes rollout."}
 :::
 ::: {.domain-card-body}
-[[F2]{.domain-id .d-F2} [Periodic box (2D)](results/ns-2d-periodic.qmd)]{.domain-card-title}
+[[F2]{.domain-id .d-F2} [Periodic box](results/ns-2d-periodic.qmd)]{.domain-card-title}
 
 Decaying 2D flow without walls. Forward accuracy against the analytic Taylor–Green solution, and how gradients hold up as the rollout lengthens and the flow becomes chaotic.
 
@@ -81,7 +79,7 @@ The Schäfer–Turek DFG 2D-1 channel at $Re = 20$, with walls, an obstacle, an 
 ![](figures/setup_ns_2d_kolmogorov.svg){.nolightbox fig-alt="Schematic of Kolmogorov flow: a sinusoidal body force drives a turbulent field, which passes through a chain of solver calls with the gradient flowing back through the chain."}
 :::
 ::: {.domain-card-body}
-[[F2]{.domain-id .d-F2} [Forced Kolmogorov flow (2D)](results/ns-2d-kolmogorov.qmd)]{.domain-card-title}
+[[F2]{.domain-id .d-F2} [Forced Kolmogorov flow](results/ns-2d-kolmogorov.qmd)]{.domain-card-title}
 
 Forced 2D turbulence that settles into a statistically steady state. Forward accuracy against a converged high-resolution run, and gradients through a chain of solver calls, as in training a model through a solver.
 
@@ -98,7 +96,7 @@ Forced 2D turbulence that settles into a statistically steady state. Forward acc
 ![](figures/setup_ns_3d.svg){.nolightbox fig-alt="Schematic of the 3D task: an initial velocity field in a cube evolves into a later snapshot, and the optimizer recovers the initial field from that snapshot."}
 :::
 ::: {.domain-card-body}
-[[F3]{.domain-id .d-F3} [Triply periodic box (3D)](results/ns-3d.qmd)]{.domain-card-title}
+[[F3]{.domain-id .d-F3} [Triply periodic box](results/ns-3d.qmd)]{.domain-card-title}
 
 Recover the initial velocity field of a 3D flow from a later snapshot, with one control per velocity component and cell of a $16^3$ grid (12,288 values). Also measures how far each solver's gradient stays usable as the rollout lengthens.
 
@@ -164,15 +162,22 @@ Solver
 Backend
 : The runtime or AD framework a solver is built on, such as JAX or PyTorch, as recorded in its `metadata.mosaic.backend`.
 
-## Benchmark suites {#suites}
+## Solvers as Tesseracts {#tesseracts}
 
-Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax). It never inspects how a solver computes its gradient, so it can compare solvers built on JAX, PyTorch, Julia or hand-written C++ adjoints without a shared dependency.
+Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) and never inspects how a solver computes its gradient, so it can compare solvers built on JAX, PyTorch, Julia or hand-written C++ adjoints without a shared dependency. The same containers work outside the benchmark: [Use a solver in your code](standalone.qmd) shows how to call one from JAX or PyTorch.
+
+## Benchmark suites {#suites}
 
 Experiments are grouped into suites, which you select with `mosaic run --suites`. The settings of every experiment (grid sizes, sweep ranges, finite-difference steps, iteration caps and pass criteria) live next to it in the problem configurations under [`mosaic/benchmarks/problems/`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/benchmarks/problems), and each [results page](results/index.qmd) describes the experiments of its setup.
 
 **Forward accuracy (`forward`).** Resolution sweeps against a reference: an analytic solution where one exists (the 2D Taylor–Green vortex, the laminar Kolmogorov shear flow), the Schäfer–Turek literature value for the cylinder, converged high-resolution spectral runs for the 3D Taylor–Green vortex and the turbulent Kolmogorov flow, and for the mesh setups the trimmed mean of all solvers, stored as a precomputed reference. Where it applies, the suite also checks physical laws such as a divergence-free velocity field.
 
-**Gradient accuracy (`gradient`).** Central finite differences through the Tesseract interface serve as the solver-agnostic ground truth. For a scalar loss of the output, the harness compares the VJP's directional derivatives $d^\text{ad}_k = \langle g, v_k \rangle$ along random directions $v_k$ with central-difference estimates $d^\text{fd}_k$ along the same directions. It reports the cosine similarity between the vectors $d^\text{ad}$ and $d^\text{fd}$ (direction agreement, $1$ is identical) and the median over directions of $|d^\text{ad}_k - d^\text{fd}_k| / \max(|d^\text{ad}_k|, |d^\text{fd}_k|)$ (magnitude agreement, $0$ is exact). The step size $\varepsilon$ is swept relative to the magnitude of the input, and the check uses the best $\varepsilon$, which avoids both the truncation regime (large $\varepsilon$) and the round-off regime (small $\varepsilon$). Depending on the setup, the suite also compares against analytic gradients, follows the gradient error as a physical parameter or the rollout length grows, differentiates through a chain of solver calls, and inspects the singular-value spectrum of the Jacobian, where a wide spread signals an ill-conditioned gradient that can stall an optimizer.
+**Gradient accuracy (`gradient`).** Central finite differences through the Tesseract interface are the solver-agnostic ground truth. Along random directions $v_k$, the harness compares the VJP's directional derivatives $d^\text{ad}_k = \langle g, v_k \rangle$ of a scalar loss with finite-difference estimates $d^\text{fd}_k$, at the step size $\varepsilon$ that fits best, and reports:
+
+- *direction agreement*, the cosine similarity of $d^\text{ad}$ and $d^\text{fd}$ ($1$ is identical);
+- *magnitude agreement*, the median of $|d^\text{ad}_k - d^\text{fd}_k| / \max(|d^\text{ad}_k|, |d^\text{fd}_k|)$ ($0$ is exact).
+
+Depending on the setup, the suite also compares against analytic gradients, follows the gradient error as the rollout lengthens, differentiates through a chain of solver calls, and inspects the singular values of the Jacobian, whose spread shows how ill-conditioned the gradient is.
 
 **Optimization (`optimization`).** A gradient-based optimizer (L-BFGS or Adam, depending on the setup) runs through the solver up to an iteration cap. The check passes when the objective falls below a set fraction of its initial value, and drag minimization also requires the final drag to land close to the other solvers' median. This catches solvers whose gradients pass the finite-difference check but still fail to drive a full optimization.
 

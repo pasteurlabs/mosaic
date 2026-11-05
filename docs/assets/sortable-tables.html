@@ -1,12 +1,16 @@
 <script type="text/javascript">
-// Click-to-sort for the per-suite results tables on the results pages.
+// Click-to-sort for the results tables: the per-suite tables, rendered inside
+// a `::: {.sortable-table}` div (docs/scripts/generate_results.py), and the
+// check tables (table.sortable, docs/scripts/scoreboard.py).
 //
-// Each results table is rendered inside a `::: {.sortable-table}` div (see
-// docs/scripts/generate_results.py). This attaches click handlers to every header
-// cell: click to sort by that column, click again to reverse. Sorting is
-// numeric-aware — cells like "1.74e-08", "0.113 s", or "—" are compared by
-// their leading numeric value, everything else alphabetically. No dependency;
-// if JS is disabled the table stays static in its generated order.
+// Click a header cell to sort by that column, click again to reverse. A cell's
+// data-sort attribute, if any, is its sort value (check severity, seconds,
+// MiB); otherwise sorting is numeric-aware — cells like "1.74e-08", "0.113 s",
+// or "—" are compared by their leading numeric value, everything else
+// alphabetically. Each tbody sorts on its own, so the GPU and CPU groups of a
+// check table stay apart, and their group header rows (tr.ck-group) stay on
+// top. No dependency; if JS is disabled the table stays static in its
+// generated order.
 
 (function () {
   "use strict";
@@ -43,6 +47,11 @@
 
   // Decide whether a column is numeric: a majority of its data cells parse
   // as numbers. Keeps text columns (Solver, Converged) alphabetical.
+  function sortText(cell) {
+    if (!cell) return "";
+    return cell.dataset.sort !== undefined ? cell.dataset.sort : cell.textContent;
+  }
+
   function columnIsNumeric(rows, colIdx) {
     let numeric = 0;
     let total = 0;
@@ -50,17 +59,21 @@
       const cell = row.cells[colIdx];
       if (!cell) continue;
       total += 1;
-      if (!isNaN(cellValue(cell.textContent).num)) numeric += 1;
+      if (!isNaN(cellValue(sortText(cell)).num)) numeric += 1;
     }
     return total > 0 && numeric / total >= 0.5;
+  }
+
+  function bodyRows(tbody) {
+    return Array.from(tbody.rows).filter((r) => !r.classList.contains("ck-group"));
   }
 
   function makeSortable(table) {
     const thead = table.tHead;
     if (!thead || !thead.rows.length) return;
     const headerCells = Array.from(thead.rows[0].cells);
-    const tbody = table.tBodies[0];
-    if (!tbody) return;
+    const tbodies = Array.from(table.tBodies);
+    if (!tbodies.length) return;
 
     headerCells.forEach((th, colIdx) => {
       th.classList.add("sortable-th");
@@ -69,15 +82,15 @@
       let ascending = true;
 
       function sort() {
-        const rows = Array.from(tbody.rows);
-        const numeric = columnIsNumeric(rows, colIdx);
-        rows.sort((r1, r2) => {
-          const c1 = r1.cells[colIdx] ? r1.cells[colIdx].textContent : "";
-          const c2 = r2.cells[colIdx] ? r2.cells[colIdx].textContent : "";
-          const cmp = compare(c1, c2, numeric);
-          return ascending ? cmp : -cmp;
-        });
-        rows.forEach((r) => tbody.appendChild(r));
+        const numeric = columnIsNumeric(tbodies.flatMap(bodyRows), colIdx);
+        for (const tbody of tbodies) {
+          const rows = bodyRows(tbody);
+          rows.sort((r1, r2) => {
+            const cmp = compare(sortText(r1.cells[colIdx]), sortText(r2.cells[colIdx]), numeric);
+            return ascending ? cmp : -cmp;
+          });
+          rows.forEach((r) => tbody.appendChild(r));
+        }
 
         // Update sort indicators.
         headerCells.forEach((h) => h.removeAttribute("data-sort"));
@@ -97,7 +110,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     document
-      .querySelectorAll(".sortable-table table")
+      .querySelectorAll(".sortable-table table, table.sortable")
       .forEach((table) => makeSortable(table));
   });
 })();

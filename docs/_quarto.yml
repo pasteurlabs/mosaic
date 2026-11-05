@@ -6,14 +6,10 @@ project:
   type: website
   output-dir: _site
   # Interactive chart specs (copied next to each plot by
-  # scripts/generate_results.py, and the paper page's chart) and the paper
-  # page's video are referenced from raw HTML, so Quarto can't discover them
-  # from the pages.
+  # scripts/generate_results.py) are referenced from raw HTML, so Quarto can't
+  # discover them from the pages.
   resources:
     - "_generated/plots/**/*.vl.json"
-    - "figures/paper/*.vl.json"
-    - "figures/kolmogorov.mp4"
-    - "figures/kolmogorov.jpg"
   render:
     - index.qmd
     - results/*.qmd
@@ -23,7 +19,6 @@ project:
     - contributing.qmd
     - add-solver.qmd
     - add-problem.qmd
-    - paper.qmd
 
 website:
   title: Mosaic
@@ -50,19 +45,17 @@ website:
             file: add-solver.qmd
           - text: Add a problem
             file: add-problem.qmd
-      - text: Paper
-        file: paper.qmd
       - text: Results
         menu:
           - text: Overview
             file: results/index.qmd
-          - text: "<span class='domain-id d-F2'>F2</span>Periodic box (2D)"
+          - text: "<span class='domain-id d-F2'>F2</span>Periodic box"
             file: results/ns-2d-periodic.qmd
           - text: "<span class='domain-id d-F2'>F2</span>Channel flow past a cylinder"
             file: results/ns-2d-cylinder.qmd
-          - text: "<span class='domain-id d-F2'>F2</span>Forced Kolmogorov flow (2D)"
+          - text: "<span class='domain-id d-F2'>F2</span>Forced Kolmogorov flow"
             file: results/ns-2d-kolmogorov.qmd
-          - text: "<span class='domain-id d-F3'>F3</span>Triply periodic box (3D)"
+          - text: "<span class='domain-id d-F3'>F3</span>Triply periodic box"
             file: results/ns-3d.qmd
           - text: "<span class='domain-id d-S'>S</span>Linear-elastic cantilever"
             file: results/structural.qmd
@@ -87,9 +80,9 @@ format:
     toc-depth: 3
     code-copy: true
     code-overflow: wrap
-    highlight-style:
-      light: github
-      dark: nord
+    # Quarto derives the dark variant from this. With separate light and dark
+    # styles, Quarto 1.7 writes no highlighting stylesheet at all.
+    highlight-style: github
     # Render LaTeX math ($...$ inline, $$...$$ display) with MathJax.
     html-math-method: mathjax
     # Enable click-to-zoom for images tagged {.lightbox} (the result plots).

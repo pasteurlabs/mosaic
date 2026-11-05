@@ -105,7 +105,7 @@ class Setup:
 SETUPS: dict[str, Setup] = {
     s.key: s
     for s in (
-        Setup("ns-2d-periodic", "ns-grid", "Periodic box (2D)"),
+        Setup("ns-2d-periodic", "ns-grid", "Periodic box"),
         Setup(
             "ns-2d-cylinder",
             "ns-grid",
@@ -115,7 +115,7 @@ SETUPS: dict[str, Setup] = {
         Setup(
             "ns-2d-kolmogorov",
             "ns-grid",
-            "Forced Kolmogorov flow (2D)",
+            "Forced Kolmogorov flow",
             claims=(
                 "forward/kolmogorov",
                 "forward/kolmogorov_laminar",
@@ -123,7 +123,7 @@ SETUPS: dict[str, Setup] = {
                 "ics/rest",
             ),
         ),
-        Setup("ns-3d", "ns-3d-grid", "Triply periodic box (3D)"),
+        Setup("ns-3d", "ns-3d-grid", "Triply periodic box"),
         Setup("structural", "structural-mesh", "Linear-elastic cantilever"),
         Setup("heat", "thermal-mesh", "Steady conduction in a slab"),
     )

@@ -345,10 +345,12 @@ p > img {
 }
 
 // ── Sortable results tables ──────────────────────────────────────────────────
-// The per-suite results tables (wrapped in `.sortable-table`) get click-to-sort
-// behaviour from docs/assets/sortable-tables.html. Style the headers as affordances:
-// pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
-.sortable-table table th.sortable-th {
+// The results tables (the per-suite tables, wrapped in `.sortable-table`, and
+// the check tables, table.sortable) get click-to-sort behaviour from
+// docs/assets/sortable-tables.html. Style the headers as affordances: pointer
+// cursor, hover highlight, and a ▲/▼ indicator on the active column.
+.sortable-table table th.sortable-th,
+table.sortable th.sortable-th {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -375,9 +377,18 @@ p > img {
   }
 }
 
-// Per-suite results tables on the domain pages.
+// Per-suite results tables on the setup pages. Wide ones scroll rather than
+// spill into the margin.
+.leaderboard {
+  overflow-x: auto;
+}
+
 .leaderboard table {
   width: 100%;
+
+  td {
+    white-space: nowrap;
+  }
 
   tbody tr td:first-child {
     font-weight: 600;
@@ -1047,8 +1058,8 @@ dialog.m-dialog {
 }
 
 // ── Check tables (Results) ───────────────────────────────────────────────────
-// One card per setup: pass/borderline/fail per suite, relative cost and
-// reliability counts, grouped by device class. No ranks and no overall score.
+// One card per setup: pass/flagged/fail per suite, relative cost and memory,
+// grouped by device class. No ranks and no overall score.
 .checkboards {
   display: flex;
   flex-direction: column;
@@ -1169,11 +1180,19 @@ table.ck-table {
     }
   }
 
-  // Effort and deviations show their detail on hover.
-  .ck-effort span[title],
-  .ck-dev span[title] {
-    text-decoration: underline dotted;
-    text-underline-offset: 0.18em;
+  // A solver that runs a substitute for part of the setup.
+  .ck-dev-tag {
+    margin-left: 0.4rem;
+    padding: 0 0.3rem;
+    border: 1px dashed var(--m-border-strong);
+    border-radius: 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--m-muted);
+    text-decoration: none;
+  }
+
+  .ck-effort .eff[title] {
     cursor: help;
   }
 
@@ -1190,22 +1209,36 @@ table.ck-table {
   .ck-cost-na {
     color: var(--m-border-strong);
   }
+}
 
-  td.ck-rel {
-    font-size: 0.8rem;
-    white-space: normal;
-    min-width: 9rem;
-
-    .rl-ok {
-      font-weight: 600;
-      color: var(--m-ink-2);
-    }
-
-    .rl {
-      margin-left: 0.5rem;
-      white-space: nowrap;
-    }
-  }
+// Effort level pill: one ramp of the accent orange from L0 (grey) to L3
+// (solid), since the levels are ordered.
+.eff {
+  display: inline-block;
+  min-width: 2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.eff-L0 {
+  color: var(--m-muted);
+  border-color: var(--m-border-strong);
+}
+.eff-L1 {
+  background: color-mix(in srgb, var(--m-accent) 16%, var(--m-surface));
+  color: var(--m-accent-ink);
+}
+.eff-L2 {
+  background: color-mix(in srgb, var(--m-accent) 45%, var(--m-surface));
+  color: color-mix(in srgb, var(--m-accent-ink) 60%, var(--m-ink));
+}
+.eff-L3 {
+  background: var(--m-accent);
+  color: var(--m-surface);
 }
 
 // Check state pill, used in the tables and in the legend on the Results page.
@@ -1234,7 +1267,7 @@ table.ck-table {
 .ck-pass {
   @include ck-tone(var(--m-green));
 }
-.ck-borderline {
+.ck-flagged {
   @include ck-tone(var(--m-saffron));
 }
 .ck-fail {
@@ -1253,50 +1286,13 @@ table.ck-table {
   border: 1px dashed var(--m-border-strong);
 }
 
-.rl-flag {
-  color: color-mix(in srgb, var(--m-saffron) 80%, var(--m-ink));
-}
-.rl-fail {
-  color: var(--m-red);
-}
-.rl-blocked {
-  color: color-mix(in srgb, var(--m-plum) 85%, var(--m-ink));
-}
-.rl-notrun {
-  color: var(--m-muted);
-}
-.rl-limit {
-  color: var(--m-ink-2);
-}
-
-// Marks a solver whose cost results ran on another device class than it targets.
-.ck-device {
-  margin-left: 0.4rem;
-  padding: 0 0.3rem;
-  border: 1px dashed var(--m-border-strong);
-  border-radius: 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--m-muted);
-  cursor: help;
-}
-
-// Marks a borderline check whose every anomaly has a documented cause, and
-// links to the notes below the table.
-.ck-explained {
-  margin-left: 0.1rem;
-  font-style: italic;
-  font-weight: 700;
-  text-decoration: none;
-}
-
 .ck-foot {
   padding: 0.6rem 1rem 0.75rem;
   border-top: 1px solid var(--m-border);
   font-size: 0.85rem;
 
-  .ck-note {
-    margin: 0 0 0.35rem;
+  .ck-elsewhere {
+    margin: 0 0 0.4rem;
     color: var(--m-ink-2);
   }
 
@@ -1608,108 +1604,4 @@ figure.m-chart {
       color: var(--m-muted);
     }
   }
-}
-
-// ── Paper page ───────────────────────────────────────────────────────────────
-.paper-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: clamp(1rem, 3vw, 2rem);
-  align-items: center;
-  padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.5rem);
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1fr;
-  }
-
-  .paper-title {
-    display: block;
-    font-family: "Inter", system-ui, sans-serif;
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    font-weight: 700;
-    line-height: 1.2;
-    margin: 0 0 0.6rem;
-  }
-
-  .paper-authors {
-    display: block;
-    color: var(--m-muted);
-    margin-bottom: 1rem;
-  }
-
-  .paper-hero-text > p {
-    margin: 0;
-  }
-
-  .paper-video {
-    display: block;
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 0.35rem;
-    background: var(--m-surface-2);
-  }
-
-  .paper-media-caption {
-    display: block;
-    margin-top: 0.4rem;
-    font-size: 0.82rem;
-    color: var(--m-muted);
-  }
-}
-
-.finding-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.9rem;
-  margin: 1.25rem 0 1.5rem;
-}
-
-.finding {
-  background: var(--m-surface);
-  border: 1px solid var(--m-border);
-  border-radius: 0.4rem;
-  padding: 1rem 1.1rem;
-  box-shadow: var(--m-shadow-sm);
-
-  p {
-    margin: 0;
-    font-size: 0.92rem;
-    color: var(--m-ink-2);
-  }
-
-  .finding-number {
-    display: block;
-    font-family: "Inter", system-ui, sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 0.4rem;
-    color: var(--m-accent-ink);
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.paper-chart {
-  margin: 1rem 0;
-}
-
-.paper-use {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 0.9rem;
-  margin: 1rem 0;
-
-  > div {
-    background: var(--m-surface);
-    border: 1px solid var(--m-border);
-    border-radius: 0.4rem;
-    padding: 1rem 1.1rem;
-  }
-}
-
-.paper-figures {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
-  align-items: start;
 }
