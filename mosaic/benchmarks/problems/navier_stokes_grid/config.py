@@ -606,6 +606,24 @@ problem.add_experiment(
     # known.
     status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )
+# The same drag minimization with L-BFGS-B, for the paper's optimizer
+# comparison.
+problem.add_experiment(
+    "optimization/drag_opt_bfgs",
+    drag_opt,
+    optimizer="bfgs",
+    _exp_key="drag_opt_bfgs",
+    plot_description=(
+        "Drag minimization over the inlet profile of the DFG 2D-1 channel at a"
+        " fixed flow rate, as in drag_opt, with L-BFGS-B."
+    ),
+    ic={"name": "dfg_inflow", "seed": 0},
+    physics={"resolution": 10, "t_end": 4.0},
+    optim={"max_iters": 50, "snap_interval": 5},
+    plot=plot_drag_opt,
+    # The provisional thresholds of drag_opt, so both optimizers are judged alike.
+    status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
+)
 _SIL_PHYSICS = {
     "N": kolmogorov.COARSE_N,
     "nu": kolmogorov.VISCOSITY,

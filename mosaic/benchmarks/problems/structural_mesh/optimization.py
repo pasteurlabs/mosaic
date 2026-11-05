@@ -4,10 +4,11 @@
 """SIMP topology-optimization kernel for the structural-mesh problem.
 
 This module hosts the topology-optimization kernel (:func:`topopt`). The
-kernel minimises FEA compliance subject to a soft volume-fraction
-constraint via SIMP-style density updates, dispatching to either
-:func:`_run_optim` (Adam) or :func:`_run_lbfgs` (L-BFGS) from
-``mosaic.benchmarks.problems.shared.optimization``.
+kernel minimises FEA compliance via SIMP-style density updates, dispatching
+to :func:`_run_optim` (Adam) or :func:`_run_lbfgs` (L-BFGS) from
+``mosaic.benchmarks.problems.shared.optimization`` under a soft
+volume-fraction penalty, or to :func:`_run_mma` (MMA) under a hard
+volume-fraction constraint.
 
 Only the structural-mesh problem exercises this code path; the generic
 optimization helpers are imported from the shared module.
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 from tesseract_jax import apply_tesseract
@@ -24,9 +26,110 @@ from tesseract_jax import apply_tesseract
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
 from mosaic.benchmarks.problems.shared.optimization import (
+    _check_finite_loss,
+    _iters_to_plateau,
     _run_lbfgs,
     _run_optim,
 )
+
+
+def _run_mma(
+    compliance_fn: Any,
+    init_x: Any,
+    *,
+    v_frac: float,
+    x_min: float,
+    max_evals: int,
+    patience: int,
+    snap_interval: int = 0,
+    history: list | None = None,
+) -> tuple:
+    """NLopt's MMA (``LD_MMA``, Svanberg 2002) on a density field ``init_x``.
+
+    Minimises ``compliance_fn(x)`` subject to ``mean(x) <= v_frac`` and
+    ``x_min <= x <= 1``, all imposed by MMA itself rather than by a penalty.
+    NLopt counts objective evaluations, not MMA's outer iterations, so the
+    budget ``max_evals``, the ``patience`` (evaluations without a lower
+    compliance) and the returned traces are all per evaluation. Evaluations
+    that violate the volume constraint are counted like any other.
+
+    Returns ``(final_x, compliances, vol_fracs, diag)``. ``final_x`` is
+    NLopt's result, or the last evaluated point when ``patience`` stopped the
+    run. ``diag`` holds ``grad_norms``, ``n_evals``,
+    ``n_iters`` (equal to ``n_evals``), ``iters_to_plateau`` of the
+    compliances and ``converged``, which is true unless the evaluation budget
+    ran out. Raises ``FloatingPointError`` once the compliance is not finite.
+    """
+    import nlopt
+
+    shape, dtype = init_x.shape, init_x.dtype
+    value_and_grad = jax.jit(jax.value_and_grad(compliance_fn))
+    compliances: list[float] = []
+    vol_fracs: list[float] = []
+    grad_norms: list[float] = []
+    last_x = [np.asarray(init_x, dtype=np.float64).ravel()]
+    best, no_improve = np.inf, 0
+
+    def objective(z: np.ndarray, grad: np.ndarray) -> float:
+        nonlocal best, no_improve
+        last_x[0] = z.copy()
+        x = jnp.asarray(z.reshape(shape).astype(dtype))
+        value, g = value_and_grad(x)
+        value = float(value)
+        _check_finite_loss(value, len(compliances))
+        g = np.asarray(g, dtype=np.float64).ravel()
+        if grad.size > 0:
+            grad[:] = g
+        compliances.append(value)
+        vol_fracs.append(float(np.mean(z)))
+        grad_norms.append(float(np.linalg.norm(g)))
+        if (
+            history is not None
+            and snap_interval > 0
+            and len(compliances) % snap_interval == 0
+        ):
+            history.append(np.asarray(x))
+        if value < best:
+            best, no_improve = value, 0
+        else:
+            no_improve += 1
+        if no_improve >= patience:
+            raise nlopt.ForcedStop()
+        return value
+
+    n = last_x[0].size
+
+    def volume(z: np.ndarray, grad: np.ndarray) -> float:
+        if grad.size > 0:
+            grad[:] = 1.0 / n
+        return float(np.mean(z)) - v_frac
+
+    opt = nlopt.opt(nlopt.LD_MMA, n)
+    opt.set_lower_bounds(np.full(n, x_min))
+    opt.set_upper_bounds(np.ones(n))
+    opt.set_min_objective(objective)
+    opt.add_inequality_constraint(volume, 1e-8)
+    opt.set_maxeval(max_evals)
+    opt.set_ftol_rel(1e-9)
+    opt.set_xtol_rel(1e-9)
+    try:
+        final_z = opt.optimize(last_x[0])
+        converged = opt.last_optimize_result() != nlopt.MAXEVAL_REACHED
+    except nlopt.ForcedStop:
+        final_z, converged = last_x[0], True
+    diag = {
+        "grad_norms": grad_norms,
+        "converged": converged,
+        "n_evals": len(compliances),
+        "n_iters": len(compliances),
+        "iters_to_plateau": _iters_to_plateau(compliances),
+    }
+    return (
+        jnp.asarray(final_z.reshape(shape).astype(dtype)),
+        compliances,
+        vol_fracs,
+        diag,
+    )
 
 
 def _topopt_aggregate(
@@ -85,16 +188,19 @@ def _topopt_aggregate(
 def topopt(t: Any, ctx: KernelContext) -> dict:
     """One solver's full topology-optimisation run.
 
-    Builds the initial density from the IC factory, then runs either Adam
-    or L-BFGS (selected via ``run["optimizer"]``) to minimise compliance
-    subject to a soft volume-fraction penalty. The kernel returns the
+    Builds the initial density from the IC factory, then minimises
+    compliance with the optimizer named by ``run["optimizer"]``: ``"adam"``
+    (default) or ``"bfgs"`` under a soft volume-fraction penalty, or
+    ``"mma"`` under a hard volume-fraction constraint. The kernel returns the
     final density (``rho_final``), optional history snapshots
     (``rho_history``), the shared ``rho_init`` array, and a metrics dict
     matching the on-disk schema (``compliances``, ``vol_fracs``,
-    ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``iters_to_plateau``,
-    ``converged``, ``grad_norms``). ``iters_to_plateau`` follows the loss,
-    which includes the volume penalty, so it can differ from where the
-    compliance alone levels off.
+    ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``n_evals``,
+    ``iters_to_plateau``, ``converged``, ``grad_norms``). For Adam and
+    L-BFGS, ``iters_to_plateau`` follows the loss, which includes the volume
+    penalty, so it can differ from where the compliance alone levels off.
+    For MMA the traces, ``n_iters`` and ``iters_to_plateau`` count objective
+    evaluations (see :func:`_run_mma`).
     """
     run = ctx.run
     phys = run.get("physics", {})
@@ -165,7 +271,23 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
         # recover the pure compliance value at the final iterate.
         _, aux_final = loss_components(rho_opt, t)
         final_compliance = float(aux_final["compliance"])
-    else:
+    elif optimizer == "mma":
+        # Hard volume constraint: the objective is the compliance alone.
+        rho_opt, compliances, vol_fracs, diag = _run_mma(
+            lambda rho: loss_components(rho, t)[1]["compliance"],
+            rho_init,
+            v_frac=v_frac,
+            x_min=x_min,
+            max_evals=int(optim_cfg.get("max_iters", 200)),
+            patience=int(optim_cfg.get("patience", 30)),
+            snap_interval=snap_interval,
+            history=history if snap_interval > 0 else None,
+        )
+        aux_history = {"compliance": compliances, "vol_frac": vol_fracs}
+        # NLopt's result need not be the last evaluated point.
+        _, aux_final = loss_components(rho_opt, t)
+        final_compliance = float(aux_final["compliance"])
+    elif optimizer == "adam":
         lr = float(optim_cfg.get("lr", 1e-2))
         max_iters = int(optim_cfg.get("max_iters", 200))
         patience = int(optim_cfg.get("patience", 30))
@@ -183,10 +305,16 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
         )
         compliance_trace = aux_history.get("compliance", [])
         final_compliance = compliance_trace[-1] if compliance_trace else float("nan")
+    else:
+        raise ValueError(f"unknown optimizer {optimizer!r}")
 
     compliances = aux_history.get("compliance", [])
     vol_fracs = aux_history.get("vol_frac", [])
-    final_vol_frac = vol_fracs[-1] if vol_fracs else float(jnp.mean(rho_opt))
+    final_vol_frac = (
+        float(jnp.mean(rho_opt))
+        if optimizer == "mma" or not vol_fracs
+        else vol_fracs[-1]
+    )
     converged = diag["converged"]
     grad_norms = diag.get("grad_norms")
 
@@ -201,6 +329,7 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
             "final_compliance": final_compliance,
             "final_vol_frac": final_vol_frac,
             "n_iters": diag["n_iters"],
+            "n_evals": diag["n_evals"],
             "iters_to_plateau": diag["iters_to_plateau"],
             "converged": converged,
             "grad_norms": grad_norms,
