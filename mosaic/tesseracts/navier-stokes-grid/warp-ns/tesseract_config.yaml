@@ -6,6 +6,7 @@ description: >
   staggered grid, a staircase cylinder and a conjugate-gradient pressure Poisson solve.
   Gradients via wp.Tape kernel-level VJP, with adjoint CG solves.
 build_config:
+  base_image: "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
   package_data:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
@@ -45,6 +46,7 @@ metadata:
               The earlier version was 15 to 30x slower in forward and VJP,
               measured by direct apply and VJP calls on an A100.
             evidence: "#132; https://github.com/NVIDIA/warp/discussions/1636."
+          ns-2d-kolmogorov: *rewrite-reason
           ns-3d: *rewrite-reason
         provenance: maintainer-advised
       - id: bluestein-non-pow2-fft
@@ -66,6 +68,7 @@ metadata:
               #132; section comment in tesseract_api.py. The scaling of this
               path was fixed in #232; tests/test_warp_ns_fft.py checks it
               against NumPy.
+          ns-2d-kolmogorov: *bluestein-reason
           ns-3d: *bluestein-reason
         upstream: >
           Not filed. Warp 1.15.0's tile_fft documentation lists any size as

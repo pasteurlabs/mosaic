@@ -25,8 +25,12 @@ Timing semantics (apply to every experiment in this module):
     ``first_call_s`` and is not part of ``mean``. Sweep points share a
     container, so work a solver does once for all sizes lands in the first
     point's ``first_call_s`` only.
-  * Each entry also records ``vram_peak_mib`` and ``ram_peak_mib`` (peak GPU
-    VRAM and container RAM during the trial batch).
+  * Each entry also records ``vram_peak_mib`` and ``ram_peak_mib``, the
+    peaks over warmup and trials of the device's NVML used memory (CUDA
+    context and allocator pools included) and of the solver container's
+    memory. Allocator pools survive from one sweep point to the next, so a
+    point's peak is at least what the smaller points before it left
+    resident. See :mod:`mosaic.benchmarks.core.memory`.
   * A per-trial wall-clock limit of ``_SPATIAL_WALL_S`` seconds is enforced.
     If the first trial exceeds this limit, the kernel sets ``stop_sweep``
     on its return so the framework marks remaining values as None and
@@ -58,6 +62,7 @@ from mosaic.benchmarks.core.experiment import (
 from mosaic.benchmarks.core.hardware import get_hardware_info
 from mosaic.benchmarks.core.harness import run_timed_trials
 from mosaic.benchmarks.core.io import save_field_snapshots_npz
+from mosaic.benchmarks.core.memory import container_id_from_tesseract
 from mosaic.benchmarks.core.runner import current_worker_context
 from mosaic.benchmarks.core.utils import active_differentiable_solvers, active_solvers
 
@@ -80,13 +85,12 @@ def _timed_kernel(
     """
     cost_cfg = ctx.run.get("cost", {})
     n_trials = cost_cfg.get("n_trials", 3)
-    worker = current_worker_context()
     result = run_timed_trials(
         timed_call,
         n_trials=n_trials,
         wall_limit_s=_SPATIAL_WALL_S,
-        gpu_id=worker.gpu_id,
-        image_tag=worker.image_tag,
+        gpu_id=current_worker_context().gpu_id,
+        container_id=container_id_from_tesseract(t),
         capture_value=capture_value,
         setup=setup,
     )

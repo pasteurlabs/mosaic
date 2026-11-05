@@ -132,7 +132,7 @@ def _status_emit_snapshot(
         try:
             cfg = get_config(problem)
         except Exception as exc:
-            print_warn(f"{problem}: {exc}")
+            typer.echo(f"[WARN] {problem}: {exc}", err=True)
             continue
         statuses.append(collect_status(cfg, suites=suite_list))
     if output_format == "json":

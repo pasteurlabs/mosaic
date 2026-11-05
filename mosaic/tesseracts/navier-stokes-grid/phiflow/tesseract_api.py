@@ -98,7 +98,10 @@ def periodic_fwd(
     dt: float,
     steps: int,
     domain_extent: float,
-) -> jnp.ndarray:
+    forcing: jnp.ndarray | None = None,
+    linear_drag: float | None = None,
+    snapshot_every: int | None = None,
+) -> dict[str, jnp.ndarray]:
     """Run a 2D or 3D incompressible Navier-Stokes simulation in a periodic box.
 
     2nd-order central-difference advection and diffusion integrated with
@@ -112,14 +115,22 @@ def periodic_fwd(
         dt: Timestep size.
         steps: Number of simulation steps.
         domain_extent: Side length of the periodic square/cubic domain.
+        forcing: Body force at the cell centers, shape of v0. It is resampled
+            to the faces like v0 and added to the momentum rate.
+        linear_drag: Coefficient α of a drag -αu in the momentum rate.
+        snapshot_every: Also return the velocity after every this many steps.
 
     Returns:
-        Final velocity at the cell centers, same shape as v0.
+        ``result``, the final velocity at the cell centers, same shape as v0,
+        and with ``snapshot_every`` the ``snapshots``
+        (steps // snapshot_every, *v0.shape).
     """
     ndim = v0.shape[-1]  # 2 for 2D, 3 for 3D
     if ndim == 2:
         # squeeze the dummy nz=1 axis: (nx, ny, 1, 2) → (nx, ny, 2)
         v0 = v0[:, :, 0, :]
+        if forcing is not None:
+            forcing = forcing[:, :, 0, :]
 
     if ndim == 2:
         nx, ny = v0.shape[:2]
@@ -149,14 +160,53 @@ def periodic_fwd(
             [vel.vector[i].values.native(spatial_str) for i in range(ndim)], axis=0
         )
 
-    # The same solve as incompressible_rk4's default Solve("CG"), whose
-    # tolerances resolve to 1e-5 in float32.
-    _cg_solve = math.Solve("CG", _CG_TOL, _CG_TOL)
+    # incompressible_rk4's default Solve("CG"), whose tolerances resolve to
+    # 1e-5 in float32, with two changes. The periodic pressure matrix is
+    # singular, and unless the solve states its rank deficiency, phiml adds a
+    # Lagrange multiplier that makes the system indefinite. CG is not
+    # guaranteed to converge on that: at 256², one solve in eight ran to the
+    # 1000-iteration cap or diverged, and the flow went non-finite.
+    # make_incompressible balances the divergence to zero mean, so plain CG on
+    # the singular system converges. The adjoint solve stops at the relative
+    # tolerance only, because its right-hand side scales with the cotangent:
+    # with the absolute tolerance, small cotangents stop it after a few
+    # iterations, short of the projection.
+    _cg_solve = math.Solve(
+        "CG",
+        _CG_TOL,
+        _CG_TOL,
+        rank_deficiency=0,
+        gradient_solve=math.Solve("CG", _CG_TOL, 0.0, rank_deficiency=0),
+    )
 
+    def to_faces(v: jnp.ndarray) -> jnp.ndarray:
+        """Collocated (*spatial, ndim) → face values (ndim, *spatial), by PhiFlow's resampling."""
+        v_arr = jnp.moveaxis(v, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
+        channel = math.stack(
+            [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],
+            dim=math.channel("vector"),
+        )
+        staggered = StaggeredGrid(
+            CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
+            ext,
+            bounds=bounds,
+            **grid_kwargs,
+        )
+        return staggered_to_faces(staggered)
+
+    force_faces = None if forcing is None else faces_to_staggered(to_faces(forcing))
+
+    # The force and the drag are part of the momentum rate, so every RK4 stage
+    # sees them, the drag at that stage's velocity.
     def momentum(vel: StaggeredGrid) -> StaggeredGrid:
-        return advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
+        rate = advect.finite_difference(vel, vel, order=2) + diffuse.finite_difference(
             vel, viscosity, order=2
         )
+        if force_faces is not None:
+            rate = rate + force_faces
+        if linear_drag is not None:
+            rate = rate - linear_drag * vel
+        return rate
 
     # phiflow's documented pairing for accurate periodic flow: finite
     # differences under incompressible_rk4 instead of operator splitting
@@ -179,41 +229,45 @@ def periodic_fwd(
         )
         return (staggered_to_faces(vel), p.values.native(spatial_str)), None
 
-    # Convert IC from collocated to staggered face values once using PhiFlow's
-    # native CenteredGrid→StaggeredGrid resampling.  The scan carry then stays
+    # Convert the IC to staggered face values once. The scan carry then stays
     # in face-value space so no smoothing accumulates across steps.
-    v_arr = jnp.moveaxis(v0, -1, 0)  # (*spatial, ndim) → (ndim, *spatial)
-    channel = math.stack(
-        [math.tensor(v_arr[i], math.spatial(spatial_str)) for i in range(ndim)],
-        dim=math.channel("vector"),
-    )
-    vel_init = StaggeredGrid(
-        CenteredGrid(channel, ext, bounds=bounds, **grid_kwargs),
-        ext,
-        bounds=bounds,
-        **grid_kwargs,
-    )
-    face_init = staggered_to_faces(vel_init)
+    face_init = to_faces(v0)
 
     # fluid.make_incompressible's CG while_loop is wrapped with custom_vjp,
     # so the backward pass does an adjoint solve rather than differentiating
     # through the loop — both forward and VJP are safe inside lax.scan.
     p_init = jnp.zeros(face_init.shape[1:], face_init.dtype)
-    (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
 
-    # Convert final face values back to collocated once.
-    vel_final = faces_to_staggered(face_final)
-    centered_final = CenteredGrid(vel_final, ext, bounds=bounds, **grid_kwargs)
-    v_final = jnp.stack(
-        [centered_final.vector[i].values.native(spatial_str) for i in range(ndim)],
-        axis=0,
+    def to_centers(face_arr: jnp.ndarray) -> jnp.ndarray:
+        """Face values → collocated velocity, same shape as the input v0."""
+        centered = CenteredGrid(
+            faces_to_staggered(face_arr), ext, bounds=bounds, **grid_kwargs
+        )
+        v = jnp.stack(
+            [centered.vector[i].values.native(spatial_str) for i in range(ndim)],
+            axis=-1,
+        )
+        if ndim == 2:
+            # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
+            v = v[:, :, None, :]
+        return v
+
+    if snapshot_every is None:
+        (face_final, _), _ = jax.lax.scan(step, (face_init, p_init), None, length=steps)
+        # Convert final face values back to collocated once.
+        return {"result": to_centers(face_final)}
+
+    def chunk(
+        carry: tuple[jnp.ndarray, jnp.ndarray], _: None
+    ) -> tuple[tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        carry, _ = jax.lax.scan(step, carry, None, length=snapshot_every)
+        return carry, carry[0]
+
+    _, faces = jax.lax.scan(
+        chunk, (face_init, p_init), None, length=steps // snapshot_every
     )
-
-    result = jnp.moveaxis(v_final, 0, -1)  # (ndim, *spatial) → (*spatial, ndim)
-    if ndim == 2:
-        # restore the dummy nz=1 axis: (nx, ny, 2) → (nx, ny, 1, 2)
-        result = result[:, :, None, :]
-    return result
+    snapshots = jax.vmap(to_centers)(faces)
+    return {"result": snapshots[-1], "snapshots": snapshots}
 
 
 # Boundary types of the DFG channel with a zero inlet velocity. The masks and
@@ -409,23 +463,25 @@ def apply_jit(inputs: dict) -> dict:
             inputs["obstacle"],
             inputs["inflow_profile"],
         )
-    result = periodic_fwd(
+    return periodic_fwd(
         inputs["v0"],
         inputs["viscosity"],
         inputs["dt"],
         inputs["steps"],
         inputs["domain_extent"],
+        inputs["forcing"],
+        inputs["linear_drag"],
+        inputs["snapshot_every"],
     )
-    return {"result": result}
 
 
-_SCALAR_KEYS = ("viscosity", "dt")
+_SCALAR_KEYS = ("viscosity", "dt", "linear_drag")
 
 
 def _unpack_scalars(d: dict) -> dict:
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
-        if key in d:
+        if d.get(key) is not None:
             d[key] = float(d[key][0])
     return d
 
@@ -442,8 +498,9 @@ def vector_jacobian_product(
     cotangent_vector: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute the vector-Jacobian product via JAX autodiff."""
+    # snapshots are not differentiable, so the VJP's rollout skips them.
     return vjp_jit(
-        _unpack_scalars(inputs.model_dump()),
+        _unpack_scalars(inputs.model_dump() | {"snapshot_every": None}),
         tuple(vjp_inputs),
         tuple(vjp_outputs),
         cotangent_vector,
@@ -451,13 +508,16 @@ def vector_jacobian_product(
 
 
 def abstract_eval(abstract_inputs: Any) -> dict:
-    """Shapes of ``result`` (as v0) and, with an obstacle, pressure and body_force."""
+    """Shapes of ``result`` (as v0), with an obstacle pressure and body_force, and snapshots."""
     v0_info = abstract_inputs.v0
     shape = tuple(v0_info["shape"] if isinstance(v0_info, dict) else v0_info.shape)
     out = {"result": {"shape": shape, "dtype": "float32"}}
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": (*shape[:2], 1), "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
 
 
@@ -475,6 +535,6 @@ def vjp_jit(
     )
     grads = vjp_func(cotangent_vector)[0]
     # Scalar physics params (viscosity, dt, etc.) are unpacked to Python floats
-    # before the VJP, so their gradients come back as 0D arrays.  Tesseract
-    # expects shape (1,) to match the input schema; reshape any 0D grad here.
-    return jax.tree.map(jnp.atleast_1d, grads)
+    # before the VJP, so their gradients come back as 0D float64 arrays.
+    # Tesseract expects the input schema's shape (1,) and float32.
+    return jax.tree.map(lambda g: jnp.atleast_1d(g).astype(jnp.float32), grads)

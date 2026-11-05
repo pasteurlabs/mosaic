@@ -212,3 +212,97 @@ def test_ns_grid_solid_cells_are_the_cells_centered_inside_the_cylinder():
     expected = np.zeros((4, 5), dtype=bool)
     expected[1:3, 1:3] = True
     np.testing.assert_array_equal(solid, expected)
+
+
+def _forcing_case(case):
+    """Inputs that put a body force or drag where it is not defined."""
+    import numpy as np
+
+    if case == "force_in_channel":
+        inputs = _channel_inputs()
+        return {**inputs, "forcing": np.zeros_like(inputs["v0"])}
+    if case == "drag_in_channel":
+        return _channel_inputs(linear_drag=np.array([0.1], dtype=np.float32))
+    if case == "force_in_3d":
+        v0 = np.zeros((8, 8, 8, 3), dtype=np.float32)
+        return {"v0": v0, "forcing": np.zeros_like(v0)}
+    v0 = np.zeros((16, 16, 1, 2), dtype=np.float32)
+    return {"v0": v0, "forcing": np.zeros((8, 8, 1, 2), dtype=np.float32)}
+
+
+@needs_runtime
+@pytest.mark.parametrize(
+    "case, match",
+    [
+        ("force_in_channel", "periodic box without an obstacle"),
+        ("drag_in_channel", "periodic box without an obstacle"),
+        ("force_in_3d", "only defined in 2-D"),
+        ("force_off_grid", r"expected \(16, 16, 1, 2\)"),
+    ],
+)
+def test_ns_grid_forcing_is_a_2d_periodic_input(case, match):
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match=match):
+        InputSchema(**_forcing_case(case))
+
+
+@needs_runtime
+def test_ns_grid_forcing_and_drag_are_accepted_on_a_periodic_box():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+
+    v0 = np.zeros((16, 16, 1, 2), dtype=np.float32)
+    inputs = InputSchema(
+        v0=v0, forcing=np.ones_like(v0), linear_drag=np.array([0.1], np.float32)
+    )
+    assert inputs.forcing.shape == v0.shape
+    assert InputSchema(v0=v0).forcing is None
+
+
+@needs_runtime
+@pytest.mark.parametrize(
+    "overrides, match",
+    [
+        ({"steps": 10, "snapshot_every": 3}, "positive divisor of steps"),
+        ({"steps": 10, "snapshot_every": 0}, "positive divisor of steps"),
+        ({"v0": "3d", "steps": 10, "snapshot_every": 5}, "only defined in 2-D"),
+        ({"v0": "channel", "steps": 10, "snapshot_every": 5}, "without an obstacle"),
+    ],
+)
+def test_ns_grid_snapshots_need_a_2d_periodic_box_and_a_divisor_of_steps(
+    overrides, match
+):
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    v0 = overrides.pop("v0", None)
+    if v0 == "channel":
+        inputs = _channel_inputs(**overrides)
+    elif v0 == "3d":
+        inputs = {"v0": np.zeros((8, 8, 8, 3), dtype=np.float32), **overrides}
+    else:
+        inputs = {"v0": np.zeros((16, 16, 1, 2), dtype=np.float32), **overrides}
+    with pytest.raises(ValidationError, match=match):
+        InputSchema(**inputs)
+    assert InputSchema(steps=10, snapshot_every=5).snapshot_every == 5
+
+
+@needs_runtime
+def test_ns_grid_native_state_needs_a_solver_that_opts_in():
+    import numpy as np
+    from mosaic_shared.problems.navier_stokes_grid import InputSchema
+    from pydantic import ValidationError
+
+    v0 = np.zeros((8, 8, 1, 2), dtype=np.float32)
+    with pytest.raises(ValidationError, match="does not continue"):
+        InputSchema(v0=v0, return_state=True)
+
+    class Continuing(InputSchema):
+        supports_native_state = True
+
+    assert Continuing(v0=v0, return_state=True).return_state
+    with pytest.raises(ValidationError, match="periodic box"):
+        Continuing(**_channel_inputs(return_state=True))

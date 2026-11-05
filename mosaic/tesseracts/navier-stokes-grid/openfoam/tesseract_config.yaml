@@ -10,16 +10,19 @@ build_config:
     - wget
     - software-properties-common
 
-  base_image: "ubuntu:24.04"
+  base_image: "ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852"
   target_platform: "linux/x86_64"
 
+  # openfoam12 is pinned to the version the paper release ran. If
+  # dl.openfoam.org drops it, the build fails rather than changing the
+  # reference solver.
   custom_build_steps:
     - USER root
     - |
       RUN sh -c "wget -O - https://dl.openfoam.org/gpg.key > /etc/apt/trusted.gpg.d/openfoam.asc" && \
           add-apt-repository http://dl.openfoam.org/ubuntu && \
           apt-get update && \
-          apt-get install -y --no-install-recommends openfoam12 && \
+          apt-get install -y --no-install-recommends openfoam12=20250206 && \
           rm -rf /var/lib/apt/lists/*
 
 metadata:

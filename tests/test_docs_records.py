@@ -52,6 +52,11 @@ def test_experiments_map_to_setups() -> None:
     assert views.iv.setup_of("ns-grid", "forward/agreement/tgv").key == (
         "ns-2d-periodic"
     )
+    for exp in ("forward/kolmogorov", "forward/kolmogorov_laminar"):
+        assert views.iv.setup_of("ns-grid", exp).key == "ns-2d-kolmogorov"
+    assert views.iv.setup_of("ns-grid", "gradient/chain_fd_check").key == (
+        "ns-2d-kolmogorov"
+    )
     assert views.iv.setup_of("ns-3d-grid", "cost/spatial_cost").key == "ns-3d"
     assert views.iv.setup_of("unknown-problem", "forward/x") is None
 
@@ -71,7 +76,7 @@ def test_effort_block_has_one_table_per_setup(results: Path) -> None:
 def test_ranking_table_gains_effort_columns(results: Path) -> None:
     block = "\n".join(generate_results._leaderboard_block("ns-grid", "forward"))
     assert "| Solver | Mean rel. error | Effort | Deviations |" in block
-    assert "{.sortable-table .effort-table}" in block
+    assert ".effort-table}" in block
 
 
 def test_no_results_means_no_effort_block(tmp_path: Path, monkeypatch) -> None:

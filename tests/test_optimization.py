@@ -11,7 +11,11 @@ import numpy as np
 import pytest
 
 from mosaic.benchmarks.core.harness import classify_failure
-from mosaic.benchmarks.problems.shared.optimization import _run_lbfgs, _run_optim
+from mosaic.benchmarks.problems.shared.optimization import (
+    _iters_to_plateau,
+    _run_lbfgs,
+    _run_optim,
+)
 
 
 @pytest.mark.parametrize("optim_fn", [_run_optim, _run_lbfgs])
@@ -146,3 +150,50 @@ def test_lbfgs_reports_convergence():
     assert diag["converged"] and len(losses) < 50
     _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=2)
     assert not diag["converged"] and len(losses) == 3
+
+
+def test_optimizers_count_iterations_not_recorded_losses():
+    """Adam records the loss before each update; L-BFGS also records the final iterate."""
+    _, losses, diag = _run_optim(lambda x: jnp.sum(x**2), jnp.ones(1), 1e-3, 7, 7)
+    assert diag["n_iters"] == len(losses) == 7
+    _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=2)
+    assert diag["n_iters"] == len(losses) - 1 == 2
+
+
+def test_iters_to_plateau_on_a_log_scale():
+    # 1 -> 1e-4: 95% of four decades is reached at 1e-3.8, i.e. after 1e-4.
+    assert _iters_to_plateau([1.0, 1e-1, 1e-2, 1e-3, 1e-4]) == 4
+    # A long tail of tiny improvements barely moves the plateau.
+    tail = [1.0, 1e-2, 1e-4, *np.geomspace(0.99e-4, 0.9e-4, 50)]
+    assert _iters_to_plateau(tail) == 2
+    # Noise after the plateau leaves the best-so-far loss, and the result, alone.
+    assert _iters_to_plateau([1.0, 1e-4, 1.0, 0.5, 1e-4]) == 1
+
+
+def test_iters_to_plateau_falls_back_to_a_linear_scale():
+    # Not all positive: 95% of the drop from 1 to -1 is reached at -0.9.
+    assert _iters_to_plateau([1.0, 0.0, -0.95, -1.0]) == 2
+
+
+def test_iters_to_plateau_is_zero_without_improvement():
+    assert _iters_to_plateau([1.0, 2.0, 3.0]) == 0
+    assert _iters_to_plateau([1.0]) == 0
+
+
+def test_adam_iters_to_plateau_is_zero_when_no_iteration_improves():
+    """A gradient of the wrong sign makes Adam climb the loss."""
+
+    def uphill(x):
+        q = jnp.sum(x**2)
+        return jax.lax.stop_gradient(2 * q) - q
+
+    _, losses, diag = _run_optim(uphill, jnp.ones(1), 0.1, 5, 5)
+    assert losses[-1] > losses[0]
+    assert diag["iters_to_plateau"] == 0
+
+
+def test_optimizers_record_iters_to_plateau():
+    _, losses, diag = _run_optim(lambda x: jnp.sum(x**2), jnp.ones(1), 0.5, 40, 40)
+    assert diag["iters_to_plateau"] == _iters_to_plateau(losses)
+    _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
+    assert diag["iters_to_plateau"] == _iters_to_plateau(losses) > 0

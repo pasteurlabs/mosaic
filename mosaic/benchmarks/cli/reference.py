@@ -105,7 +105,11 @@ def reference(
         raise typer.Exit()
 
     # Determine which experiments to process.
-    exp_filter = None if experiments == "all" else set(experiments.split(","))
+    exp_filter = (
+        None
+        if experiments == "all"
+        else {e.strip() for e in experiments.split(",") if e.strip()}
+    )
 
     if from_results is not None:
         _generate_from_results(Path(from_results), domains, exp_filter)
