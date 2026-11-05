@@ -27,6 +27,7 @@ error-vs-target trajectories without writing their own loop.
 from __future__ import annotations
 
 import math
+import time
 from typing import Any
 
 import jax
@@ -74,6 +75,16 @@ def _iters_to_plateau(losses: list[float], fraction: float = PLATEAU_FRACTION) -
     if total <= 0:
         return 0
     return int(np.argmax(best[0] - best >= fraction * total))
+
+
+def _seconds_to_plateau(losses: list[float], elapsed: list[float]) -> float | None:
+    """Seconds from the start of a run until the loss levelled off.
+
+    ``elapsed[k]`` is the time at which ``losses[k]`` was known, so this is
+    ``elapsed`` at :func:`_iters_to_plateau`. It includes compilation and any
+    other work inside the run, such as snapshots.
+    """
+    return elapsed[_iters_to_plateau(losses)] if elapsed else None
 
 
 def _check_finite_loss(loss_val: float, i: int) -> None:
@@ -129,6 +140,11 @@ def _run_optim(
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
       * ``converged``:  whether the patience-based early stop fired
       * ``n_iters``:    the number of Adam updates, ``len(losses)``
+      * ``elapsed_s``:  per-iter seconds since ``started_at`` at which each
+        loss was known
+      * ``started_at``: ``time.perf_counter()`` at the start, so that callers
+        can time later work, such as a final evaluation, on the same clock
+      * ``seconds_to_plateau``: :func:`_seconds_to_plateau`
       * ``iters_to_plateau``: :func:`_iters_to_plateau` of ``losses``, which
         is independent of ``min_rel_improvement`` and ``patience``.
         ``losses[k]`` is the loss after ``k`` updates, and the iterate after
@@ -145,6 +161,8 @@ def _run_optim(
         diag["grad_divs"] = [] if div_fn else None
         diag["ic_divs"] = [] if div_fn else None
     value_and_grad = jax.value_and_grad(loss_fn, has_aux=has_aux)
+    started_at = time.perf_counter()
+    elapsed: list[float] = []
     for i in range(max_iters):
         if has_aux:
             (loss, aux), g = value_and_grad(x)
@@ -162,6 +180,7 @@ def _run_optim(
         loss_val = float(loss)
         _check_finite_loss(loss_val, i)
         losses.append(loss_val)
+        elapsed.append(time.perf_counter() - started_at)
         if i == 0 or loss_val < best - min_rel_improvement * abs(best):
             best, no_improve = loss_val, 0
         else:
@@ -178,6 +197,9 @@ def _run_optim(
     diag["converged"] = no_improve >= patience
     diag["n_iters"] = len(losses)
     diag["iters_to_plateau"] = _iters_to_plateau(losses)
+    diag["elapsed_s"] = elapsed
+    diag["started_at"] = started_at
+    diag["seconds_to_plateau"] = _seconds_to_plateau(losses, elapsed)
     return x, losses, diag
 
 
@@ -233,7 +255,8 @@ def _run_lbfgs(
     ``diag["n_iters"]``, the number of iterations, is one less than their
     length. ``diag["converged"]`` is false when the run hit ``max_iters`` or
     the line search failed. ``diag["iters_to_plateau"]`` is
-    :func:`_iters_to_plateau` of ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
+    :func:`_iters_to_plateau` of ``losses``, and ``elapsed_s``, ``started_at``
+    and ``seconds_to_plateau`` are as in :func:`_run_optim`. Raises ``FloatingPointError`` when the loss at ``init_x``
     is not finite.
     """
     shape, dtype = init_x.shape, init_x.dtype
@@ -273,7 +296,9 @@ def _run_lbfgs(
 
     losses: list[float] = []
     grad_norms: list[float] = []
+    elapsed: list[float] = []
     last_z: list[np.ndarray] = []
+    started_at = time.perf_counter()
 
     def record(z: np.ndarray) -> None:
         entry = evaluate(z)
@@ -285,6 +310,7 @@ def _run_lbfgs(
         if has_aux:
             _append_aux(aux_history, aux)
         losses.append(value)
+        elapsed.append(time.perf_counter() - started_at)
         grad_norms.append(float(np.linalg.norm(grad)))
         last_z[:] = [z.copy()]
         if i == 0:
@@ -324,5 +350,8 @@ def _run_lbfgs(
         "converged": bool(converged),
         "n_iters": len(losses) - 1,
         "iters_to_plateau": _iters_to_plateau(losses),
+        "elapsed_s": elapsed,
+        "started_at": started_at,
+        "seconds_to_plateau": _seconds_to_plateau(losses, elapsed),
     }
     return jnp.asarray(to_x(res.x)), losses, diag

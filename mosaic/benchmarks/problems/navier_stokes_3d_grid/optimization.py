@@ -278,11 +278,15 @@ def _aggregate_trial_results(
 ) -> dict:
     """Aggregate per-seed trial results into a single by_sweep entry.
 
-    ``final_ic_error`` and ``iters_to_plateau`` are means over the trials, with
-    the per-trial values alongside when there are several ``ic_seeds``.
+    ``final_ic_error``, ``iters_to_plateau``, ``seconds_to_plateau`` and
+    ``n_iters`` are means over the trials, with the per-trial values alongside
+    when there are several ``ic_seeds``. The traces (``errors``, ``elapsed_s``
+    and the diagnostics) are the first trial's.
     """
     all_fice = [r["final_ic_error"] for r in trial_results]
     all_itp = [r["diag"]["iters_to_plateau"] for r in trial_results]
+    all_stp = [r["diag"]["seconds_to_plateau"] for r in trial_results]
+    all_iters = [r["diag"]["n_iters"] for r in trial_results]
     first = trial_results[0]
     first_diag = first.get("diag") or {}
     return {
@@ -297,6 +301,11 @@ def _aggregate_trial_results(
         "final_ic_error_trials": all_fice if is_multi_seed else None,
         "iters_to_plateau": float(np.mean(all_itp)),
         "iters_to_plateau_trials": all_itp if is_multi_seed else None,
+        "seconds_to_plateau": float(np.mean(all_stp)),
+        "seconds_to_plateau_trials": all_stp if is_multi_seed else None,
+        "n_iters": float(np.mean(all_iters)),
+        "n_iters_trials": all_iters if is_multi_seed else None,
+        "elapsed_s": first_diag.get("elapsed_s"),
         "final_ic_div": float(
             np.nanmean(
                 [
