@@ -154,7 +154,6 @@ the software that evaluates the forward map and (optionally) its
 gradient, independent of abstraction level. Every solver that supports a
 task's physical domain can be compared on it.
 
-
 \subsection{Physical domains and benchmark tasks}
 \label{sec:domains}
 
@@ -175,8 +174,6 @@ optimizers converge rather than whether gradients are correct.
 The four domains form a difficulty progression
 (\cref{tab:domains,fig:domains}; full specifications in the
 supplementary material).
-F2 also hosts forward and chained gradient checks on forced turbulence
-(Kolmogorov flow, \cref{app:kolmogorov}).
 
 \begin{table}[t]
   \centering\small
@@ -307,8 +304,9 @@ VJP) and never inspects solver internals.
     the gradients with respect to the initial field and $\nu$ against
     closed forms (\cref{tab:gradchecks}). For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
-    inspect its singular value spectrum. On Kolmogorov flow, we also check
-    the gradient through 16 chained calls, as in a training loop.
+    inspect its singular value spectrum. On forced Kolmogorov flow
+    (\cref{app:kolmogorov}), we also check the gradient through 16 chained
+    calls, as in a training loop.
   \item[Performance.] We measure primal and VJP wall-clock time, their
     ratio, and peak GPU (device-wide) and host memory on each solver's intended
     hardware target across 4 to 11 problem sizes (grid resolutions or cell counts).
@@ -463,7 +461,6 @@ framework support does not guarantee turnkey gradients.
 The maintained benchmark instead records each solver's interventions
 (\cref{app:interventions}).
 
-
 \input{tables/merged}
 
 \subsection{Gradient quality}
@@ -502,11 +499,6 @@ discussion.
 On F2, exact Taylor--Green gradients with respect to the initial state and
 the viscosity give larger errors than FD (\cref{tab:gradchecks}) because they
 also include the forward discretization error, which an optimizer sees as well.
-The chained check caught one defect that single calls miss. PICT's adjoint
-solves stop at an absolute tolerance, which the small cotangents deep in the
-chain barely exceed (median error 0.89, cosine 0.51). With the cotangent
-rescaled in the wrapper, every solver that runs the forced flow stably passes,
-at median errors of $5\times10^{-5}$ to $6.4\times10^{-4}$ (\cref{app:kolmogorov}).
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
@@ -620,7 +612,7 @@ reached the lowest test error on every solver except Exponax, and SIL never beat
 stopping the gradient, although it did on individual seeds, so training through
 the solver did not separate the solvers beyond their cost (1.0 to 2.8\,s per
 update). PICT's adjoint tolerance, the one defect the study surfaced, is also
-caught by the chained check (\cref{sec:quality}), so on this setup
+caught by the chained check, which single calls miss (\cref{app:kolmogorov}), so on this setup
 the standalone checks predicted whether a solver can be trained through.
 
 % ===========================================================================
@@ -690,7 +682,6 @@ without learned components, so other hybrid pipelines may introduce
 failure modes not captured here.
 Results are pinned to specific solver versions; upstream updates may
 change gradient behavior.
-
 
 \paragraph{Future work}
 Natural extensions include additional domains (multiphysics, compressible
