@@ -1,0 +1,22 @@
+\begin{table}[t]
+  \centering\small
+  \caption{Gradient checks on F2. FD: relative error of the initial-condition VJP against
+    central finite differences (median over directions at the best~$\varepsilon$).
+    Analytic: relative error of the initial-condition gradient against the exact Taylor--Green
+    gradient; $\mathrm{d}J/\mathrm{d}\nu$: relative error of the viscosity gradient against
+    the exact one; both at $\nu=0.01$.}
+  \label{tab:gradchecks}
+  \begin{tabular}{@{}l c c c@{}}
+    \toprule
+    \textbf{Solver} & \textbf{FD} & \textbf{Analytic} & $\mathrm{d}J/\mathrm{d}\nu$ \\
+    \midrule
+      Exponax & \textbf{4.1e-6} & \textbf{1.3e-5} & \textbf{8.9e-6} \\
+      INS.jl & 1.6e-5 & 1.9e-2 & 2.2e-2 \\
+      JAX-CFD & 7.1e-6 & 1.9e-2 & 2.2e-2 \\
+      PhiFlow & 1.0e-5 & 1.9e-2 & 2.2e-2 \\
+      PICT & 4.6e-5 & 8.4e-3 & 4.3e-2 \\
+      Warp-NS & 3.7e-5 & 4.9e-3 & 5.5e-3 \\
+      XLB & 1.1e-5 & 1.9e-4 & 1.8e-3 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
