@@ -263,9 +263,8 @@ The container isolates all dependencies (language, libraries, GPU
 runtime), so any of the 14 backends can be swapped by changing a single
 configuration string.
 Forward-only solvers
-(OpenFOAM, deal.II) implement \texttt{apply} only; Mosaic provides
-finite-difference gradients automatically at $O(N)$ cost, serving as the
-reference baseline.
+(OpenFOAM, deal.II) implement \texttt{apply} only and serve as forward
+reference baselines.
 Because solver APIs differ too widely for a single generic wrapper, each
 benchmark task defines a \emph{task-specific interface schema} (inputs,
 outputs, shapes, and units) that multiple solvers implement. Adding a new
