@@ -15,6 +15,7 @@ from mosaic.benchmarks.problems.shared.optimization import (
     _iters_to_plateau,
     _run_lbfgs,
     _run_optim,
+    _seconds_to_plateau,
 )
 
 
@@ -197,3 +198,23 @@ def test_optimizers_record_iters_to_plateau():
     assert diag["iters_to_plateau"] == _iters_to_plateau(losses)
     _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
     assert diag["iters_to_plateau"] == _iters_to_plateau(losses) > 0
+
+
+def test_seconds_to_plateau_is_the_time_of_the_plateau_iteration():
+    assert _seconds_to_plateau([1.0, 1e-1, 1e-4, 1e-4], [0.5, 1.0, 1.5, 2.0]) == 1.5
+    assert _seconds_to_plateau([1.0], []) is None
+
+
+@pytest.mark.parametrize(
+    "run",
+    [
+        lambda: _run_optim(lambda x: jnp.sum(x**2), jnp.ones(1), 0.5, 40, 40),
+        lambda: _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50),
+    ],
+)
+def test_optimizers_record_the_time_of_each_loss(run):
+    _, losses, diag = run()
+    elapsed = diag["elapsed_s"]
+    assert len(elapsed) == len(losses)
+    assert np.all(np.diff(elapsed) >= 0)
+    assert diag["seconds_to_plateau"] == elapsed[diag["iters_to_plateau"]]
