@@ -5,6 +5,7 @@ description: >
   (E_max − E_min)·ρ^p — the PyTorch backend in structural-mesh. Gradient ∂C/∂ρ via
   PyTorch autograd through the FE solve (implicit-function-theorem adjoint); GPU-native.
 build_config:
+  base_image: "debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3"
   package_data: []
   # No CUDA base image needed: the cu121 torch wheel installs its own CUDA
   # runtime via nvidia-* pip packages. The GPU driver is injected at runtime

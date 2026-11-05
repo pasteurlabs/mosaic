@@ -156,8 +156,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         optim:  {lr, max_iters, patience}
 
     Returns ``metrics`` keyed by solver name (``errors``, ``initial_error``,
-    ``final_error``, ``error_reduction_pct``, ``n_iters``, ``converged``,
-    ``grad_norms``) plus the per-solver
+    ``final_error``, ``error_reduction_pct``, ``n_iters``, ``iters_to_plateau``,
+    ``converged``, ``grad_norms``) plus the per-solver
     ``rho_final`` / ``rho_history`` snapshots and the shared ``rho_init`` /
     ``rho_truth`` arrays consumed by :func:`_conductivity_recovery_aggregate`.
     """
@@ -275,7 +275,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
             if len(errors) >= 2
             else 0.0
         ),
-        "n_iters": len(errors),
+        "n_iters": diag["n_iters"],
+        "iters_to_plateau": diag["iters_to_plateau"],
         "converged": converged,
         "grad_norms": grad_norms,
     }

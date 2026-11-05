@@ -75,3 +75,13 @@ def _tgv_analytic_grad(ic: np.ndarray, nu: float, t: float) -> np.ndarray:
     the analytic gradient check projects out before comparing.
     """
     return 2.0 * np.exp(-4.0 * nu * t) * np.asarray(ic, dtype=np.float64)
+
+
+def _tgv_analytic_dJ_dnu(ic: np.ndarray, nu: float, t: float) -> float:
+    """Exact derivative of ``J = sum(u(t)**2)`` w.r.t. the viscosity for a TGV ``ic``.
+
+    The TGV decays as ``u(t) = e^{-2νt} u0`` at any amplitude, so on the grid
+    ``J = e^{-4νt} sum(u0**2)`` and ``dJ/dν = -4t J``.
+    """
+    j = np.exp(-4.0 * nu * t) * float(np.sum(np.asarray(ic, dtype=np.float64) ** 2))
+    return -4.0 * t * j

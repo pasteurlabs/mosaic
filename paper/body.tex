@@ -137,7 +137,8 @@ wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-infrastructure on which solver-in-the-loop ML research can build.
+infrastructure on which solver-in-the-loop ML research can build;
+\cref{sec:sil} reports one such study.
 
 % ===========================================================================
 \section{The Mosaic benchmark suite}
@@ -174,6 +175,9 @@ optimizers converge rather than whether gradients are correct.
 The four domains form a difficulty progression
 (\cref{tab:domains,fig:domains}; full specifications in the
 supplementary material).
+F2 also includes forced turbulence in a periodic box (Kolmogorov flow).
+It has no optimization task and hosts the turbulent forward and chained
+gradient checks of \cref{sec:protocol} (\cref{app:kolmogorov}).
 
 \begin{table}[t]
   \centering\small
@@ -314,7 +318,10 @@ VJP) and never inspects solver internals.
     vectors ($K{=}6$--$20$) and report cosine similarity and relative
     $\ell_2$ error for all problems. For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
-    inspect its singular value spectrum.
+    inspect its singular value spectrum. Training pipelines chain many
+    solver calls, each receiving a much smaller cotangent than a single
+    call, so on Kolmogorov flow we also check the gradient of a loss
+    through 16 chained calls.
   \item[Performance.] We measure primal and VJP wall-clock time, their
     ratio, and peak (V)RAM consumption on each solver's intended hardware
     target across three to four problem sizes (grid resolutions or cell counts).
@@ -325,7 +332,9 @@ VJP) and never inspects solver internals.
   \item[Forward accuracy.] We compare accuracy across resolutions against a reference solver and verify
     adherence to physical laws where applicable (e.g., solenoidal
     velocity). Where an analytical solution exists (F2, F3),
-    precision is additionally measured against it.
+    precision is additionally measured against it. On Kolmogorov flow,
+    we measure each solver's observed refinement order against a converged
+    pseudo-spectral run, and its forcing against an exact laminar solution.
   \item[Optimization convergence.] We run the optimizers with each solver's
     gradients on each benchmark task for a fixed iteration budget
     (500 iterations for F2 and F3; 1\,000 for H; 2\,500 for S) and report convergence
@@ -375,7 +384,7 @@ available gradient strategies and per-setup effort
     Warp-NS~\cite{macklin2024warp}
       & Py/Warp & Auto+An. & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
     Exponax~\cite{koehler2024apebench}
-      & Py/JAX & Auto & Spectral & ETDRK2 & $\checkmark$ & F3 \\
+      & Py/JAX & Auto & Spectral & ETDRK2 & $\checkmark$ & F2, F3 \\
 %   FEniCS-NS~\cite{farrell2013automated}
 %     & Py & Sym.+Auto & FE & IPCS, Crank-Nicolson & & F3 \\
     OpenFOAM~\cite{weller1998tensorial}
@@ -594,6 +603,17 @@ magnitude across solvers and with rollout length and viscosity; see
 \cref{app:gradient} for the full per-domain U-shape curves and
 discussion.
 
+Single-call checks can still miss defects that only appear in chains.
+PICT's adjoint linear solves stopped at an absolute residual tolerance,
+which is harmless for the $O(1)$ cotangents of a single call. At the end
+of a 16-call chain, cotangents are about $10^{-4}$ per entry, the solves
+stopped early, and the chained check measured a median relative error of
+0.89 at a cosine of 0.51. Rescaling the cotangent in the wrapper fixed it.
+With the fix, every solver that runs the forced flow stably passes the
+chained check with errors of $10^{-4}$ to $2\times10^{-3}$, except PhiFlow,
+whose chained finite differences vary erratically with~$\varepsilon$
+(\cref{app:kolmogorov}).
+
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
 spectra on the 3D periodic NS problem. Conditioning varies dramatically
@@ -682,6 +702,32 @@ reasons (periodic BCs, penalization incompatibilities;
 on the most practically demanding task, solver selection is constrained
 by setup compatibility before gradient quality enters the picture.
 
+\subsection{Solver-in-the-loop training}
+\label{sec:sil}
+
+To test whether the standalone checks predict how a solver behaves inside a
+training loop, we trained a small periodic CNN to correct each solver's coarse
+Kolmogorov flow ($64^2$) every 0.1 time units, against that solver's own
+$256^2$ run (\cref{app:sil}). Three arms share their training windows, updates
+and initialization: supervised one-interval pairs with no solver in the graph,
+a 16-interval rollout with the gradient stopped at every solver call, and the
+same rollout differentiated through the solver.
+All five solvers that run the flow stably passed every training check, and
+none of the 45 trainings or 270 long rollouts failed. Averaged over three
+seeds, supervised training reached the lowest test error on every solver
+except Exponax, and differentiating through the solver never beat stopping the
+gradient, although it did on individual seeds. Training through the solver
+therefore did not separate the solvers beyond their cost, from 1\,s (JAX-CFD)
+to 27\,s (PICT) per update.
+Chaining does expose the interface: restarting JAX-CFD or INS.jl from the
+cell-centered velocity at every call drifts 13\% from an unbroken run after 16
+calls, so the study passes native solver state between calls.
+The one defect the study surfaced, PICT's adjoint tolerance, is caught as well
+by the chained gradient check (\cref{sec:quality}), which needs neither a
+network nor native state. On this setup the standalone checks predicted
+whether a solver can be trained through, so the study is not part of the
+benchmark. Its code is archived for reproduction.
+
 % ===========================================================================
 \section{Discussion and conclusion}
 \label{sec:conclusion}
@@ -700,6 +746,8 @@ accuracy and conditioning. While more complex tasks may reveal cases
 where gradient quality becomes limiting, the pattern on these benchmarks
 suggests that conditioning is likely a better predictor of
 stability of the optimization or training procedure than pointwise gradient accuracy.
+Training a corrector through the solvers on Kolmogorov flow showed the
+same pattern (\cref{sec:sil}).
 
 \paragraph{Rollout length is the critical scaling parameter}
 Jacobian conditioning degrades with rollout length across all solvers
@@ -728,16 +776,17 @@ finite-difference gradients at optimal perturbation size are a reliable
 reference (\cref{fig:app:fdcheck}), that the recorded solver configurations
 reflect competent use, and that standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines.
-Tasks are intentionally low-complexity (laminar flow, linear elasticity);
+pipelines, which \cref{sec:sil} supports on one setup.
+The optimization tasks are intentionally low-complexity (laminar flow, linear elasticity);
 results should not be extrapolated to turbulent, long-horizon, or
 nonlinear regimes without further validation.
 All timings come from a single A100 machine; rankings may shift on other hardware.
 Tuning effort differs between solvers. The intervention records make the
 difference visible, and further expert tuning could narrow observed
 performance gaps.
-We benchmark solver gradients in isolation, without learned components, so
-hybrid pipelines may introduce failure modes not captured here.
+Beyond one solver-in-the-loop study on a periodic flow, we benchmark
+solver gradients without learned components, so other hybrid pipelines
+may introduce failure modes not captured here.
 Results are pinned to specific solver versions; upstream updates may
 change gradient behavior.
 

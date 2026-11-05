@@ -397,6 +397,163 @@ The minimum shifts rightward and rises as the rollout grows, reflecting increasi
   \label{fig:app:ucurves_f3}
 \end{figure}
 
+\subsection{Forced Kolmogorov flow}
+\label{app:kolmogorov}
+
+\paragraph{Setup}
+F2's second setup is forced turbulence on the periodic box $[0,2\pi)^2$,
+$\partial_t\mathbf{u} + (\mathbf{u}\cdot\nabla)\mathbf{u} = -\nabla p
++ \nu\nabla^2\mathbf{u} + \mathbf{f} - \alpha\mathbf{u}$,
+$\nabla\cdot\mathbf{u} = 0$, with the body force $\mathbf{f} = (A\sin\kappa y, 0)$, $A = 1$, $\kappa = 4$,
+linear drag $\alpha = 0.1$ and $\nu = 2\times10^{-3}$.
+The drag removes the energy that the 2D inverse cascade accumulates at the
+largest scales, so the flow settles into a chaotic, statistically steady state.
+A $64^2$ grid resolves it only roughly: it departs from a $4\times$ finer run by
+about 2\% every 0.1 time units.
+
+\paragraph{Forcing inputs}
+The F2 interface gains two optional inputs, a cell-centered force field and a
+drag coefficient. They are accepted only on periodic 2D boxes and are not
+differentiated. Each solver applies them inside its own time step, in both the
+forward pass and the VJP, and maps the force to its native grid locations the
+same way it maps the initial condition (\cref{tab:app:forcing}).
+With a force, XLB sizes its lattice Mach number from a bound that does not
+depend on the solution, so a flow spun up from rest stays at the target Mach
+number. Without the new inputs, every solver runs its previous code: on
+unforced Taylor--Green and multimode flows, JAX-CFD, XLB and INS.jl reproduce
+their previous outputs bit for bit, and the other solvers agree to within the
+run-to-run variation of the unchanged code.
+
+\begin{table}[h]
+  \centering\small
+  \caption{How each solver applies the Kolmogorov force and the linear drag.}
+  \label{tab:app:forcing}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Solver} & \textbf{Force} & \textbf{Drag} \\
+    \midrule
+    JAX-CFD & forcing callable, averaged onto the faces & explicit, every RK4 stage \\
+    PhiFlow & resampled to the faces, every RK4 stage & every RK4 stage \\
+    INS.jl & projected staggered force in the right-hand side & every RK4 stage \\
+    XLB & exact-difference method after collision & semi-implicit, half-force velocity \\
+    PICT & velocity source, set every step & explicit, start of step \\
+    Warp-NS & tentative-velocity kernel & explicit \\
+    Exponax & spectral curl of the force, as its injection term & its native drag term \\
+    OpenFOAM & \multicolumn{2}{l}{not supported: icoFoam has no momentum source term} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Ground truth}
+The ground truth is an Exponax run at $1024^2$ (ETDRK2 with 2/3-rule dealiasing,
+CFL number about 0.1) from eight states, each spun up from a random field for
+100 time units at $512^2$. A $512^2$ run from the same state differs from it by
+0.3\% after one time unit and by 2.3--3.2\% after four, at a vorticity
+correlation of at least 0.997. It stays above 0.95 correlation for 6.5 to 7.5
+time units, beyond the scored horizon of four. As an independent check, JAX-CFD
+converges to the truth at observed orders 1.6 and 1.9 between $64^2$ and
+$256^2$, down to the 0.3\% floor at $512^2$. Three of the eight states are the
+test states of the checks below.
+
+\paragraph{Checks}
+\textit{Laminar forcing} (\texttt{forward/kolmogorov\_laminar}). From rest at
+$\nu = 0.05$, the flow stays a shear flow whose advection term vanishes, so
+$u = (A/\lambda)(1 - e^{-\lambda t})\sin(\kappa y)$, $v = 0$ with
+$\lambda = \nu\kappa^2 + \alpha$ is exact. Solvers run $N \in \{32, 64, 128\}$
+to $t = 2$ with a time step small enough that the error is spatial. A solver
+passes with at most 5\% error at $N = 64$ and an observed order of at least
+0.8. A correct second-order scheme misses by about 1\% at $N = 64$, while a
+convention error (a missing $2\pi/L$, a flipped sign, a force half a cell off)
+misses by 20\% or more.
+
+\textit{Turbulent forward accuracy} (\texttt{forward/kolmogorov}). Each solver
+runs grids from $32^2$ to $256^2$ at the CFL number of $64^2$ with
+$\Delta t = 0.01$, from the three test states to $t = 1, 2, 3, 4$, and is scored
+on $64^2$ against the truth. It passes if its observed order from $64^2$ to
+$256^2$ at $t = 1$ is at least 0.8 and no grid from $64^2$ up diverges. The bound
+follows from the scheme's consistency, not from the other solvers.
+
+\textit{Chained gradients} (\texttt{gradient/chain\_fd\_check}). A training
+loss compares every interval with a target and normalizes by the target's norm,
+so each call in a chain receives a far smaller cotangent than in the single-call
+checks. The check chains 16 calls of 0.1 time units at $64^2$, starting from a
+test state plus a 1\% divergence-free offset. Its loss is the mean relative
+squared distance to the solver's own unperturbed chain. The VJP is compared with
+central differences along 8 divergence-free directions at
+$\varepsilon \in \{1, 0.1, 0.01\}$. A solver passes with a cosine of at least
+0.99, a relative error of at most $10^{-2}$, and an error no more than 50 times
+the peer median.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Kolmogorov-flow checks. \emph{Laminar}: relative error against the
+    exact solution at $t = 2$. \emph{Turbulent}: median relative error against
+    the ground truth at $t = 1$ on each grid, and the observed order from $64^2$
+    to $256^2$. \emph{Chained}: median relative error and cosine of the VJP at
+    the best $\varepsilon$. A100, PICT with the fix described below.}
+  \label{tab:app:kolmogorov}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Laminar error}} \\
+    \cmidrule(l){2-4}
+    \textbf{Solver} & $N=32$ & $64$ & $128$ \\
+    \midrule
+    Exponax & 3.0e-6 & 3.5e-5 & 1.3e-5 \\
+    JAX-CFD, INS.jl, PhiFlow & 2.9e-2 & 7.4e-3 & 1.8e-3 \\
+    PICT & 2.9e-2 & 7.1e-3 & 1.7e-3 \\
+    Warp-NS & 3.0e-2 & 7.7e-3 & 2.2e-3 \\
+    XLB & 7.8e-2 & 1.9e-2 & 4.8e-3 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{6pt}
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    & \multicolumn{5}{c}{\textbf{Turbulent error}} & \multicolumn{1}{c}{\textbf{Chained}} \\
+    \cmidrule(lr){2-6}\cmidrule(l){7-7}
+    \textbf{Solver} & $32^2$ & $64^2$ & $128^2$ & $256^2$ & order & error / cosine \\
+    \midrule
+    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 1.8e-3 / 1.000 \\
+    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.4e-4 / 1.000 \\
+    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.0e-4 / 1.000 \\
+    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 9.8e-5 / 1.000 \\
+    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.4e-3 / 1.000 \\
+    PhiFlow & 0.206 & 0.082 & 0.028 & diverged & $-$ & 5.0e-2 / 0.997 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Results}
+\Cref{tab:app:kolmogorov} lists the results. Every solver passes the laminar
+check. Exponax represents the single forced mode exactly, so its laminar error
+is float32 round-off. On the turbulent flow, every solver passes both remaining
+checks except PhiFlow, which fails both: its $256^2$ run turns non-finite
+between $t = 3$ and $t = 4$ from two of the three states, and its finite
+differences on the chain change erratically with $\varepsilon$, while every
+other solver's agree with its VJP to within 3\% at every $\varepsilon$. We have
+not established the cause of either failure. JAX-CFD and INS.jl, which share a
+discretization (\cref{tab:solvers}), agree to every printed digit on both
+forward checks.
+
+Two solvers are excluded from the turbulent checks. Warp-NS integrates with
+explicit Euler and central differences, which is linearly unstable on this flow
+unless $\Delta t \lesssim 4\nu/u^2$, a bound that does not shrink with the grid.
+OpenFOAM's icoFoam has no momentum source term, and OpenFOAM has no VJP.
+
+\paragraph{PICT's adjoint tolerance}
+PICT's linear solves stop once the RMS of their residual falls below an absolute
+tolerance, $10^{-5}$ in float32 by default, and its adjoint solves use the same
+tolerance. When the cotangent is small, the adjoint residual starts near that
+tolerance and the solves stop early, so the VJP is no longer linear in the
+cotangent. Single calls with $O(1)$ cotangents are unaffected. On a 16-call
+chain with cotangents of about $10^{-4}$ per entry, the gradient with respect to
+a state 1, 3, 8 and 16 calls before the loss disagreed with finite differences by
+0.04\%, 3.7\%, 10\% and 73\%, and the chained check reported a median error of
+0.89 at a cosine of 0.51. The wrapper now scales each cotangent to a largest
+entry of one before PICT's backward pass and scales the gradient back, which is
+exact for a linear VJP and makes the tolerance relative to the cotangent. This
+deviates from PICT's defaults and is documented with the solver.
+
 \subsection{Optimization}
 \label{app:recovery}
 
@@ -535,6 +692,120 @@ First-order methods tolerate this mismatch because they use only gradient direct
   \caption{Thermal conductivity recovery comparing Adam and L-BFGS optimizers. \emph{Top:} identification error vs.\ gradient evaluations; color encodes solver, linestyle encodes optimizer. \emph{Bottom:} final recovered conductivity profiles (all solvers) vs.\ ground truth (dashed).}
   \label{fig:app:conductivity_recovery}
 \end{figure}
+
+\subsection{Solver-in-the-loop study}
+\label{app:sil}
+
+\paragraph{Corrector}
+A periodic CNN with three $5\times5$ convolutional layers and 8 hidden channels
+reads the velocity and the phase of the forcing ($\sin\kappa y$,
+$\cos\kappa y$), since the force breaks the translation symmetry in $y$. It
+returns a stream function $\psi$, and the correction is its spectral curl, which
+is exactly divergence-free with zero mean. The readout starts at zero, so an
+untrained corrector leaves the solver unchanged. Input and output scales are
+fixed by the forcing rather than by any solver's data, and every solver trains
+the same architecture from the same initialization.
+
+\paragraph{Training}
+Each solver runs the coarse configuration of \cref{app:kolmogorov} ($64^2$,
+$\Delta t = 0.01$) and is corrected every 0.1 time units. Its targets are its
+own $256^2$ run from the ground truth's training states, restricted to $64^2$.
+The three trained arms are \emph{supervised}, on fixed pairs (the solver's output
+from reference frame $k$, and reference frame $k+1$) with no solver in the
+training graph; \emph{stopped}, on a corrected 16-interval rollout with the
+gradient stopped at every solver output; and \emph{SIL}, on the same rollout
+differentiated through the solver. All arms see the same windows and use Adam
+with learning rate $10^{-3}$ and global-norm clipping for 256 updates, for each
+of three network seeds. The loss is the mean over the rollout of
+$\|s - t\|^2 / \|t\|^2$, without per-solver normalization. Validation on a
+separate state every 32 updates selects the checkpoint, with update 0, the
+uncorrected solver, as a candidate. Every selected and final corrector is then
+evaluated on the three test states for 40 intervals, and rolled out for 200
+intervals to check stability.
+
+\paragraph{Gates}
+A solver is admitted if its $256^2$ reference differs from a $512^2$ run by at
+most a quarter of the gap between its coarse run and the reference (observed
+ratios 0.003 to 0.093), if chained calls reproduce one long call, and if the
+gradient of the training loss through 16 intervals matches central finite
+differences to within 5\% at a zero and at a random nonzero readout (observed
+errors $1.2\times10^{-4}$ to $1.9\times10^{-3}$). All five solvers pass every
+gate. Warp-NS and PhiFlow are not part of the study, for the reasons given in
+\cref{app:kolmogorov}.
+
+\paragraph{Native solver state}
+For staggered and lattice solvers, a chain of calls that restarts from the
+cell-centered velocity is a different map from one long call, because every
+restart interpolates to the cell centers and back.
+\Cref{tab:app:sil-closure} shows how far such chains drift. For the study,
+JAX-CFD, INS.jl and XLB take and return their native state (face velocities or
+lattice populations) as an optional input and output, which makes chains exact
+up to round-off. PICT and Exponax are collocated and carry no history between
+steps, so they restart exactly without it.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Closure of chained calls: median relative $\ell_2$ distance over the
+    three test states between a chain of one-interval calls and one call over
+    the same time.}
+  \label{tab:app:sil-closure}
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Restart from velocity}} & \multicolumn{3}{c}{\textbf{Native state}} \\
+    \cmidrule(lr){2-4}\cmidrule(l){5-7}
+    \textbf{Solver} & 2 calls & 16 & 40 & 2 calls & 16 & 40 \\
+    \midrule
+    JAX-CFD & 1.0e-2 & 0.13 & 0.55 & 0 & 0 & 0 \\
+    INS.jl & 1.0e-2 & 0.13 & 0.55 & 0 & 0 & 0 \\
+    XLB & 5.3e-3 & 2.3e-2 & 9.7e-2 & 1e-6 & 1e-6 & 3e-6 \\
+    PICT & 0 & 0 & 0 & $-$ & $-$ & $-$ \\
+    Exponax & 1e-6 & 7e-6 & 5e-5 & $-$ & $-$ & $-$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[h]
+  \centering\small
+  \caption{Solver-in-the-loop results. Mean relative test error over 40
+    intervals for each of the three network seeds, the uncorrected solver's
+    error, and the wall time per training update at a 16-interval rollout. The
+    runs partly shared the GPU with other jobs, so the times are rough.}
+  \label{tab:app:sil}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}lccccc@{}}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Test error per seed}} & & \textbf{s / update} \\
+    \cmidrule(lr){2-4}\cmidrule(l){6-6}
+    \textbf{Solver} & Supervised & Stopped & SIL & Uncorrected & stopped / SIL \\
+    \midrule
+    JAX-CFD & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 0.69 / 1.00 \\
+    INS.jl & 0.117 0.100 0.108 & 0.151 0.161 0.167 & 0.193 0.151 0.189 & 0.243 & 0.87 / 2.35 \\
+    Exponax & 0.068 0.075 0.067 & 0.063 0.061 0.065 & 0.076 0.068 0.063 & 0.091 & 0.75 / 1.02 \\
+    XLB & 0.069 0.061 0.063 & 0.078 0.085 0.068 & 0.084 0.073 0.102 & 0.086 & 0.85 / 1.38 \\
+    PICT & 0.145 0.143 0.147 & 0.186 0.169 0.150 & 0.228 0.161 0.192 & 0.277 & 4.73 / 26.8 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Results}
+All 45 trainings complete their 256 updates. The SIL arm's gradient norms are
+10 to 20 times those of the stopped arm but stay bounded. None of the 270 long
+rollouts turns non-finite, and no arm leaves a corrector less stable than the
+uncorrected solver: the peak kinetic energy of a corrected rollout reaches 1.06
+to 1.50 times the uncorrected mean, against 1.09 to 1.45 for the uncorrected
+solver itself. Averaged over the seeds (\cref{tab:app:sil}), supervised training
+gives the lowest error on every solver except Exponax, where the stopped arm is
+lower, and SIL is never better than the stopped arm. On individual seeds it is.
+Supervised updates take about 0.02\,s, since the solver's outputs for the pairs
+are computed once in advance. JAX-CFD and INS.jl agree to every printed digit throughout, as
+on the forward checks.
+
+\paragraph{Reproduction}
+The study is not part of the benchmark release. Its code, consisting of the
+native solver state, the training experiment, a smaller version of it that
+checks feasibility in minutes per solver, and the scripts that produce these
+tables, is archived with the paper's reproduction materials.
+% TODO: link the archived tag of pasteurlabs/mosaic#316 once it exists.
 
 
 \section{Solver interventions}
@@ -719,7 +990,8 @@ Spectral incompressible Navier--Stokes solver supporting both 2D
 integrated with an exponential time-differencing Runge-Kutta (ETDRK) scheme.
 Incompressibility is enforced to machine precision by construction.
 Gradients via JAX source-transformation AD.
-Used in Mosaic for the 3D periodic domain (F3).
+Used in Mosaic for the periodic setups of F2 and F3, and as the ground truth
+of the Kolmogorov-flow checks (\cref{app:kolmogorov}).
 
 \paragraph{FEniCS~\cite{farrell2013automated}}
 Finite-element solver using P1 elements for thermal and structural problems.

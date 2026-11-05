@@ -5,7 +5,7 @@ description: >
   firedrake-adjoint (pyadjoint ReducedFunctional) — an independent tape-based discrete
   adjoint complement to FEniCS.
 build_config:
-  base_image: "firedrakeproject/firedrake:2026.4.0"
+  base_image: "firedrakeproject/firedrake:2026.4.0@sha256:0b98ec76a3ee3bff12815a215259831d206d96511b30455e643eb9fca93e8b89"
   skip_checks: true
   # Reuse Firedrake (and its deps) pre-installed in the vendor base image via
   # --system-site-packages, instead of manually copying its editable-install

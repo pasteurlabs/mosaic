@@ -22,6 +22,8 @@ Solvers with extra inputs (e.g. ``inner_steps``) should subclass the result of
 ``make_differentiable`` and add their additional fields.
 """
 
+from typing import ClassVar
+
 import numpy as np
 from mosaic_shared.schema_types import (
     BCType,
@@ -75,7 +77,16 @@ class InputSchema(BaseModel):
     given or raise. See :class:`~mosaic_shared.schema_types.GridBC` for the
     contract and :class:`~mosaic_shared.schema_types.BCType` for what each
     face type means.
+
+    Native state: a solver whose own state does not survive the round trip
+    through the canonical velocity (staggered faces, lattice populations) can
+    set ``supports_native_state`` and then accepts ``state`` and
+    ``return_state``. Continuing from ``state``, it takes on only the change
+    from the velocity it returned with that state to ``v0``, so an unchanged
+    ``v0`` continues the run exactly.
     """
+
+    supports_native_state: ClassVar[bool] = False
 
     v0: GridVectorField = Field(
         default_factory=make_vortex_ic,
@@ -124,6 +135,39 @@ class InputSchema(BaseModel):
             "Inlet velocity u_x(y) at the x_lo face, sampled at the cell-center "
             "heights y_j = (j + 1/2) dx, shape (ny,). u_y is zero on the inlet. "
             "Requires x_lo to be 'dirichlet' with no value."
+        ),
+    )
+    state: Array[(None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Solver-native state returned by a previous call, to continue "
+            "from. Its layout is the solver's own. Periodic boxes only."
+        ),
+    )
+    return_state: bool = Field(
+        default=False,
+        description="Also return the solver-native state at the end of the run.",
+    )
+    forcing: GridVectorField | None = Field(
+        default=None,
+        description=(
+            "Body force per unit mass (an acceleration) at the cell centers, "
+            "constant in time, same shape as v0. 2-D periodic boxes only."
+        ),
+    )
+    linear_drag: Array[(1,), Float32] | None = Field(
+        default=None,
+        description=(
+            "Coefficient α of a linear drag -αu on the right-hand side of the "
+            "momentum equation. 2-D periodic boxes only."
+        ),
+    )
+    snapshot_every: int | None = Field(
+        default=None,
+        description=(
+            "If set, also return the velocity after every snapshot_every steps "
+            "as ``snapshots``, so one run yields several times of a trajectory. "
+            "steps must be a multiple of it. 2-D periodic boxes only."
         ),
     )
 
@@ -179,6 +223,39 @@ class InputSchema(BaseModel):
                     f"inflow_profile has shape {tuple(self.inflow_profile.shape)}, "
                     f"expected ({ny},) to match v0"
                 )
+        if self.forcing is not None or self.linear_drag is not None:
+            if not bc.is_fully_periodic or self.obstacle is not None:
+                raise ValueError(
+                    "forcing and linear_drag require a periodic box without an obstacle"
+                )
+            if self.v0.shape[-1] != 2:
+                raise ValueError("forcing and linear_drag are only defined in 2-D")
+        if self.state is not None or self.return_state:
+            if not self.supports_native_state:
+                raise ValueError(
+                    f"{type(self).__name__} does not continue from a native state"
+                )
+            if not bc.is_fully_periodic or self.obstacle is not None:
+                raise ValueError(
+                    "state and return_state require a periodic box without an obstacle"
+                )
+        if self.forcing is not None and self.forcing.shape != self.v0.shape:
+            raise ValueError(
+                f"forcing has shape {tuple(self.forcing.shape)}, expected "
+                f"{tuple(self.v0.shape)} to match v0"
+            )
+        if self.snapshot_every is not None:
+            if not bc.is_fully_periodic or self.obstacle is not None:
+                raise ValueError(
+                    "snapshot_every requires a periodic box without an obstacle"
+                )
+            if self.v0.shape[-1] != 2:
+                raise ValueError("snapshot_every is only defined in 2-D")
+            if self.snapshot_every < 1 or self.steps % self.snapshot_every:
+                raise ValueError(
+                    f"snapshot_every must be a positive divisor of steps "
+                    f"({self.steps}), got {self.snapshot_every}"
+                )
         return self
 
 
@@ -191,6 +268,13 @@ class OutputSchema(BaseModel):
 
     result: GridVectorField = Field(
         description="Final velocity at the cell centers, same shape as v0."
+    )
+    state: Array[(None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Solver-native state at the end of the run, when requested with "
+            "return_state or continued from state."
+        ),
     )
     pressure: GridScalarField | None = Field(
         default=None,
@@ -205,5 +289,14 @@ class OutputSchema(BaseModel):
             "Force of the fluid on the obstacle per unit depth and density, "
             "shape (steps, ndim): row k is (F_x, F_y) at t = (k + 1) dt. "
             "Positive along +x and +y, so a flow in +x gives F_x > 0."
+        ),
+    )
+    snapshots: Array[(None, None, None, None, None), Float32] | None = Field(
+        default=None,
+        description=(
+            "Velocity at the cell centers after every snapshot_every steps, "
+            "shape (steps / snapshot_every, nx, ny, 1, 2); the last equals "
+            "result. Returned only when the inputs set snapshot_every. Not "
+            "differentiable."
         ),
     )

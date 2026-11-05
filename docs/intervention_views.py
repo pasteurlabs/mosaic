@@ -103,30 +103,48 @@ def records_for(setup: str) -> dict[str, object]:
     return iv.load_records(TESSERACTS, domain) if domain else {}
 
 
-def effort_cell(record: object | None, setup: str) -> str:
-    """The effort column for one solver on one setup."""
+def effort_parts(record: object | None, setup: str) -> tuple[str, str]:
+    """The effort of one solver on one setup, as ``(text, detail)``.
+
+    ``detail`` is empty when there is nothing to show on hover.
+    """
     if record is None:
-        return NOT_RECORDED
+        return NOT_RECORDED, ""
     required = [i for i in record.interventions_for(setup) if i.necessity == "required"]
     level = record.effort(setup)
     if level is None:
-        return tip(NOTHING_REQUIRED, "No intervention is required on this setup.")
+        return NOTHING_REQUIRED, "No intervention is required on this setup."
     detail = "; ".join(
         f"{i.level} {i.id}"
         for i in sorted(required, key=lambda i: iv.LEVELS.index(i.level), reverse=True)
     )
-    return tip(level, f"{level}, {iv.LEVEL_NAMES[level]}. Required: {detail}.")
+    return level, f"{level}, {iv.LEVEL_NAMES[level]}. Required: {detail}."
+
+
+def deviations_parts(record: object | None, setup: str) -> tuple[str, str]:
+    """The setup deviations of one solver on one setup, as ``(text, detail)``."""
+    if record is None:
+        return NOT_RECORDED, ""
+    devs = record.deviations_for(setup)
+    if not devs:
+        return "—", ""
+    detail = " ".join(f"{d.id}: {d.what} Effect: {d.effect}" for d in devs)
+    return str(len(devs)), detail
+
+
+def _hover_cell(parts: tuple[str, str]) -> str:
+    text, detail = parts
+    return tip(text, detail) if detail else text
+
+
+def effort_cell(record: object | None, setup: str) -> str:
+    """The effort column for one solver on one setup."""
+    return _hover_cell(effort_parts(record, setup))
 
 
 def deviations_cell(record: object | None, setup: str) -> str:
     """The deviations column for one solver on one setup."""
-    if record is None:
-        return NOT_RECORDED
-    devs = record.deviations_for(setup)
-    if not devs:
-        return "—"
-    detail = " ".join(f"{d.id}: {d.what} Effect: {d.effect}" for d in devs)
-    return tip(str(len(devs)), detail)
+    return _hover_cell(deviations_parts(record, setup))
 
 
 def interventions_cell(record: object | None, setup: str) -> str:

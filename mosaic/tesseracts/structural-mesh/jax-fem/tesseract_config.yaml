@@ -6,7 +6,7 @@ description: >
   solve (hybrid implicit-function-theorem adjoint).
 build_config:
   target_platform: "native"
-  base_image: "condaforge/miniforge3:26.1.1-3"
+  base_image: "condaforge/miniforge3:26.1.1-3@sha256:958d2675e9a43e199cc85345ff4c60796236b651a9da4982765d99bd34a682d1"
   requirements:
     provider: conda
   extra_packages:
@@ -15,6 +15,9 @@ build_config:
     - ["../../../mosaic_shared", "/tmp/mosaic_shared"]
   custom_build_steps:
     - "RUN /python-env/bin/pip install /tmp/mosaic_shared"
+env:
+  XLA_PYTHON_CLIENT_PREALLOCATE: "false"
+  XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"
 
 metadata:
   mosaic:

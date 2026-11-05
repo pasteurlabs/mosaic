@@ -77,7 +77,9 @@ testpaths = ["tests"]
 addopts = "-v --tb=short"
 
 [tool.ruff]
-# Set to the lowest supported Python version.
+# Set to the lowest supported Python version anywhere in the repo. That is
+# mosaic_shared's (3.10), which runs inside the solver containers, rather than
+# the harness's own requires-python.
 target-version = "py310"
 
 # Set the target line length for formatting.

@@ -183,6 +183,10 @@ _LOOSENED_BY_DESIGN: frozenset[str] = frozenset(
     {
         "ns-grid/forward/agreement/multimode",
         "ns-grid/forward/cylinder",
+        "ns-grid/forward/kolmogorov",
+        "ns-grid/forward/kolmogorov_laminar",
+        "ns-grid/optimization/kolmogorov_sil",
+        "ns-grid/optimization/kolmogorov_sil_stability",
         "ns-grid/optimization/drag_opt",
     }
 )
