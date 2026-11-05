@@ -818,10 +818,29 @@ def outcomes_table(
             f"{a100_outcomes(p, exp, s, values, status, extra)} \\\\"
         )
 
+    # Failure points of the A100 run itself in the fluid sweeps.
+    new_rows = []
+    n_new = 0
+    for p in ("ns-grid", "ns-3d-grid"):
+        for exp in OUTCOME_EXPERIMENTS[p]:
+            res = load_result(p, exp)
+            key = res["sweep"]["key"]
+            for s, pts in sorted(by_solver(res).items(), key=lambda kv: kv[0].lower()):
+                for v, m in pts.items():
+                    lab = failure_label(m, device_mib(results_dir()))
+                    if lab in (None, "skipped"):
+                        continue
+                    n_new += 1
+                    new_rows.append(
+                        f"  {PROBLEM_LABEL[p]} & {SWEEP_LABEL[exp]} & {SOLVERS[s][0]} & {size_label(key, v)} & "
+                        f"{lab} & {gb(m['vram_peak_mib'])} \\\\"
+                    )
+
     body = "\n    ".join(rows)
+    new_body = "\n    ".join(new_rows)
     died_note = (
         r" \emph{died}: the container exited otherwise;"
-        if any(" died" in r for r in rows)
+        if any(" died" in r for r in rows + new_rows)
         else ""
     )
     text = rf"""\begin{{table}}[p]
@@ -835,7 +854,8 @@ def outcomes_table(
     memory full;{died_note} \emph{{not in sweep}}:
     outside the sweep range of the A100 run. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{{30}}$ bytes.
-    FEniCS-NS and SU2 are no longer part of the suite.}}
+    FEniCS-NS and SU2 are no longer part of the suite. \Cref{{tab:app:a100failures}} lists
+    the failure points of the A100 run.}}
   \label{{tab:app:outcomes}}
   \begin{{tabular}}{{@{{}}l l l {ragged(0.33)} {ragged(0.33)}@{{}}}}
     \toprule
@@ -845,8 +865,23 @@ def outcomes_table(
     \bottomrule
   \end{{tabular}}
 \end{{table}}
+
+\begin{{table}}[t]
+  \centering\small
+  \caption{{Failure points of the A100 run in the fluid cost and horizon sweeps, with the
+    peak VRAM recorded before the failure (an allocation that does not fit is not counted;
+    1\,GB = $2^{{30}}$ bytes). Larger points of the same sweep were not attempted.}}
+  \label{{tab:app:a100failures}}
+  \begin{{tabular}}{{@{{}}l l l l l r@{{}}}}
+    \toprule
+    & \textbf{{Sweep}} & \textbf{{Solver}} & \textbf{{First failure}} & \textbf{{Outcome}} & \textbf{{VRAM (GB)}} \\
+    \midrule
+    {new_body}
+    \bottomrule
+  \end{{tabular}}
+\end{{table}}
 """
-    return text, {"rows": len(rows)}
+    return text, {"rows": len(rows), "a100_failures": n_new}
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
@@ -919,7 +954,9 @@ def main() -> None:
             status, args.v100_results, args.t4_results, args.extra_results
         )
         write(args.out_dir, "outcomes16gb.tex", out)
-        print(f"  outcomes: {out_sum['rows']} 16 GB rows")
+        print(
+            f"  outcomes: {out_sum['rows']} 16 GB rows, {out_sum['a100_failures']} A100 failure points"
+        )
     else:
         print("Skipping outcomes16gb.tex (needs --v100-results and --t4-results)")
 
