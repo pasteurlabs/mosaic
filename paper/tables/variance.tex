@@ -1,0 +1,20 @@
+\begin{table}[t]
+  \centering\footnotesize
+  \caption{Run-to-run variation of the timed cost measurements: coefficient of variation (CV,
+    sample standard deviation with $n-1$ over the mean of the timed trials) per configuration,
+    i.e.\ per solver, cost experiment and sweep value, with the 3 configurations of
+    highest CV per problem.}
+  \label{tab:app:variance}
+  \begin{tabular}{@{}l r r r >{\raggedright\arraybackslash}p{0.48\linewidth}@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Configs} & \textbf{Median CV} & \textbf{CV\,>\,15\%} & \textbf{Highest CV} \\
+    \midrule
+      F2 & 135 & 1.6\% & 7 & INS.jl fwd 100 steps (65\%); INS.jl fwd 50 steps (41\%); INS.jl fwd $N=256$ (27\%) \\
+      F3 & 174 & 1.5\% & 12 & INS.jl fwd $N=32$ (99\%); INS.jl fwd 50 steps (73\%); INS.jl fwd 10 steps (62\%) \\
+      S & 132 & 3.9\% & 20 & TopOpt.jl VJP $n_x=12$ (275\%); TopOpt.jl fwd $n_x=4$ (244\%); TopOpt.jl fwd 1 step (212\%) \\
+      H & 72 & 3.4\% & 1 & FEniCS fwd $n_x=16$ (17\%); FEniCS VJP 1 step (11\%); FEniCS VJP $n_x=64$ (10\%) \\
+    \midrule
+      All & 513 & 2.4\% & 40 & \\
+    \bottomrule
+  \end{tabular}
+\end{table}

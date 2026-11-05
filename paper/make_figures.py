@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["matplotlib==3.10.9", "numpy==2.4.4"]
+# dependencies = ["matplotlib==3.10.9", "numpy==2.4.4", "pyyaml==6.0.3"]
 # ///
 """Regenerate the paper figures from a Mosaic results directory.
 

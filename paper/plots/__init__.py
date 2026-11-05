@@ -7,10 +7,14 @@ benchmark results from :func:`results_dir` and saves one or more figures to
 
 from __future__ import annotations
 
+import functools
 import importlib
+import json
 import os
 from collections.abc import Callable
 from pathlib import Path
+
+import yaml
 
 # NeurIPS textwidth in inches; change here when targeting a different venue.
 TEXTWIDTH = 5.5
@@ -28,10 +32,19 @@ MODULES = [
     "horizon_sweep_limits",
     "ucurves",
     "drag_opt",
-    "recovery_overview",
-    "topopt_overview",
+    "recovery_main",
     "conductivity_overview",
+    "memory_rollout",
 ]
+
+# Tesseract directory per results problem directory.
+_TESSERACT_DOMAIN = {
+    "ns-grid": "navier-stokes-grid",
+    "ns-3d-grid": "navier-stokes-grid",
+    "structural-mesh": "structural-mesh",
+    "thermal-mesh": "thermal-mesh",
+}
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def results_dir() -> Path:
@@ -39,6 +52,42 @@ def results_dir() -> Path:
     if d := os.environ.get("MOSAIC_RESULTS_DIR"):
         return Path(d)
     return Path.cwd() / "mosaic-results"
+
+
+def load_result(problem: str, experiment: str) -> dict:
+    """Load ``<results>/<problem>/<experiment>/result.json`` (schema v1)."""
+    path = results_dir() / problem / experiment / "result.json"
+    return json.loads(path.read_text())
+
+
+def by_solver(result: dict) -> dict[str, dict[str, dict]]:
+    """Index a schema-v1 result as ``{solver: {sweep_value: metrics}}``.
+
+    Sweep values stay strings as stored; failed entries keep their metrics
+    dict, which carries ``status`` and ``failure_type``.
+    """
+    out: dict[str, dict[str, dict]] = {}
+    for r in result["results"]:
+        out.setdefault(r["solver"], {})[str(r["sweep_value"])] = r.get("metrics") or {}
+    return out
+
+
+def is_ok(metrics: dict) -> bool:
+    """True if a result entry succeeded."""
+    return bool(metrics) and metrics.get("status", "ok") == "ok"
+
+
+@functools.cache
+def solver_metadata(problem: str) -> dict[str, dict]:
+    """``metadata.mosaic`` of every Tesseract of *problem*, keyed by solver name."""
+    domain = _TESSERACT_DOMAIN[problem]
+    out = {}
+    for f in sorted(
+        (_REPO_ROOT / "mosaic" / "tesseracts" / domain).glob("*/tesseract_config.yaml")
+    ):
+        meta = yaml.safe_load(f.read_text())["metadata"]["mosaic"]
+        out[meta["name"]] = meta
+    return out
 
 
 def get_generate_fn(name: str) -> Callable[[Path], None]:
