@@ -2,7 +2,7 @@
 
 This directory and the code it runs reproduce a study of training a learned corrector _through_ each differentiable ns-grid solver. The study did not become a benchmark. Every solver that can run the flow passed every training check, so the setup did not tell solvers apart beyond the forward cost that `forward/kolmogorov` already measures. The one defect it surfaced, PICT's adjoint tolerance, is caught as well by `gradient/chain_fd_check`, which needs neither a corrector nor native solver state.
 
-Warp and PhiFlow are not part of the study. Warp diverges on the turbulent flow at every grid. PhiFlow's 256² run, which would be its reference, turned non-finite before t = 4 from two of the three test states in `forward/kolmogorov` with PhiFlow's default pressure solve. Its runs stay finite with the fix in #272, but it has not been run in the study since.
+Warp and PhiFlow are not part of the study. Warp diverges on the turbulent flow at every grid. PhiFlow's 256² run, which would be its reference, turns non-finite within the study's horizon from some of the reference states.
 
 ## What runs
 
