@@ -1,0 +1,85 @@
+\begin{table}
+  \centering\footnotesize
+  \setlength{\tabcolsep}{2.5pt}
+  \caption{Benchmark results, gradient support, and interventions per solver.
+    Wall-clock times are means of 3 (F2, F3) or 10 (S, H) timed runs after
+    1 warmup, at $N=64$ (F2), $N=32$ (F3),
+    $n_x=128$ (S), and $n_x=256$ (H).
+    Full specifications in \cref{app:effort}; initial conditions in
+    \cref{app:ics}. Legend below table.}
+  \label{tab:merged}
+  \vspace{2pt}
+  \begin{tabular}{@{}l r r c c c c | ccc | r c@{}}
+    \toprule
+    \textbf{Solver}
+      & \multicolumn{2}{c}{\textbf{Wall time}}
+      & \multicolumn{3}{c}{\textbf{Error}}
+      & \textbf{Conv.}
+      & \multicolumn{3}{c|}{\textbf{Grad.\ support}}
+      & \multicolumn{2}{c@{}}{\textbf{Interv.}} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-6}\cmidrule(lr){8-10}\cmidrule(lr){11-12}
+    & \textit{Fwd} & \textit{VJP} & \textit{Ref.} & \textit{An.} & \textit{FD} &
+      & \multicolumn{3}{c|}{\textit{input variables}} & \textit{\#} & \textit{$L_\mathrm{req}$} \\
+    \midrule
+    \multicolumn{7}{@{}l}{\textit{Navier--Stokes grid (F2), wall time in ms}}
+      & \textit{$v_0$} & \textit{$\nu$} & \textit{inflow} & & \\
+    \cmidrule(lr){8-10}
+      Exponax~\cite{koehler2024apebench} & 26 & 46 & \textbf{3.3e-3} & \textbf{2.5e-6} & \textbf{4.1e-6} & $\bot$ & $\bullet$ & $\bullet$ & $\bot$ & 1 & L2 \\
+      INS.jl~\cite{agdestein2024ins} & 170 & 780 & 3.7e-3 & 2.4e-3 & 1.6e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 7 & L2 \\
+      JAX-CFD~\cite{kochkov2021machine} & 20 & 40 & 3.7e-3 & 2.4e-3 & 7.1e-6 & $\bot$ & $\bullet$ & $\bullet$ & $\bot$ & 1 & $-$ \\
+      PhiFlow~\cite{holl2024phiflow} & 280 & 1500 & 3.7e-3 & 2.4e-3 & 1.0e-5 & $\checkmark$ & $\circ$ & $\circ$ & $\circ$ & 9 & L3 \\
+      PICT~\cite{franz2025pict} & 1700 & 3900 & \textbf{3.3e-3} & 4.6e-3 & 4.6e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 8 & L2 \\
+      Warp-NS~\cite{macklin2024warp} & 83 & 320 & 3.6e-3 & 6.0e-4 & 3.7e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 6 & L2 \\
+      XLB~\cite{ataei2024xlb} & \textbf{7.1} & \textbf{16} & 3.6e-3 & 6.1e-4 & 1.1e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 8 & L2 \\
+      OpenFOAM~\cite{weller1998tensorial} & 1200 & $-$ & 3.6e-3 & 1.9e-3 & $-$ & $-$ & $-$ & $-$ & $-$ & 6 & L0 \\
+    \midrule
+    \multicolumn{7}{@{}l}{\textit{Navier--Stokes grid (F3), wall time in ms}}
+      & \textit{$v_0$} &  &  & & \\
+    \cmidrule(lr){8-8}
+      Exponax~\cite{koehler2024apebench} & 18 & 31 & \textbf{7.8e-4} & $-$ & 1.2e-4 & $\checkmark$ & $\bullet$ &  &  & 0 & $-$ \\
+      INS.jl~\cite{agdestein2024ins} & 290 & 590 & 4.2e-2 & $-$ & 2.9e-5 & $\checkmark$ & $\bullet$ &  &  & 4 & $-$ \\
+      JAX-CFD~\cite{kochkov2021machine} & 19 & 37 & 4.2e-2 & $-$ & 2.0e-5 & $\checkmark$ & $\bullet$ &  &  & 1 & $-$ \\
+      PhiFlow~\cite{holl2024phiflow} & 160 & 370 & 4.0e-2 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ &  &  & 4 & L3 \\
+      PICT~\cite{franz2025pict} & 540 & 1600 & 8.2e-3 & $-$ & 2.8e-5 & $\checkmark$ & $\bullet$ &  &  & 2 & $-$ \\
+      Warp-NS~\cite{macklin2024warp} & 100 & 350 & 3.5e-3 & $-$ & 1.4e-5 & $\checkmark$ & $\bullet$ &  &  & 2 & L2 \\
+      XLB~\cite{ataei2024xlb} & \textbf{12} & \textbf{30} & 8.5e-3 & $-$ & \textbf{4.1e-6} & $\checkmark$ & $\bullet$ &  &  & 5 & L2 \\
+      OpenFOAM~\cite{weller1998tensorial} & 3600 & $-$ & 2.2e-2 & $-$ & $-$ & $-$ & $-$ &  &  & 2 & $-$ \\
+    \midrule
+    \multicolumn{7}{@{}l}{\textit{Structural mechanics (S), wall time in s}}
+      & \textit{$\rho$} &  &  & & \\
+    \cmidrule(lr){8-8}
+      FEniCS~\cite{farrell2013automated} & 4.2 & 8.7 & 0 & $-$ & 2.1e-5 & $\checkmark$ & $\circ$ &  &  & 2 & $-$ \\
+      Firedrake~\cite{rathgeber2016firedrake} & 1.8 & 3.9 & 0 & $-$ & 2.1e-5 & $\checkmark$ & $\circ$ &  &  & 0 & $-$ \\
+      JAX-FEM~\cite{xue2023jaxfem} & 1.9 & 2.8 & 0 & $-$ & 2.1e-5 & $\checkmark$ & $\circ$ &  &  & 1 & $-$ \\
+      TopOpt.jl~\cite{huang2021topoptjl} & 0.65 & 0.67 & 0 & $-$ & 2.1e-5 & $\checkmark$ & $\circ$ &  &  & 1 & $-$ \\
+      torch-fem~\cite{meyer2024torchfem} & \textbf{0.27} & \textbf{0.44} & 0 & $-$ & 2.1e-5 & $\checkmark$ & $\circ$ &  &  & 5 & L0 \\
+      deal.II~\cite{bangerth2007dealii} & 2.4 & $-$ & 0 & $-$ & $-$ & $-$ & $-$ &  &  & 1 & $-$ \\
+    \midrule
+    \multicolumn{7}{@{}l}{\textit{Heat transfer (H), wall time in s}}
+      & \textit{$\rho$} & \textit{src} &  & & \\
+    \cmidrule(lr){8-9}
+      FEniCS~\cite{farrell2013automated} & 1.0 & 2.3 & 6.1e-8 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ & $\circ$ &  & 3 & L3 \\
+      Firedrake~\cite{rathgeber2016firedrake} & 0.37 & 0.75 & 6.1e-8 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ & $\circ$ &  & 1 & $-$ \\
+      JAX-FEM~\cite{xue2023jaxfem} & 0.38 & 0.77 & 6.1e-8 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ & $\circ$ &  & 1 & $-$ \\
+      torch-fem~\cite{meyer2024torchfem} & \textbf{0.14} & \textbf{0.20} & 6.1e-8 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ & $\circ$ &  & 5 & L0 \\
+      deal.II~\cite{bangerth2007dealii} & 1.5 & $-$ & 6.1e-8 & $-$ & $-$ & $-$ & $-$ & $-$ &  & 2 & $-$ \\
+    \bottomrule
+  \end{tabular}
+  \par\vspace{2pt}
+  \begin{minipage}{\linewidth}\scriptsize\raggedright
+    \textit{Error} (relative): Ref.\,=\,vs.\ reference at $\nu=0.01$ (F2: solver consensus,
+    multimode IC; F3: Exponax at $N=64$), or the largest over the density sweep vs.\ the solver
+    consensus (S, H); An.\,=\,vs.\ analytical Taylor--Green solution at $\nu=0.01$;
+    FD\,=\,vs.\ central finite differences (median over directions, best~$\varepsilon$).
+    \textit{Conv.}\ (F2 drag, F3 L-BFGS IC recovery, S topology opt., H conductivity recovery):
+    $\checkmark$\,=\,passes the checks; $\triangle$\,=\,flagged; $\times$\,=\,failed.
+    \textit{Grad.\ support}: $\bullet$\,=\,AD through the solver; $\circ$\,=\,adjoint or
+    hand-written VJP for at least part of it; $\times$\,=\,incorrect; $?$\,=\,not obtained;
+    inflow evidenced only by a converged drag optimization.
+    $\bot$\,=\,excluded (\cref{app:solver-issues}); $-$\,=\,not applicable.
+    \textit{Interv.}: \#\,=\,interventions recorded for the domain's setups (F2: periodic box
+    and cylinder channel); $L_\mathrm{req}$\,=\,highest level among the required ones
+    (L0 documented use, L1 undocumented configuration, L2 user code on public primitives,
+    L3 changing the solver; \cref{sec:scope}).
+  \end{minipage}
+\end{table}

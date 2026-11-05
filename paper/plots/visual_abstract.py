@@ -13,13 +13,15 @@ Output: visual_abstract.{pdf,png}
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
+from matplotlib.patches import Ellipse, FancyArrowPatch, FancyBboxPatch, Rectangle
 
-from . import results_dir
+from . import by_solver, is_ok, load_result, results_dir
+from .style import NS_ORDER, solver_props
 
 C = {
     "bg": "#FFFFFF",
@@ -38,6 +40,15 @@ C = {
     "placeholder": "#B0BEC5",
 }
 
+# DFG 2D-1 channel and cylinder (Schäfer & Turek 1996); the task panels show
+# its upstream part, x < _X_SHOW, at roughly equal aspect.
+_LX, _LY = 2.2, 0.41
+_CYL_CENTER, _CYL_RADIUS = (0.2, 0.2), 0.05
+_X_SHOW = 0.65
+# Results-table columns: status.json suites and their headers.
+_SUITES = ["forward", "cost", "gradient", "optimization"]
+_SUITE_HEADERS = ["Fwd", "Cost", "Grad", "Opt."]
+
 _RCPARAMS = {
     "font.family": "sans-serif",
     "font.sans-serif": ["DejaVu Sans", "Helvetica Neue", "Helvetica", "Arial"],
@@ -47,22 +58,69 @@ _RCPARAMS = {
 }
 
 
-def _load_flow_data() -> dict | None:
-    """Load flow fields and profiles from the drag_opt benchmark results."""
-    base = results_dir() / "ns-grid" / "optimization" / "drag_opt" / "re20"
-    flow_path = base / "flow_fields.npz"
-    prof_path = base / "profiles.npz"
-    if not flow_path.exists() or not prof_path.exists():
-        print(f"[visual_abstract] result data not found at {base} — skipping")
-        return None
-    flows = np.load(flow_path)
-    profs = np.load(prof_path)
-    return {
-        "flow_initial": flows["flow_initial"][:, :, 0, :],
-        "flow_final": flows["flow_final_xlb"][:, :, 0, :],
-        "profile_initial": profs["initial"],
-        "profile_final": profs["final_xlb"],
+def _load_flow_data() -> dict:
+    """Flow fields and inflow profiles of the drag_opt solver with the largest reduction."""
+    experiment = "optimization/drag_opt"
+    runs = {
+        s: m["None"] for s, m in by_solver(load_result("ns-grid", experiment)).items()
     }
+    best = max(
+        (s for s, m in runs.items() if is_ok(m)),
+        key=lambda s: runs[s]["drag_reduction_pct"],
+    )
+    base = results_dir() / "ns-grid" / experiment
+    flows = np.load(base / "flow_fields.npz")
+    profs = np.load(base / "profiles.npz")
+    nx_show = round(flows[f"flow_initial_{best}"].shape[0] * _X_SHOW / _LX)
+    flow_initial = flows[f"flow_initial_{best}"][:nx_show, :, 0, :]
+    flow_final = flows[f"flow_final_{best}"][:nx_show, :, 0, :]
+    return {
+        "flow_initial": flow_initial,
+        "flow_final": flow_final,
+        "profile_initial": profs["initial"],
+        "profile_final": profs[f"final_{best}"],
+        "vmax": float(
+            max(
+                np.hypot(f[..., 0], f[..., 1]).max() for f in (flow_initial, flow_final)
+            )
+        ),
+    }
+
+
+def _status_glyphs(problem: str) -> dict[str, list[str]]:
+    """Per solver, one glyph key per suite of *problem* from ``status.json``.
+
+    A suite is "ok" when every experiment passes its checks, "pt" when some do
+    and "no" when none do. Experiments that were not run and categorical
+    exclusions (the method cannot express the task) do not count; a suite with
+    nothing left is "na".
+    """
+    status = json.loads((results_dir().parent / "status.json").read_text())
+    rows = status["problems"][problem]["rows"]
+    out = {}
+    for solver in status["problems"][problem]["solvers"]:
+        glyphs = []
+        for suite in _SUITES:
+            cells = [
+                r["cells"][solver]
+                for r in rows
+                if r["suite"] == suite and solver in r["cells"]
+            ]
+            counted = [
+                c["status"] == "ok"
+                for c in cells
+                if c["status"] != "not_run" and c["category"] != "categorical"
+            ]
+            if not counted:
+                glyphs.append("na")
+            elif all(counted):
+                glyphs.append("ok")
+            elif any(counted):
+                glyphs.append("pt")
+            else:
+                glyphs.append("no")
+        out[solver] = glyphs
+    return out
 
 
 def _card(ax, cx, cy, w, h, name, fs, alpha=0.85) -> None:
@@ -157,7 +215,7 @@ def _colored_arrow(fig, x0, y0, x1, y1, color) -> None:
     )
 
 
-def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
+def _draw_flow_panel(ax, flow_field, profile, border_color, vmax) -> None:
     ux = flow_field[:, :, 0]
     uy = flow_field[:, :, 1]
     speed = np.sqrt(ux**2 + uy**2)
@@ -168,13 +226,21 @@ def _draw_flow_panel(ax, flow_field, profile, border_color) -> None:
         extent=extent,
         cmap="YlGnBu_r",
         vmin=0,
-        vmax=0.85,
+        vmax=vmax,
         aspect="auto",
         interpolation="bilinear",
         zorder=0,
     )
     ax.add_patch(
-        plt.Circle((0.33, 0.5), 0.06, fc="#2c3e50", ec="#1a252f", lw=1.0, zorder=3)
+        Ellipse(
+            (_CYL_CENTER[0] / _X_SHOW, _CYL_CENTER[1] / _LY),
+            2 * _CYL_RADIUS / _X_SHOW,
+            2 * _CYL_RADIUS / _LY,
+            fc="#2c3e50",
+            ec="#1a252f",
+            lw=1.0,
+            zorder=3,
+        )
     )
     wall_h = 0.015
     ax.add_patch(
@@ -329,19 +395,10 @@ def _draw_tasks(ax, data) -> None:
     ax.set_ylim(0, 1)
     ax.axis("off")
     _section_title(ax, "Benchmark tasks")
-    if data is None:
-        ax.text(
-            0.5,
-            0.5,
-            "(result data not available)",
-            ha="center",
-            va="center",
-            fontsize=12,
-            color=C["muted"],
-        )
-        return
     iax_top = ax.inset_axes([0.02, 0.57, 0.96, 0.34])
-    _draw_flow_panel(iax_top, data["flow_initial"], data["profile_initial"], C["fwd"])
+    _draw_flow_panel(
+        iax_top, data["flow_initial"], data["profile_initial"], C["fwd"], data["vmax"]
+    )
     for sp in iax_top.spines.values():
         sp.set_visible(True)
         sp.set_color(C["fwd"])
@@ -358,7 +415,9 @@ def _draw_tasks(ax, data) -> None:
         zorder=10,
     )
     iax_bot = ax.inset_axes([0.02, 0.08, 0.96, 0.34])
-    _draw_flow_panel(iax_bot, data["flow_final"], data["profile_final"], C["inv"])
+    _draw_flow_panel(
+        iax_bot, data["flow_final"], data["profile_final"], C["inv"], data["vmax"]
+    )
     for sp in iax_bot.spines.values():
         sp.set_visible(True)
         sp.set_color(C["inv"])
@@ -381,36 +440,37 @@ def _draw_results(ax) -> None:
     ax.set_ylim(0, 1)
     ax.axis("off")
     _section_title(ax, "Evaluation results")
-    solvers = ["PhiFlow", "XLB", "PICT", "JAX-CFD", "INS.jl", "Warp-NS", "OpenFOAM"]
-    col_headers = ["Fwd", "VJP", "Grad", "Opt."]
+    glyphs = _status_glyphs("ns-grid")
+    solvers = [s for s in NS_ORDER if s in glyphs]
     n_rows = len(solvers)
-    x0, y0 = 0.04, 0.08
-    tw, th = 0.92, 0.82
+    x0, y0 = 0.04, 0.14
+    tw, th = 0.92, 0.76
     header_h = 0.07
     row_h = (th - header_h) / n_rows
     col_w = [0.26, 0.16, 0.16, 0.16, 0.16]
     total_cw = sum(col_w)
     col_w = [c / total_cw * tw for c in col_w]
     sym = {
-        "ok": ("●", "#222222"),
-        "pt": ("◑", "#555555"),
-        "no": ("✗", "#555555"),
-        "na": ("—", "#AAAAAA"),
+        "ok": ("●", "#222222", "pass"),
+        "pt": ("◑", "#555555", "partly"),
+        "no": ("✗", "#555555", "fail"),
+        "na": ("—", "#AAAAAA", "not applicable"),
     }
-    cell_data = [
-        ["ok", "ok", "ok", "pt"],
-        ["ok", "ok", "ok", "ok"],
-        ["ok", "ok", "ok", "ok"],
-        ["ok", "ok", "ok", "no"],
-        ["ok", "ok", "pt", "no"],
-        ["ok", "ok", "pt", "pt"],
-        ["ok", "na", "na", "na"],
-    ]
     hy = y0 + th
+    ax.text(
+        x0 + tw / 2,
+        hy + 0.015,
+        "2D Navier–Stokes, checks per suite",
+        fontsize=10,
+        color=C["muted"],
+        ha="center",
+        va="bottom",
+        style="italic",
+    )
     ax.plot([x0, x0 + tw], [hy, hy], color=C["text"], lw=1.6)
     hx = x0 + col_w[0]
     hdr_y = hy - header_h / 2
-    for j, hdr in enumerate(col_headers):
+    for j, hdr in enumerate(_SUITE_HEADERS):
         cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
         ax.text(
             cx,
@@ -429,16 +489,16 @@ def _draw_results(ax) -> None:
         ax.text(
             x0 + 0.02,
             ry,
-            solver,
+            solver_props(solver)[0],
             fontsize=10,
             color=C["text"],
             ha="left",
             va="center",
             fontfamily="monospace",
         )
-        for j, glyph in enumerate(cell_data[i]):
+        for j, glyph in enumerate(glyphs[solver]):
             cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
-            symbol, color = sym[glyph]
+            symbol, color, _ = sym[glyph]
             ax.text(
                 cx,
                 ry,
@@ -451,6 +511,19 @@ def _draw_results(ax) -> None:
             )
     bot_y = rule_y - n_rows * row_h
     ax.plot([x0, x0 + tw], [bot_y, bot_y], color=C["text"], lw=1.6)
+    ax.text(
+        x0 + tw / 2,
+        bot_y - 0.03,
+        "    ".join(
+            f"{symbol} {meaning}"
+            for key, (symbol, _, meaning) in sym.items()
+            if any(key in g for g in glyphs.values())
+        ),
+        fontsize=9.5,
+        color=C["muted"],
+        ha="center",
+        va="top",
+    )
 
 
 def generate(out_dir: Path) -> None:

@@ -39,7 +39,7 @@ RCPARAMS: dict = {
 }
 
 # ---------------------------------------------------------------------------
-# Solver styles: solver_key → (display_label, color, linestyle, marker)
+# Solver styles: solver name (as in the results) → (label, color, linestyle, marker)
 # ---------------------------------------------------------------------------
 
 SOLVER_STYLES: dict[str, tuple] = {
@@ -47,36 +47,22 @@ SOLVER_STYLES: dict[str, tuple] = {
     # Paul Tol Vibrant (7) for main differentiable solvers — distinguishable
     # under all forms of colorblindness and in greyscale (linestyle+marker).
     # label              color       linestyle          marker
-    "jax_cfd": ("JAX-CFD", "#0077BB", "-", "o"),  # Vibrant blue
-    "phiflow": ("PhiFlow", "#CC3311", "--", "s"),  # Vibrant red
-    "ins_jl": ("INS.jl", "#33BBEE", "-.", "^"),  # Vibrant cyan
-    "pict": ("PICT", "#EE3377", ":", "D"),  # Vibrant magenta
-    "xlb": ("XLB", "#CCBB44", (0, (4, 1)), "v"),  # Muted yellow
-    "warp_ns": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
-    "exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),  # Vibrant teal
-    # Reference / excluded solvers — muted tones
-    "openfoam": ("OpenFOAM", "#DDCC77", "--", "h"),  # Muted sand
-    # ── FEM / Structural ────────────────────────────────────────────────────
-    "jax_fem": ("JAX-FEM", "#0077BB", "-", "o"),  # blue (JAX family)
-    "topopt_jl": ("TopOpt.jl", "#009988", "--", "s"),  # Vibrant teal
-    "dealii_structural": ("deal.II", "#DDCC77", "-.", "^"),  # Muted sand
-    "fenics_structural": ("FEniCS", "#CC3311", ":", "D"),  # Vibrant red
-    "firedrake_structural": (
-        "Firedrake",
-        "#EE7733",
-        (0, (3, 1)),
-        "v",
-    ),  # Vibrant orange
-    # ── FEM / Thermal ───────────────────────────────────────────────────────
-    "dealii_heat": ("deal.II", "#DDCC77", "-.", "^"),  # Muted sand
-    "fenics_heat": ("FEniCS", "#CC3311", ":", "D"),  # Vibrant red
-    "firedrake_heat": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),  # Vibrant orange
-    "torch_fem_thermal": (
-        "TorchFEM",
-        "#009988",
-        (0, (5, 1, 1, 1)),
-        "<",
-    ),  # Vibrant teal
+    "jax-cfd": ("JAX-CFD", "#0077BB", "-", "o"),  # Vibrant blue
+    "PhiFlow": ("PhiFlow", "#CC3311", "--", "s"),  # Vibrant red
+    "INS.jl": ("INS.jl", "#33BBEE", "-.", "^"),  # Vibrant cyan
+    "PICT": ("PICT", "#EE3377", ":", "D"),  # Vibrant magenta
+    "XLB": ("XLB", "#CCBB44", (0, (4, 1)), "v"),  # Muted yellow
+    "Warp-NS": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
+    "Exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),  # Vibrant teal
+    # Non-differentiable reference — muted tone
+    "OpenFOAM": ("OpenFOAM", "#777777", "--", "h"),  # Grey
+    # ── FEM (structural and thermal share names and styles) ─────────────────
+    "JAX-FEM": ("JAX-FEM", "#0077BB", "-", "o"),  # blue (JAX family)
+    "TopOpt.jl": ("TopOpt.jl", "#009988", "--", "s"),  # Vibrant teal
+    "deal.II": ("deal.II", "#DDCC77", "-.", "^"),  # Muted sand
+    "FEniCS": ("FEniCS", "#CC3311", ":", "D"),  # Vibrant red
+    "Firedrake": ("Firedrake", "#EE7733", (0, (3, 1)), "v"),  # Vibrant orange
+    "torch-fem": ("torch-fem", "#AA3377", (0, (5, 1, 1, 1)), "<"),  # Tol purple
 }
 
 # ---------------------------------------------------------------------------
@@ -84,43 +70,34 @@ SOLVER_STYLES: dict[str, tuple] = {
 # ---------------------------------------------------------------------------
 
 NS_ORDER: list[str] = [
-    "jax_cfd",
-    "phiflow",
-    "ins_jl",
-    "xlb",
-    "pict",
-    "warp_ns",
-    "exponax",
-    "openfoam",
-]
-
-FEM_ORDER: list[str] = [
-    "jax_fem",
-    "topopt_jl",
-    "dealii_structural",
-    "fenics_structural",
-    "firedrake_structural",
-    "dealii_heat",
-    "fenics_heat",
-    "firedrake_heat",
-    "torch_fem_thermal",
+    "jax-cfd",
+    "PhiFlow",
+    "INS.jl",
+    "XLB",
+    "PICT",
+    "Warp-NS",
+    "Exponax",
+    "OpenFOAM",
 ]
 
 STRUCTURAL_ORDER: list[str] = [
-    "jax_fem",
-    "topopt_jl",
-    "dealii_structural",
-    "fenics_structural",
-    "firedrake_structural",
+    "JAX-FEM",
+    "TopOpt.jl",
+    "deal.II",
+    "FEniCS",
+    "Firedrake",
+    "torch-fem",
 ]
 
 THERMAL_ORDER: list[str] = [
-    "firedrake_heat",
-    "jax_fem",
-    "fenics_heat",
-    "dealii_heat",
-    "torch_fem_thermal",
+    "Firedrake",
+    "JAX-FEM",
+    "FEniCS",
+    "deal.II",
+    "torch-fem",
 ]
+
+FEM_ORDER: list[str] = STRUCTURAL_ORDER
 
 # ---------------------------------------------------------------------------
 # Helpers
