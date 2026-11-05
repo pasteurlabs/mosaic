@@ -169,9 +169,9 @@ be attributed to the solver's gradient mechanism rather than to an
 ill-posed optimization problem. The heat domain (H) additionally serves
 as a negative control: its forward problem is smooth and elliptic, so
 any gradient failure on H is attributable to an AD bug rather than to
-chaotic dynamics. The inversion itself is poorly conditioned (its
-Hessian spans about eight orders of magnitude), which affects how fast
-optimizers converge rather than whether gradients are correct.
+chaotic dynamics. The inversion itself is poorly conditioned, which
+affects how fast optimizers converge rather than whether gradients are
+correct.
 The four domains form a difficulty progression
 (\cref{tab:domains,fig:domains}; full specifications in the
 supplementary material).
@@ -197,15 +197,15 @@ gradient checks of \cref{sec:protocol} (\cref{app:kolmogorov}).
     & \multicolumn{2}{l}{\textit{%
       Negative control: smooth physics isolates AD bugs}} & & \\[5pt]
     S & Structural mech.\ (cantilever) & Compliance minimization (SIMP)
-      & 2\,048 & 6 \\
+      & 256 & 6 \\
     & \multicolumn{2}{l}{\textit{%
       Well-studied topology optimization with known optimal}} & & \\[5pt]
     F2 & Incompr.\ fluids (2D cylinder) & Inflow optimization for drag min.
-      & 32 & 7 \\
+      & 41 & 8 \\
     & \multicolumn{2}{l}{\textit{%
-      Anchor domain; steady flow at $\mathrm{Re}{=}20$}} & & \\[5pt]
-    F3 & 3D Navier--Stokes (TGV) & Initial condition recovery
-      & 12\,288 & 7 \\
+      Anchor domain; Sch\"afer--Turek DFG 2D-1 channel, $\mathrm{Re}{=}20$}} & & \\[5pt]
+    F3 & 3D Navier--Stokes (periodic) & Initial condition recovery
+      & 12\,288 & 8 \\
     & \multicolumn{2}{l}{\textit{%
       Scale test; periodic box isolates time-stepping gradients}} & & \\
     \bottomrule
@@ -217,25 +217,25 @@ gradient checks of \cref{sec:protocol} (\cref{app:kolmogorov}).
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain4_heat.pdf}
-    \caption{\textbf{H}\,: Steady-state heat conduction --- conductivity inversion.}
+    \caption{\textbf{H}\,: Conductivity inversion in steady heat conduction.}
     \label{fig:domain_h}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain3_structures.pdf}
-    \caption{\textbf{S}\,: Cantilever beam --- compliance minimization (SIMP).}
+    \caption{\textbf{S}\,: Compliance minimization of a cantilever (SIMP).}
     \label{fig:domain_s}
   \end{subfigure}\\[0.2em]
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain1_2d_fluids.pdf}
-    \caption{\textbf{F2}\,: 2D cylinder flow --- inflow optimization.}
+    \caption{\textbf{F2}\,: Inflow optimization for a 2D cylinder.}
     \label{fig:domain_f2}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=.85\linewidth]{figures/domain2a_3d_ic_recovery.pdf}
-    \caption{\textbf{F3}\,: 3D periodic box --- initial condition (IC) recovery.}
+    \caption{\textbf{F3}\,: Initial condition (IC) recovery in a 3D periodic box.}
     \label{fig:domain_f3}
   \end{subfigure}
   \caption{Benchmark tasks across the four physical domains in Mosaic,
@@ -298,8 +298,8 @@ container interface, such as setup caches, follow one contract for all
 solvers. The record format, its rules, and an audit of all solver wrappers
 are in \cref{app:interventions}.
 
-Integration effort per backend is quantified in \cref{tab:merged}; column
-definitions and full experimental specifications are in \cref{app:effort}.
+\Cref{tab:merged} summarizes each solver's results and intervention record;
+full experimental specifications are in \cref{app:effort}.
 
 \subsection{Evaluation protocol}
 \label{sec:protocol}
@@ -316,41 +316,43 @@ VJP) and never inspects solver internals.
     solver's own forward pass serve as the reference. We
     evaluate directional derivatives along $K$ random perturbation
     vectors ($K{=}6$--$20$) and report cosine similarity and relative
-    $\ell_2$ error for all problems. For the two Navier--Stokes
+    error. On the 2D Taylor--Green vortex, we also check
+    the gradients with respect to the initial field and $\nu$ against
+    closed forms. For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
     inspect its singular value spectrum. Training pipelines chain many
     solver calls, each receiving a much smaller cotangent than a single
     call, so on Kolmogorov flow we also check the gradient of a loss
     through 16 chained calls.
-  \item[Performance.] We measure primal and VJP wall-clock time, their
-    ratio, and peak (V)RAM consumption on each solver's intended hardware
-    target across three to four problem sizes (grid resolutions or cell counts).
+  \item[Performance.] We measure forward and VJP wall-clock time, their
+    ratio, and peak GPU and host memory on each solver's intended hardware
+    target over 4 to 11 problem sizes per domain.
     The VJP time is the cost of one gradient from scratch, a forward plus an
-    adjoint pass (\cref{app:effort}).
-    All timings are averaged over 3 runs after 1 warmup iteration
-    (to pre-populate JIT caches and stabilize memory allocation).
-  \item[Forward accuracy.] We compare accuracy across resolutions against a reference solver and verify
-    adherence to physical laws where applicable (e.g., solenoidal
-    velocity). Where an analytical solution exists (F2, F3),
-    precision is additionally measured against it. On Kolmogorov flow,
+    adjoint pass. Times are means of 3 trials (10 on the mesh domains) after
+    one warmup call (\cref{app:effort}).
+  \item[Forward accuracy.] We measure errors against the exact Taylor--Green
+    solution (F2), a converged spectral run (F3), or a cross-solver consensus
+    (S, H, F2 multimode), convergence orders under refinement, F2's
+    cylinder drag against the literature, and physical laws such as
+    solenoidal velocity. On Kolmogorov flow,
     we measure each solver's observed refinement order against a converged
     pseudo-spectral run, and its forcing against an exact laminar solution.
-  \item[Optimization convergence.] We run the optimizers with each solver's
-    gradients on each benchmark task for a fixed iteration budget
-    (500 iterations for F2 and F3; 1\,000 for H; 2\,500 for S) and report convergence
-    curves and final objective value. Success is defined as reaching a
-    final objective within 1\% of the best solution achieved across all
-    solvers within the budget.
+  \item[Optimization convergence.] We run each task's optimizer with every
+    solver's gradients for a fixed budget (at most 100 iterations with a
+    plateau stop for F2, 100 for F3, 1\,000 for H, 2\,500 for S) and compare
+    final objectives across solvers. A run succeeds if its final loss is at
+    most half the initial one (0.7 for drag, which must also lie within
+    30\% of the peer median).
 \end{description}
 
 \subsection{Included solver backends}
 \label{sec:solvers}
 
 The solver set (\cref{tab:solvers}) is chosen to maximize diversity
-along three axes: \emph{AD strategy} (autodiff, tape-based discrete
-adjoints, hand-derived/kernel adjoints), \emph{numerical method} (projection-based, lattice Boltzmann,
-finite-volume, spectral, finite elements with both direct and iterative
-linear solvers), and \emph{solver abstraction level}.
+along three axes: \emph{differentiation strategy} (from AD through the
+time loop to variational and hand-derived adjoints), \emph{numerical
+method} (projection, lattice Boltzmann, finite volume, spectral, and
+finite elements), and \emph{solver abstraction level}.
 These range from self-contained \emph{applications} (OpenFOAM),
 through \emph{frameworks} that handle discretization and AD (FEniCS,
 PhiFlow, JAX-CFD), to \emph{kernel toolkits} (NVIDIA Warp) where the
@@ -363,7 +365,7 @@ available gradient strategies and per-setup effort
   \caption{Solver backends included in the current release.
     Domain IDs match \cref{tab:domains}.}
   \label{tab:solvers}
-  {\setlength{\tabcolsep}{4pt}
+  {\setlength{\tabcolsep}{3.5pt}
   \begin{tabular}{@{}llllll c@{}}
     \toprule
     \textbf{Solver} & \textbf{\shortstack[l]{Language /\\AD framework}}
@@ -372,45 +374,46 @@ available gradient strategies and per-setup effort
       & \textbf{GPU} & \textbf{Domains} \\
     \midrule
     JAX-CFD~\cite{kochkov2021machine}
-      & Py/JAX & Auto & FD & Projection, RK4 & $\checkmark$ & F2 \\
+      & Py/JAX & AD & FD & Projection, RK4 & $\checkmark$ & F2, F3 \\
     PhiFlow~\cite{holl2024phiflow}
-      & Py/JAX & Auto+An. & FD & Central FD, Euler & $\checkmark$ & F2, F3 \\
+      & Py/JAX & AD-S & FD & RK4/semi-Lagr. & $\checkmark$ & F2, F3 \\
     INS.jl~\cite{agdestein2024ins}
-      & Julia/Zygote & Auto & FD & Projection, RK4 & & F2, F3 \\
+      & Julia/Zygote & AD & FV & Projection, RK4 & $\checkmark$ & F2, F3 \\
     XLB~\cite{ataei2024xlb}
-      & Py/JAX & Auto & LBM & Streaming & $\checkmark$ & F2, F3 \\
+      & Py/JAX & AD-C & LBM & BGK, float64 & $\checkmark$ & F2, F3 \\
     PICT~\cite{franz2025pict}
-      & Py/PyTorch & Auto+An. & FV & PISO, BDF1 & $\checkmark$ & F2, F3 \\
+      & Py/PyTorch & AD-S & FV & PISO, BDF1 & $\checkmark$ & F2, F3 \\
     Warp-NS~\cite{macklin2024warp}
-      & Py/Warp & Auto+An. & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
+      & Py/Warp & AD/AD-S & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
     Exponax~\cite{koehler2024apebench}
-      & Py/JAX & Auto & Spectral & ETDRK2 & $\checkmark$ & F2, F3 \\
-%   FEniCS-NS~\cite{farrell2013automated}
-%     & Py & Sym.+Auto & FE & IPCS, Crank-Nicolson & & F3 \\
+      & Py/JAX & AD & Spectral & ETDRK2 & $\checkmark$ & F2, F3 \\
     OpenFOAM~\cite{weller1998tensorial}
-      & C++ & --- & FV & PISO/PIMPLE, Euler & & F2, F3 \\
+      & C++ & $-$ & FV & PISO/PIMPLE, Euler & & F2, F3 \\
     \midrule\midrule
     FEniCS~\cite{farrell2013automated}
-      & Py & Sym.+Auto & FE & Direct (MUMPS) & & H, S \\
+      & Py & VA & FE & Direct (MUMPS) & & H, S \\
     Firedrake~\cite{rathgeber2016firedrake}
-      & Py & Sym.+Auto & FE & Direct (MUMPS) & & H, S \\
+      & Py & VA & FE & Direct (MUMPS) & & H, S \\
     JAX-FEM~\cite{xue2023jaxfem}
-      & Py/JAX & Auto+An. & FE & Direct (SuperLU) & $\checkmark$ & H, S \\
+      & Py/JAX & AD-S & FE & BiCGSTAB+Jacobi & $\checkmark$ & H, S \\
     TopOpt.jl~\cite{huang2021topoptjl}
-      & Julia & Analytic & FE & Direct (CHOLMOD) & & S \\
+      & Julia & HA & FE & Direct (CHOLMOD) & & S \\
     torch-fem~\cite{meyer2024torchfem}
-      & Py/PyTorch & Auto+An. & FE & CG+Jacobi & $\checkmark$ & H, S \\
+      & Py/PyTorch & AD-S & FE & CG+Jacobi & $\checkmark$ & H, S \\
     deal.II~\cite{bangerth2007dealii,arndt2023dealii}
-      & C++ & --- & FE & Direct (S), CG+SSOR (H) & & H, S \\
+      & C++ & $-$ & FE & Direct (S), CG+AMG (H) & & H, S \\
     \bottomrule
   \end{tabular}}
   \par\vspace{4pt}
   \begin{minipage}{\linewidth}\footnotesize\raggedright
     \textit{Strategy:}
-    Auto\,=\,framework AD through discrete ops;
-    An.\,=\,hand-derived adjoint of the discrete system;
-    Sym.\,=\,adjoint derived at variational level via UFL;
-    combinations indicate mixed strategies.
+    AD\,=\,reverse-mode AD storing every step;
+    AD-C\,=\,AD with checkpointing;
+    AD-S\,=\,AD with adjoint linear solves;
+    VA\,=\,variational adjoint (pyadjoint);
+    HA\,=\,hand-derived adjoint;
+    $-$\,=\,forward-only;
+    a slash separates periodic box and channel.
     \textit{Discr.:}
     FD\,=\,finite differences;
     FV\,=\,finite volume;
@@ -421,15 +424,15 @@ available gradient strategies and per-setup effort
     PIMPLE\,=\,merged PISO-SIMPLE;
     BDF1\,=\,1st-order backward differentiation;
     ETDRK\,=\,exponential time-differencing Runge--Kutta;
-    Streaming\,=\,exact LBM streaming step.
+    BGK\,=\,Bhatnagar--Gross--Krook.
   \end{minipage}
 \end{table}
 
 \paragraph{Inclusion and exclusion criteria}
 A solver is included if it provides a general-purpose reverse-mode VJP
-at cost proportional to a single forward solve. Forward-only solvers
-serve as reference baselines. Excluded solvers and reasons are documented
-in \cref{app:solvers}.
+whose cost does not grow with the number of inputs. Forward-only solvers
+serve as reference baselines. Excluded solvers and per-task exclusions
+are documented in \cref{app:solvers}.
 
 % ===========================================================================
 \section{Experiments}
