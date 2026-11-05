@@ -33,8 +33,8 @@ of these solvers is opaque. Solvers range from turnkey applications to
 composable frameworks and low-level kernel toolkits, each demanding
 different expertise and integration effort. Runtime overhead, gradient accuracy, and numerical conditioning
 have not been systematically measured, and solver-specific constraints
-(periodic-only boundary conditions,
-incompatible penalization schemes, stability limits) surface only after
+(periodic-only boundary conditions, missing boundary types, stability
+limits) surface only after
 a practitioner has committed to a particular solver.
 
 Learned surrogates and physics foundation models offer an alternative
@@ -42,9 +42,9 @@ path but require per-domain training data, introduce approximation
 error, and currently cover only a few well-studied PDE
 families~\cite{pathak2022fourcastnet, bodnar2024aurora}.
 Decades of engineering have produced solvers that practitioners
-trust for forward simulation. What is missing is not the solvers
-themselves, which exist in abundance, but a standardized way to
-access, compare, and trust their gradients.
+trust for forward simulation. Solvers exist in abundance. What is
+missing is a standardized way to access, compare, and trust their
+gradients.
 
 We introduce \textit{Mosaic}, an extensible benchmark suite that
 provides a uniform interface to a diverse set of differentiable solvers
@@ -53,7 +53,8 @@ to systematically isolate issues with solver gradients. An initial set of
 tasks focuses on standalone optimization
 problems without learned components, where finite differences provide
 ground truth and the solver's gradient mechanism is the only variable
-under test. Mosaic enables researchers to evaluate which solver fits their problem,
+under test. A solver-in-the-loop study then tests whether the standalone
+checks carry over to training. Mosaic enables researchers to evaluate which solver fits their problem,
 build ML and optimization pipelines on top of the
 uniform interface, and stress-test failure modes before
 committing to a particular stack. Our contributions are:
@@ -71,10 +72,10 @@ committing to a particular stack. Our contributions are:
     compatibility, and end-to-end optimization convergence, with a
     record of what each solver needed to pass it.
   \item \textbf{Empirical findings} that validate the benchmark by
-    surfacing practically relevant differences: solver choice can
-    determine whether gradient-based workflows succeed or fail,
-    independent of the optimizer,
-    with a negative control that isolates AD bugs from chaotic physics.
+    surfacing practically relevant differences: setup compatibility,
+    numerical stability, and memory decide whether a solver can run a
+    workflow, while gradient accuracy rarely does. A negative control
+    isolates AD bugs from chaotic physics.
   \item An \textbf{open-source release} of all solver interfaces, evaluation
     code, and templates, extensible to new solvers and domains, with
     CI-based re-evaluation infrastructure that can keep published results
@@ -115,10 +116,9 @@ data in the first place. Mosaic benchmarks the solver layer directly.
 \paragraph{Existing benchmarks and evaluation efforts}
 Several benchmarks evaluate PDE solvers or learned surrogates, but none
 systematically measures gradient properties across solver backends.
-APEBench~\cite{koehler2024apebench} benchmarks neural PDE emulators on
-forward accuracy without evaluating solver gradients.
-PDEBench~\cite{takamoto2022pdebench} provides datasets of PDE solutions
-for surrogate training but includes no gradient evaluation.
+APEBench~\cite{koehler2024apebench} and
+PDEBench~\cite{takamoto2022pdebench} target neural emulators and
+surrogate training data, without evaluating solver gradients.
 NeuralFluid~\cite{fei2024neuralfluid} benchmarks differentiable
 Navier--Stokes solvers on control tasks and reports gradient runtime, yet
 does not systematically assess gradient accuracy, conditioning, or setup compatibility across backends.
@@ -732,66 +732,65 @@ benchmark. Its code is archived for reproduction.
 \section{Discussion and conclusion}
 \label{sec:conclusion}
 
-Gradient accuracy, computational cost, Jacobian conditioning, and setup
-compatibility all vary across solvers, across domains, and across
-operating regimes within a single domain. Yet these differences do not
-affect optimization outcomes uniformly. Based on the four benchmark
-tasks evaluated here, we highlight five practitioner-facing observations.
+We highlight four observations for practitioners.
 
-\paragraph{Gradient quality is often good enough; the real bottlenecks
-lie elsewhere}
-On every task where they can run, all solvers that produce gradients
-converge to equivalent optima despite order-of-magnitude differences in
-accuracy and conditioning. While more complex tasks may reveal cases
-where gradient quality becomes limiting, the pattern on these benchmarks
-suggests that conditioning is likely a better predictor of
-stability of the optimization or training procedure than pointwise gradient accuracy.
-Training a corrector through the solvers on Kolmogorov flow showed the
-same pattern (\cref{sec:sil}).
+\paragraph{Gradient quality is often good enough}
+Where they can run, all solvers that produce gradients reach comparable
+optima despite order-of-magnitude differences in accuracy and
+conditioning, and training a corrector through the solvers did not
+separate them beyond their cost (\cref{sec:sil}). Harder tasks may make
+gradient quality limiting. Conditioning did not predict stability here:
+the comparatively well-conditioned XLB returns non-finite gradients
+after 320 steps, while the poorly conditioned INS.jl and jax-cfd run
+until memory runs out.
 
 \paragraph{Rollout length is the critical scaling parameter}
-Jacobian conditioning degrades with rollout length across all solvers
-(\cref{fig:conditioning}), with projection-based solvers deteriorating
-faster than LBM or spectral methods. Memory scales likewise, and
-several solvers exceed GPU limits before gradient quality becomes
-relevant.
+Memory grows linearly with rollout length for solvers that store their
+trajectory (\cref{sec:scaling}), and the Jacobian's effective rank falls
+with it for projection methods but barely for LBM and spectral methods
+(\cref{fig:conditioning}). With 80\,GB of memory, numerical stability
+binds first for three of the seven F3 solvers, which return non-finite
+gradients at 160 to 320 steps. The others run out of memory after 20k to
+41k steps, or not at all (Exponax).
 
-\paragraph{On the negative-control domains, pick the fastest solver}
-On the negative-control domains (H, S), all solvers produce equivalent
-results regardless of AD strategy or numerical method. Because gradient
-quality is not a differentiator in these regimes, the selection criterion
-reduces to forward-solve speed and integration effort.
+\paragraph{On the steady mesh domains, pick the fastest solver}
+On H and S, all differentiable solvers produce equivalent gradients and
+comparable optima, which on the negative control H rules out AD bugs.
+Selection reduces to speed and integration effort. CPU solvers are
+fastest on small meshes, torch-fem on the GPU on large ones.
 
-\paragraph{Reverse-mode AD offers the best effort-to-capability
-tradeoff}
-Hand-derived adjoints can be faster than the forward solve
-(\cref{tab:merged}), but each new control variable or objective requires
-additional implementation work. Reverse-mode AD through modern
-frameworks (JAX, PyTorch) produces gradients accurate enough for
-optimization at a fraction of the implementation cost.
+\paragraph{Framework AD offers the best effort-to-capability tradeoff}
+AD through JAX, PyTorch, or Zygote gave accurate gradients at 1.4 to 5.3
+times the forward cost (\cref{tab:merged}). Hand-derived adjoints can be
+cheaper, as TopOpt.jl's self-adjoint compliance gradient costs about
+one forward solve, but are tied to their objective. Effort shows in the
+intervention records: every differentiable fluid solver needed a
+required intervention at L2 or L3, but among the mesh solvers only
+FEniCS on H did.
+
+\paragraph{Scope of the conclusions}
+Rankings, timings, and memory walls describe the recorded
+configurations, each solver as published plus recorded interventions,
+at our task sizes and on our hardware, so the order within a solver
+class need not generalize. Category-level findings should transfer: that memory, stability, and setup
+compatibility matter more than gradient accuracy, how VJP cost and
+memory scale per differentiation strategy, and the protocol.
+\Cref{app:exclusions} lists each exclusion and what would lift it.
 
 \paragraph{Limitations}
-The evaluation rests on three assumptions: that central
-finite-difference gradients at optimal perturbation size are a reliable
-reference (\cref{fig:app:fdcheck}), that the recorded solver configurations
-reflect competent use, and that standalone
-optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines, which \cref{sec:sil} supports on one setup.
-The optimization tasks are intentionally low-complexity (laminar flow, linear elasticity);
-results should not be extrapolated to turbulent, long-horizon, or
-nonlinear regimes without further validation.
-All timings come from a single A100 machine; rankings may shift on other hardware.
-Tuning effort differs between solvers. The intervention records make the
-difference visible, and further expert tuning could narrow observed
-performance gaps.
-Beyond one solver-in-the-loop study on a periodic flow, we benchmark
-solver gradients without learned components, so other hybrid pipelines
-may introduce failure modes not captured here.
-Results are pinned to specific solver versions; upstream updates may
-change gradient behavior.
-
+We assume that central finite differences at the optimal step size are a
+reliable reference, which the exact-gradient checks support
+(\cref{sec:quality}), that the recorded configurations reflect competent
+use, and that standalone tasks proxy gradient quality in broader
+pipelines, which one solver-in-the-loop setup supports (\cref{sec:sil}),
+though other hybrid pipelines may fail differently. The optimization
+tasks are intentionally simple (laminar flow, linear elasticity) and may
+not represent turbulent or nonlinear optimization. Timings come from one
+A100. On T4 GPUs, some solver pairs swap order, mostly involving XLB, which runs in float64, while accuracy metrics agree. Tuning effort
+differs between solvers, as the intervention records show, and upstream
+updates may change results.
 
 \paragraph{Future work}
-Natural extensions include additional domains (multiphysics, compressible
-flow), solver backends (Enzyme/LLVM-level AD), and hybrid physics-ML tasks.
-The infrastructure is in place, and we invite community contributions.
+Natural extensions include more domains (multiphysics, compressible
+flow), solver backends (Enzyme/LLVM-level AD), and hybrid physics-ML
+tasks. Contributions are welcome.

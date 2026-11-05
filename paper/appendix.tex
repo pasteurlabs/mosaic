@@ -1141,3 +1141,124 @@ operator~\cite{ataei2024xlb} when $\omega > 1.8$ ($\tau < 0.556$), which is
 unconditionally entropy-stable.
 Results at $\nu \in \{10^{-4},\, 5\times10^{-4}\}$ are pending re-validation
 under the KBC operator and should be interpreted with caution.
+
+% ===========================================================================
+\section{Excluded tasks and what would lift each exclusion}
+\label{app:exclusions}
+
+Setup compatibility is one of the protocol's metrics, so every task a
+solver does not run is recorded in the repository with a category and a
+reason. \Cref{tab:app:exclusions} lists the exclusions that affect the
+tasks and checks of this paper, with the change that would lift each.
+Categorical exclusions follow from the solver's method or from a missing
+adjoint, and the solver cannot be compared without a different
+discretization or an adjoint implementation. The others are work that a
+contribution could do. Results that a check flags but that have a
+recorded explanation still run and are not listed. Solvers left out of the
+benchmark altogether are described in \cref{app:excluded}.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Solvers excluded from tasks or checks in this paper. Categories
+    are those recorded in the repository, except PICT's, which is the
+    runtime criterion of the solver-in-the-loop study (\cref{app:sil}).}
+  \label{tab:app:exclusions}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabularx}{\linewidth}{@{}>{\raggedright}p{1.75cm}>{\raggedright}p{2.15cm}>{\raggedright}p{1.7cm}>{\raggedright}X>{\raggedright\arraybackslash}X@{}}
+    \toprule
+    \textbf{Solver} & \textbf{Tasks} & \textbf{Category} & \textbf{Reason}
+      & \textbf{What would lift it} \\
+    \midrule
+    Exponax & F2 channel: cylinder check, drag optimization & Categorical
+      & A Fourier pseudo-spectral method represents only periodic fields, so
+        it cannot express walls, an inflow, or an outflow.
+      & Nothing within the method. The channel needs a different
+        discretization. \\
+    JAX-CFD & F2 channel: cylinder check, drag optimization & Not implemented
+      & Version 0.2.1 supports no inflow in its advection, no zero-gradient
+        outlet for face-centered velocity, only scalar boundary values, and
+        no obstacles.
+      & Upstream support for these boundaries, or hand-written convection,
+        boundary conditions, and obstacle on its grid primitives. \\
+    OpenFOAM & All gradient-based experiments (F2, F3) & Categorical
+      & The standard solvers are forward-only C++ without an AD path.
+      & An adjoint-capable variant, such as DAFoam or OpenFOAM-AD, wrapped as
+        a separate backend. \\
+    OpenFOAM & Kolmogorov forward checks & Not implemented
+      & The wrapper runs icoFoam, which has no momentum source term for the
+        force and the drag.
+      & Running \texttt{foamRun} with the \texttt{incompressibleFluid} solver
+        and a momentum source, which supports both. \\
+    deal.II & All gradient-based experiments (H, S) & Categorical
+      & The library offers no reverse-mode VJP through its solves, and the
+        wrapper is forward-only.
+      & A hand-written discrete adjoint in the wrapper, one transposed linear
+        solve per gradient for these steady linear problems. \\
+    Warp-NS & Chained gradient check, solver-in-the-loop study & Unstable
+      & Explicit Euler with central advection is linearly unstable at the
+        turbulent flow's time steps. Its forward check runs and diverges on
+        every grid.
+      & A stable time integrator or advection scheme. \\
+    PhiFlow & Solver-in-the-loop study & Unstable
+      & Its own finest-grid run, the training target, turns non-finite from
+        some test states. The cause has not been established.
+      & A diagnosis of the divergence. \\
+    PICT & Solver-in-the-loop stability run & Runtime
+      & The run would take most of a day, because PICT's linear solves are
+        bound by device synchronization.
+      & Fewer synchronizations per solve, or a larger compute budget. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% ===========================================================================
+\section{Changes since the reviewed version}
+\label{app:changes}
+
+The reviewed version reported a run on a 16\,GB V100. This version reports
+a new run of the full suite on one A100 80\,GB, after the changes below. The
+release notes in the repository list every change.
+
+\paragraph{Task definitions}
+F2's obstacle tasks are now the Sch\"afer--Turek DFG 2D-1 channel. Before,
+each obstacle-capable solver solved a differently configured problem, with
+different walls, outlets, and drag formulas. The forward cylinder check is
+scored against the literature drag coefficient. The reviewed version
+computed the analytic error after a single step, although its specification
+stated 50 steps. In 3D, this error is replaced by the error against a
+converged pseudo-spectral reference, because the 3D Taylor--Green vortex has
+no exact solution and its decay formula is a short-time linearization. The
+forward baselines are convergence tests at a fixed CFL number.
+
+\paragraph{Fixes that changed results}
+The JAX-based fluid solvers lacked GPU-enabled builds and silently ran on
+the CPU. The VJP time is now one \texttt{vector\_jacobian\_product} request
+(a forward and an adjoint pass), where it previously included an extra
+forward solve. Setup caches in the XLB and Exponax VJPs had frozen
+non-differentiated inputs, such as the viscosity, at their values from the
+first call. INS.jl silently computed in float64 behind float32 inputs and
+outputs, and now runs in float32 throughout. PICT's adjoint solves stopped
+at an absolute tolerance, which made its VJP nonlinear in the cotangent
+(\cref{sec:quality}). FEniCS and Firedrake seeded the adjoint of the nodal
+temperature misfit inconsistently with the forward functional, and the
+thermal reference solve applied only part of the prescribed flux. XLB's
+periodic runs use its default BGK collision operator throughout instead of
+switching to an entropic operator at low viscosity. XLB now checkpoints its
+time loop in blocks, so its reverse-mode memory grows with the square root
+of the rollout length.
+
+\paragraph{Protocol}
+The mesh cost suites time 10 trials instead of 3. Peak memory is the
+device-wide peak over setup, warm-up, and trials, without the memory the
+driver reserves, and all JAX solvers share one memory setting instead of
+caps between 50\% and 75\% of the device. The 3D cost and horizon sweeps
+extend to larger grids and longer rollouts. New are the
+exact-gradient and $\mathrm{d}J/\mathrm{d}\nu$ checks, forced Kolmogorov
+flow with its forward and chained-gradient checks, the intervention records
+of every wrapper, and the solver-in-the-loop study.
+
+\paragraph{Solver coverage}
+Exponax runs the periodic F2 experiments, JAX-CFD runs F3, and torch-fem
+runs S. INS.jl runs on its GPU backend and, like Warp-NS, on the channel, so
+five solvers run drag optimization instead of three. INS.jl and PICT now
+provide viscosity gradients.
