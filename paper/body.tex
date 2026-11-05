@@ -610,8 +610,7 @@ of a 16-call chain, cotangents are about $10^{-4}$ per entry, the solves
 stopped early, and the chained check measured a median relative error of
 0.89 at a cosine of 0.51. Rescaling the cotangent in the wrapper fixed it.
 With the fix, every solver that runs the forced flow stably passes the
-chained check with errors of $10^{-4}$ to $2\times10^{-3}$, except PhiFlow,
-whose chained finite differences vary erratically with~$\varepsilon$
+chained check, with median errors of $5\times10^{-5}$ to $6.4\times10^{-4}$
 (\cref{app:kolmogorov}).
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
@@ -705,28 +704,29 @@ by setup compatibility before gradient quality enters the picture.
 \subsection{Solver-in-the-loop training}
 \label{sec:sil}
 
-To test whether the standalone checks predict how a solver behaves inside a
-training loop, we trained a small periodic CNN to correct each solver's coarse
-Kolmogorov flow ($64^2$) every 0.1 time units, against that solver's own
-$256^2$ run (\cref{app:sil}). Three arms share their training windows, updates
-and initialization: supervised one-interval pairs with no solver in the graph,
-a 16-interval rollout with the gradient stopped at every solver call, and the
-same rollout differentiated through the solver.
-All five solvers that run the flow stably passed every training check, and
-none of the 45 trainings or 270 long rollouts failed. Averaged over three
+To test whether the standalone checks predict behavior in a training loop, we
+trained a small periodic CNN to correct each solver's coarse
+Kolmogorov flow ($64^2$) every 0.1 time units against its own $256^2$ run
+(\cref{app:sil}), in three arms with shared windows, updates and
+initialization: supervised one-interval pairs, a 16-interval rollout with the
+gradient stopped at every solver call, and the same rollout differentiated
+through the solver (SIL).
+All five admitted solvers pass the feasibility gates of a short run. The full
+study is limited to solvers that finish it in about an hour, which excludes
+PICT (most of a day). JAX-CFD, Exponax, XLB and INS.jl completed all 36
+trainings, and none of the 216 long rollouts diverged. Averaged over three
 seeds, supervised training reached the lowest test error on every solver
-except Exponax, and differentiating through the solver never beat stopping the
-gradient, although it did on individual seeds. Training through the solver
-therefore did not separate the solvers beyond their cost, from 1\,s (JAX-CFD)
-to 27\,s (PICT) per update.
-Chaining does expose the interface: restarting JAX-CFD or INS.jl from the
-cell-centered velocity at every call drifts 13\% from an unbroken run after 16
-calls, so the study passes native solver state between calls.
-The one defect the study surfaced, PICT's adjoint tolerance, is caught as well
-by the chained gradient check (\cref{sec:quality}), which needs neither a
-network nor native state. On this setup the standalone checks predicted
-whether a solver can be trained through, so the study is not part of the
-benchmark. Its code is archived for reproduction.
+except Exponax, and SIL never beat stopping the gradient, although it did on
+individual seeds. Training through the solver thus did not separate the
+solvers beyond their cost (1.0 to 2.8\,s per SIL update), and their chained
+Jacobians barely differ, so the setup cannot test conditioning as a predictor.
+Restarting JAX-CFD or INS.jl from the cell-centered velocity at every call
+drifts 13\% from an unbroken run after 16 calls, so the study passes native
+solver state between calls.
+The one defect the study surfaced, PICT's adjoint tolerance, is also caught by
+the chained gradient check (\cref{sec:quality}), which needs neither a network
+nor native state. On this setup the standalone checks predicted whether a
+solver can be trained through, so the study is not part of the benchmark.
 
 % ===========================================================================
 \section{Discussion and conclusion}
