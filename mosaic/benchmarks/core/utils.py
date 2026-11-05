@@ -179,6 +179,11 @@ def _debug_run(run: dict) -> None:
             if sane:
                 vals = sane
         sweep["values"] = vals[:2]
+    if phys.get("cfl_N_base") and "dt" in phys:
+        grids = sweep["values"] if sweep.get("key") == "N" else [phys["N"]]
+        base = math.gcd(*grids)
+        phys["dt"] *= phys["cfl_N_base"] / base
+        phys["cfl_N_base"] = base
     optim = run.get("optim", {})
     for key, cap in [("max_iters", 50), ("patience", 10)]:
         if key in optim:
