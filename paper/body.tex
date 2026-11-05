@@ -577,8 +577,7 @@ of a 16-call chain, cotangents are about $10^{-4}$ per entry, the solves
 stopped early, and the chained check measured a median relative error of
 0.89 at a cosine of 0.51. Rescaling the cotangent in the wrapper fixed it.
 With the fix, every solver that runs the forced flow stably passes the
-chained check with errors of $10^{-4}$ to $2\times10^{-3}$, except PhiFlow,
-whose chained finite differences vary erratically with~$\varepsilon$
+chained check, with median errors of $5\times10^{-5}$ to $6.4\times10^{-4}$
 (\cref{app:kolmogorov}).
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.

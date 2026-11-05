@@ -446,14 +446,13 @@ run-to-run variation of the unchanged code.
 
 \paragraph{Ground truth}
 The ground truth is an Exponax run at $1024^2$ (ETDRK2 with 2/3-rule dealiasing,
-CFL number about 0.1) from eight states, each spun up from a random field for
-100 time units at $512^2$. A $512^2$ run from the same state differs from it by
+CFL number about 0.1) from three test states, each spun up from a random field
+for 100 time units at $512^2$. A $512^2$ run from the same state differs from it by
 0.3\% after one time unit and by 2.3--3.2\% after four, at a vorticity
 correlation of at least 0.997. It stays above 0.95 correlation for 6.5 to 7.5
 time units, beyond the scored horizon of four. As an independent check, JAX-CFD
 converges to the truth at observed orders 1.6 and 1.9 between $64^2$ and
-$256^2$, down to the 0.3\% floor at $512^2$. Three of the eight states are the
-test states of the checks below.
+$256^2$, down to the 0.3\% floor at $512^2$.
 
 \paragraph{Checks}
 \textit{Laminar forcing} (\texttt{forward/kolmogorov\_laminar}). From rest at
@@ -513,12 +512,13 @@ the peer median.
     \cmidrule(lr){2-6}\cmidrule(l){7-7}
     \textbf{Solver} & $32^2$ & $64^2$ & $128^2$ & $256^2$ & order & error / cosine \\
     \midrule
-    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 1.8e-3 / 1.000 \\
-    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.4e-4 / 1.000 \\
-    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.0e-4 / 1.000 \\
-    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 9.8e-5 / 1.000 \\
-    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.4e-3 / 1.000 \\
-    PhiFlow & 0.206 & 0.082 & 0.028 & diverged & $-$ & 5.0e-2 / 0.997 \\
+    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 6.4e-4 / 1.000 \\
+    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.1e-4 / 1.000 \\
+    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.6e-4 / 1.000 \\
+    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 1.2e-4 / 1.000 \\
+    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.8e-4 / 1.000 \\
+    PhiFlow & 0.206 & 0.082 & 0.028 & 0.0076 & 1.72 & 5.3e-5 / 1.000 \\
+    Warp-NS & \multicolumn{5}{c}{non-finite on every grid by $t = 3$} & excluded \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -526,19 +526,19 @@ the peer median.
 \paragraph{Results}
 \Cref{tab:app:kolmogorov} lists the results. Every solver passes the laminar
 check. Exponax represents the single forced mode exactly, so its laminar error
-is float32 round-off. On the turbulent flow, every solver passes both remaining
-checks except PhiFlow, which fails both: its $256^2$ run turns non-finite
-between $t = 3$ and $t = 4$ from two of the three states, and its finite
-differences on the chain change erratically with $\varepsilon$, while every
-other solver's agree with its VJP to within 3\% at every $\varepsilon$. We have
-not established the cause of either failure. JAX-CFD and INS.jl, which share a
-discretization (\cref{tab:solvers}), agree to every printed digit on both
-forward checks.
+is float32 round-off. Every solver that runs the turbulent flow stably passes
+both remaining checks. On the chain, each solver's finite differences agree
+with its VJP to within 2\% (median over directions) at every $\varepsilon$.
+JAX-CFD and INS.jl, which share a discretization (\cref{tab:solvers}), agree to
+every printed digit on both forward checks.
 
-Two solvers are excluded from the turbulent checks. Warp-NS integrates with
-explicit Euler and central differences, which is linearly unstable on this flow
-unless $\Delta t \lesssim 4\nu/u^2$, a bound that does not shrink with the grid.
-OpenFOAM's icoFoam has no momentum source term, and OpenFOAM has no VJP.
+Warp-NS integrates with explicit Euler and central differences, which is
+linearly unstable on this flow unless $\Delta t \lesssim 4\nu/u^2$, a bound that
+does not shrink with the grid. Its turbulent runs turn non-finite on every grid,
+which the forward check records as an explained anomaly, and it is excluded from
+the chained check, where the unstable modes dominate both the VJP and the finite
+differences. OpenFOAM's icoFoam has no momentum source term, so OpenFOAM runs
+neither forward check, and it has no VJP.
 
 \paragraph{PICT's adjoint tolerance}
 PICT's linear solves stop once the RMS of their residual falls below an absolute
