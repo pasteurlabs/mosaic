@@ -192,15 +192,15 @@ supplementary material).
     & \multicolumn{2}{l}{\textit{%
       Negative control: smooth physics isolates AD bugs}} & & \\[5pt]
     S & Structural mech.\ (cantilever) & Compliance minimization (SIMP)
-      & 2\,048 & 6 \\
+      & 256 & 6 \\
     & \multicolumn{2}{l}{\textit{%
       Well-studied topology optimization with known optimal}} & & \\[5pt]
     F2 & Incompr.\ fluids (2D cylinder) & Inflow optimization for drag min.
-      & 32 & 7 \\
+      & 41 & 8 \\
     & \multicolumn{2}{l}{\textit{%
-      Anchor domain; steady flow at $\mathrm{Re}{=}20$}} & & \\[5pt]
-    F3 & 3D Navier--Stokes (TGV) & Initial condition recovery
-      & 12\,288 & 7 \\
+      Anchor domain; Sch\"afer--Turek DFG 2D-1 channel, $\mathrm{Re}{=}20$}} & & \\[5pt]
+    F3 & 3D Navier--Stokes (periodic) & Initial condition recovery
+      & 12\,288 & 8 \\
     & \multicolumn{2}{l}{\textit{%
       Scale test; periodic box isolates time-stepping gradients}} & & \\
     \bottomrule
@@ -212,25 +212,25 @@ supplementary material).
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain4_heat.pdf}
-    \caption{\textbf{H}\,: Steady-state heat conduction --- conductivity inversion.}
+    \caption{\textbf{H}\,: Conductivity inversion in steady heat conduction.}
     \label{fig:domain_h}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain3_structures.pdf}
-    \caption{\textbf{S}\,: Cantilever beam --- compliance minimization (SIMP).}
+    \caption{\textbf{S}\,: Compliance minimization of a cantilever (SIMP).}
     \label{fig:domain_s}
   \end{subfigure}\\[0.2em]
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=0.95\linewidth]{figures/domain1_2d_fluids.pdf}
-    \caption{\textbf{F2}\,: 2D cylinder flow --- inflow optimization.}
+    \caption{\textbf{F2}\,: Inflow optimization for a 2D cylinder.}
     \label{fig:domain_f2}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
     \includegraphics[width=.85\linewidth]{figures/domain2a_3d_ic_recovery.pdf}
-    \caption{\textbf{F3}\,: 3D periodic box --- initial condition (IC) recovery.}
+    \caption{\textbf{F3}\,: Initial condition (IC) recovery in a 3D periodic box.}
     \label{fig:domain_f3}
   \end{subfigure}
   \caption{Benchmark tasks across the four physical domains in Mosaic,
@@ -295,26 +295,29 @@ VJP) and never inspects solver internals.
     solver's own forward pass serve as the reference. We
     evaluate directional derivatives along $K$ random perturbation
     vectors ($K{=}6$--$20$) and report cosine similarity and relative
-    $\ell_2$ error for all problems. For the two Navier--Stokes
+    error for all problems. On the 2D Taylor--Green vortex, we also check
+    the gradients with respect to the initial field and $\nu$ against
+    closed forms (\cref{tab:gradchecks}). For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
     inspect its singular value spectrum.
   \item[Performance.] We measure primal and VJP wall-clock time, their
-    ratio, and peak (V)RAM consumption on each solver's intended hardware
-    target across three to four problem sizes (grid resolutions or cell counts).
+    ratio, and peak GPU (device-wide) and host memory on each solver's intended
+    hardware target across 4 to 11 problem sizes (grid resolutions or cell counts).
     The VJP time is the cost of one gradient from scratch, a forward plus an
     adjoint pass (\cref{app:effort}).
-    All timings are averaged over 3 runs after 1 warmup iteration
+    All timings are averaged over 3 trials (10 on the mesh domains) after 1 warmup call
     (to pre-populate JIT caches and stabilize memory allocation).
-  \item[Forward accuracy.] We compare accuracy across resolutions against a reference solver and verify
+  \item[Forward accuracy.] We compare accuracy across resolutions against a reference
+    (a cross-solver consensus, or a converged spectral run for F3) and verify
     adherence to physical laws where applicable (e.g., solenoidal
-    velocity). Where an analytical solution exists (F2, F3),
+    velocity). Where an analytical solution exists (F2),
     precision is additionally measured against it.
   \item[Optimization convergence.] We run the optimizers with each solver's
     gradients on each benchmark task for a fixed iteration budget
-    (500 iterations for F2 and F3; 1\,000 for H; 2\,500 for S) and report convergence
-    curves and final objective value. Success is defined as reaching a
-    final objective within 1\% of the best solution achieved across all
-    solvers within the budget.
+    (at most 100 iterations for F2 and F3, with a plateau stop on F2; 1\,000 for H;
+    2\,500 for S) and report convergence curves and final objective value.
+    A run succeeds if its final objective is at most half the initial one
+    (0.7 for drag, which must also lie within 30\% of the peer median).
 \end{description}
 
 \subsection{Included solver backends}
@@ -346,45 +349,48 @@ available gradient strategies and per-setup effort
       & \textbf{GPU} & \textbf{Domains} \\
     \midrule
     JAX-CFD~\cite{kochkov2021machine}
-      & Py/JAX & Auto & FD & Projection, RK4 & $\checkmark$ & F2 \\
+      & Py/JAX & AD & FD & Projection, RK4 & $\checkmark$ & F2, F3 \\
     PhiFlow~\cite{holl2024phiflow}
-      & Py/JAX & Auto+An. & FD & Central FD, Euler & $\checkmark$ & F2, F3 \\
+      & Py/JAX & AD-S & FD & RK4/semi-Lagr. & $\checkmark$ & F2, F3 \\
     INS.jl~\cite{agdestein2024ins}
-      & Julia/Zygote & Auto & FD & Projection, RK4 & & F2, F3 \\
+      & Julia/Zygote & AD & FV & Projection, RK4 & $\checkmark$ & F2, F3 \\
     XLB~\cite{ataei2024xlb}
-      & Py/JAX & Auto & LBM & Streaming & $\checkmark$ & F2, F3 \\
+      & Py/JAX & AD-C & LBM & BGK, float64 & $\checkmark$ & F2, F3 \\
     PICT~\cite{franz2025pict}
-      & Py/PyTorch & Auto+An. & FV & PISO, BDF1 & $\checkmark$ & F2, F3 \\
+      & Py/PyTorch & AD-S & FV & PISO, BDF1 & $\checkmark$ & F2, F3 \\
     Warp-NS~\cite{macklin2024warp}
-      & Py/Warp & Auto+An. & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
+      & Py/Warp & AD/AD-S & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
     Exponax~\cite{koehler2024apebench}
-      & Py/JAX & Auto & Spectral & ETDRK2 & $\checkmark$ & F3 \\
+      & Py/JAX & AD & Spectral & ETDRK2 & $\checkmark$ & F2, F3 \\
 %   FEniCS-NS~\cite{farrell2013automated}
 %     & Py & Sym.+Auto & FE & IPCS, Crank-Nicolson & & F3 \\
     OpenFOAM~\cite{weller1998tensorial}
-      & C++ & --- & FV & PISO/PIMPLE, Euler & & F2, F3 \\
+      & C++ & $-$ & FV & PISO/PIMPLE, Euler & & F2, F3 \\
     \midrule\midrule
     FEniCS~\cite{farrell2013automated}
-      & Py & Sym.+Auto & FE & Direct (MUMPS) & & H, S \\
+      & Py & VA & FE & Direct (MUMPS) & & H, S \\
     Firedrake~\cite{rathgeber2016firedrake}
-      & Py & Sym.+Auto & FE & Direct (MUMPS) & & H, S \\
+      & Py & VA & FE & Direct (MUMPS) & & H, S \\
     JAX-FEM~\cite{xue2023jaxfem}
-      & Py/JAX & Auto+An. & FE & Direct (SuperLU) & $\checkmark$ & H, S \\
+      & Py/JAX & AD-S & FE & BiCGSTAB+Jacobi & $\checkmark$ & H, S \\
     TopOpt.jl~\cite{huang2021topoptjl}
-      & Julia & Analytic & FE & Direct (CHOLMOD) & & S \\
+      & Julia & HA & FE & Direct (CHOLMOD) & & S \\
     torch-fem~\cite{meyer2024torchfem}
-      & Py/PyTorch & Auto+An. & FE & CG+Jacobi & $\checkmark$ & H, S \\
+      & Py/PyTorch & AD-S & FE & CG+Jacobi & $\checkmark$ & H, S \\
     deal.II~\cite{bangerth2007dealii,arndt2023dealii}
-      & C++ & --- & FE & Direct (S), CG+SSOR (H) & & H, S \\
+      & C++ & $-$ & FE & Direct (S), CG+AMG (H) & & H, S \\
     \bottomrule
   \end{tabular}}
   \par\vspace{4pt}
   \begin{minipage}{\linewidth}\footnotesize\raggedright
     \textit{Strategy:}
-    Auto\,=\,framework AD through discrete ops;
-    An.\,=\,hand-derived adjoint of the discrete system;
-    Sym.\,=\,adjoint derived at variational level via UFL;
-    combinations indicate mixed strategies.
+    AD\,=\,reverse-mode AD storing every step;
+    AD-C\,=\,AD with checkpointing;
+    AD-S\,=\,AD with adjoint linear solves;
+    VA\,=\,variational adjoint (pyadjoint);
+    HA\,=\,hand-derived adjoint;
+    $-$\,=\,forward-only;
+    a slash separates periodic box and channel.
     \textit{Discr.:}
     FD\,=\,finite differences;
     FV\,=\,finite volume;
@@ -395,7 +401,7 @@ available gradient strategies and per-setup effort
     PIMPLE\,=\,merged PISO-SIMPLE;
     BDF1\,=\,1st-order backward differentiation;
     ETDRK\,=\,exponential time-differencing Runge--Kutta;
-    Streaming\,=\,exact LBM streaming step.
+    BGK\,=\,Bhatnagar--Gross--Krook.
   \end{minipage}
 \end{table}
 
