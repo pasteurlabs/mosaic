@@ -677,7 +677,9 @@ def _all_experiments():
     """Enumerate (problem, exp_key) pairs for every non-IC experiment.
 
     ``ics/*`` keys are pure plot-IC registrations that don't invoke a
-    tesseract, so they're skipped here.
+    tesseract, so they're skipped here. So are the ``*_large`` cost sweeps:
+    they run the same kernels as their base experiments, only at meshes of
+    about 10M cells, whose inputs alone take minutes to build in Python.
     """
     from mosaic.benchmarks.problems import get_config
 
@@ -685,7 +687,7 @@ def _all_experiments():
     for problem in _DUMMY_FOR:
         cfg = get_config(problem)
         for key in sorted(cfg.experiments):
-            if key.startswith("ics/"):
+            if key.startswith("ics/") or key.endswith("_large"):
                 continue
             pairs.append((problem, key))
     return pairs

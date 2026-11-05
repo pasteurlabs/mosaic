@@ -58,6 +58,7 @@ def register(problem: Problem) -> None:
     # Cost — only the VJP variants need exclusion. Forward timing (spatial
     # / temporal) works fine on the deal.II tesseract.
     problem.exclude("cost/vjp_cost", {"dealii_structural": DEALII_NO_VJP})
+    problem.exclude("cost/vjp_cost_large", {"dealii_structural": DEALII_NO_VJP})
 
     # Gradient — suite-level, covers every gradient/* below
     # (fd_check, param_sweep, …).

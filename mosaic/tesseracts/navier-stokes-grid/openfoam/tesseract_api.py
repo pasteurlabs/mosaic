@@ -62,7 +62,7 @@ class OutputSchema(_CanonicalOutputSchema):
 # ---------------------------------------------------------------------------
 
 
-def _run_of(cmd: str, cwd: Path) -> None:
+def _run_of(cmd: str, cwd: Path) -> None:  # mosaic:util
     """Run an OpenFOAM command by sourcing the OF environment first."""
     result = subprocess.run(
         ["bash", "-c", f". {_OF_BASHRC} && {cmd}"],
@@ -83,7 +83,9 @@ def _run_of(cmd: str, cwd: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _write_block_mesh_dict(system_dir: Path, N: int, L: float, ndim: int) -> None:
+def _write_block_mesh_dict(
+    system_dir: Path, N: int, L: float, ndim: int
+) -> None:  # mosaic:init
     """blockMeshDict: N×N (2-D) or N×N×N (3-D) Cartesian periodic grid."""
     if ndim == 2:
         # Quasi-2-D: one cell thick in z, empty patches front/back.
@@ -225,7 +227,9 @@ boundary
     (system_dir / "blockMeshDict").write_text(content)
 
 
-def _write_control_dict(system_dir: Path, dt: float, end_time: float) -> None:
+def _write_control_dict(
+    system_dir: Path, dt: float, end_time: float
+) -> None:  # mosaic:init
     n_steps = max(1, round(end_time / dt))
     content = f"""\
 FoamFile
@@ -254,7 +258,7 @@ runTimeModifiable false;
     (system_dir / "controlDict").write_text(content)
 
 
-def _write_fv_schemes(system_dir: Path) -> None:
+def _write_fv_schemes(system_dir: Path) -> None:  # mosaic:init
     content = """\
 FoamFile
 {
@@ -273,7 +277,7 @@ snGradSchemes   { default corrected; }
     (system_dir / "fvSchemes").write_text(content)
 
 
-def _write_fv_solution(system_dir: Path) -> None:
+def _write_fv_solution(system_dir: Path) -> None:  # mosaic:init
     # GAMG instead of PCG/DIC for the pressure, as in the channel case: the
     # forward checks are unchanged and the 2-D solve is up to 2.3x faster at
     # N = 256; 3-D moves by less than 8% either way.
@@ -317,7 +321,7 @@ PISO
     (system_dir / "fvSolution").write_text(content)
 
 
-def _write_transport_properties(constant_dir: Path, nu: float) -> None:
+def _write_transport_properties(constant_dir: Path, nu: float) -> None:  # mosaic:init
     content = f"""\
 FoamFile
 {{
@@ -332,7 +336,7 @@ nu              {nu:.10g};
     (constant_dir / "physicalProperties").write_text(content)
 
 
-def _write_turbulence_properties(constant_dir: Path) -> None:
+def _write_turbulence_properties(constant_dir: Path) -> None:  # mosaic:init
     content = """\
 FoamFile
 {
@@ -346,7 +350,7 @@ simulationType  laminar;
     (constant_dir / "turbulenceProperties").write_text(content)
 
 
-def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:
+def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:  # mosaic:io
     """Write 0/U from v0 as a nonuniform OpenFOAM internalField.
 
     2-D: v0 shape (N, N, 1, 2) — cell ordering ix + iy*N (x fastest).
@@ -412,7 +416,7 @@ boundaryField
     (case_dir / "0" / "U").write_text(content)
 
 
-def _write_initial_p(case_dir: Path, ndim: int) -> None:
+def _write_initial_p(case_dir: Path, ndim: int) -> None:  # mosaic:io
     if ndim == 2:
         boundary = """\
     x_lo  { type cyclic; }
@@ -471,7 +475,7 @@ FoamFile
 """
 
 
-def _write_channel_block_mesh_dict(
+def _write_channel_block_mesh_dict(  # mosaic:init
     system_dir: Path,
     extent: tuple[float, float],
     dx: float,
@@ -614,7 +618,7 @@ defaultPatch
     (system_dir / "blockMeshDict").write_text(content)
 
 
-def _write_channel_control_dict(
+def _write_channel_control_dict(  # mosaic:init
     system_dir: Path, dt: float, n_steps: int, center: tuple[float, float]
 ) -> None:
     """Write the foamRun controlDict, recording the force on the cylinder at every step."""
@@ -657,7 +661,9 @@ functions
     (system_dir / "controlDict").write_text(content)
 
 
-def _write_channel_numerics(system_dir: Path, constant_dir: Path, nu: float) -> None:
+def _write_channel_numerics(
+    system_dir: Path, constant_dir: Path, nu: float
+) -> None:  # mosaic:init
     """fvSchemes, fvSolution and the laminar transport model for channel mode.
 
     Second-order in space and implicit Euler in time, which damps the start-up
@@ -717,14 +723,14 @@ PIMPLE
     )
 
 
-def _parse_vectors(text: str) -> np.ndarray:
+def _parse_vectors(text: str) -> np.ndarray:  # mosaic:io
     """``(n, 3)`` array from the body of an OpenFOAM ``List<vector>``."""
     return np.array(
         [r.split() for r in re.findall(r"\(([^()]+)\)", text)], dtype=np.float64
     )
 
 
-def _read_cell_centers(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
+def _read_cell_centers(workdir: Path) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """Mesh cell centers ``(n_cells, 3)`` and inlet face centers ``(n_faces, 3)``."""
     _run_of("foamPostProcess -func writeCellCentres -time 0", workdir)
     text = (workdir / "0" / "C").read_text()
@@ -743,7 +749,9 @@ def _read_cell_centers(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
     return _parse_vectors(cells.group(1)), _parse_vectors(inlet.group(1))
 
 
-def _bilinear(field: np.ndarray, dx: float, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _bilinear(
+    field: np.ndarray, dx: float, x: np.ndarray, y: np.ndarray
+) -> np.ndarray:  # mosaic:util
     """Bilinear interpolation of a cell-centered ``(nx, ny, c)`` field at (x, y)."""
     nx, ny = field.shape[:2]
     fx = np.clip(x / dx - 0.5, 0, nx - 1)
@@ -759,12 +767,12 @@ def _bilinear(field: np.ndarray, dx: float, x: np.ndarray, y: np.ndarray) -> np.
     )
 
 
-def _vector_list(v: np.ndarray) -> str:
+def _vector_list(v: np.ndarray) -> str:  # mosaic:io
     rows = "\n".join(f"({a:.10g} {b:.10g} 0)" for a, b in v)
     return f"nonuniform List<vector>\n{len(v)}\n(\n{rows}\n)"
 
 
-def _write_channel_fields(
+def _write_channel_fields(  # mosaic:io
     case_dir: Path, u_cells: np.ndarray, u_inlet: np.ndarray
 ) -> None:
     """Write 0/U and 0/p with the inlet profile, zero-gradient outlet at p = 0 and no-slip walls."""
@@ -800,7 +808,9 @@ boundaryField
     )
 
 
-def _sample(workdir: Path, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _sample(
+    workdir: Path, points: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """U ``(n, 2)`` and p ``(n,)`` at ``points`` at the final time.
 
     Uses the ``probes`` function object with cell-point interpolation, which
@@ -842,7 +852,7 @@ probes
     return u[:, :2], p
 
 
-def _read_forces(workdir: Path, depth: float) -> np.ndarray:
+def _read_forces(workdir: Path, depth: float) -> np.ndarray:  # mosaic:io
     """Total force on the cylinder per unit depth at every internal step, ``(n, 2)``."""
     (path,) = (workdir / "postProcessing" / "forces").glob("*/forces.dat")
     rows = [
@@ -860,7 +870,7 @@ def _read_forces(workdir: Path, depth: float) -> np.ndarray:
 _CELLS_PER_PROCESS = 10_000
 
 
-def _physical_cores() -> int:
+def _physical_cores() -> int:  # mosaic:util
     """Physical cores among the CPUs this process may run on.
 
     One rank per physical core: OpenFOAM's ranks busy-wait in MPI, and two
@@ -877,7 +887,7 @@ def _physical_cores() -> int:
     return len(siblings)
 
 
-def _decompose(workdir: Path, n_cells: int) -> int:
+def _decompose(workdir: Path, n_cells: int) -> int:  # mosaic:init
     """Split the case over the available cores; returns the number of processes."""
     n_procs = min(_physical_cores(), n_cells // _CELLS_PER_PROCESS)
     if n_procs < 2:
@@ -890,12 +900,12 @@ def _decompose(workdir: Path, n_cells: int) -> int:
     return n_procs
 
 
-def _parallel(cmd: str, n_procs: int) -> str:
+def _parallel(cmd: str, n_procs: int) -> str:  # mosaic:util
     """``cmd`` run on ``n_procs`` MPI processes of a decomposed case."""
     return f"mpirun -np {n_procs} {cmd} -parallel" if n_procs > 1 else cmd
 
 
-def _run_channel(inputs: InputSchema) -> dict:
+def _run_channel(inputs: InputSchema) -> dict:  # mosaic:physics
     """Solve the DFG channel on a body-fitted mesh and return canonical-grid outputs."""
     v0 = np.asarray(inputs.v0, dtype=np.float64)[:, :, 0, :]
     nx, ny = v0.shape[:2]
@@ -949,7 +959,7 @@ def _run_channel(inputs: InputSchema) -> dict:
     }
 
 
-def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
+def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:  # mosaic:io
     """Read the latest time directory and return velocity as v0-shaped float32.
 
     2-D cell ordering: cell = ix + iy*N  → flat[k]: ix = k%N, iy = k//N

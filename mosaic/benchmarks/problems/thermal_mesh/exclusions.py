@@ -51,5 +51,6 @@ def register(problem: Problem) -> None:
     longest-prefix matching.
     """
     problem.exclude("cost/vjp_cost", {"dealii_heat": DEALII_NO_VJP})
+    problem.exclude("cost/vjp_cost_large", {"dealii_heat": DEALII_NO_VJP})
     problem.exclude("gradient", {"dealii_heat": DEALII_NO_VJP})
     problem.exclude("optimization", {"dealii_heat": DEALII_NON_DIFFERENTIABLE_OPT})
