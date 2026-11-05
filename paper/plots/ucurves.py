@@ -1,161 +1,82 @@
-"""Generate Figure: FD U-curves (relative error vs ε) for F2 and F3 NS domains.
+"""Generate Figure: FD U-curves (relative error vs ε) for F2 (ns-grid).
 
-For each rollout length (horizon), plots relative FD error vs perturbation size ε
-across solvers.  Produces two PDFs: one for F2 (ns-grid) and one for F3 (ns-3d-grid).
+One panel per rollout length, relative FD error vs perturbation size ε for each
+solver, from the per-horizon ε sweeps of ``gradient/horizon_sweep``.
 
-Output: appendix_ucurves_f2.pdf, appendix_ucurves_f3.pdf
+Output: appendix_ucurves_f2.pdf
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
-from matplotlib import gridspec
 
-from . import TEXTWIDTH, results_dir
-from .style import (
-    NS_ORDER,
-    RCPARAMS,
-    dedup_handles,
-    make_handle,
-    solver_props,
-)
+from . import TEXTWIDTH, by_solver, is_ok, load_result
+from .style import NS_ORDER, RCPARAMS, make_handle, solver_props
 
-RESULTS = results_dir()
-
-_CONFIGS = {
-    "f2": {
-        "path": RESULTS / "ns-grid" / "gradient" / "horizon_sweep" / "result.json",
-        "out": "appendix_ucurves_f2.pdf",
-        "title": "F2 — FD U-curves (2D NS)",
-        "ncols": 4,
-    },
-    "f3": {
-        "path": RESULTS / "ns-3d-grid" / "gradient" / "horizon_sweep" / "result.json",
-        "out": "appendix_ucurves_f3.pdf",
-        "title": "F3 — FD U-curves (3D NS)",
-        "ncols": 5,
-    },
-}
-
-
-def _plot_domain(cfg: dict, out_dir: Path) -> None:
-    path: Path = cfg["path"]
-    if not path.exists():
-        print(f"[ucurves] {path} not found — skipping")
-        return
-
-    data = json.loads(path.read_text())
-    by_solver: dict = data["by_solver"]
-
-    # Collect all step values across solvers, sorted numerically
-    all_steps: list[int] = sorted(
-        {int(s) for sv in by_solver.values() for s in sv},
-        key=int,
-    )
-    ncols: int = cfg["ncols"]
-    nrows: int = int(np.ceil(len(all_steps) / ncols))
-
-    panel_w = TEXTWIDTH / ncols
-    panel_h = panel_w * 0.92
-    fig_h = nrows * panel_h + 0.55  # extra for legend
-
-    fig = plt.figure(figsize=(TEXTWIDTH, fig_h))
-    gs = gridspec.GridSpec(
-        nrows,
-        ncols,
-        figure=fig,
-        left=0.10,
-        right=0.98,
-        top=1.0 - 0.12 / fig_h,
-        bottom=0.52 / fig_h,
-        hspace=0.65,
-        wspace=0.40,
-    )
-
-    seen: set[str] = set()
-
-    for idx, steps in enumerate(all_steps):
-        row, col = divmod(idx, ncols)
-        ax = fig.add_subplot(gs[row, col])
-
-        for solver in NS_ORDER:
-            sv = by_solver.get(solver)
-            if sv is None:
-                continue
-            entry = sv.get(str(steps))
-            if entry is None:
-                continue
-            eps_sweep: dict = entry.get("eps_sweep", {})
-            if not eps_sweep:
-                continue
-
-            eps_vals = sorted(eps_sweep.keys(), key=float)
-            xs = [float(e) for e in eps_vals]
-            ys = [eps_sweep[e]["rel_error_mean"] for e in eps_vals]
-
-            if not all(np.isfinite(y) and y > 0 for y in ys):
-                # drop non-finite points
-                pairs = [
-                    (x, y)
-                    for x, y in zip(xs, ys, strict=False)
-                    if np.isfinite(y) and y > 0
-                ]
-                if not pairs:
-                    continue
-                xs, ys = zip(*pairs, strict=False)
-
-            _, color, ls, mk = solver_props(solver)
-            ax.loglog(
-                xs,
-                ys,
-                color=color,
-                linestyle=ls,
-                marker=mk,
-                markersize=3.5,
-                markeredgewidth=0,
-                linewidth=1.4,
-            )
-            seen.add(solver)
-
-        ax.set_title(f"$T={steps}$", fontsize=8)
-        ax.set_xlabel(r"$\varepsilon$", fontsize=7.5)
-        if col == 0:
-            ax.set_ylabel("Rel. FD error", fontsize=7.5)
-        ax.tick_params(labelsize=7)
-        ax.xaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
-        ax.xaxis.set_minor_locator(mticker.NullLocator())
-        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=5))
-        ax.yaxis.set_minor_locator(mticker.NullLocator())
-
-    # hide unused panels
-    for idx in range(len(all_steps), nrows * ncols):
-        row, col = divmod(idx, ncols)
-        fig.add_subplot(gs[row, col]).set_visible(False)
-
-    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in seen])
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=min(len(handles), 6),
-        fontsize=7.5,
-        framealpha=0.9,
-        edgecolor="0.8",
-        handlelength=2.0,
-    )
-
-    out = out_dir / cfg["out"]
-    fig.savefig(out)
-    plt.close(fig)
-    print(f"Saved {out}")
+_NCOLS = 4
 
 
 def generate(out_dir: Path) -> None:
+    data = by_solver(load_result("ns-grid", "gradient/horizon_sweep"))
+    solvers = [s for s in NS_ORDER if s in data]
+    all_steps = sorted({int(k) for sv in data.values() for k in sv})
+    nrows = int(np.ceil(len(all_steps) / _NCOLS))
+
     with plt.rc_context(RCPARAMS):
-        for cfg in _CONFIGS.values():
-            _plot_domain(cfg, out_dir)
+        fig, axes = plt.subplots(
+            nrows,
+            _NCOLS,
+            figsize=(TEXTWIDTH, nrows * TEXTWIDTH / _NCOLS * 0.95),
+            sharex=True,
+            sharey=True,
+            squeeze=False,
+        )
+        fig.subplots_adjust(
+            left=0.10, right=0.98, top=0.95, bottom=0.10, hspace=0.45, wspace=0.12
+        )
+
+        for ax, steps in zip(axes.flat, all_steps, strict=False):
+            for solver in solvers:
+                m = data[solver].get(str(steps))
+                if m is None or not is_ok(m):
+                    continue
+                eps = sorted(m["eps_sweep"], key=float)
+                _, color, ls, mk = solver_props(solver)
+                ax.loglog(
+                    [float(e) for e in eps],
+                    [m["eps_sweep"][e]["rel_error_mean"] for e in eps],
+                    color=color,
+                    linestyle=ls,
+                    marker=mk,
+                    markersize=3.5,
+                    markeredgewidth=0,
+                    linewidth=1.4,
+                )
+            ax.set_title(f"{steps} steps", fontweight="normal")
+
+        # The lowest panel of each column carries the x-axis labels.
+        for ax in axes.flat[len(all_steps) - _NCOLS : len(all_steps)]:
+            ax.set_xlabel(r"$\varepsilon$")
+            ax.xaxis.set_tick_params(labelbottom=True)
+        for ax in axes[:, 0]:
+            ax.set_ylabel("Relative FD error")
+
+        # The legend fills the unused panel slots.
+        for ax in axes.flat[len(all_steps) :]:
+            ax.axis("off")
+        legend_ax = axes.flat[-1]
+        legend_ax.legend(
+            handles=[make_handle(s) for s in solvers],
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.35),
+            frameon=False,
+            handlelength=2.6,
+        )
+
+        out = out_dir / "appendix_ucurves_f2.pdf"
+        fig.savefig(out)
+        plt.close(fig)
+        print(f"Saved {out}")

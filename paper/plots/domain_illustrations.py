@@ -31,234 +31,167 @@ CTRL_FONTSIZE = 4.5
 LABEL_FONTSIZE = 4.5
 OFFSET_OBJECTIVE = 0.1
 
+# Schäfer–Turek DFG 2D-1 channel (mosaic/benchmarks/problems/navier_stokes_grid/cylinder.py)
+DFG_LENGTH, DFG_HEIGHT = 2.2, 0.41
+DFG_DIAMETER = 0.1
+DFG_CENTER = (0.2, 0.2)
+# Reference length of the recirculation bubble behind the cylinder (Schäfer &
+# Turek 1996); the Rankine oval spans the cylinder and the bubble
+DFG_BUBBLE_LENGTH = 0.0845
+DFG_OVAL_HALF_LENGTH = (DFG_DIAMETER + DFG_BUBBLE_LENGTH) / 2
+DFG_OVAL_X = DFG_CENTER[0] - DFG_DIAMETER / 2 + DFG_OVAL_HALF_LENGTH
+
+
+def _channel_streamfunction(X, Y):
+    """Stream function of potential flow past the cylinder and its wake bubble.
+
+    A Rankine oval (uniform stream plus a source-sink pair) stands in for the
+    cylinder together with its steady recirculation bubble. Mirror images about
+    the channel walls make both walls streamlines.
+    """
+    a, m = 0.0622, 0.2347  # oval of half-width 0.06, nose at the cylinder front
+    psi = Y.copy()
+    for n in range(-3, 4):
+        for yc in (
+            DFG_CENTER[1] + 2 * n * DFG_HEIGHT,
+            -DFG_CENTER[1] + 2 * n * DFG_HEIGHT,
+        ):
+            psi += (
+                m
+                / (2 * np.pi)
+                * (
+                    np.arctan2(Y - yc, X - (DFG_OVAL_X - a))
+                    - np.arctan2(Y - yc, X - (DFG_OVAL_X + a))
+                )
+            )
+    return psi
+
 
 def _make_domain1(out_dir: Path) -> None:
-    """Domain 1: 2D Cylinder Flow — Inflow Optimization."""
+    """Domain 1: DFG 2D-1 channel flow past a cylinder (Re = 20), inflow optimization."""
     fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.4, TEXTWIDTH * 0.22), dpi=300)
-    ax.set_xlim(-0.5, 7.8)
-    ax.set_ylim(-1.0, 2.8)
+    ax.set_xlim(-0.32, 2.48)
+    ax.set_ylim(-0.48, 0.80)
     ax.set_aspect("equal")
     ax.axis("off")
 
-    font_kw = {"fontfamily": "sans-serif"}
+    length, height = DFG_LENGTH, DFG_HEIGHT
+    (cx, cy), r = DFG_CENTER, DFG_DIAMETER / 2
+    wall = 0.025
+    arrow_kw = {"arrowstyle": "->,head_width=0.08,head_length=0.06", "lw": 0.6}
 
-    chan_x0, chan_x1 = 0.0, 6.5
-    chan_y0, chan_y1 = 0.0, 2.0
-    chan_w = chan_x1 - chan_x0
-    chan_h = chan_y1 - chan_y0
-
-    fluid = mpatches.FancyBboxPatch(
-        (chan_x0, chan_y0),
-        chan_w,
-        chan_h,
-        boxstyle="square,pad=0",
-        facecolor="#dceefb",
-        edgecolor="none",
-        zorder=0,
+    ax.add_patch(
+        mpatches.Rectangle((0, 0), length, height, facecolor="#dceefb", zorder=0)
     )
-    ax.add_patch(fluid)
+    for y in (-wall, height):
+        ax.add_patch(
+            mpatches.Rectangle(
+                (0, y),
+                length,
+                wall,
+                facecolor="#888888",
+                edgecolor="#555555",
+                linewidth=0.5,
+                zorder=2,
+            )
+        )
 
-    wall_thick = 0.10
-    top_wall = mpatches.FancyBboxPatch(
-        (chan_x0, chan_y1),
-        chan_w,
-        wall_thick,
-        boxstyle="square,pad=0",
-        facecolor="#888888",
-        edgecolor="#555555",
-        linewidth=0.5,
-        zorder=2,
+    # Streamlines, spaced evenly at the inlet, skipping the one that wraps the body
+    X, Y = np.meshgrid(np.linspace(0, length, 900), np.linspace(0, height, 200))
+    psi = _channel_streamfunction(X, Y)
+    inside = ((X - DFG_OVAL_X) / DFG_OVAL_HALF_LENGTH) ** 2 + ((Y - cy) / 0.06) ** 2 < 1
+    psi[inside] = np.nan
+    y_start = np.delete(np.linspace(0, height, 10)[1:-1], 4)
+    levels = np.sort(_channel_streamfunction(np.zeros_like(y_start), y_start))
+    ax.contour(X, Y, psi, levels=levels, colors="#5dade2", linewidths=0.4, zorder=1)
+
+    # Steady recirculation bubble behind the cylinder
+    theta = np.linspace(-np.pi / 2, np.pi / 2, 50)
+    ax.add_patch(
+        mpatches.Polygon(
+            np.column_stack(
+                [
+                    cx + (r + DFG_BUBBLE_LENGTH) * np.cos(theta),
+                    cy + 0.9 * r * np.sin(theta),
+                ]
+            ),
+            facecolor="#a9cce3",
+            edgecolor="#5dade2",
+            linewidth=0.4,
+            zorder=3,
+        )
     )
-    bot_wall = mpatches.FancyBboxPatch(
-        (chan_x0, chan_y0 - wall_thick),
-        chan_w,
-        wall_thick,
-        boxstyle="square,pad=0",
-        facecolor="#888888",
-        edgecolor="#555555",
-        linewidth=0.5,
-        zorder=2,
+    ax.add_patch(
+        plt.Circle((cx, cy), r, fc="#3b6fa0", ec="#1a3a5c", linewidth=0.5, zorder=5)
     )
-    ax.add_patch(top_wall)
-    ax.add_patch(bot_wall)
 
-    # ax.text(
-    #    chan_x0 + chan_w / 2,
-    #    chan_y1 + wall_thick + 0.12,
-    #    "no-slip wall",
-    #    ha="center",
-    #    va="bottom",
-    #    fontsize=4,
-    #    color="#555555",
-    #    **font_kw,
-    # )
-    # ax.text(
-    #    chan_x0 + chan_w / 2,
-    #    chan_y0 - wall_thick - 0.12,
-    #    "no-slip wall",
-    #    ha="center",
-    #    va="top",
-    #    fontsize=4,
-    #    color="#555555",
-    #    **font_kw,
-    # )
-
-    cyl_cx = chan_x0 + chan_w / 3
-    cyl_cy = chan_y0 + chan_h / 2
-    cyl_r = 0.22
-    cyl = plt.Circle(
-        (cyl_cx, cyl_cy), cyl_r, fc="#3b6fa0", ec="#1a3a5c", linewidth=0.5, zorder=5
-    )
-    ax.add_patch(cyl)
-
-    drag_arrow_x = cyl_cx - cyl_r - 0.08
     ax.annotate(
         "",
-        xy=(drag_arrow_x - 0.7, cyl_cy),
-        xytext=(drag_arrow_x, cyl_cy),
-        arrowprops={
-            "arrowstyle": "->,head_width=0.08,head_length=0.06",
-            "color": OBJECTIVE_COLOR,
-            "lw": 0.8,
-        },
+        xy=(cx + 0.36, cy),
+        xytext=(cx, cy),
+        arrowprops={**arrow_kw, "color": OBJECTIVE_COLOR, "lw": 0.8},
         zorder=6,
     )
     ax.text(
-        drag_arrow_x,
-        cyl_cy - 0.5,
+        cx + 0.38,
+        cy,
         r"Drag $F_D$",
-        ha="right",
+        ha="left",
         va="center",
         fontsize=LABEL_FONTSIZE,
         fontweight="bold",
         color=OBJECTIVE_COLOR,
-        **font_kw,
+        path_effects=[pe.withStroke(linewidth=1.0, foreground="#dceefb")],
+        zorder=6,
     )
 
-    n_arrows = 9
-    ys = np.linspace(chan_y0 + 0.12, chan_y1 - 0.12, n_arrows)
-    y_mid = (chan_y0 + chan_y1) / 2
-    max_len = 1.0
+    # Parabolic inflow u(y) = 4 U_m y (H - y) / H^2, drawn ending at the inlet
+    max_len = 0.25
+    ys = np.linspace(0, height, 11)[1:-1]
     for y in ys:
-        frac = 1.0 - ((y - y_mid) / (chan_h / 2)) ** 2
-        length = max_len * max(frac, 0.08)
         ax.annotate(
             "",
-            xy=(chan_x0 + length, y),
-            xytext=(chan_x0 - 0.05, y),
-            arrowprops={
-                "arrowstyle": "->,head_width=0.08,head_length=0.06",
-                "color": CONTROL_COLOR,
-                "lw": 0.6,
-            },
+            xy=(0, y),
+            xytext=(-max_len * 4 * y * (height - y) / height**2, y),
+            arrowprops={**arrow_kw, "color": CONTROL_COLOR},
             zorder=4,
         )
-
+    y_env = np.linspace(0, height, 50)
+    ax.plot(
+        -max_len * 4 * y_env * (height - y_env) / height**2,
+        y_env,
+        color=CONTROL_COLOR,
+        lw=0.5,
+        zorder=4,
+    )
     ax.text(
-        chan_x0 - 0.15,
-        chan_y1 + 0.45,
+        -max_len,
+        height + wall + 0.06,
         r"Control: inflow profile $u(y)$",
         ha="left",
         va="bottom",
         fontsize=CTRL_FONTSIZE,
         fontweight="bold",
         color=CONTROL_COLOR,
-        **font_kw,
+    )
+    ax.text(
+        length,
+        height + wall + 0.06,
+        r"$\mathrm{Re}=20$, steady",
+        ha="right",
+        va="bottom",
+        fontsize=LABEL_FONTSIZE,
+        color=PHYS_COLOR,
     )
 
-    for y in np.linspace(chan_y0 + 0.25, chan_y1 - 0.25, 5):
+    for y in np.linspace(0, height, 6)[1:-1]:
         ax.annotate(
             "",
-            xy=(chan_x1 + 0.35, y),
-            xytext=(chan_x1 - 0.15, y),
-            arrowprops={
-                "arrowstyle": "->,head_width=0.08,head_length=0.06",
-                "color": CONTROL_COLOR,
-                "lw": 0.6,
-            },
+            xy=(length + 0.15, y),
+            xytext=(length - 0.05, y),
+            arrowprops={**arrow_kw, "color": "#5dade2"},
             zorder=4,
         )
-    # ax.text(
-    #    chan_x1 + 0.4,
-    #    cyl_cy,
-    #    "outflow",
-    #    ha="left",
-    #    va="center",
-    #    fontsize=4,
-    #    color="#2471a3",
-    #    **font_kw,
-    # )
-
-    xs_stream = np.linspace(cyl_cx + cyl_r + 0.25, chan_x1 - 0.3, 200)
-    offsets = [0.0, 0.35, -0.35, 0.65, -0.65]
-    amplitudes = [0.18, 0.14, 0.14, 0.06, 0.06]
-    phases = [0.0, np.pi, 0.0, np.pi / 2, -np.pi / 2]
-
-    for off, amp, ph in zip(offsets, amplitudes, phases, strict=False):
-        local_amp = amp * np.clip(
-            (xs_stream - xs_stream[0]) / (xs_stream[-1] - xs_stream[0]), 0, 1
-        )
-        ys_stream = (
-            cyl_cy
-            + off
-            + local_amp
-            * np.sin(
-                2.5
-                * np.pi
-                * (xs_stream - xs_stream[0])
-                / (xs_stream[-1] - xs_stream[0])
-                * 2
-                + ph
-            )
-        )
-        ys_stream = np.clip(ys_stream, chan_y0 + 0.05, chan_y1 - 0.05)
-        ax.plot(xs_stream, ys_stream, color="#5dade2", lw=0.4, alpha=0.7, zorder=1)
-
-    vortex_colors = ["#e74c3c", "#2471a3"]
-    vortex_xs = np.linspace(cyl_cx + cyl_r + 0.8, chan_x1 - 1.0, 4)
-    for i, vx in enumerate(vortex_xs):
-        sign = 1 if i % 2 == 0 else -1
-        vy = cyl_cy + sign * 0.22
-        ell = mpatches.Ellipse(
-            (vx, vy),
-            0.36,
-            0.23,
-            angle=sign * 10,
-            fc="none",
-            ec=vortex_colors[i % 2],
-            lw=0.6,
-            ls="--",
-            alpha=0.55,
-            zorder=3,
-        )
-        ax.add_patch(ell)
-        theta_start = 30 if sign > 0 else 210
-        arc_angles = np.linspace(
-            np.radians(theta_start), np.radians(theta_start + 260), 40
-        )
-        rx, ry = 0.12, 0.07
-        arc_x = vx + rx * np.cos(arc_angles)
-        arc_y = vy + ry * np.sin(arc_angles)
-        ax.plot(arc_x, arc_y, color=vortex_colors[i % 2], lw=0.6, alpha=0.5, zorder=3)
-        ax.annotate(
-            "",
-            xy=(arc_x[-1], arc_y[-1]),
-            xytext=(arc_x[-3], arc_y[-3]),
-            arrowprops={
-                "arrowstyle": "->,head_width=0.05,head_length=0.04",
-                "color": vortex_colors[i % 2],
-                "lw": 0.6,
-            },
-            zorder=3,
-        )
-
-    for y_off in [-0.65, -0.35, 0.0, 0.35, 0.65]:
-        xs_up = np.linspace(chan_x0 + 1.1, cyl_cx - cyl_r - 0.15, 60)
-        ys_up = np.full_like(xs_up, cyl_cy + y_off)
-        if abs(y_off) < 0.5:
-            ys_up += 0.04 * y_off * np.linspace(0, 1, len(xs_up)) ** 2
-        ys_up = np.clip(ys_up, chan_y0 + 0.05, chan_y1 - 0.05)
-        ax.plot(xs_up, ys_up, color="#5dade2", lw=0.4, alpha=0.7, zorder=1)
 
     fig.text(
         0.5,
@@ -272,17 +205,8 @@ def _make_domain1(out_dir: Path) -> None:
     )
 
     fig.subplots_adjust(left=0.0, right=1.0, top=0.92, bottom=0.10)
-    fig.savefig(
-        out_dir / "domain1_2d_fluids.png",
-        dpi=300,
-        facecolor="white",
-    )
-    fig.subplots_adjust(left=0.0, right=1.0, top=0.92, bottom=0.10)
-    fig.savefig(
-        out_dir / "domain1_2d_fluids.pdf",
-        dpi=300,
-        facecolor="white",
-    )
+    fig.savefig(out_dir / "domain1_2d_fluids.png", dpi=300, facecolor="white")
+    fig.savefig(out_dir / "domain1_2d_fluids.pdf", dpi=300, facecolor="white")
     plt.close(fig)
     print(f"Saved {out_dir / 'domain1_2d_fluids.png'}")
     return fig
