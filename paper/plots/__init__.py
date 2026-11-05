@@ -32,6 +32,8 @@ MODULES = [
     "horizon_sweep_limits",
     "ucurves",
     "drag_opt",
+    "recovery_overview",
+    "topopt_overview",
     "conductivity_overview",
     "memory_rollout",
 ]
