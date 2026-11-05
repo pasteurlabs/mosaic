@@ -679,26 +679,166 @@ We attribute the spread to the poor conditioning of the inversion: many conducti
 \end{figure}
 
 
-\subsection{Solver-in-the-loop study}
-\label{app:sil}
+\subsection{Forced Kolmogorov flow}
+\label{app:kolmogorov}
 
-\paragraph{Flow}
-The study runs forced turbulence on the periodic box $[0,2\pi)^2$,
+\paragraph{Setup}
+F2's forced setup is turbulence on the periodic box $[0,2\pi)^2$,
 $\partial_t\mathbf{u} + (\mathbf{u}\cdot\nabla)\mathbf{u} = -\nabla p
 + \nu\nabla^2\mathbf{u} + \mathbf{f} - \alpha\mathbf{u}$,
 $\nabla\cdot\mathbf{u} = 0$, with the body force
 $\mathbf{f} = (A\sin\kappa y, 0)$, $A = 1$, $\kappa = 4$, linear drag
-$\alpha = 0.1$ and $\nu = 2\times10^{-3}$ (Kolmogorov flow).
+$\alpha = 0.1$ and $\nu = 2\times10^{-3}$.
 The drag removes the energy that the 2D inverse cascade accumulates at the
 largest scales, so the flow settles into a chaotic, statistically steady state.
 A $64^2$ grid resolves it only roughly: it departs from a $4\times$ finer run by
 about 2\% every 0.1 time units.
-For this flow the F2 interface accepts a cell-centered force field and a drag
-coefficient as optional inputs on periodic 2D boxes. They are not
-differentiated, and each solver applies them inside its own time step, in both
-the forward pass and the VJP.
-Four training states, one validation state and three test states are each spun
-up by Exponax from a random field for 100 time units at $512^2$.
+
+\paragraph{Forcing inputs}
+On periodic 2D boxes, the F2 interface accepts a cell-centered force field and a
+drag coefficient as optional inputs, which are not differentiated. Each solver
+applies them inside its own time step, in both the forward pass and the VJP, and
+maps the force to its native grid locations the same way it maps the initial
+condition (\cref{tab:app:forcing}). With a force, XLB sizes its lattice Mach
+number from a bound that does not depend on the solution, so a flow spun up from
+rest stays at the target Mach number.
+
+\begin{table}[h]
+  \centering\small
+  \caption{How each solver applies the Kolmogorov force and the linear drag.}
+  \label{tab:app:forcing}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Solver} & \textbf{Force} & \textbf{Drag} \\
+    \midrule
+    JAX-CFD & forcing callable, averaged onto the faces & explicit, every RK4 stage \\
+    PhiFlow & resampled to the faces, every RK4 stage & every RK4 stage \\
+    INS.jl & projected staggered force in the right-hand side & every RK4 stage \\
+    XLB & exact-difference method after collision & semi-implicit, half-force velocity \\
+    PICT & velocity source, set every step & explicit, start of step \\
+    Warp-NS & tentative-velocity kernel & explicit \\
+    Exponax & spectral curl of the force, as its injection term & its native drag term \\
+    OpenFOAM & \multicolumn{2}{l}{not supported: icoFoam has no momentum source term} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Ground truth}
+The ground truth is an Exponax run at $1024^2$ (ETDRK2 with 2/3-rule dealiasing,
+CFL number about 0.1) from three test states, each spun up from a random field
+for 100 time units at $512^2$. A $512^2$ run from the same state differs from it by
+0.3\% after one time unit and by 2.3--3.2\% after four, at a vorticity
+correlation of at least 0.997. It stays above 0.95 correlation for 6.5 to 7.5
+time units, beyond the scored horizon of four. As an independent check, JAX-CFD
+converges to the truth at observed orders 1.6 and 1.9 between $64^2$ and
+$256^2$, down to the 0.3\% floor at $512^2$.
+
+\paragraph{Checks}
+\textit{Laminar forcing} (\texttt{forward/kolmogorov\_laminar}). From rest at
+$\nu = 0.05$, the flow stays a shear flow whose advection term vanishes, so
+$u = (A/\lambda)(1 - e^{-\lambda t})\sin(\kappa y)$, $v = 0$ with
+$\lambda = \nu\kappa^2 + \alpha$ is exact. Solvers run $N \in \{32, 64, 128\}$
+to $t = 2$ with a time step small enough that the error is spatial. A solver
+passes with at most 5\% error at $N = 64$ and an observed order of at least
+0.8. A correct second-order scheme misses by about 1\% at $N = 64$, while a
+convention error (a missing $2\pi/L$, a flipped sign, a force half a cell off)
+misses by 20\% or more.
+
+\textit{Turbulent forward accuracy} (\texttt{forward/kolmogorov}). Each solver
+runs grids from $32^2$ to $256^2$ at the CFL number of $64^2$ with
+$\Delta t = 0.01$, from the three test states to $t = 1, 2, 3, 4$, and is scored
+on $64^2$ against the truth. It passes if its observed order from $64^2$ to
+$256^2$ at $t = 1$ is at least 0.8 and no grid from $64^2$ up diverges. The bound
+follows from the scheme's consistency, not from the other solvers.
+
+\textit{Chained gradients} (\texttt{gradient/chain\_fd\_check}). A training
+loss compares every interval with a target and normalizes by the target's norm,
+so each call in a chain receives a far smaller cotangent than in the single-call
+checks. The check chains 16 calls of 0.1 time units at $64^2$, starting from a
+test state plus a 1\% divergence-free offset. Its loss is the mean relative
+squared distance to the solver's own unperturbed chain. The VJP is compared with
+central differences along 8 divergence-free directions at
+$\varepsilon \in \{1, 0.1, 0.01\}$. A solver passes with a cosine of at least
+0.99, a relative error of at most $10^{-2}$, and an error no more than 50 times
+the peer median.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Kolmogorov-flow checks. \emph{Laminar}: relative error against the
+    exact solution at $t = 2$. \emph{Turbulent}: median relative error against
+    the ground truth at $t = 1$ on each grid, and the observed order from $64^2$
+    to $256^2$. \emph{Chained}: median relative error and cosine of the VJP at
+    the best $\varepsilon$, with PICT's cotangent scaling (see below).}
+  \label{tab:app:kolmogorov}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    & \multicolumn{3}{c}{\textbf{Laminar error}} \\
+    \cmidrule(l){2-4}
+    \textbf{Solver} & $N=32$ & $64$ & $128$ \\
+    \midrule
+    Exponax & 3.0e-6 & 3.5e-5 & 1.3e-5 \\
+    JAX-CFD, INS.jl, PhiFlow & 2.9e-2 & 7.4e-3 & 1.8e-3 \\
+    PICT & 2.9e-2 & 7.1e-3 & 1.7e-3 \\
+    Warp-NS & 3.0e-2 & 7.7e-3 & 2.2e-3 \\
+    XLB & 7.8e-2 & 1.9e-2 & 4.8e-3 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{6pt}
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    & \multicolumn{5}{c}{\textbf{Turbulent error}} & \multicolumn{1}{c}{\textbf{Chained}} \\
+    \cmidrule(lr){2-6}\cmidrule(l){7-7}
+    \textbf{Solver} & $32^2$ & $64^2$ & $128^2$ & $256^2$ & order & error / cosine \\
+    \midrule
+    Exponax & 0.168 & 0.039 & 0.0046 & 0.0028 & 1.89 & 6.4e-4 / 1.000 \\
+    JAX-CFD & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.1e-4 / 1.000 \\
+    INS.jl & 0.226 & 0.086 & 0.029 & 0.0077 & 1.73 & 2.6e-4 / 1.000 \\
+    XLB & 0.135 & 0.032 & 0.0063 & 0.0032 & 1.66 & 1.2e-4 / 1.000 \\
+    PICT & 0.258 & 0.092 & 0.034 & 0.012 & 1.46 & 1.8e-4 / 1.000 \\
+    PhiFlow & 0.206 & 0.082 & 0.028 & 0.0076 & 1.72 & 5.3e-5 / 1.000 \\
+    Warp-NS & \multicolumn{5}{c}{non-finite on every grid by $t = 3$} & excluded \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Results}
+\Cref{tab:app:kolmogorov} lists the results. Every solver passes the laminar
+check. Exponax represents the single forced mode exactly, so its laminar error
+is float32 round-off. Every solver that runs the turbulent flow stably passes
+both remaining checks. On the chain, each solver's finite differences agree
+with its VJP to within 2\% (median over directions) at every $\varepsilon$.
+JAX-CFD and INS.jl, which share a discretization (\cref{tab:solvers}), agree to
+every printed digit on both forward checks. PhiFlow passes because its periodic
+pressure solve runs CG on the singular system directly. PhiFlow's default adds a
+Lagrange multiplier, which makes the system indefinite, and some of its CG solves
+then stop unconverged without raising. With the default, two of the three $256^2$ runs
+turned non-finite and the chained gradient was off by 12\%.
+
+Warp-NS integrates with explicit Euler and central differences, which is
+linearly unstable on this flow unless $\Delta t \lesssim 4\nu/u^2$, a bound that
+does not shrink with the grid. Its turbulent runs turn non-finite on every grid,
+which the forward check records as an explained anomaly. It is excluded from
+the chained check, where the unstable modes dominate both the VJP and the finite
+differences. OpenFOAM's icoFoam has no momentum source term, so OpenFOAM runs
+neither forward check, and it has no VJP (\cref{app:exclusions}).
+
+\paragraph{PICT's adjoint tolerance}
+PICT's linear solves stop once the RMS of their residual falls below an absolute
+tolerance, $10^{-5}$ in float32 by default, and its adjoint solves use the same
+tolerance. When the cotangent is small, the adjoint residual starts near that
+tolerance and the solves stop early, so the VJP is no longer linear in the
+cotangent. Single calls with $O(1)$ cotangents are unaffected. On the 16-call
+chain, with cotangents of about $10^{-4}$ per entry, the gradient with respect to
+a state 1, 3, 8 and 16 calls before the loss disagreed with finite differences by
+0.04\%, 3.7\%, 10\% and 73\%, and the chained check reported a median error of
+0.89 at a cosine of 0.51. The wrapper therefore scales each cotangent to a
+largest entry of one before PICT's backward pass and scales the gradient back,
+which is exact for a linear VJP and makes the tolerance relative to the
+cotangent. All results in this paper use this wrapper.
+
+\subsection{Solver-in-the-loop study}
+\label{app:sil}
 
 \paragraph{Corrector}
 A periodic CNN with three $5\times5$ convolutional layers and 8 hidden channels
@@ -711,8 +851,10 @@ fixed by the forcing rather than by any solver's data, and every solver trains
 the same architecture from the same initialization.
 
 \paragraph{Training}
-Each solver runs the flow at $64^2$ with $\Delta t = 0.01$ and is corrected
-every 0.1 time units. Its targets are its own $256^2$ run, restricted to $64^2$.
+Each solver runs the coarse configuration of \cref{app:kolmogorov} ($64^2$,
+$\Delta t = 0.01$) and is corrected every 0.1 time units. Its targets are its
+own $256^2$ run, restricted to $64^2$, from four training states and one
+validation state, spun up like the test states of \cref{app:kolmogorov}.
 The three trained arms are \emph{supervised}, on fixed pairs (the solver's output
 from reference frame $k$, and reference frame $k+1$) with no solver in the
 training graph; \emph{stopped}, on a corrected 16-interval rollout with the
@@ -735,9 +877,9 @@ a random nonzero readout. A short version of the study (4-interval rollouts,
 32 updates, one seed) checks these gates and that every arm trains to finite
 losses. JAX-CFD, Exponax, XLB, INS.jl and PICT pass all of them, with reference
 ratios of 0.003 to 0.093 and gradient errors of $5.8\times10^{-5}$ to
-$1.8\times10^{-3}$. Warp-NS integrates with explicit Euler and central
-differences, which is linearly unstable on this flow, and its runs turn
-non-finite on every grid from $32^2$ to $256^2$.
+$1.8\times10^{-3}$. PICT runs with the cotangent scaling of
+\cref{app:kolmogorov}, which fixes the one defect the study surfaced. Warp-NS
+diverges on the flow (\cref{app:kolmogorov}).
 PhiFlow is excluded because its $256^2$ run, which the corrector would train
 against, turns non-finite within the study's horizon from some of the
 reference states. OpenFOAM is forward-only.
@@ -812,28 +954,6 @@ matches the uncorrected error (0.086), since its third seed ends above it.
 Supervised updates take about 0.02\,s, since the solver's outputs for the pairs
 are computed once in advance. JAX-CFD and INS.jl agree to every printed digit
 throughout.
-
-\paragraph{Chained gradients and PICT's adjoint tolerance}
-A training loss normalized by the target's norm hands each call in a chain a far
-smaller cotangent than the single-call checks of \cref{sec:protocol} do. The
-released benchmark therefore also checks the gradient of such a loss through
-16 calls of 0.1 time units at $64^2$, starting from a test state plus a 1\%
-divergence-free offset, against central differences along 8 divergence-free
-directions (\texttt{gradient/chain\_fd\_check}).
-PICT's linear solves stop once the RMS of their residual falls below an absolute
-tolerance, $10^{-5}$ in float32 by default, and its adjoint solves use the same
-tolerance. When the cotangent is small, the adjoint residual starts near that
-tolerance and the solves stop early, so the VJP is no longer linear in the
-cotangent. Single calls with $O(1)$ cotangents are unaffected. On the 16-call
-chain, with cotangents of about $10^{-4}$ per entry, the gradient with respect to
-a state 1, 3, 8 and 16 calls before the loss disagreed with finite differences by
-0.04\%, 3.7\%, 10\% and 73\%, and the chained check reported a median error of
-0.89 at a cosine of 0.51. The wrapper now scales each cotangent to a largest
-entry of one before PICT's backward pass and scales the gradient back, which is
-exact for a linear VJP and makes the tolerance relative to the cotangent. All
-results in this paper use the fixed wrapper. With it, the five study solvers
-pass the chained check with median errors of $1.2\times10^{-4}$ to
-$6.4\times10^{-4}$ and cosines above 0.9999.
 
 \paragraph{Reproduction}
 The study is not part of the benchmark. Its code (the native solver state, the
@@ -911,8 +1031,9 @@ Spectral incompressible Navier--Stokes solver supporting both 2D
 integrated with an exponential time-differencing Runge-Kutta (ETDRK) scheme.
 Incompressibility is enforced to machine precision by construction.
 Gradients via JAX source-transformation AD.
-Used in Mosaic for the periodic setups of F2 and F3, and as the converged
-reference for F3.
+Used in Mosaic for the periodic setups of F2 and F3, as the converged
+reference for F3, and as the ground truth of the Kolmogorov-flow checks
+(\cref{app:kolmogorov}).
 
 \paragraph{FEniCS~\cite{farrell2013automated}}
 Finite-element solver using P1 elements for thermal and structural problems.
@@ -1063,15 +1184,23 @@ benchmark altogether are described in \cref{app:excluded}.
       & The standard solvers are forward-only C++ without an AD path.
       & An adjoint-capable variant, such as DAFoam or OpenFOAM-AD, wrapped as
         a separate backend. \\
+    OpenFOAM & F2 Kolmogorov flow: laminar and turbulent forward checks
+      & Not implemented
+      & The wrapper runs icoFoam, which has no momentum source term, so it
+        cannot apply the body force or the drag.
+      & Running the \texttt{foamRun} \texttt{incompressibleFluid} solver, which
+        applies both through an \texttt{fvModel}. \\
     deal.II & All gradient-based experiments (H, S) & Categorical
       & The library offers no reverse-mode VJP through its solves, and the
         wrapper is forward-only.
       & A hand-written discrete adjoint in the wrapper, one transposed linear
         solve per gradient for these steady linear problems. \\
-    Warp-NS & Solver-in-the-loop study & Unstable
+    Warp-NS & F2 Kolmogorov flow: chained gradient check; solver-in-the-loop
+        study & Unstable
       & Explicit Euler with central advection is linearly unstable at the
-        time steps of the forced Kolmogorov flow, on which it diverges on
-        every grid.
+        time steps of the forced Kolmogorov flow. It diverges on every grid,
+        and over a chain the unstable modes dominate the VJP and the finite
+        differences.
       & A stable time integrator or advection scheme. \\
     PhiFlow & Solver-in-the-loop study & Unstable
       & Its own finest-grid run, the training target, turns non-finite from
