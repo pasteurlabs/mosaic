@@ -1,12 +1,12 @@
 """Generate the Mosaic visual abstract (teaser / Figure 1).
 
-Four-section horizontal flow:
-  1  Solver backends — stacked category cards
-  2  Standardized interface — single Tesseract with forward/vjp
-  3  Benchmark tasks — actual 2D cylinder flow results:
-       forward → initial flow field with parabolic inflow
-       vjp     → optimized flow field with gradient-optimized inflow profile
-  4  Evaluation results — stylized summary table
+Four columns, read left to right:
+  1  Solvers — the backends in the release, grouped by domain family
+  2  Interface — the Tesseract with its apply and vjp endpoints
+  3  Tasks — 2D cylinder flow results, upstream part of the DFG channel:
+       apply → flow field with the parabolic inflow
+       vjp   → flow field with the gradient-optimized inflow
+  4  Results — status per suite for 2D Navier–Stokes, from ``status.json``
 
 Output: visual_abstract.{pdf,png}
 """
@@ -18,30 +18,45 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Ellipse, FancyArrowPatch, FancyBboxPatch, Rectangle
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Circle, Ellipse, FancyArrowPatch, FancyBboxPatch
 
 from . import by_solver, is_ok, load_result, results_dir
 from .style import NS_ORDER, solver_props
 
-C = {
-    "bg": "#FFFFFF",
-    "jax": "#4285F4",
-    "pytorch": "#EE4C2C",
-    "julia": "#9558B2",
-    "cpp": "#6C757D",
-    "fenics": "#2CA02C",
-    "arrow": "#495057",
-    "tess": "#2C3E50",
-    "text": "#212529",
-    "muted": "#868E96",
-    "api_bg": "#E9ECEF",
-    "fwd": "#2980B9",
-    "inv": "#C0392B",
-    "placeholder": "#B0BEC5",
+# Docs palette, see docs/figures/make_domain_figures.py.
+INK = "#1d1e20"
+MUTED = "#5f6368"
+BORDER = "#d4d5d8"
+SAND = "#f1f1ef"
+# Results table: state -> (tile fill, glyph colour).
+TILES = {
+    "ok": ("#d5efe2", "#1f7a50"),
+    "pt": ("#fdeec4", "#a06f00"),
+    "no": ("#f8d3cf", "#b3261e"),
+    "na": ("#f4f4f2", None),
+}
+INDIGO = "#2f4b8f"  # the control the optimizer changes
+PLUM = "#6e3f8f"  # gradients
+
+SPEED_CMAP = LinearSegmentedColormap.from_list(
+    "speed",
+    ["#2e1e3b", "#413d7b", "#37659e", "#348fa7", "#40b7ad", "#8bdab2", "#def5e5"],
+)
+
+_RCPARAMS = {
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "DejaVu Sans"],
+    "font.monospace": ["Menlo", "DejaVu Sans Mono"],
+    "text.color": INK,
+    "figure.facecolor": "white",
+    "savefig.facecolor": "white",
+    "pdf.fonttype": 42,
+    "hatch.linewidth": 0.5,
 }
 
 # DFG 2D-1 channel and cylinder (Schäfer & Turek 1996); the task panels show
-# its upstream part, x < _X_SHOW, at roughly equal aspect.
+# its upstream part, x < _X_SHOW.
 _LX, _LY = 2.2, 0.41
 _CYL_CENTER, _CYL_RADIUS = (0.2, 0.2), 0.05
 _X_SHOW = 0.65
@@ -49,13 +64,37 @@ _X_SHOW = 0.65
 _SUITES = ["forward", "cost", "gradient", "optimization"]
 _SUITE_HEADERS = ["Fwd", "Cost", "Grad", "Opt."]
 
-_RCPARAMS = {
-    "font.family": "sans-serif",
-    "font.sans-serif": ["DejaVu Sans", "Helvetica Neue", "Helvetica", "Arial"],
-    "text.color": C["text"],
-    "figure.facecolor": C["bg"],
-    "savefig.facecolor": C["bg"],
-}
+# Layout grid, in drawing units. All four columns share ROWS rows of height ROW,
+# so text, table rows, panels and arrows line up by construction. Gutters hold
+# only the connecting arrows, and PAD is the one inset used inside the grid.
+MARGIN, GUTTER, ROW, PAD, ROWS = 8, 52, 40, 6, 10
+BOTTOM = 8
+COLUMNS = (300, 240, 152, 420)
+W = 2 * MARGIN + sum(COLUMNS) + 3 * GUTTER
+H = BOTTOM + ROWS * ROW + 58
+HEADING_Y = BOTTOM + ROWS * ROW + 18
+
+
+def _column_x(i: int) -> float:
+    return MARGIN + sum(COLUMNS[:i]) + i * GUTTER
+
+
+def _row(k: int) -> float:
+    """Center height of grid row *k*, counted from 1 at the top."""
+    return BOTTOM + (ROWS + 0.5 - k) * ROW
+
+
+FLUID_SOLVERS = [
+    "JAX-CFD",
+    "PhiFlow",
+    "XLB",
+    "PICT",
+    "Warp-NS",
+    "Exponax",
+    "INS.jl",
+    "OpenFOAM",
+]
+FEM_SOLVERS = ["FEniCS", "Firedrake", "JAX-FEM", "torch-fem", "TopOpt.jl", "deal.II"]
 
 
 def _load_flow_data() -> dict:
@@ -123,476 +162,298 @@ def _status_glyphs(problem: str) -> dict[str, list[str]]:
     return out
 
 
-def _card(ax, cx, cy, w, h, name, fs, alpha=0.85) -> None:
+def _heading(ax, x: float, text: str) -> None:
+    ax.text(x, HEADING_Y, text, fontsize=15, fontweight="bold", va="baseline")
+
+
+def _arrow(ax, p0, p1, color=INK, lw=1.4, style="-|>", connection="arc3") -> None:
+    ax.add_patch(
+        FancyArrowPatch(
+            p0,
+            p1,
+            arrowstyle=style,
+            mutation_scale=13,
+            color=color,
+            lw=lw,
+            shrinkA=0,
+            shrinkB=0,
+            connectionstyle=connection,
+            zorder=6,
+        )
+    )
+
+
+def _solver_group(ax, x: float, row: int, title: str, names: list[str]) -> None:
+    ax.text(x, _row(row), title, fontsize=10.5, color=MUTED, va="center")
+    for i, name in enumerate(names):
+        ax.text(
+            x + (i % 2) * COLUMNS[0] / 2,
+            _row(row + 1 + i // 2),
+            name,
+            fontsize=12,
+            family="monospace",
+            va="center",
+        )
+
+
+def _draw_solvers(ax, x: float) -> None:
+    _heading(ax, x, "Solvers")
+    _solver_group(ax, x, 1, "Grid and spectral", FLUID_SOLVERS)
+    _solver_group(ax, x, 7, "Finite element", FEM_SOLVERS)
+
+
+def _draw_interface(ax, x: float, w: float) -> None:
+    """Draw the Tesseract node on rows 5 to 7: a title bar and one row per endpoint."""
+    _heading(ax, x, "Interface")
+    y0 = _row(7) - ROW / 2
+    radius = 8
     ax.add_patch(
         FancyBboxPatch(
-            (cx - w / 2, cy - h / 2),
+            (x, y0),
             w,
-            h,
-            boxstyle="round,pad=0.012",
-            facecolor="#4a5568",
-            edgecolor="none",
-            alpha=alpha,
-            lw=0,
+            3 * ROW,
+            boxstyle=f"round,pad=0,rounding_size={radius}",
+            fc="white",
+            ec=INK,
+            lw=1.2,
             zorder=2,
         )
     )
+    y_bar = _row(5) - ROW / 2
+    ax.add_patch(
+        FancyBboxPatch(
+            (x, y_bar),
+            w,
+            ROW,
+            boxstyle=f"round,pad=0,rounding_size={radius}",
+            fc=INK,
+            ec=INK,
+            lw=1.2,
+            zorder=3,
+        )
+    )
+    ax.add_patch(plt.Rectangle((x, y_bar), w, radius, fc=INK, ec=INK, lw=1.2, zorder=3))
+    inset = x + 3 * PAD
     ax.text(
-        cx,
-        cy,
-        name,
-        fontsize=fs,
-        fontweight="medium",
+        inset,
+        _row(5),
+        "Tesseract",
+        fontsize=13,
+        fontweight="bold",
         color="white",
+        va="center",
+        zorder=5,
+    )
+    ax.plot([x, x + w], [_row(6) - ROW / 2] * 2, color=BORDER, lw=0.7, zorder=3)
+    for row, label, color in (
+        (6, "apply(x) → y", INK),
+        (7, "vjp(x, v) → g", PLUM),
+    ):
+        ax.text(
+            inset,
+            _row(row),
+            label,
+            fontsize=12.5,
+            family="monospace",
+            color=color,
+            va="center",
+            zorder=5,
+        )
+        ax.add_patch(
+            Circle((x + w, _row(row)), PAD, fc=color, ec="white", lw=1.2, zorder=7)
+        )
+    ax.text(
+        x + w / 2,
+        _row(8),
+        "one container per solver",
+        fontsize=10.5,
+        color=MUTED,
         ha="center",
         va="center",
-        zorder=3,
-        fontfamily="monospace",
     )
 
 
-def _section_title(ax, text: str) -> None:
-    ax.text(
-        0.50,
-        1.05,
-        text,
-        fontsize=16,
-        fontweight="bold",
-        color=C["text"],
-        ha="center",
-        va="top",
-        transform=ax.transAxes,
-    )
-
-
-def _flow_arrow(fig, x0, y0, x1, y1) -> None:
-    fig.patches.append(
-        FancyArrowPatch(
-            (x0, y0),
-            (x1, y1),
-            arrowstyle="->,head_width=6,head_length=4.5",
-            color=C["arrow"],
-            lw=2,
-            mutation_scale=1,
-            transform=fig.transFigure,
-            zorder=10,
-            clip_on=False,
-        )
-    )
-
-
-def _colored_arrow(fig, x0, y0, x1, y1, color) -> None:
-    rad = -0.15 if y1 > y0 else 0.15
-    conn = f"arc3,rad={rad}"
-    style = "->,head_width=5,head_length=4"
-    fig.patches.append(
-        FancyArrowPatch(
-            (x0, y0),
-            (x1, y1),
-            arrowstyle=style,
-            color="white",
-            lw=3,
-            mutation_scale=1,
-            connectionstyle=conn,
-            transform=fig.transFigure,
-            zorder=9,
-            clip_on=False,
-        )
-    )
-    fig.patches.append(
-        FancyArrowPatch(
-            (x0, y0),
-            (x1, y1),
-            arrowstyle=style,
-            color=color,
-            lw=2,
-            mutation_scale=1,
-            connectionstyle=conn,
-            transform=fig.transFigure,
-            zorder=10,
-            clip_on=False,
-        )
-    )
-
-
-def _draw_flow_panel(ax, flow_field, profile, border_color, vmax) -> None:
-    ux = flow_field[:, :, 0]
-    uy = flow_field[:, :, 1]
-    speed = np.sqrt(ux**2 + uy**2)
-    extent = [0, 1, 0, 1]
+def _draw_flow(ax, x, row, w, flow, profile, vmax) -> None:
+    """Draw a flow panel filling rows *row* to *row* + 2, inset for the wall hatching."""
+    y = _row(row + 2) - ROW / 2 + 2 * PAD
+    h = 3 * ROW - 4 * PAD
+    speed = np.hypot(flow[:, :, 0], flow[:, :, 1])
     ax.imshow(
         speed.T,
         origin="lower",
-        extent=extent,
-        cmap="YlGnBu_r",
+        extent=[x, x + w, y, y + h],
+        cmap=SPEED_CMAP,
         vmin=0,
         vmax=vmax,
         aspect="auto",
         interpolation="bilinear",
-        zorder=0,
+        zorder=1,
     )
+    for wall, side in ((y + h, 1), (y, -1)):
+        ax.add_patch(
+            plt.Rectangle(
+                (x, wall),
+                w,
+                side * 2 * PAD,
+                fc="#dcdee3",
+                ec=MUTED,
+                lw=0,
+                hatch="/////",
+                zorder=3,
+            )
+        )
+        ax.plot([x, x + w], [wall, wall], color=INK, lw=1.3, zorder=4)
     ax.add_patch(
         Ellipse(
-            (_CYL_CENTER[0] / _X_SHOW, _CYL_CENTER[1] / _LY),
-            2 * _CYL_RADIUS / _X_SHOW,
-            2 * _CYL_RADIUS / _LY,
-            fc="#2c3e50",
-            ec="#1a252f",
-            lw=1.0,
+            (x + w * _CYL_CENTER[0] / _X_SHOW, y + h * _CYL_CENTER[1] / _LY),
+            2 * w * _CYL_RADIUS / _X_SHOW,
+            2 * h * _CYL_RADIUS / _LY,
+            fc=INK,
+            ec="none",
             zorder=3,
         )
     )
-    wall_h = 0.015
-    ax.add_patch(
-        Rectangle((0, 1 - wall_h), 1, wall_h, fc="#555555", ec="none", zorder=2)
+    scale = 0.17 * w / max(float(profile.max()), 1e-9)
+    ys = y + h * np.linspace(0.04, 0.96, len(profile))
+    rows = np.linspace(0, len(profile) - 1, 9).astype(int)[1:-1]
+    for yy, u in zip(ys[rows], profile[rows], strict=True):
+        ax.add_patch(
+            FancyArrowPatch(
+                (x + 3, yy),
+                (x + 3 + max(u * scale, 11), yy),
+                arrowstyle="simple,tail_width=1.5,head_width=5,head_length=5",
+                mutation_scale=1,
+                fc=INDIGO,
+                ec="white",
+                lw=0.5,
+                shrinkA=0,
+                shrinkB=0,
+                zorder=6,
+            )
+        )
+
+
+def _draw_tasks(ax, x, w, data) -> None:
+    _heading(ax, x, "Tasks")
+    for row, flow, profile, color, text in (
+        (1, data["flow_initial"], data["profile_initial"], INK, "Forward solve"),
+        (6, data["flow_final"], data["profile_final"], PLUM, "Optimized inflow"),
+    ):
+        ax.text(x, _row(row), text, fontsize=11, color=color, va="center")
+        _draw_flow(ax, x, row + 1, w, flow, profile, data["vmax"])
+    ax.text(
+        x, _row(10), "plus H, S and F3 tasks", fontsize=10.5, color=MUTED, va="center"
     )
-    ax.add_patch(Rectangle((0, 0), 1, wall_h, fc="#555555", ec="none", zorder=2))
-
-    ny = len(profile)
-    ys = np.linspace(0.03, 0.97, ny)
-    max_arrow_len = 0.14
-    p_min, p_max = profile.min(), profile.max()
-    if p_max > p_min:
-        p_norm = (profile - p_min) / (p_max - p_min)
-    else:
-        p_norm = np.ones_like(profile)
-
-    for y, pn in list(zip(ys, p_norm, strict=False))[::2]:
-        length = max_arrow_len * max(pn, 0.05)
-        x_tip = length
-        x_tail = -0.01
-        ax.plot(
-            [x_tail, x_tip],
-            [y, y],
-            color="black",
-            lw=3.6,
-            solid_capstyle="butt",
-            zorder=4,
-        )
-        ax.plot(
-            x_tip + 0.003,
-            y,
-            marker=">",
-            color="black",
-            ms=6.0,
-            markeredgewidth=0,
-            zorder=4,
-        )
-        ax.plot(
-            [x_tail, x_tip],
-            [y, y],
-            color=border_color,
-            lw=3.2,
-            solid_capstyle="butt",
-            zorder=5,
-        )
-        ax.plot(
-            x_tip + 0.003,
-            y,
-            marker=">",
-            color=border_color,
-            ms=5.5,
-            markeredgewidth=0,
-            zorder=5,
-        )
-
-    ax.set_xlim(-0.02, 1.0)
-    ax.set_ylim(-0.01, 1.01)
-    ax.axis("off")
 
 
-def _draw_backends(ax) -> None:
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
-    _section_title(ax, "Solver backends")
-    solvers = [
-        "PhiFlow",
-        "XLB",
-        "PICT",
-        "FEniCS",
-        "INS.jl",
-        "OpenFOAM",
-        "deal.II",
-        "···",
-    ]
-    w, h = 0.72, 0.080
-    n = len(solvers)
-    total_h = n * h + (n - 1) * 0.022
-    y_top = 0.5 + total_h / 2
-    for i, name in enumerate(solvers):
-        cy = y_top - i * (h + 0.022) - h / 2
-        _card(ax, 0.50, cy, w, h, name, 13.0, alpha=0.85 if name != "···" else 0.35)
-
-
-_FWD_LABEL_FIG: tuple[float, float] | None = None
-_VJP_LABEL_FIG: tuple[float, float] | None = None
-
-
-def _draw_interface(ax) -> None:
-    global _FWD_LABEL_FIG, _VJP_LABEL_FIG
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
-    _section_title(ax, "Standardized\ninterface")
-    tcx, tcy = 0.50, 0.50
-    tw, th = 0.84, 0.22
+def _tile(ax, x: float, y: float, w: float, h: float, kind: str) -> None:
+    """One table cell; fill and glyph both carry the state, so print stays readable."""
+    fill, color = TILES[kind]
     ax.add_patch(
         FancyBboxPatch(
-            (tcx - tw / 2, tcy - th / 2),
-            tw,
-            th,
-            boxstyle="round,pad=0.018",
-            facecolor=C["tess"],
-            edgecolor=C["tess"],
-            alpha=0.92,
-            lw=2.0,
-            zorder=2,
+            (x - w / 2, y - h / 2),
+            w,
+            h,
+            boxstyle="round,pad=0,rounding_size=4",
+            fc=fill,
+            ec="none",
         )
     )
-    ax.text(
-        tcx,
-        tcy + 0.06,
-        "Tesseract",
-        fontsize=16,
-        color="white",
-        ha="center",
-        va="center",
-        fontweight="bold",
-        zorder=4,
-        fontfamily="monospace",
-    )
-    ax.text(
-        tcx,
-        tcy - 0.01,
-        "apply(x) → y",
-        fontsize=15,
-        color="#85C1E9",
-        ha="center",
-        va="center",
-        zorder=4,
-        fontfamily="monospace",
-        fontweight="medium",
-    )
-    ax.text(
-        tcx,
-        tcy - 0.08,
-        "vjp(x, v) → g",
-        fontsize=15,
-        color="#F1948A",
-        ha="center",
-        va="center",
-        zorder=4,
-        fontfamily="monospace",
-        fontweight="medium",
-    )
-    _FWD_LABEL_FIG = (tcx + tw / 2 - 0.02, tcy - 0.01)
-    _VJP_LABEL_FIG = (tcx + tw / 2 - 0.02, tcy - 0.08)
+    line = {"color": color, "lw": 2.0, "solid_capstyle": "round"}
+    if kind == "ok":
+        ax.plot(
+            [x - 8, x - 2, x + 9], [y, y - 6, y + 6], solid_joinstyle="round", **line
+        )
+    elif kind == "pt":
+        ax.plot([x - 8, x + 8], [y, y], **line)
+    elif kind == "no":
+        for s in (1, -1):
+            ax.plot([x - 6, x + 6], [y - s * 6, y + s * 6], **line)
 
 
-def _draw_tasks(ax, data) -> None:
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
-    _section_title(ax, "Benchmark tasks")
-    iax_top = ax.inset_axes([0.02, 0.57, 0.96, 0.34])
-    _draw_flow_panel(
-        iax_top, data["flow_initial"], data["profile_initial"], C["fwd"], data["vmax"]
-    )
-    for sp in iax_top.spines.values():
-        sp.set_visible(True)
-        sp.set_color(C["fwd"])
-        sp.set_linewidth(2.0)
+def _draw_results(ax, x: float, w: float) -> None:
+    _heading(ax, x, "Results")
     ax.text(
-        0.50,
-        0.92,
-        "forward solve",
-        fontsize=13,
-        color=C["fwd"],
-        ha="center",
-        va="bottom",
-        style="italic",
-        zorder=10,
+        x + w,
+        HEADING_Y,
+        "2D Navier–Stokes, checks per suite",
+        fontsize=10.5,
+        color=MUTED,
+        ha="right",
+        va="baseline",
     )
-    iax_bot = ax.inset_axes([0.02, 0.08, 0.96, 0.34])
-    _draw_flow_panel(
-        iax_bot, data["flow_final"], data["profile_final"], C["inv"], data["vmax"]
-    )
-    for sp in iax_bot.spines.values():
-        sp.set_visible(True)
-        sp.set_color(C["inv"])
-        sp.set_linewidth(2.0)
-    ax.text(
-        0.50,
-        0.43,
-        "optimized inflow (via gradient)",
-        fontsize=13,
-        color=C["inv"],
-        ha="center",
-        va="bottom",
-        style="italic",
-        zorder=10,
-    )
-
-
-def _draw_results(ax) -> None:
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
-    _section_title(ax, "Evaluation results")
     glyphs = _status_glyphs("ns-grid")
     solvers = [s for s in NS_ORDER if s in glyphs]
-    n_rows = len(solvers)
-    x0, y0 = 0.04, 0.14
-    tw, th = 0.92, 0.76
-    header_h = 0.07
-    row_h = (th - header_h) / n_rows
-    col_w = [0.26, 0.16, 0.16, 0.16, 0.16]
-    total_cw = sum(col_w)
-    col_w = [c / total_cw * tw for c in col_w]
-    sym = {
-        "ok": ("●", "#222222", "pass"),
-        "pt": ("◑", "#555555", "partly"),
-        "no": ("✗", "#555555", "fail"),
-        "na": ("—", "#AAAAAA", "not applicable"),
-    }
-    hy = y0 + th
-    ax.text(
-        x0 + tw / 2,
-        hy + 0.015,
-        "2D Navier–Stokes, checks per suite",
-        fontsize=10,
-        color=C["muted"],
-        ha="center",
-        va="bottom",
-        style="italic",
-    )
-    ax.plot([x0, x0 + tw], [hy, hy], color=C["text"], lw=1.6)
-    hx = x0 + col_w[0]
-    hdr_y = hy - header_h / 2
-    for j, hdr in enumerate(_SUITE_HEADERS):
-        cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
+    name_w = 128
+    col_w = (w - name_w) / len(_SUITE_HEADERS)
+    for j, header in enumerate(_SUITE_HEADERS):
         ax.text(
-            cx,
-            hdr_y,
-            hdr,
-            fontsize=10,
-            fontweight="bold",
-            color=C["text"],
+            x + name_w + (j + 0.5) * col_w,
+            _row(1),
+            header,
+            fontsize=10.5,
+            color=MUTED,
             ha="center",
             va="center",
         )
-    rule_y = hy - header_h
-    ax.plot([x0, x0 + tw], [rule_y, rule_y], color=C["text"], lw=0.8)
     for i, solver in enumerate(solvers):
-        ry = rule_y - (i + 0.5) * row_h
+        y = _row(i + 2)
         ax.text(
-            x0 + 0.02,
-            ry,
-            solver_props(solver)[0],
-            fontsize=10,
-            color=C["text"],
-            ha="left",
-            va="center",
-            fontfamily="monospace",
+            x, y, solver_props(solver)[0], fontsize=12, family="monospace", va="center"
         )
-        for j, glyph in enumerate(glyphs[solver]):
-            cx = hx + sum(col_w[1 : j + 1]) + col_w[j + 1] / 2
-            symbol, color, _ = sym[glyph]
-            ax.text(
-                cx,
-                ry,
-                symbol,
-                fontsize=11,
-                color=color,
-                ha="center",
-                va="center",
-                zorder=2,
-            )
-    bot_y = rule_y - n_rows * row_h
-    ax.plot([x0, x0 + tw], [bot_y, bot_y], color=C["text"], lw=1.6)
-    ax.text(
-        x0 + tw / 2,
-        bot_y - 0.03,
-        "    ".join(
-            f"{symbol} {meaning}"
-            for key, (symbol, _, meaning) in sym.items()
-            if any(key in g for g in glyphs.values())
-        ),
-        fontsize=9.5,
-        color=C["muted"],
-        ha="center",
-        va="top",
-    )
+        for j, kind in enumerate(glyphs[solver]):
+            _tile(ax, x + name_w + (j + 0.5) * col_w, y, col_w - PAD, ROW - PAD, kind)
+    labels = {"ok": "pass", "pt": "partly", "no": "fail", "na": "not applicable"}
+    used = [k for k in labels if any(k in glyphs[s] for s in solvers)]
+    for j, kind in enumerate(used):
+        lx = x + j * w / len(used)
+        _tile(ax, lx + 13, _row(10), 26, 20, kind)
+        ax.text(
+            lx + 26 + PAD,
+            _row(10),
+            labels[kind],
+            fontsize=10.5,
+            color=MUTED,
+            va="center",
+        )
 
 
 def generate(out_dir: Path) -> None:
     data = _load_flow_data()
 
     with plt.rc_context(_RCPARAMS):
-        fig = plt.figure(figsize=(14, 5.8), dpi=200)
-        gap = 0.028
-        widths = [0.14, 0.16, 0.22, 0.32]
-        left = 0.008
-        bottom, h = 0.015, 0.95
+        fig = plt.figure(figsize=(10.6, 10.6 * H / W), dpi=200)
+        ax = fig.add_axes([0, 0, 1, 1])
 
-        positions = []
-        x = left
-        for w in widths:
-            positions.append(x)
-            x += w + gap
+        x_solvers, x_iface, x_tasks, x_results = (_column_x(i) for i in range(4))
+        _draw_solvers(ax, x_solvers)
+        _draw_interface(ax, x_iface, COLUMNS[1])
+        _draw_tasks(ax, x_tasks, COLUMNS[2], data)
+        _draw_results(ax, x_results, COLUMNS[3])
 
-        axes = []
-        for pos, w in zip(positions, widths, strict=False):
-            axes.append(fig.add_axes([pos, bottom, w, h]))
-
-        _draw_backends(axes[0])
-        _draw_interface(axes[1])
-        _draw_tasks(axes[2], data)
-        _draw_results(axes[3])
-
-        my = 0.48
-        _flow_arrow(fig, positions[0] + widths[0], my, positions[1], my)
-        _flow_arrow(fig, positions[2] + widths[2], my, positions[3], my)
-
-        ax_iface = axes[1]
-        ax_tasks = axes[2]
-
-        if _FWD_LABEL_FIG is not None:
-            fwd_src = ax_iface.transData.transform(_FWD_LABEL_FIG)
-            fwd_src_fig = fig.transFigure.inverted().transform(fwd_src)
-            fwd_dst = ax_tasks.transData.transform((0.0, 0.71))
-            fwd_dst_fig = fig.transFigure.inverted().transform(fwd_dst)
-            _colored_arrow(
-                fig,
-                fwd_src_fig[0],
-                fwd_src_fig[1],
-                fwd_dst_fig[0],
-                fwd_dst_fig[1],
-                C["fwd"],
+        # Gutter arrows sit on the middle row, PAD clear of both columns.
+        y_mid = _row(6)
+        for x_next in (x_iface, x_results):
+            _arrow(ax, (x_next - GUTTER + PAD, y_mid), (x_next - PAD, y_mid))
+        x_elbow = x_tasks - GUTTER / 2
+        for row_from, row_to, color in ((6, 3, INK), (7, 8, PLUM)):
+            ax.plot(
+                [x_iface + COLUMNS[1], x_elbow, x_elbow],
+                [_row(row_from), _row(row_from), _row(row_to)],
+                color=color,
+                lw=1.4,
+                solid_joinstyle="round",
+            )
+            _arrow(
+                ax, (x_elbow, _row(row_to)), (x_tasks - PAD, _row(row_to)), color=color
             )
 
-        if _VJP_LABEL_FIG is not None:
-            vjp_src = ax_iface.transData.transform(_VJP_LABEL_FIG)
-            vjp_src_fig = fig.transFigure.inverted().transform(vjp_src)
-            vjp_dst = ax_tasks.transData.transform((0.0, 0.24))
-            vjp_dst_fig = fig.transFigure.inverted().transform(vjp_dst)
-            _colored_arrow(
-                fig,
-                vjp_src_fig[0],
-                vjp_src_fig[1],
-                vjp_dst_fig[0],
-                vjp_dst_fig[1],
-                C["inv"],
-            )
+        ax.set_xlim(0, W)
+        ax.set_ylim(0, H)
+        ax.axis("off")
 
         for ext in ("pdf", "png"):
             out = out_dir / f"visual_abstract.{ext}"
-            fig.savefig(
-                out,
-                bbox_inches="tight",
-                pad_inches=0.04,
-                dpi=300 if ext == "png" else 200,
-            )
+            fig.savefig(out, dpi=300)
             print(f"Saved {out}")
         plt.close(fig)
