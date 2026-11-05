@@ -66,7 +66,7 @@ _DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ---------------------------------------------------------------------------
 
 
-def _make_periodic_domain(
+def _make_periodic_domain(  # mosaic:init
     viscosity_val: torch.Tensor, N: int, ndim: int, dtype: torch.dtype
 ) -> PISOtorch.Domain:
     """Create a single all-periodic block of N×N (×N in 3-D) unit cells."""
@@ -91,7 +91,7 @@ def _make_periodic_domain(
 # ---------------------------------------------------------------------------
 
 
-def _v0_to_pict(
+def _v0_to_pict(  # mosaic:io
     v0_np: np.ndarray,
     device: torch.device,
     dtype: torch.dtype,
@@ -126,7 +126,7 @@ def _v0_to_pict(
     return t
 
 
-def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:
+def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:  # mosaic:io
     """Convert PICT channels-first tensor → canonical velocity array.
 
     2-D: NCHW (1, 2, ny, nx) → (nx, ny, 1, 2)
@@ -162,7 +162,7 @@ def _pict_to_v0(vel: torch.Tensor, N: int, ndim: int) -> torch.Tensor:
 # pressure are unchanged. Everything outside the blocks stays physical.
 
 
-def _o_block_vertices(
+def _o_block_vertices(  # mosaic:init
     side: str,
     box: tuple[float, float, float, float],
     center: tuple[float, float],
@@ -203,13 +203,13 @@ def _o_block_vertices(
     return pts
 
 
-def _cell_centers(vertices: np.ndarray) -> np.ndarray:
+def _cell_centers(vertices: np.ndarray) -> np.ndarray:  # mosaic:init
     """Cell centers (2, nj, ni) as the mean of each cell's four vertices."""
     v = vertices
     return 0.25 * (v[:, :-1, :-1] + v[:, 1:, :-1] + v[:, :-1, 1:] + v[:, 1:, 1:])
 
 
-def _linear_weights(
+def _linear_weights(  # mosaic:init
     points: np.ndarray, targets: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """Indices and weights (m, 3) of linear interpolation on a Delaunay triangulation."""
@@ -234,7 +234,7 @@ _WALL_CELLS = {
 }
 
 
-class _Channel:
+class _Channel:  # mosaic:init
     """The DFG channel on PICT blocks, with transfers to and from the canonical grid.
 
     Block cell values are gathered into one flat vector per field (block by
@@ -555,7 +555,7 @@ class _Channel:
 # ---------------------------------------------------------------------------
 
 
-class _LogRecordCollector(logging.Handler):
+class _LogRecordCollector(logging.Handler):  # mosaic:util
     """Logging handler that keeps the exceptions attached to log records."""
 
     def __init__(self) -> None:
@@ -568,7 +568,7 @@ class _LogRecordCollector(logging.Handler):
 
 
 # mosaic-intervention: warm-start-pressure
-def _warm_cg(
+def _warm_cg(  # mosaic:grad
     matrix: PISOtorch.CSRmatrix,
     rhs: torch.Tensor,
     guess: torch.Tensor,
@@ -632,7 +632,7 @@ def _warm_cg(
     return _Solve.apply(matrix.value, rhs)
 
 
-class _WarmStartSimulation(PISOtorch_simulation.Simulation):
+class _WarmStartSimulation(PISOtorch_simulation.Simulation):  # mosaic:physics
     """PICT's PISO loop with each pressure solve warm-started.
 
     PICT starts every pressure CG solve from zero. Here the k-th corrector of
@@ -685,7 +685,7 @@ class _WarmStartSimulation(PISOtorch_simulation.Simulation):
 
 
 # mosaic-intervention-end: warm-start-pressure
-def _simulate(
+def _simulate(  # mosaic:physics
     domain: PISOtorch.Domain,
     dt_val: float,
     steps: int,
@@ -751,7 +751,7 @@ def _simulate(
 _PERIODIC_SOLVE_TOL = 1e-6
 
 
-def _run_periodic(
+def _run_periodic(  # mosaic:physics
     v0_tensor: torch.Tensor,
     viscosity_val: torch.Tensor,
     dt_val: float,
@@ -817,7 +817,7 @@ def _run_periodic(
     return block.velocity, domain, snapshots
 
 
-def _run_channel(
+def _run_channel(  # mosaic:physics
     inputs: InputSchema,
     v0: torch.Tensor,
     profile: torch.Tensor,
@@ -905,7 +905,7 @@ def _run_channel(
 # ---------------------------------------------------------------------------
 
 
-def _periodic_scaling(inputs: InputSchema) -> tuple[float, float, float]:
+def _periodic_scaling(inputs: InputSchema) -> tuple[float, float, float]:  # mosaic:init
     """``(phys_scale, dt_pict, nu_pict)`` for PICT's unit-cell periodic box.
 
     With x_pict = x_phys · N/L and velocity unchanged, the physical NS equation
@@ -920,7 +920,9 @@ def _periodic_scaling(inputs: InputSchema) -> tuple[float, float, float]:
     )
 
 
-def _profile_tensor(inputs: InputSchema, requires_grad: bool) -> torch.Tensor:
+def _profile_tensor(
+    inputs: InputSchema, requires_grad: bool
+) -> torch.Tensor:  # mosaic:io
     profile = np.ascontiguousarray(inputs.inflow_profile, dtype=np.float32)
     return torch.tensor(profile, device=_DEVICE).requires_grad_(requires_grad)
 
@@ -968,7 +970,9 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return out
 
 
-def _periodic_source(inputs: InputSchema, dtype: torch.dtype) -> dict[str, Any]:
+def _periodic_source(
+    inputs: InputSchema, dtype: torch.dtype
+) -> dict[str, Any]:  # mosaic:physics
     """Body force and drag in PICT's unit-cell units.
 
     With x_pict = x · N/L and the velocity unchanged, time scales like length,
@@ -984,7 +988,7 @@ def _periodic_source(inputs: InputSchema, dtype: torch.dtype) -> dict[str, Any]:
     return {"force": force, "drag": drag}
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

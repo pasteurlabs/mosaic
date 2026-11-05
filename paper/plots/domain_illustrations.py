@@ -215,21 +215,18 @@ def _make_domain1(out_dir: Path) -> None:
 def _make_domain2a_ic_recovery(out_dir: Path) -> None:
     """Domain 2A: 3D Initial Condition Recovery."""
 
-    def taylor_green_vorticity(n=80):
-        x = np.linspace(0, 2 * np.pi, n)
-        y = np.linspace(0, 2 * np.pi, n)
-        X, Y = np.meshgrid(x, y)
-        return -2 * np.sin(X) * np.sin(Y)
+    def random_vorticity(n, decay=0.0):
+        """Smooth random field with energy near |k| = 2, like the rand_div_free IC.
 
-    def decayed_vorticity(n=80):
-        x = np.linspace(0, 2 * np.pi, n)
-        y = np.linspace(0, 2 * np.pi, n)
-        X, Y = np.meshgrid(x, y)
-        angle = 0.4
-        ca, sa = np.cos(angle), np.sin(angle)
-        Xr = ca * X + sa * Y
-        Yr = -sa * X + ca * Y
-        return 0.55 * (-2) * np.sin(Xr) * np.sin(Yr)
+        ``decay`` damps each mode by exp(-decay |k|^2), a stand-in for viscous
+        evolution.
+        """
+        rng = np.random.default_rng(0)
+        k = np.fft.fftfreq(n, d=1.0 / n)
+        K = np.sqrt(k[:, None] ** 2 + k[None, :] ** 2)
+        noise = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+        spectrum = noise * np.exp(-0.5 * (K - 2.0) ** 2) * np.exp(-decay * K**2)
+        return np.real(np.fft.ifft2(spectrum))
 
     def paint_face(ax, vort, face, origin, size, cmap, vmax):
         n = vort.shape[0]
@@ -325,8 +322,10 @@ def _make_domain2a_ic_recovery(out_dir: Path) -> None:
     ax.view_init(elev=20, azim=-55)
     ax.set_proj_type("persp", focal_length=0.35)
 
-    omega_ic = taylor_green_vorticity(160)
-    omega_tgt = decayed_vorticity(160)
+    omega_ic = random_vorticity(160)
+    scale = 0.8 / omega_ic.std()
+    omega_ic *= scale
+    omega_tgt = scale * np.roll(random_vorticity(160, decay=0.15), 25, axis=0)
 
     lo = (0, 0, 0)
     paint_face(ax, omega_ic, "xy_bottom", lo, box_size, "RdBu_r", 2.0)
@@ -497,7 +496,7 @@ def _make_domain3(out_dir: Path) -> None:
                             density = max(density, 0.7 + 0.2 * (1 - xn))
             if xn < 0.04:
                 density = max(density, 1.0)
-            dist_to_load = np.sqrt((xn - 1.0) ** 2 + (yn - 0.5) ** 2)
+            dist_to_load = np.sqrt((xn - 1.0) ** 2 + yn**2)
             if dist_to_load < 0.12:
                 density = max(density, 0.9)
             rho[j, i] = density
@@ -579,13 +578,14 @@ def _make_domain3(out_dir: Path) -> None:
         color="#333333",
     )
 
+    # Upward load at the bottom corner of the free end, as in optimization/topopt
     load_x = x0 + W
-    load_y = y0 + H / 2
+    load_y = y0
     arrow_len = 0.8
     ax.annotate(
         "",
-        xy=(load_x + 0.15, load_y - arrow_len),
-        xytext=(load_x + 0.15, load_y + 0.05),
+        xy=(load_x + 0.15, load_y + arrow_len),
+        xytext=(load_x + 0.15, load_y),
         arrowprops={
             "arrowstyle": "->",
             "color": OBJECTIVE_COLOR,
@@ -595,8 +595,8 @@ def _make_domain3(out_dir: Path) -> None:
     )
     ax.text(
         load_x + 0.45,
-        load_y - arrow_len / 2 + 0.05,
-        "      $\\mathbf{F}$\n(tip load)",
+        load_y + arrow_len / 2,
+        "      $\\mathbf{F}$\n(corner load)",
         ha="left",
         va="center",
         fontsize=LABEL_FONTSIZE,
@@ -665,18 +665,17 @@ def _make_domain4(out_dir: Path) -> None:
             -((X - cx) ** 2) / (2 * sx**2) - (Y - cy) ** 2 / (2 * sy**2)
         )
 
+    # Ground truth of optimization/conductivity_recovery_bfgs: two equal
+    # Gaussians at (0.3 Lx, 0.5 Ly) and (0.7 Lx, 0.5 Ly) (thermal_mesh/ics.py)
     k_field = (
         1.0
-        + gaussian(X, Y, 0.3, 0.7, 0.10, 0.10, 2.5)
-        + gaussian(X, Y, 0.7, 0.3, 0.12, 0.09, 2.0)
-        + gaussian(X, Y, 0.5, 0.55, 0.08, 0.11, 1.5)
+        + gaussian(X, Y, 0.3, 0.5, 0.10, 0.10, 2.5)
+        + gaussian(X, Y, 0.7, 0.5, 0.10, 0.10, 2.5)
     )
-    T_obs = (
-        0.15 * (1 - X)
-        + gaussian(X, Y, 0.55, 0.50, 0.25, 0.25, 0.6)
-        + gaussian(X, Y, 0.35, 0.65, 0.18, 0.18, 0.3)
-        + 0.08 * np.sin(np.pi * Y)
-    )
+    # Heat enters at the right face and leaves at the cold left face; row by
+    # row, T(x) is the integral of 1/k
+    T_obs = np.cumsum(1.0 / k_field, axis=1)
+    T_obs /= T_obs.max()
 
     fig, (ax_l, ax_r) = plt.subplots(
         1, 2, figsize=(TEXTWIDTH * 0.4, TEXTWIDTH * 0.26), dpi=300
@@ -732,9 +731,10 @@ def _make_domain4(out_dir: Path) -> None:
     )
 
     ax.plot([1, 1], [0, 1], color="darkorange", linewidth=1.5, solid_capstyle="butt")
+    # Heat flux into the slab through the right face
     for yy in np.linspace(0.15, 0.85, 5):
         n_wave = 40
-        t_arr = np.linspace(0, 0.14, n_wave + 6)
+        t_arr = np.linspace(0, 0.10, n_wave + 6)
         fade_start = int(0.80 * n_wave)
         flat_start = int(0.95 * n_wave)
         envelope = np.ones(len(t_arr))
@@ -743,11 +743,11 @@ def _make_domain4(out_dir: Path) -> None:
         )
         envelope[flat_start:] = 0
         wave = yy + 0.030 * envelope * np.sin(2 * np.pi * t_arr / 0.04)
-        ax.plot(1 + t_arr, wave, color="darkorange", linewidth=0.9)
+        ax.plot(1.14 - t_arr, wave, color="darkorange", linewidth=0.9)
         ax.annotate(
             "",
-            xy=(1.17, yy),
-            xytext=(1.12, yy),
+            xy=(1.0, yy),
+            xytext=(1.05, yy),
             annotation_clip=False,
             arrowprops={
                 "arrowstyle": "-|>,head_width=0.14,head_length=0.14",

@@ -92,7 +92,7 @@ torch.use_deterministic_algorithms(True, warn_only=True)
 # ---------------------------------------------------------------------------
 
 
-def _build_bcs(
+def _build_bcs(  # mosaic:init
     model: Solid,
     bc: dict[str, Any],
     n_nodes: int,
@@ -155,7 +155,7 @@ def _build_bcs(
 # ---------------------------------------------------------------------------
 
 
-def _compliance(
+def _compliance(  # mosaic:physics
     inputs: dict[str, Any], want_grad: bool
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Solve the SIMP cantilever and return ``(compliance, rho_tensor)``.
@@ -221,7 +221,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return {"compliance": np.float32(compliance.detach().cpu().numpy())}
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

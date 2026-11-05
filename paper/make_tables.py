@@ -22,6 +22,7 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
+import count_loc
 from plots import (
     by_solver,
     device_mib,
@@ -30,6 +31,7 @@ from plots import (
     load_result,
     results_dir,
     solver_metadata,
+    solver_wrappers,
 )
 
 PROBLEMS = ["ns-grid", "ns-3d-grid", "structural-mesh", "thermal-mesh"]
@@ -262,44 +264,20 @@ BLOCKS = [
     },
 ]
 
-# Bespoke lines of code (IO, Num., Conf.) per solver wrapper, counted on the
-# reviewed release. The Navier--Stokes wrappers serve both grid problems, so F2
-# and F3 share their counts, including Exponax on F2 and JAX-CFD on F3, which the
-# reviewed release listed under the other grid problem only.
-_LOC_NS = {
-    "Exponax": (41, 160, 0),
-    "INS.jl": (117, 1097, 97),
-    "jax-cfd": (38, 286, 21),
-    "OpenFOAM": (275, 127, 437),
-    "PhiFlow": (38, 262, 36),
-    "PICT": (48, 329, 892),
-    "Warp-NS": (0, 1631, 0),
-    "XLB": (13, 464, 58),
-}
-LOC_REVIEWED: dict[str, dict[str, tuple[int, int, int]]] = {
-    "ns-grid": _LOC_NS,
-    "ns-3d-grid": _LOC_NS,
-    "structural-mesh": {
-        "deal.II": (408, 344, 147),
-        "FEniCS": (0, 222, 63),
-        "Firedrake": (39, 221, 137),
-        "JAX-FEM": (0, 150, 133),
-        "TopOpt.jl": (124, 155, 42),
-    },
-    "thermal-mesh": {
-        "deal.II": (381, 263, 75),
-        "FEniCS": (0, 513, 61),
-        "Firedrake": (0, 420, 102),
-        "JAX-FEM": (0, 211, 95),
-        "torch-fem": (0, 268, 122),
-    },
-}
 LOC_COLUMNS = ("IO", "Num.", "Conf.")
 
 
 def line_counts(problem: str) -> dict[str, tuple[int, int, int]]:
-    """Bespoke lines (IO, Num., Conf.) per solver of *problem*; solvers without counts are absent."""
-    return LOC_REVIEWED[problem]
+    """Bespoke lines (IO, Num., Conf.) per solver wrapper of *problem*.
+
+    The Navier--Stokes wrappers serve both grid problems, so F2 and F3 share
+    their counts.
+    """
+    counts = count_loc.line_counts()
+    return {
+        solver: tuple(counts[key][col] for col in ("IO", "Num", "Conf"))
+        for solver, key in solver_wrappers(problem).items()
+    }
 
 
 def grad_symbol(cell: dict | None, ad_strategy: str | None) -> str:
@@ -379,8 +357,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
                     cells[s] = missing or ("$-$" if no_grad else "$?$")
             cols[key] = cells
         for i, col in enumerate(LOC_COLUMNS):
-            vals = {s: loc[s][i] for s in solvers if s in loc}
-            cells = {s: (str(vals[s]) if s in vals else "$-$") for s in solvers}
+            vals = {s: loc[s][i] for s in solvers}
+            cells = {s: str(vals[s]) for s in solvers}
             cols[col] = bold_min(cells, vals)
 
         heads = [h for h, _ in b["grads"]] + [""] * (n_grad - len(b["grads"]))
@@ -418,7 +396,6 @@ def merged_table(status: dict) -> tuple[str, dict]:
     Wall-clock times are means of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
     1 warmup, at $N={TABLE_SIZE["ns-grid"]}$ (F2), $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
     $n_x={TABLE_SIZE["structural-mesh"]}$ (S), and $n_x={TABLE_SIZE["thermal-mesh"]}$ (H).
-    Line counts were taken on the reviewed release.
     Full specifications in \cref{{app:effort}}; initial conditions in
     \cref{{app:ics}}. Legend below table.}}
   \label{{tab:merged}}
@@ -818,10 +795,29 @@ def outcomes_table(
             f"{a100_outcomes(p, exp, s, values, status, extra)} \\\\"
         )
 
+    # Failure points of the A100 run itself in the fluid sweeps.
+    new_rows = []
+    n_new = 0
+    for p in ("ns-grid", "ns-3d-grid"):
+        for exp in OUTCOME_EXPERIMENTS[p]:
+            res = load_result(p, exp)
+            key = res["sweep"]["key"]
+            for s, pts in sorted(by_solver(res).items(), key=lambda kv: kv[0].lower()):
+                for v, m in pts.items():
+                    lab = failure_label(m, device_mib(results_dir()))
+                    if lab in (None, "skipped"):
+                        continue
+                    n_new += 1
+                    new_rows.append(
+                        f"  {PROBLEM_LABEL[p]} & {SWEEP_LABEL[exp]} & {SOLVERS[s][0]} & {size_label(key, v)} & "
+                        f"{lab} & {gb(m['vram_peak_mib'])} \\\\"
+                    )
+
     body = "\n    ".join(rows)
+    new_body = "\n    ".join(new_rows)
     died_note = (
         r" \emph{died}: the container exited otherwise;"
-        if any(" died" in r for r in rows)
+        if any(" died" in r for r in rows + new_rows)
         else ""
     )
     text = rf"""\begin{{table}}[p]
@@ -835,7 +831,8 @@ def outcomes_table(
     memory full;{died_note} \emph{{not in sweep}}:
     outside the sweep range of the A100 run. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{{30}}$ bytes.
-    FEniCS-NS and SU2 are no longer part of the suite.}}
+    FEniCS-NS and SU2 are no longer part of the suite. \Cref{{tab:app:a100failures}} lists
+    the failure points of the A100 run.}}
   \label{{tab:app:outcomes}}
   \begin{{tabular}}{{@{{}}l l l {ragged(0.33)} {ragged(0.33)}@{{}}}}
     \toprule
@@ -845,8 +842,23 @@ def outcomes_table(
     \bottomrule
   \end{{tabular}}
 \end{{table}}
+
+\begin{{table}}[t]
+  \centering\small
+  \caption{{Failure points of the A100 run in the fluid cost and horizon sweeps, with the
+    peak VRAM recorded before the failure (an allocation that does not fit is not counted;
+    1\,GB = $2^{{30}}$ bytes). Larger points of the same sweep were not attempted.}}
+  \label{{tab:app:a100failures}}
+  \begin{{tabular}}{{@{{}}l l l l l r@{{}}}}
+    \toprule
+    & \textbf{{Sweep}} & \textbf{{Solver}} & \textbf{{First failure}} & \textbf{{Outcome}} & \textbf{{VRAM (GB)}} \\
+    \midrule
+    {new_body}
+    \bottomrule
+  \end{{tabular}}
+\end{{table}}
 """
-    return text, {"rows": len(rows)}
+    return text, {"rows": len(rows), "a100_failures": n_new}
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
@@ -919,7 +931,9 @@ def main() -> None:
             status, args.v100_results, args.t4_results, args.extra_results
         )
         write(args.out_dir, "outcomes16gb.tex", out)
-        print(f"  outcomes: {out_sum['rows']} 16 GB rows")
+        print(
+            f"  outcomes: {out_sum['rows']} 16 GB rows, {out_sum['a100_failures']} A100 failure points"
+        )
     else:
         print("Skipping outcomes16gb.tex (needs --v100-results and --t4-results)")
 
