@@ -34,7 +34,7 @@ composable frameworks and low-level kernel toolkits, each demanding
 different expertise and integration effort. Runtime overhead, gradient accuracy, and numerical conditioning
 have not been systematically measured, and solver-specific constraints
 (periodic-only boundary conditions,
-incompatible penalization schemes, stability limits) surface only after
+missing boundary types, stability limits) surface only after
 a practitioner has committed to a particular solver.
 
 Learned surrogates and physics foundation models offer an alternative
@@ -658,7 +658,7 @@ Gradient accuracy, computational cost, Jacobian conditioning, and setup
 compatibility all vary across solvers, across domains, and across
 operating regimes within a single domain. Yet these differences do not
 affect optimization outcomes uniformly. Based on the four benchmark
-tasks evaluated here, we highlight five practitioner-facing observations.
+tasks evaluated here, we highlight four practitioner-facing observations.
 
 \paragraph{Gradient quality is often good enough; the real bottlenecks
 lie elsewhere}
@@ -666,45 +666,62 @@ On every task where they can run, all solvers that produce gradients
 converge to equivalent optima despite order-of-magnitude differences in
 accuracy and conditioning. While more complex tasks may reveal cases
 where gradient quality becomes limiting, the pattern on these benchmarks
-suggests that conditioning is likely a better predictor of
-stability of the optimization or training procedure than pointwise gradient accuracy.
+suggests that pointwise gradient accuracy rarely limits the optimization
+or training procedure. Nor did conditioning predict stability, as the comparatively
+well-conditioned XLB returns non-finite gradients after 320 steps, while
+the poorly conditioned INS.jl and JAX-CFD run until memory runs out.
 
 \paragraph{Rollout length is the critical scaling parameter}
-Jacobian conditioning degrades with rollout length across all solvers
-(\cref{fig:conditioning}), with projection-based solvers deteriorating
-faster than LBM or spectral methods. Memory scales likewise, and
-several solvers exceed GPU limits before gradient quality becomes
-relevant.
+Jacobian conditioning degrades with rollout length
+(\cref{fig:conditioning}), markedly for projection-based solvers and
+barely for LBM or spectral methods. Memory grows with rollout length as
+well, but with 80\,GB of GPU memory, numerical stability binds first for
+three of the seven F3 solvers, which return non-finite gradients after
+160 to 320 steps. Memory limits the others only at longer rollouts, if
+at all.
 
-\paragraph{On the negative-control domains, pick the fastest solver}
-On the negative-control domains (H, S), all solvers produce equivalent
+\paragraph{On the steady mesh domains, pick the fastest solver}
+On the steady mesh domains (H, S), all solvers produce equivalent
 results regardless of AD strategy or numerical method. Because gradient
 quality is not a differentiator in these regimes, the selection criterion
 reduces to forward-solve speed and integration effort.
 
 \paragraph{Reverse-mode AD offers the best effort-to-capability
 tradeoff}
-Hand-derived adjoints can be faster than the forward solve
-(\cref{tab:merged}), but each new control variable or objective requires
+Hand-derived adjoints can be cheap, as TopOpt.jl's self-adjoint
+compliance gradient costs about one forward solve (\cref{tab:merged}), but each new control variable or objective requires
 additional implementation work. Reverse-mode AD through modern
 frameworks (JAX, PyTorch) produces gradients accurate enough for
 optimization at a fraction of the implementation cost.
 
+\paragraph{Scope of the conclusions}
+Rankings, timings, and memory walls are out-of-the-box results. They
+describe the configurations as run (each solver as published, with the
+departures recorded in the repository), at our task sizes and on our
+hardware, so the order within a solver class need not generalize.
+Category-level findings should transfer: the failure modes that matter
+more than gradient accuracy (memory, stability, setup compatibility), how
+VJP cost and memory scale with each differentiation strategy, and the
+protocol itself. \Cref{app:exclusions} lists every task exclusion and
+what would lift it.
+
 \paragraph{Limitations}
 The evaluation rests on three assumptions: that central
 finite-difference gradients at optimal perturbation size are a reliable
-reference (\cref{fig:app:fdcheck}), that out-of-the-box solver configurations
+reference (\cref{fig:app:fdcheck}), which the exact-gradient checks
+support (\cref{sec:quality}), that out-of-the-box solver configurations
 are representative of practitioner experience, and that standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines.
+pipelines, which one solver-in-the-loop setup supports (\cref{sec:sil}).
 Tasks are intentionally low-complexity (laminar flow, linear elasticity);
 results should not be extrapolated to turbulent, long-horizon, or
 nonlinear regimes without further validation.
 All timings come from a single A100 machine; rankings may shift on other hardware.
 Expert tuning of resolution, time step, or preconditioner could narrow
 observed performance gaps.
-We benchmark solver gradients in isolation, without learned components, so
-hybrid pipelines may introduce failure modes not captured here.
+Apart from one solver-in-the-loop study, we benchmark solver gradients
+without learned components, so other hybrid pipelines may introduce
+failure modes not captured here.
 Results are pinned to specific solver versions; upstream updates may
 change gradient behavior.
 
