@@ -664,8 +664,8 @@ AD through JAX, PyTorch, or Zygote gave accurate gradients at 1.4 to 5.3
 times the forward cost (\cref{tab:merged}). Hand-derived adjoints can be
 cheaper, as TopOpt.jl's self-adjoint compliance gradient costs about
 one forward solve, but are tied to their objective. Effort shows in the
-intervention records: every differentiable fluid solver needed a
-required intervention at L2 or L3, but among the mesh solvers only
+intervention records: most differentiable fluid solvers needed a
+required intervention at L2 or L3 on F2, but among the mesh solvers only
 FEniCS on H did.
 
 \paragraph{Scope of the conclusions}
