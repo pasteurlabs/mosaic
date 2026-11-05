@@ -333,7 +333,7 @@ Three causes were found and fixed: the JAX solvers had fallen back to the CPU; t
 We did not measure how much each fix contributed.
 XLB is now within the expected range: 2.2 (F2) and 2.5 (F3) at the \cref{tab:merged} sizes and at most 4.6 across grid sizes; only on the longest F3 rollouts does it reach 7.0.
 Two cases remain above $5\times$.
-INS.jl reaches 5.8--7.8 on F3 at $N\geq48$ and up to 6.2 on F2; we have not established why.
+INS.jl reaches 5.8--7.8 on F3 at $N\geq48$ and up to 6.2 on F2. Its forward call runs the library's in-place time stepper, but Zygote cannot differentiate array mutation, so its VJP runs a hand-written non-mutating rollout instead (\cref{app:interventions}); before INS.jl moved to the GPU, that rollout alone took 2.49\,s against 0.56\,s for the in-place stepper at $N=256$ and 100 steps on the CPU. The ratio therefore compares two different forward implementations.
 PhiFlow's 5.3 at F2 $N=64$ falls to 3.1 at $N=256$, consistent with a fixed per-call overhead.
 TopOpt.jl's extremes (0.23 and 6.6) come from single slow trials at sub-second times (\cref{app:variance}).
 
