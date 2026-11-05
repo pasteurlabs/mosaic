@@ -174,6 +174,8 @@ optimizers converge rather than whether gradients are correct.
 The four domains form a difficulty progression
 (\cref{tab:domains,fig:domains}; full specifications in the
 supplementary material).
+F2 also hosts forward and chained gradient checks on forced turbulence
+(Kolmogorov flow, \cref{app:kolmogorov}).
 
 \begin{table}[t]
   \centering\small
@@ -299,7 +301,8 @@ VJP) and never inspects solver internals.
     the gradients with respect to the initial field and $\nu$ against
     closed forms (\cref{tab:gradchecks}). For the two Navier--Stokes
     problems (F2, F3) we additionally compute the full Jacobian and
-    inspect its singular value spectrum.
+    inspect its singular value spectrum. On Kolmogorov flow, we also check
+    the gradient through 16 chained calls, as in a training loop.
   \item[Performance.] We measure primal and VJP wall-clock time, their
     ratio, and peak GPU (device-wide) and host memory on each solver's intended
     hardware target across 4 to 11 problem sizes (grid resolutions or cell counts).
@@ -308,9 +311,9 @@ VJP) and never inspects solver internals.
     All timings are averaged over 3 trials (10 on the mesh domains) after 1 warmup call
     (to pre-populate JIT caches and stabilize memory allocation).
   \item[Forward accuracy.] We compare accuracy across resolutions against a reference
-    (a cross-solver consensus, or a converged spectral run for F3) and verify
-    adherence to physical laws where applicable (e.g., solenoidal
-    velocity). Where an analytical solution exists (F2),
+    (a cross-solver consensus, or a converged spectral run for F3 and
+    Kolmogorov flow) and verify adherence to physical laws where applicable
+    (e.g., solenoidal velocity). Where an analytical solution exists (F2),
     precision is additionally measured against it.
   \item[Optimization convergence.] We run the optimizers with each solver's
     gradients on each benchmark task for a fixed iteration budget
@@ -494,6 +497,11 @@ discussion.
 On F2, exact Taylor--Green gradients with respect to the initial state and
 the viscosity give larger errors than FD (\cref{tab:gradchecks}) because they
 also include the forward discretization error, which an optimizer sees as well.
+The chained check caught one defect that single calls miss. PICT's adjoint
+solves stop at an absolute tolerance, which the small cotangents deep in the
+chain barely exceed (median error 0.89, cosine 0.51). With the cotangent
+rescaled in the wrapper, every solver that runs the forced flow stably passes,
+at median errors of $5\times10^{-5}$ to $6.4\times10^{-4}$ (\cref{app:kolmogorov}).
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
@@ -598,9 +606,9 @@ excluded (\cref{app:solver-issues}).
 \label{sec:sil}
 
 To test whether the standalone checks predict behavior in a training loop, we
-trained a small periodic CNN to correct each solver's coarse ($64^2$) run of
-forced Kolmogorov flow every 0.1 time units against the solver's own $256^2$
-run (\cref{app:sil}). Three arms share windows, updates and initialization:
+trained a small periodic CNN to correct each solver's coarse ($64^2$)
+Kolmogorov flow every 0.1 time units against the solver's own $256^2$ run
+(\cref{app:sil}). Three arms share windows, updates and initialization:
 supervised one-interval pairs, a 16-interval rollout with the gradient stopped
 at every solver call, and the same rollout differentiated through the solver
 (SIL). Five of the seven differentiable F2 solvers pass the gates of a short
@@ -610,11 +618,10 @@ reached the lowest test error on every solver except Exponax, and SIL never beat
 stopping the gradient, although it did on individual seeds. Earlier work found
 training through the solver to outperform such baselines~\cite{um2020sol}; this
 setup did not reproduce that advantage, and training through the solver did not
-separate the solvers beyond their cost (1.0 to 2.8\,s per update). The study's one defect, PICT's adjoint solves stopping at an absolute tolerance
-for the small cotangents deep in a chain, escapes single-call checks but not a
-finite-difference check through 16 chained calls (median error 0.89, cosine
-0.51 before the fix).
-On this setup, these checks predicted whether a solver can be trained through.
+separate the solvers beyond their cost (1.0 to 2.8\,s per update). PICT's adjoint
+tolerance, the one defect the study surfaced, is also caught by the chained
+check (\cref{sec:quality}), so on this setup the
+standalone checks predicted whether a solver can be trained through.
 
 % ===========================================================================
 \section{Discussion and conclusion}
