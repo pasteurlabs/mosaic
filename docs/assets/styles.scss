@@ -140,16 +140,6 @@ a {
   }
 }
 
-.eyebrow {
-  display: inline-block;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--m-accent);
-}
-
 strong {
   font-weight: 600;
   color: var(--m-ink);
@@ -196,7 +186,6 @@ div.sourceCode pre {
 // Tabular figures where numbers line up (not in body text: Inter's tabular
 // forms widen hyphens).
 table,
-.score-chip,
 .meta-chip {
   font-variant-numeric: tabular-nums;
 }
@@ -292,10 +281,8 @@ div.callout.callout-style-simple {
   .toc-actions,
   h2#toc-title {
     font-family: "Inter", system-ui, sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
     color: var(--m-muted);
     border: 0;
 
@@ -358,10 +345,12 @@ p > img {
 }
 
 // ── Sortable results tables ──────────────────────────────────────────────────
-// The per-suite results tables (wrapped in `.sortable-table`) get click-to-sort
-// behaviour from docs/sortable-tables.html. Style the headers as affordances:
-// pointer cursor, hover highlight, and a ▲/▼ indicator on the active column.
-.sortable-table table th.sortable-th {
+// The results tables (the per-suite tables, wrapped in `.sortable-table`, and
+// the check tables, table.sortable) get click-to-sort behaviour from
+// docs/assets/sortable-tables.html. Style the headers as affordances: pointer
+// cursor, hover highlight, and a ▲/▼ indicator on the active column.
+.sortable-table table th.sortable-th,
+table.sortable th.sortable-th {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -388,9 +377,18 @@ p > img {
   }
 }
 
-// Per-suite results tables on the domain pages.
+// Per-suite results tables on the setup pages. Wide ones scroll rather than
+// spill into the margin.
+.leaderboard {
+  overflow-x: auto;
+}
+
 .leaderboard table {
   width: 100%;
+
+  td {
+    white-space: nowrap;
+  }
 
   tbody tr td:first-child {
     font-weight: 600;
@@ -412,7 +410,7 @@ p > img {
     padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 2.5rem) clamp(1.5rem, 3vw, 2.25rem);
   }
 
-  // Wordmark tiled with benchmark fields (docs/logo.webp, docs/figures/make_logo.py).
+  // Wordmark tiled with benchmark fields (docs/figures/logo.webp, docs/scripts/make_logo.py).
   img.hero-wordmark {
     display: block;
     width: min(100%, 560px) !important;
@@ -472,7 +470,7 @@ p > img {
   }
 }
 
-// Three "axes" summary strip under the hero.
+// The questions Mosaic answers, under the Overview hero.
 .axis-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -565,6 +563,15 @@ p > img {
       display: none !important;
     }
 
+    .domain-id {
+      min-width: 1.8rem;
+      height: 1.5rem;
+      padding: 0 0.35rem;
+      margin-right: 0.4rem;
+      font-size: 0.78rem;
+      vertical-align: 0.1em;
+    }
+
     a {
       color: var(--m-ink);
       text-decoration: none;
@@ -595,6 +602,16 @@ p > img {
       z-index: 1;
     }
   }
+}
+
+// Setup badges in the navbar's Results menu.
+.dropdown-item .domain-id {
+  min-width: 1.6rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  margin-right: 0.45rem;
+  font-size: 0.7rem;
+  box-shadow: none;
 }
 
 .domain-id {
@@ -729,7 +746,7 @@ p > img {
   }
 }
 
-// ── Explorer toolbars (solver catalogue + experiment explorer) ───────────────
+// ── Explorer toolbar (experiment explorer) ───────────────────────────────────
 .explorer-toolbar {
   position: sticky;
   top: var(--m-header-h, 64px);
@@ -817,8 +834,7 @@ p > img {
     color: var(--m-ink);
   }
 
-  &.active,
-  &[aria-pressed="true"] {
+  &.active {
     background: var(--m-ink);
     border-color: var(--m-ink);
     color: var(--m-bg);
@@ -851,199 +867,6 @@ p > img {
 
 .is-filtered-out {
   display: none !important;
-}
-
-// ── Solver cards ─────────────────────────────────────────────────────────────
-.solver-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: var(--m-surface);
-  border: 1px solid var(--m-border);
-  border-radius: 0.4rem;
-  padding: 1.05rem 1.15rem 0.9rem;
-  box-shadow: var(--m-shadow-sm);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-within,
-  &.is-target {
-    border-color: var(--m-border-strong);
-  }
-
-  &.is-target {
-    border-color: var(--m-accent);
-    box-shadow: 0 0 0 3px var(--m-accent-soft), var(--m-shadow);
-  }
-
-
-  &[data-category^="Navier"] {
-    --tile: var(--m-green);
-  }
-  &[data-category^="Structural"] {
-    --tile: var(--m-indigo);
-  }
-  &[data-category^="Heat"] {
-    --tile: var(--m-red);
-  }
-
-  // Quarto wraps the h3 and everything after it in a <section>; flatten it so
-  // the footer can sit at the bottom of the flex column.
-  > section {
-    display: contents;
-  }
-
-  > p,
-  .solver-numerics p,
-  .solver-badges p,
-  .solver-desc p,
-  .solver-card-foot p {
-    margin: 0;
-  }
-
-  .solver-domain {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--m-muted);
-  }
-
-  h3 {
-    font-size: 1.3rem !important;
-    margin: 0.15rem 0 0.55rem !important;
-    padding-right: 2rem;
-
-    .anchorjs-link {
-      display: none;
-    }
-  }
-
-  .solver-numerics {
-    font-size: 0.86rem;
-    color: var(--m-ink-2);
-    margin-bottom: 0.55rem;
-
-    strong {
-      font-weight: 600;
-      color: var(--m-muted);
-    }
-  }
-
-  .solver-badges {
-    margin-bottom: 0.65rem;
-  }
-
-  .solver-desc {
-    font-size: 0.9rem;
-    color: var(--m-ink-2);
-    line-height: 1.55;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 0.85rem;
-  }
-
-  .solver-card-foot {
-    margin-top: auto;
-    padding-top: 0.7rem;
-    border-top: 1px solid var(--m-border);
-
-    p {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem;
-    }
-  }
-
-  .solver-open {
-    margin-left: auto;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--m-accent);
-
-    &::after {
-      content: " →";
-      transition: margin 0.15s ease;
-    }
-  }
-
-  &:hover .solver-open::after {
-    margin-left: 0.15rem;
-  }
-
-  // Details live in the dialog once JS is running; inline as a fallback.
-  .js-ready & .solver-details {
-    display: none;
-  }
-}
-
-.badge {
-  font-family: "Inter", system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.72rem;
-  letter-spacing: 0.01em;
-  padding: 0.3em 0.65em;
-  border-radius: 0.3rem;
-}
-
-.badge-lang {
-  background: var(--m-ink);
-  color: var(--m-bg);
-}
-
-.badge-ad {
-  background: var(--m-accent-soft);
-  color: var(--m-accent-ink);
-  border: 1px solid color-mix(in srgb, var(--m-accent) 30%, transparent);
-}
-
-.badge-gpu {
-  background: color-mix(in srgb, var(--m-green) 16%, var(--m-surface));
-  color: var(--m-green);
-  border: 1px solid color-mix(in srgb, var(--m-green) 35%, transparent);
-}
-
-.score-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.1rem 0.5rem 0.1rem 0.15rem;
-  border-radius: 0.3rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--m-surface-2);
-  color: var(--m-ink);
-
-  .sc-id {
-    display: inline-grid;
-    place-items: center;
-    min-width: 1.55rem;
-    height: 1.2rem;
-    padding: 0 0.3rem;
-    border-radius: 0.2rem;
-    font-size: 0.66rem;
-    background: var(--m-surface);
-    color: var(--m-ink-2);
-  }
-}
-
-.legend-note {
-  font-size: 0.9rem;
-  color: var(--m-ink-2);
-  padding: 0.75rem 1rem;
-  border-radius: 0.4rem;
-  background: var(--m-surface-2);
-  margin-bottom: 0.75rem;
-
-  p {
-    margin: 0;
-  }
 }
 
 // ── Detail dialog ────────────────────────────────────────────────────────────
@@ -1115,17 +938,12 @@ dialog.m-dialog {
     padding: 1.25rem 1.5rem 1.5rem;
     overflow-y: auto;
 
-    .solver-details,
     .exp-tile-detail {
       display: block !important;
     }
 
     table {
       font-size: 0.84rem !important;
-    }
-
-    .solver-io {
-      overflow-x: auto;
     }
   }
 }
@@ -1240,8 +1058,8 @@ dialog.m-dialog {
 }
 
 // ── Check tables (Results) ───────────────────────────────────────────────────
-// One card per setup: pass/borderline/fail per suite, relative cost and
-// reliability counts, grouped by device class. No ranks and no overall score.
+// One card per setup: pass/flagged/fail per suite, relative cost and memory,
+// grouped by device class. No ranks and no overall score.
 .checkboards {
   display: flex;
   flex-direction: column;
@@ -1323,28 +1141,22 @@ table.ck-table {
   }
 
   thead th {
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--m-muted);
     background: var(--m-surface);
   }
 
   tr.ck-group > * {
     padding: 0.35rem 0.7rem;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--m-ink-2);
     background: var(--m-surface-2);
 
     span {
       margin-left: 0.4rem;
       font-weight: 500;
-      letter-spacing: 0;
-      text-transform: none;
       color: var(--m-muted);
     }
   }
@@ -1357,13 +1169,31 @@ table.ck-table {
     font-weight: 600;
 
     a {
-      color: var(--m-ink);
-      text-decoration: none;
+      color: var(--m-accent-ink);
+      text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, var(--m-accent) 35%, transparent);
+      text-underline-offset: 0.18em;
 
       &:hover {
-        color: var(--m-accent);
+        text-decoration-color: currentColor;
       }
     }
+  }
+
+  // A solver that runs a substitute for part of the setup.
+  .ck-dev-tag {
+    margin-left: 0.4rem;
+    padding: 0 0.3rem;
+    border: 1px dashed var(--m-border-strong);
+    border-radius: 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--m-muted);
+    text-decoration: none;
+  }
+
+  .ck-effort .eff[title] {
+    cursor: help;
   }
 
   .ck-part {
@@ -1379,22 +1209,36 @@ table.ck-table {
   .ck-cost-na {
     color: var(--m-border-strong);
   }
+}
 
-  td.ck-rel {
-    font-size: 0.8rem;
-    white-space: normal;
-    min-width: 9rem;
-
-    .rl-ok {
-      font-weight: 600;
-      color: var(--m-ink-2);
-    }
-
-    .rl {
-      margin-left: 0.5rem;
-      white-space: nowrap;
-    }
-  }
+// Effort level pill: one ramp of the accent orange from L0 (grey) to L3
+// (solid), since the levels are ordered.
+.eff {
+  display: inline-block;
+  min-width: 2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.eff-L0 {
+  color: var(--m-muted);
+  border-color: var(--m-border-strong);
+}
+.eff-L1 {
+  background: color-mix(in srgb, var(--m-accent) 16%, var(--m-surface));
+  color: var(--m-accent-ink);
+}
+.eff-L2 {
+  background: color-mix(in srgb, var(--m-accent) 45%, var(--m-surface));
+  color: color-mix(in srgb, var(--m-accent-ink) 60%, var(--m-ink));
+}
+.eff-L3 {
+  background: var(--m-accent);
+  color: var(--m-surface);
 }
 
 // Check state pill, used in the tables and in the legend on the Results page.
@@ -1423,7 +1267,7 @@ table.ck-table {
 .ck-pass {
   @include ck-tone(var(--m-green));
 }
-.ck-borderline {
+.ck-flagged {
   @include ck-tone(var(--m-saffron));
 }
 .ck-fail {
@@ -1442,48 +1286,13 @@ table.ck-table {
   border: 1px dashed var(--m-border-strong);
 }
 
-.rl-flag {
-  color: color-mix(in srgb, var(--m-saffron) 80%, var(--m-ink));
-}
-.rl-fail {
-  color: var(--m-red);
-}
-.rl-blocked {
-  color: color-mix(in srgb, var(--m-plum) 85%, var(--m-ink));
-}
-.rl-notrun {
-  color: var(--m-muted);
-}
-.rl-limit {
-  color: var(--m-ink-2);
-}
-
-// Marks a solver whose cost results ran on another device class than it targets.
-.ck-device {
-  margin-left: 0.4rem;
-  padding: 0 0.3rem;
-  border: 1px dashed var(--m-border-strong);
-  border-radius: 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--m-muted);
-  cursor: help;
-}
-
-// Marks a borderline check whose every anomaly has a documented cause.
-.ck-explained {
-  margin-left: 0.1rem;
-  font-style: italic;
-  font-weight: 700;
-}
-
 .ck-foot {
   padding: 0.6rem 1rem 0.75rem;
   border-top: 1px solid var(--m-border);
   font-size: 0.85rem;
 
-  .ck-summary {
-    margin: 0 0 0.35rem;
+  .ck-elsewhere {
+    margin: 0 0 0.4rem;
     color: var(--m-ink-2);
   }
 
@@ -1527,24 +1336,6 @@ table.ck-table {
       color: var(--m-muted);
     }
   }
-}
-
-// Solver-card footer chip: setup id + "n/m pass", toned by the worst check.
-.score-chip.ck-chip-pass {
-  @include ck-tone(var(--m-green));
-}
-.score-chip.ck-chip-borderline {
-  @include ck-tone(var(--m-saffron));
-}
-.score-chip.ck-chip-fail {
-  @include ck-tone(var(--m-red));
-}
-.score-chip.ck-chip-blocked {
-  @include ck-tone(var(--m-plum));
-}
-.score-chip.ck-chip-notrun {
-  background: var(--m-surface-2);
-  color: var(--m-muted);
 }
 
 // ── Domain results pages ─────────────────────────────────────────────────────
@@ -1761,18 +1552,56 @@ figure.m-chart {
 }
 
 // ── Effort and deviations columns ────────────────────────────────────────────
-// Cells with details on hover (docs/intervention_views.py) and the effort
-// filter above the setup tables (docs/effort-filter.html).
+// Cells with details on hover (docs/scripts/intervention_views.py).
 .m-tip[title] {
   cursor: help;
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
 
-.m-effort-filter {
-  margin: 0.5rem 0 1rem;
+// One intervention in a solver's record on the solver reference.
+.iv-item {
+  padding: 0.7rem 0 0.2rem;
+  border-top: 1px solid var(--m-border);
 
-  select {
-    margin-left: 0.25rem;
+  > p:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .iv-title {
+    font-weight: 600;
+  }
+
+  .iv-level {
+    padding: 0 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--m-surface-2);
+    border: 1px solid var(--m-border);
+  }
+
+  .iv-tag {
+    font-size: 0.8rem;
+    color: var(--m-muted);
+  }
+
+  ul {
+    padding-left: 1.1rem;
+  }
+
+  .iv-details {
+    margin-bottom: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--m-ink-2);
+
+    summary {
+      cursor: pointer;
+      color: var(--m-muted);
+    }
   }
 }

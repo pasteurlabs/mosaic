@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for docs/generate.py: solver reference generation."""
+"""Tests for docs/scripts/generate.py: solver reference generation."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def test_generate_collects_solvers():
     import sys
 
     sys.path.insert(0, str(ROOT))
-    from docs.generate import collect_solvers
+    from docs.scripts.generate import collect_solvers
 
     categories = collect_solvers()
     assert len(categories) >= 3, f"Expected >= 3 categories, got {len(categories)}"
@@ -28,7 +28,7 @@ def test_generate_produces_valid_qmd():
     import sys
 
     sys.path.insert(0, str(ROOT))
-    from docs.generate import collect_solvers, generate_qmd
+    from docs.scripts.generate import collect_solvers, generate_qmd
 
     categories = collect_solvers()
     qmd = generate_qmd(categories)
@@ -48,7 +48,7 @@ def test_solver_specs_loaded():
     import sys
 
     sys.path.insert(0, str(ROOT))
-    from docs.generate import collect_solvers
+    from docs.scripts.generate import collect_solvers
 
     categories = collect_solvers()
     all_solvers = [s for solvers in categories.values() for s in solvers]
@@ -71,37 +71,16 @@ def test_solver_specs_loaded():
     assert not missing, "Solver metadata gaps:\n  " + "\n  ".join(missing)
 
 
-def test_capability_matrix_matches_exclusions():
-    """Matrix cells follow the exclusions but ignore explained anomalies.
-
-    PhiFlow's ns-3d-grid ``forward/agreement`` entry is an explained anomaly,
-    so its forward cell must stay full.
-    """
+def test_solver_sections_list_the_setups_each_solver_runs():
+    """A setup a solver is excluded from entirely is not listed as run."""
     import sys
 
     sys.path.insert(0, str(ROOT))
-    from docs.generate import collect_capabilities
+    from docs.scripts.generate import collect_solvers
 
-    matrices = {m["label"]: m for m in collect_capabilities()}
-    assert len(matrices) >= 4
-
-    def row(label: str, name: str) -> dict:
-        return next(r for r in matrices[label]["rows"] if r["name"] == name)
-
-    for label in ("Structural mechanics", "Heat transfer"):
-        dealii = row(label, "deal.II")
-        n_fwd = dealii["cells"]["forward"][1]
-        assert dealii["cells"]["forward"] == (n_fwd, n_fwd)
-        assert dealii["cells"]["gradient"][0] == 0
-        assert dealii["cells"]["optimization"][0] == 0
-        assert 0 < dealii["cells"]["cost"][0] < dealii["cells"]["cost"][1]
-
-    ns3d = "Navier–Stokes (3D)"
-    assert row(ns3d, "OpenFOAM")["cells"]["gradient"][0] == 0
-    phiflow = row(ns3d, "PhiFlow")
-    n_fwd = phiflow["cells"]["forward"][1]
-    assert phiflow["cells"]["forward"] == (n_fwd, n_fwd)
-    assert not phiflow["notes"]
+    solvers = {s["name"]: s for group in collect_solvers().values() for s in group}
+    assert "ns-2d-cylinder" not in solvers["exponax_navier_stokes_grid"]["setups_run"]
+    assert "ns-2d-periodic" in solvers["pict_navier_stokes_grid"]["setups_run"]
 
 
 def test_solver_cards_list_exclusions():
@@ -109,8 +88,8 @@ def test_solver_cards_list_exclusions():
     import sys
 
     sys.path.insert(0, str(ROOT))
-    from docs.generate import collect_solvers, generate_qmd
+    from docs.scripts.generate import collect_solvers, generate_qmd
 
     qmd = generate_qmd(collect_solvers())
-    assert "#### Excluded experiments" in qmd
-    assert "structural-mesh · gradient" in qmd
+    assert "**Excluded experiments**" in qmd
+    assert "`forward/cylinder` and `optimization/drag_opt` on Channel flow past" in qmd

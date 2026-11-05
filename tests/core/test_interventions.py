@@ -45,6 +45,7 @@ VALID = {
     "interventions": [
         {
             "id": "custom-bc",
+            "title": "Writes the outlet by hand",
             "level": "L2",
             "necessity": "required",
             "what": "Writes the outlet by hand.",
@@ -52,6 +53,7 @@ VALID = {
                 "ns-2d-cylinder": {
                     "consequences": ["cannot-express"],
                     "symptom": "No pressure outlet in the library.",
+                    "notes": "Checked against release 2.1.",
                     "evidence": "Library docs.",
                 }
             },
@@ -108,6 +110,12 @@ def test_valid_record_parses() -> None:
     assert [i.id for i in record.interventions_for("ns-2d-periodic")] == ["fast-solver"]
     assert record.deviations_for("ns-2d-cylinder")[0].id == "advective-outflow"
     assert record.deviations_for("ns-3d") == []
+    # Title and notes are optional.
+    custom, fast = record.interventions[:2]
+    assert custom.title == "Writes the outlet by hand"
+    assert custom.why["ns-2d-cylinder"].notes == "Checked against release 2.1."
+    assert fast.title == ""
+    assert fast.why["ns-2d-periodic"].notes == ""
 
 
 def test_effort_is_highest_required_active_level() -> None:

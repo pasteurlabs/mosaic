@@ -33,6 +33,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: umfpack-direct-solve
+        title: Solves the system directly with UMFPACK
         level: L0
         necessity: choice
         tuned: true
@@ -44,8 +45,8 @@ metadata:
           structural:
             consequences: [too-slow]
             symptom: >
-              CG with SSOR gives the same compliance but is 1.7x slower at
-              nx = 128.
+              With the tutorial's SSOR-preconditioned CG the solver runs 1.7
+              times slower at nx = 128, with the same compliance.
             evidence: "#271, notes."
         provenance: mosaic-team
     deviations: []

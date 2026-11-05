@@ -1,13 +1,15 @@
 <script type="text/javascript">
-// Interactive pieces of the docs site, all progressive enhancements over the
-// static Quarto output (without JS every card shows its details inline):
+// Interactive pieces of the experiment explorer on the results overview, all
+// progressive enhancements over the static Quarto output (without JS every
+// tile shows its details inline):
 //
-//   * Explorer toolbars: search + filter chips over solver cards (Solver
-//     Reference) and experiment tiles (Results overview).
-//   * Detail dialog: clicking a card opens its full details in a modal. The
+//   * Explorer toolbar: search + filter chips over the `.exp-tile` elements
+//     inside the element named by the toolbar's `data-target`. Each
+//     `.chip-filters[data-filter="<key>"]` group filters on the tiles'
+//     `data-<key>` attribute; a chip with an empty `data-value` shows all.
+//   * Detail dialog: clicking a tile opens its details in a modal. The
 //     details node is moved (not cloned) so ids and handlers stay intact, and
 //     moved back on close.
-//   * Deep links: solvers.html#<anchor> highlights the card and opens it.
 
 (function () {
   "use strict";
@@ -41,7 +43,7 @@
     dialog.className = "m-dialog";
     dialog.setAttribute("aria-labelledby", "m-dialog-title");
     dialog.innerHTML =
-      '<div class="m-dialog-head"><span class="eyebrow m-dialog-eyebrow"></span>' +
+      '<div class="m-dialog-head">' +
       '<h2 id="m-dialog-title"></h2><div class="m-dialog-sub"></div>' +
       '<button type="button" class="m-dialog-close" aria-label="Close">×</button></div>' +
       '<div class="m-dialog-body"></div>';
@@ -53,17 +55,13 @@
     dialog.addEventListener("close", () => {
       if (restore) restore();
       restore = null;
-      if (location.hash && dialog.dataset.hash === location.hash) {
-        history.replaceState(null, "", location.pathname + location.search);
-      }
     });
     return dialog;
   }
 
-  function openDialog({ eyebrow, title, sub, detail, hash }) {
+  function openDialog({ title, sub, detail }) {
     const d = getDialog();
     if (d.open) d.close();
-    d.querySelector(".m-dialog-eyebrow").textContent = eyebrow || "";
     d.querySelector("#m-dialog-title").textContent = title || "";
     const subEl = d.querySelector(".m-dialog-sub");
     subEl.replaceChildren(...(sub || []));
@@ -75,7 +73,6 @@
       body.appendChild(detail);
       restore = () => parent.insertBefore(detail, next);
     }
-    d.dataset.hash = hash || "";
     d.showModal();
     body.scrollTop = 0;
   }
@@ -84,86 +81,39 @@
     return el ? el.cloneNode(true) : null;
   }
 
-  function openSolver(card) {
-    const h = card.querySelector("h3");
-    const title = h ? h.textContent.trim() : "";
-    const sub = [
-      cloneOf(card.querySelector(".solver-numerics")),
-      cloneOf(card.querySelector(".solver-badges")),
-      cloneOf(card.querySelector(".solver-desc")),
-    ].filter(Boolean);
-    sub.forEach((n) => n.classList.add("in-dialog"));
-    openDialog({
-      eyebrow: card.dataset.category,
-      title,
-      sub,
-      detail: card.querySelector(".solver-details"),
-      hash: h && h.id ? "#" + h.id : "",
-    });
-  }
-
   function openExperiment(tile) {
     const t = tile.querySelector(".exp-tile-title");
     const chips = tile.querySelector(".exp-tile-body > p");
     const desc = tile.querySelector(".exp-tile-desc");
     openDialog({
-      eyebrow: "",
       title: t ? t.textContent.trim() : "",
-      sub: [cloneOf(chips), cloneOf(desc)].filter(Boolean).map((n) => {
-        n.classList.add("in-dialog");
-        return n;
-      }),
+      sub: [cloneOf(chips), cloneOf(desc)].filter(Boolean),
       detail: tile.querySelector(".exp-tile-detail"),
     });
   }
 
-  function wireCards() {
-    document.querySelectorAll(".solver-card").forEach((card) => {
-      card.setAttribute("tabindex", "0");
-      card.setAttribute("role", "button");
-      const h = card.querySelector("h3");
-      if (h) card.setAttribute("aria-label", h.textContent.trim() + " details");
-    });
-    const open = (el) =>
-      el.classList.contains("solver-card") ? openSolver(el) : openExperiment(el);
+  function wireTiles() {
     document.addEventListener("click", (e) => {
-      const el = e.target.closest(".solver-card, .exp-tile");
+      const el = e.target.closest(".exp-tile");
       if (!el || e.target.closest("a, button, .m-dialog")) return;
-      open(el);
+      openExperiment(el);
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
-      const el = e.target.closest && e.target.closest(".solver-card, .exp-tile");
+      const el = e.target.closest && e.target.closest(".exp-tile");
       if (!el || el !== e.target) return;
       e.preventDefault();
-      open(el);
+      openExperiment(el);
     });
-  }
-
-  function openFromHash() {
-    if (!location.hash) return;
-    let target = null;
-    try {
-      target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-    } catch (_) {
-      return;
-    }
-    const card = target && target.closest(".solver-card");
-    if (!card) return;
-    document.querySelectorAll(".solver-card.is-target").forEach((c) => c.classList.remove("is-target"));
-    card.classList.add("is-target");
-    card.scrollIntoView({ block: "center" });
-    openSolver(card);
   }
 
   // ── Explorer toolbars ─────────────────────────────────────────────────────
   function wireExplorer(toolbar) {
     const root = document.getElementById(toolbar.dataset.target);
     if (!root) return;
-    const items = Array.from(root.querySelectorAll(".solver-card, .exp-tile"));
+    const items = Array.from(root.querySelectorAll(".exp-tile"));
     const input = toolbar.querySelector(".explorer-search");
     const count = toolbar.querySelector(".explorer-count");
-    const noun = items.length && items[0].classList.contains("solver-card") ? "solvers" : "experiments";
     const state = {};
 
     let empty = root.querySelector(".explorer-empty");
@@ -187,18 +137,10 @@
         el.classList.toggle("is-filtered-out", !ok);
         if (ok) shown++;
       });
-      // Hide category sections (Solver Reference) that end up empty.
-      root.querySelectorAll(".card-grid").forEach((grid) => {
-        const any = grid.querySelector(".solver-card:not(.is-filtered-out), .exp-tile:not(.is-filtered-out)");
-        const section = grid.closest("section") || grid;
-        if (section !== root && !section.contains(root)) {
-          section.classList.toggle("is-filtered-out", !any);
-        }
-      });
       empty.classList.toggle("is-filtered-out", shown > 0);
       if (count) {
         count.textContent =
-          shown === items.length ? `${items.length} ${noun}` : `${shown} of ${items.length} ${noun}`;
+          shown === items.length ? `${items.length} experiments` : `${shown} of ${items.length} experiments`;
       }
     }
 
@@ -207,14 +149,8 @@
       group.addEventListener("click", (e) => {
         const btn = e.target.closest(".chip-btn");
         if (!btn) return;
-        if (btn.classList.contains("chip-toggle")) {
-          const on = btn.getAttribute("aria-pressed") !== "true";
-          btn.setAttribute("aria-pressed", String(on));
-          state[key] = on ? btn.dataset.value : "";
-        } else {
-          group.querySelectorAll(".chip-btn").forEach((b) => b.classList.toggle("active", b === btn));
-          state[key] = btn.dataset.value;
-        }
+        group.querySelectorAll(".chip-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        state[key] = btn.dataset.value;
         apply();
       });
     });
@@ -224,10 +160,8 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     trackHeader();
-    wireCards();
+    wireTiles();
     document.querySelectorAll(".explorer-toolbar").forEach(wireExplorer);
-    openFromHash();
-    window.addEventListener("hashchange", openFromHash);
   });
 })();
 </script>

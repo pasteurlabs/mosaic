@@ -9,9 +9,9 @@ Each tesseract records, under ``metadata.mosaic`` in its
 * ``abstraction``: the solver's abstraction level, which sets the baseline of
   ordinary use (``application``, ``framework`` or ``kernel-toolkit``);
 * ``interventions``: everything beyond calling the solver as its baseline
-  intends, each with a level (L0 documented use, L1 undocumented
-  configuration, L2 user code on public primitives, L3 changing the solver),
-  a necessity, and per setup what a user who skips it would see;
+  intends, each with a level (L0 nothing beyond expected tweaks, L1
+  undocumented configuration, L2 user code on public primitives, L3 changing
+  the solver), a necessity, and per setup what a user who skips it would see;
 * ``deviations``: where the solver runs a substitute for the prescribed setup.
 
 Example::
@@ -21,6 +21,7 @@ Example::
         abstraction: framework
         interventions:
           - id: dense-pressure-solver
+            title: Replaces the FFT pressure solve
             level: L3
             necessity: required
             what: Replaces the FFT pressure solve with a cosine transform.
@@ -28,10 +29,16 @@ Example::
               ns-2d-periodic:
                 consequences: [no-gradient]
                 symptom: Enzyme has no rules for the FFTW calls.
+                notes: Measured on Enzyme 0.13 only.
                 evidence: https://github.com/...
             upstream: https://github.com/...
             provenance: mosaic-team
         deviations: []
+
+``title``, ``what`` and ``symptom`` are written for readers of the results:
+the title names the intervention in a few words, ``what`` says what was done
+and ``symptom`` what a user who skips it would see. Measurements, history and
+open questions go in ``notes``, and pointers to evidence in ``evidence``.
 
 L2 and L3 interventions carry ``mosaic-intervention: <id>`` and
 ``mosaic-intervention-end: <id>`` comments around their code in the
@@ -53,7 +60,7 @@ ABSTRACTIONS = ("application", "framework", "kernel-toolkit")
 # a record cannot use it.
 LEVELS = ("L0", "L1", "L2", "L3")
 LEVEL_NAMES = {
-    "L0": "documented use",
+    "L0": "nothing beyond expected tweaks",
     "L1": "undocumented configuration",
     "L2": "user code on public primitives",
     "L3": "changing the solver",
@@ -98,24 +105,25 @@ class Setup:
 SETUPS: dict[str, Setup] = {
     s.key: s
     for s in (
-        Setup("ns-2d-periodic", "ns-grid", "Periodic box (2D)"),
+        Setup("ns-2d-periodic", "ns-grid", "Periodic box"),
         Setup(
             "ns-2d-cylinder",
             "ns-grid",
             "Channel flow past a cylinder",
-            claims=("forward/cylinder", "optimization/drag_opt"),
+            claims=("forward/cylinder", "optimization/drag_opt", "ics/dfg_inflow"),
         ),
         Setup(
             "ns-2d-kolmogorov",
             "ns-grid",
-            "Forced Kolmogorov flow (2D)",
+            "Forced Kolmogorov flow",
             claims=(
                 "forward/kolmogorov",
                 "forward/kolmogorov_laminar",
                 "gradient/chain_fd_check",
+                "ics/rest",
             ),
         ),
-        Setup("ns-3d", "ns-3d-grid", "Triply periodic box (3D)"),
+        Setup("ns-3d", "ns-3d-grid", "Triply periodic box"),
         Setup("structural", "structural-mesh", "Linear-elastic cantilever"),
         Setup("heat", "thermal-mesh", "Steady conduction in a slab"),
     )
@@ -165,6 +173,7 @@ _RECORD_KEYS = ("abstraction", "interventions", "deviations")
 _INTERVENTION_KEYS = frozenset(
     {
         "id",
+        "title",
         "level",
         "necessity",
         "tuned",
@@ -175,9 +184,9 @@ _INTERVENTION_KEYS = frozenset(
         "provenance",
     }
 )
-_REASON_KEYS = frozenset({"consequences", "symptom", "evidence"})
+_REASON_KEYS = frozenset({"consequences", "symptom", "notes", "evidence"})
 _DEVIATION_KEYS = frozenset(
-    {"id", "setups", "what", "consequences", "effect", "evidence"}
+    {"id", "title", "setups", "what", "consequences", "effect", "evidence"}
 )
 
 
@@ -188,6 +197,7 @@ class SetupReason:
     consequences: tuple[str, ...]
     symptom: str
     evidence: str = ""
+    notes: str = ""
 
 
 @dataclass(frozen=True)
@@ -203,6 +213,7 @@ class Intervention:
     tuned: bool = False
     active: bool = True
     upstream: str = ""
+    title: str = ""
 
     @property
     def setups(self) -> tuple[str, ...]:
@@ -225,6 +236,7 @@ class Deviation:
     consequences: tuple[str, ...]
     effect: str
     evidence: str = ""
+    title: str = ""
 
 
 @dataclass(frozen=True)
@@ -345,7 +357,9 @@ def _parse_intervention(
         needs_evidence = tuned or (level != "L0" and necessity != "unknown")
         if needs_evidence and not evidence:
             p.add(f"{where}: `evidence` is empty")
-        why[str(setup)] = SetupReason(consequences, symptom, evidence)
+        why[str(setup)] = SetupReason(
+            consequences, symptom, evidence, _text(reason.get("notes"))
+        )
 
     return Intervention(
         id=str(ident),
@@ -357,6 +371,7 @@ def _parse_intervention(
         tuned=tuned,
         active=raw.get("active") is not False,
         upstream=_text(upstream),
+        title=_text(raw.get("title")),
     )
 
 
@@ -392,6 +407,7 @@ def _parse_deviation(
         consequences=consequences,
         effect=_text(raw.get("effect")),
         evidence=_text(raw.get("evidence")),
+        title=_text(raw.get("title")),
     )
 
 

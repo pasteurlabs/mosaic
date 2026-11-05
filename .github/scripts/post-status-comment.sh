@@ -36,10 +36,9 @@ MARKER="<!-- mosaic-benchmark-bot -->"
 PREVIEW_BANNER=""
 if [[ -n "${DOCS_PREVIEW_URL:-}" ]]; then
   # Deep-link straight to the results landing page, which fans out to every
-  # domain's plots. The Quarto project root is the repo root and results.qmd
-  # lives under docs/, so it renders to docs/results.html (only index.qmd is
-  # promoted to the site root; every other page keeps its docs/ prefix).
-  RESULTS_URL="${DOCS_PREVIEW_URL%/}/docs/results.html"
+  # domain's plots. The Quarto project root is docs/, so docs/results/index.qmd
+  # renders to results/index.html at the site root.
+  RESULTS_URL="${DOCS_PREVIEW_URL%/}/results/index.html"
   # Tailor the blurb to whether a status report follows.
   if [[ -n "$REPORT" ]]; then
     PREVIEW_BLURB="The rendered docs preview has every plot for this run (forward accuracy, \

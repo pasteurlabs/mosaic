@@ -58,9 +58,8 @@ def _platform_warnings(
         warnings.append(
             f"Mosaic is only tested on Linux; detected {system}. Most solvers "
             "require Docker Engine + the NVIDIA Container Toolkit on a Linux "
-            "host with an NVIDIA GPU. GPU-only solvers (e.g. the recommended "
-            "Exponax) cannot run here, and not all Tesseracts are known to "
-            "build on this platform."
+            "host with an NVIDIA GPU. GPU-only solvers cannot run here, and not "
+            "all Tesseracts are known to build on this platform."
         )
 
     if docker_info and "docker desktop" in docker_info.lower():

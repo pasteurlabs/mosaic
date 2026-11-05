@@ -35,24 +35,29 @@ metadata:
     abstraction: framework
     interventions:
       - id: jitted-bicgstab-solver
+        title: Compiles JAX-FEM's BiCGSTAB solve once per matrix size
         level: L2
         necessity: choice
         tuned: true
         what: >
-          Passes JAX-FEM's own Jacobi-preconditioned BiCGSTAB (the default
-          jax_solver's algorithm and tolerances), compiled once per matrix
-          size, to ad_wrapper through the custom_solver option for the forward
-          and adjoint solves.
+          Passes JAX-FEM's own Jacobi-preconditioned BiCGSTAB, compiled once
+          per matrix size, to ad_wrapper through the custom_solver option for
+          the forward and adjoint solves.
         why:
           heat:
             consequences: [too-slow]
             symptom: >
-              The default jax_solver runs bicgstab eagerly, so it compiles 2
-              XLA programs per forward call and 4 per VJP, a fixed overhead on
-              every call. The umfpack_solver option used before gives
-              identical outputs but is much slower on large meshes. At N =
-              1024, spatial_cost took 60.8 s with umfpack_solver and 5.17 s
-              with this solver, vjp_cost/by_N 120 s and 10.8 s.
+              The default jax_solver recompiles on every call, and the
+              umfpack_solver option used before is about 12 times slower at
+              N = 1024 (60.8 s against 5.17 s).
+            notes: >
+              The custom solver uses the default jax_solver's algorithm and
+              tolerances. The default jax_solver runs bicgstab eagerly, so it
+              compiles 2 XLA programs per forward call and 4 per VJP, a fixed
+              overhead on every call. The umfpack_solver option gives
+              identical outputs but is much slower on large meshes. At
+              N = 1024, spatial_cost took 60.8 s with umfpack_solver and
+              5.17 s with this solver, vjp_cost/by_N 120 s and 10.8 s.
             evidence: "#286, before/after table; comment above _bicgstab."
         provenance: mosaic-team
     deviations: []

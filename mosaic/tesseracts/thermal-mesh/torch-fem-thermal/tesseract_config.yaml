@@ -35,6 +35,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: gpu-device
+        title: Runs the solver on the GPU
         level: L0
         necessity: choice
         what: >
@@ -44,14 +45,16 @@ metadata:
           heat:
             consequences: []
             symptom: >
-              Not compared with the CPU: the tesseract has run on the GPU since
-              its first version.
+              No comparison with the CPU exists.
+            notes: >
+              The tesseract has run on the GPU since its first version.
         provenance: maintainer-authored
       - id: global-default-device
+        title: Sets torch's default device and dtype globally
         level: L0
         necessity: required
         what: >
-          Sets torch's default device (and dtype, float64) process-wide, so
+          Sets torch's default device and dtype (float64) process-wide, so
           the tensors torch-fem allocates internally land on the GPU with the
           mesh, material and load tensors.
         why:
@@ -59,13 +62,15 @@ metadata:
             consequences: [crash]
             symptom: >
               torch-fem allocates auxiliary tensors without device=, so they
-              land on the CPU and collide with the CUDA tensors. No error log
-              is recorded.
+              land on the CPU and collide with the CUDA tensors.
+            notes: >
+              No error log is recorded.
             evidence: >
               Code comment; torch-fem's benchmarks/utils.py at v0.12.1 and its
               current installation docs set the default device the same way.
         provenance: maintainer-authored
       - id: gpu-cg-jacobi
+        title: Solves with Jacobi-preconditioned CG on the GPU
         level: L0
         necessity: choice
         what: >
@@ -77,14 +82,17 @@ metadata:
             consequences: [too-slow]
             symptom: >
               torch-fem 0.12.1 solves systems below 10,000 DOFs directly with
-              SciPy on the CPU, even when the matrix is on the GPU; larger ones
-              already get CG with Jacobi without AmgX. So the setting keeps the
-              smaller meshes on the device. No isolated measurement.
+              SciPy on the CPU, even when the matrix is on the GPU.
+            notes: >
+              Larger systems already get CG with Jacobi without AmgX, so the
+              setting keeps the smaller meshes on the device. There is no
+              isolated measurement.
             evidence: >
               #187; resolve_method and resolve_library in torch-fem v0.12.1
               src/torchfem/sparse.py.
         provenance: maintainer-authored
       - id: cg-tolerance
+        title: Loosens the CG stopping tolerance to 1e-6
         level: L0
         necessity: choice
         tuned: true
@@ -96,12 +104,14 @@ metadata:
             consequences: []
             symptom: >
               No measurable gain here: cost moved by -16% to +11% against
-              1e-10, within the run-to-run spread on a shared GPU. Every
-              status is unchanged from 1e-12 to 1e-6; forward metrics are
-              bit-identical.
+              1e-10, within the run-to-run spread on a shared GPU.
+            notes: >
+              Every status is unchanged from 1e-12 to 1e-6. Forward metrics
+              are bit-identical.
             evidence: "#301, notes."
         provenance: mosaic-team
       - id: deterministic-kernels
+        title: Makes the CUDA assembly deterministic
         level: L0
         necessity: choice
         what: >
@@ -113,10 +123,12 @@ metadata:
             symptom: >
               Without it, identical GPU runs differed: the
               conductivity_recovery_bfgs final loss varied between 241 and
-              5.7e3, depending on whether the run left a plateau before the
-              iteration cap. With it, reruns are identical (#200, and again
-              at every CG tolerance in #301). It cost about 5 to 15% in #200,
-              on an RTX 2000 Ada.
+              5.7e3.
+            notes: >
+              The spread depended on whether the run left a plateau before the
+              iteration cap. With the setting, reruns are identical (#200, and
+              again at every CG tolerance in #301). It cost about 5 to 15% in
+              #200, on an RTX 2000 Ada.
             evidence: "#200, notes; #301, notes."
         provenance: maintainer-authored
     deviations: []

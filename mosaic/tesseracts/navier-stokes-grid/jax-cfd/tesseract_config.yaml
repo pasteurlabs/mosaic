@@ -29,6 +29,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: central-advection-rk4
+        title: Uses central advection with RK4 time stepping
         level: L0
         necessity: choice
         tuned: true
@@ -41,11 +42,13 @@ metadata:
           ns-2d-periodic: &central-advection-rk4-periodic
             consequences: [inaccurate-forward]
             symptom: >
+              With the default scheme the Taylor-Green errors were 5 to 6
+              times the peer median, and the convergence order was 1.25.
+            notes: >
               With the default scheme the Taylor-Green errors were 1.3e-2 to
-              1.5e-2, 5 to 6 times the peer median (borderline), the
-              convergence order was 1.25 and the fd_check error 5.5e-4. With
-              this scheme: 2.3e-3 to 2.4e-3 (1.0 times the median), order 2.00
-              and 9.3e-6. Central advection is unstable under forward Euler and
+              1.5e-2 (borderline) and the fd_check error 5.5e-4. With this
+              scheme: 2.3e-3 to 2.4e-3 (1.0 times the median), order 2.00 and
+              9.3e-6. Central advection is unstable under forward Euler and
               RK2 in the PR's probes, hence RK4. The forward pass is 2 to 3
               times slower.
             evidence: "#225, before/after and scheme tables (merged through #232)."
@@ -53,8 +56,10 @@ metadata:
           ns-3d:
             consequences: []
             symptom: >
-              Not compared with the default on this setup; jax-cfd joined
-              ns-3d-grid with this scheme, and every cell was ok.
+              Not compared with the default on this setup.
+            notes: >
+              jax-cfd joined ns-3d-grid with this scheme, and every cell was
+              ok.
             evidence: "#283, notes."
         upstream: >
           https://github.com/google/jax-cfd/issues/259 asked which advection
@@ -62,6 +67,7 @@ metadata:
           it is no longer maintained.
         provenance: mosaic-team
       - id: summed-forcing
+        title: Combines the body force and drag by hand
         level: L2
         necessity: required
         what: >
@@ -72,11 +78,16 @@ metadata:
           ns-2d-kolmogorov:
             consequences: [crash]
             symptom: >
+              Without it, combining the force and the drag through
+              sum_forcings raises an AttributeError under the pinned JAX
+              0.10.0.
+            notes: >
               sum_forcings adds the terms with equations.sum_fields, which
-              calls jax.tree_map. The pinned JAX 0.10.0 no longer has
-              jax.tree_map, so combining the force and the drag through the
-              library would raise an AttributeError. This comes from reading
-              both sources and was not run.
+              calls jax.tree_map, and JAX 0.10.0 no longer has jax.tree_map.
+              Reproduced on the CPU with jax-cfd 0.2.1 and JAX 0.10.0 by
+              passing kolmogorov_forcing and linear_forcing to sum_forcings
+              and calling the result on a periodic velocity: "module 'jax' has
+              no attribute 'tree_map'".
             evidence: >
               https://github.com/google/jax-cfd/blob/0.2.1/jax_cfd/base/equations.py
               (sum_fields); #272.
