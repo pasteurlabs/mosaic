@@ -69,7 +69,8 @@ committing to a particular stack. Our contributions are:
     solver-specific expertise.
   \item A \textbf{standardized evaluation protocol} measuring gradient
     accuracy, computational cost, Jacobian conditioning, setup
-    compatibility, and end-to-end optimization convergence.
+    compatibility, and end-to-end optimization convergence, with a
+    record of what each solver needed to pass it.
   \item \textbf{Empirical findings} that validate the benchmark by
     surfacing practically relevant differences: setup compatibility,
     numerical stability, and memory decide whether a solver can run a
@@ -280,6 +281,10 @@ Details on contributing and containerization overhead are in \cref{app:software}
 
 Integration effort per backend is quantified in \cref{tab:merged}; column
 definitions and full experimental specifications are in \cref{app:effort}.
+Because almost any solver passes a benchmark if someone works around its
+limitations for long enough, Mosaic also records every departure from a
+solver's default usage as an \emph{intervention}, with its mechanism,
+whether it was required, and the evidence (\cref{app:interventions}).
 
 \subsection{Evaluation protocol}
 \label{sec:protocol}
@@ -422,8 +427,8 @@ between solvers, and they provide an initial empirical characterization
 that practitioners can use to guide solver selection.
 All experiments ran on an Azure Standard\_NC24ads\_A100\_v4 instance
 (one NVIDIA A100 80\,GB PCIe, 24-core AMD EPYC 7V13; full spec in \cref{app:effort}).
-Results reflect default solver configurations at the time of the pinned
-release; all configurations are published and community-improvable via
+Results reflect the solver configurations of the pinned release
+(\cref{app:interventions}); all configurations are published and community-improvable via
 pull request. Reproduction instructions are in \cref{app:software}.
 
 \subsection{Benchmark summary and implementation effort}
@@ -442,20 +447,18 @@ Gradient implementation effort varies substantially among differentiable solvers
 We report bespoke lines of code (LOC) as a coarse proxy for integration
 complexity (an imperfect metric, but one that captures order-of-magnitude
 differences reproducibly).
-Warp-NS requires over 800 bespoke lines for the initial-condition VJP alone,
-because the wrapper wrote its adjoint passes by hand.
-PhiFlow and JAX-CFD each require just 12 shared lines with no per-variable
-additions, because autodifferentiation through their JAX backends provides
-gradients at no extra implementation cost.
-This pattern holds broadly: solvers built on modern AD frameworks (JAX,
-PyTorch) consistently require zero per-variable extra lines, while hand-written
-adjoint implementations carry substantially higher overhead.
-The boundary is not always sharp: INS.jl uses Zygote reverse-mode AD yet
-still requires over 470 shared lines of gradient-specific code,
-a reminder that AD framework support does not guarantee turnkey gradients.
-The maintained benchmark instead records every departure from a solver's
-default usage (mechanism, whether needed, evidence) alongside each solver in
-the repository.
+Warp-NS carries over 2400 numerical lines because the wrapper implements the
+flow solver itself, and its gradients, recorded on Warp's tape, still take 235
+of them, the most of any solver.
+PhiFlow, JAX-CFD, and Exponax each require at most 20 gradient lines, a single
+VJP covering all differentiable inputs, because autodifferentiation through
+their JAX backends provides gradients at no extra implementation cost.
+AD is not always this cheap: INS.jl uses Zygote reverse-mode AD yet
+still requires 228 lines of gradient-specific code, PICT (PyTorch) 170, and
+XLB (JAX) 91, half of them to checkpoint its rollout, a reminder that AD
+framework support does not guarantee turnkey gradients.
+The maintained benchmark instead records each solver's interventions
+(\cref{app:interventions}).
 
 
 \input{tables/merged}
@@ -513,7 +516,9 @@ at 320 rollout steps (\cref{sec:scaling}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_main.pdf}
-  \caption{F3 IC recovery for selected solvers and different optimizers; full version in \cref{fig:app:recovery}.}
+  \caption{F3 IC recovery with L-BFGS+proj. Left and middle: loss and IC error
+    against iteration for the first target. Right: final IC error per solver,
+    mean (dot) and range (bar) over three targets.}
   \label{fig:recovery_main}
 \end{figure}
 
@@ -576,18 +581,12 @@ drives the temperature misfit down by orders of magnitude, but the poorly
 conditioned inversion leaves the recovered conductivity dependent on the
 optimizer's path within the iteration budget
 (\cref{fig:app:conductivity_recovery}).
-On F3 (IC recovery), we report the relative $\ell_2$ distance between
-the recovered and true initial states (\textit{IC error})
-alongside the optimization loss. Adam stagnates
-above 40\% IC error across all solvers (\cref{fig:recovery_main}):
-the loss decreases, but the recovered IC differs noticeably from the
-target.
-L-BFGS converges to substantially lower loss and below 6\% IC error in
-fewer iterations.
-Spectrally projecting the gradient onto the divergence-free subspace
-before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
-because the projection prevents non-solenoidal components from
-corrupting the curvature model.
+On F3, L-BFGS with the gradient projected onto divergence-free fields
+(L-BFGS+proj) recovers the initial state of a 100-step rollout with a relative
+$\ell_2$ error (\textit{IC error}), averaged over three targets, of 0.01\% for
+Exponax, 0.29--0.32\% for INS.jl, JAX-CFD, PhiFlow, and PICT, 0.45\% for
+Warp-NS, and 0.85\% for XLB (\cref{fig:recovery_main}).
+\Cref{app:recovery} compares this optimizer with Adam and plain L-BFGS.
 On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
 DFG 2D-1 channel at a fixed flow rate. All five solvers that run the channel
 (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic
@@ -660,7 +659,7 @@ new control variable or objective requires additional implementation work.
 \paragraph{Scope of the conclusions}
 Rankings, timings, and memory walls are out-of-the-box results for the
 configurations as run (each solver as published, with departures recorded
-in the repository), our task sizes, and our hardware; the order within a
+in \cref{app:interventions}), our task sizes, and our hardware; the order within a
 solver class need not generalize. Category-level findings should transfer:
 which failure modes matter more than gradient accuracy, how VJP cost and
 memory scale per differentiation strategy, and the protocol.
@@ -670,16 +669,16 @@ memory scale per differentiation strategy, and the protocol.
 The evaluation rests on three assumptions: that central
 finite-difference gradients at optimal perturbation size are a reliable
 reference (\cref{fig:app:fdcheck}), which the exact-gradient checks
-support (\cref{sec:quality}), that out-of-the-box solver configurations
-are representative of practitioner experience, and that standalone
+support (\cref{sec:quality}), that the recorded configurations
+reflect competent use, and that standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
 pipelines, which one solver-in-the-loop setup supports (\cref{sec:sil}).
 Tasks are intentionally low-complexity (laminar flow, linear elasticity);
 results should not be extrapolated to turbulent, long-horizon, or
 nonlinear regimes without further validation.
 All timings come from a single A100 machine; rankings may shift on other hardware.
-Expert tuning of resolution, time step, or preconditioner could narrow
-observed performance gaps.
+Tuning effort differs between solvers, as the intervention records show,
+and further tuning could narrow observed performance gaps.
 Apart from one solver-in-the-loop study, we benchmark solver gradients
 without learned components, so other hybrid pipelines may introduce
 failure modes not captured here.
