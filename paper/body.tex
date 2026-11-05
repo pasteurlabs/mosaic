@@ -612,7 +612,7 @@ reached the lowest test error on every solver except Exponax, and SIL never beat
 stopping the gradient, although it did on individual seeds. Earlier work found
 training through the solver to outperform such baselines~\cite{um2020sol}; this
 setup did not reproduce that advantage, and training through the solver did not
-separate the solvers beyond their cost (1.0 to 2.8\,s per update). Its one defect, PICT's adjoint solves stopping at an absolute tolerance
+separate the solvers beyond their cost (1.0 to 2.8\,s per update). The study's one defect, PICT's adjoint solves stopping at an absolute tolerance
 for the small cotangents deep in a chain, escapes single-call checks but not a
 finite-difference check through 16 chained calls (median error 0.89, cosine
 0.51 before the fix).
