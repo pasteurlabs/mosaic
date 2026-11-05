@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.0] - 2026-11-03
+## [0.3.0] - 2026-11-05
 
 ### Features
 
@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - *(domain)* Add forced Kolmogorov flow to ns-grid, with forward and chained-gradient checks (#272)
 - *(harness)* Record the iteration of the best objective in optimization results (#341)
 - *(harness)* Record when the loss levels off instead of the iteration of the lowest loss (#346)
+- *(harness)* Record the time until an optimization's loss levels off (#358)
 
 ### Bug Fixes
 
@@ -84,6 +85,12 @@ All notable changes to this project will be documented in this file.
 - *(cli)* Strip spaces around mosaic reference -e entries (#339)
 - Skip problems without the -s solvers in mosaic build (#338)
 - Reject unknown status formats and keep JSON output clean (#340)
+- *(harness)* Count L-BFGS iterations without the initial point (#356)
+- *(harness)* Rescale the CFL base grid in --debug runs (#353)
+- *(harness)* Keep both runs' solver failures when merging results (#352)
+- *(harness)* Add the IC helpers that mosaic ics imports (#351)
+- *(harness)* Reject an unknown mosaic status --suites (#349)
+- *(harness)* Refuse to overwrite an existing domain in new-domain (#350)
 
 ### Refactor
 
@@ -110,6 +117,10 @@ All notable changes to this project will be documented in this file.
 - Add a solver capability matrix to the Solver Reference (#319)
 - Redesign docs site with solver browser, experiment explorer and per-setup results checks (#203)
 - Drop the unused staggered round-trip explanation on ns-3d-grid (#335)
+- Explain PICT's ns-grid VJP cost anomaly (#354)
+- Explain OpenFOAM's TGV error at low viscosity (#357)
+- *(harness)* Stop claiming that CI cost rankings carry over to other GPUs (#363)
+- Restructure the docs around one positioning, with one results page per setup (#343)
 
 ### Performance
 
