@@ -39,7 +39,7 @@ wp.init()
 
 
 @wp.kernel
-def tentative_vel_2d_kernel(
+def tentative_vel_2d_kernel(  # mosaic:physics
     ux: wp.array2d(dtype=wp.float32),
     uy: wp.array2d(dtype=wp.float32),
     ux_star: wp.array2d(dtype=wp.float32),
@@ -93,7 +93,7 @@ def tentative_vel_2d_kernel(
 
 
 @wp.kernel
-def divergence_2d_to_complex_kernel(
+def divergence_2d_to_complex_kernel(  # mosaic:physics
     ux: wp.array2d(dtype=wp.float32),
     uy: wp.array2d(dtype=wp.float32),
     div_c: wp.array2d(dtype=wp.vec2f),
@@ -118,7 +118,7 @@ def divergence_2d_to_complex_kernel(
 
 
 @wp.kernel
-def pressure_correct_2d_from_complex_kernel(
+def pressure_correct_2d_from_complex_kernel(  # mosaic:physics
     ux_star: wp.array2d(dtype=wp.float32),
     uy_star: wp.array2d(dtype=wp.float32),
     p_c: wp.array2d(dtype=wp.vec2f),
@@ -157,7 +157,7 @@ def pressure_correct_2d_from_complex_kernel(
 
 
 @wp.kernel
-def tentative_vel_3d_kernel(
+def tentative_vel_3d_kernel(  # mosaic:physics
     ux: wp.array3d(dtype=wp.float32),
     uy: wp.array3d(dtype=wp.float32),
     uz: wp.array3d(dtype=wp.float32),
@@ -244,7 +244,7 @@ def tentative_vel_3d_kernel(
 
 
 @wp.kernel
-def divergence_3d_to_complex_kernel(
+def divergence_3d_to_complex_kernel(  # mosaic:physics
     ux: wp.array3d(dtype=wp.float32),
     uy: wp.array3d(dtype=wp.float32),
     uz: wp.array3d(dtype=wp.float32),
@@ -277,7 +277,7 @@ def divergence_3d_to_complex_kernel(
 
 
 @wp.kernel
-def pressure_correct_3d_from_complex_kernel(
+def pressure_correct_3d_from_complex_kernel(  # mosaic:physics
     ux_star: wp.array3d(dtype=wp.float32),
     uy_star: wp.array3d(dtype=wp.float32),
     uz_star: wp.array3d(dtype=wp.float32),
@@ -319,7 +319,7 @@ def pressure_correct_3d_from_complex_kernel(
     uz_new[i, j, k] = uz_star[i, j, k] - dt_ * dpdz
 
 
-def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
+def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):  # mosaic:util
     """wp.launch wrapper. block_dim must be an int (Warp 1.12 dropped tuple support)."""
     wp.launch(kernel, dim=dim, inputs=inputs, block_dim=block_dim, device=device)
 
@@ -348,7 +348,7 @@ def _wlaunch(kernel, dim, inputs, block_dim=256, device="cpu"):
 
 
 @wp.func
-def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
+def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:  # mosaic:util
     """Multiply a complex value (as vec2f) by a real scalar."""
     return wp.vec2f(v[0] * s, v[1] * s)
 
@@ -377,11 +377,11 @@ def _scale_complex(v: wp.vec2f, s: float) -> wp.vec2f:
 ####################################################################
 
 
-def _is_pow2(n: int) -> bool:
+def _is_pow2(n: int) -> bool:  # mosaic:util
     return n > 0 and (n & (n - 1)) == 0
 
 
-def _next_pow2(n: int) -> int:
+def _next_pow2(n: int) -> int:  # mosaic:util
     return 1 << (n - 1).bit_length()
 
 
@@ -389,7 +389,7 @@ def _next_pow2(n: int) -> int:
 # not grow with every N a sweep visits. The kernel factories below stay
 # unbounded: like jit caches, they hold compiled code per grid size.
 @functools.lru_cache(maxsize=1)
-def _bluestein_setup(n: int, device: str) -> dict:
+def _bluestein_setup(n: int, device: str) -> dict:  # mosaic:physics
     """Precompute the Bluestein chirp and the (pre-FFT'd) kernel for length ``n``.
 
     Returns the chirp ``w`` (length ``n``, as a complex vec2f array broadcast
@@ -422,13 +422,13 @@ def _bluestein_setup(n: int, device: str) -> dict:
 
 
 @wp.func
-def _cmul(a: wp.vec2f, b: wp.vec2f) -> wp.vec2f:
+def _cmul(a: wp.vec2f, b: wp.vec2f) -> wp.vec2f:  # mosaic:util
     """Complex multiply (a, b interpreted as complex, stored as vec2f)."""
     return wp.vec2f(a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0])
 
 
 @functools.cache
-def _bluestein_kernels(n: int, m: int):
+def _bluestein_kernels(n: int, m: int):  # mosaic:physics
     """Build the pre/post chirp + pointwise-multiply kernels for length ``n``.
 
     The two pow2 transforms themselves reuse the length-``m`` pow2 tile-FFT
@@ -477,7 +477,9 @@ def _bluestein_kernels(n: int, m: int):
     return {"premul": premul, "freqmul": freqmul, "postmul": postmul}
 
 
-def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.array:
+def _bluestein_fft_rows(
+    x: wp.array, n: int, direction: str, device: str
+) -> wp.array:  # mosaic:physics
     """Length-``n`` DFT along the last axis of a ``(batch, n)`` complex array.
 
     ``direction`` is ``"fwd"`` or ``"bwd"`` (inverse). Both are unnormalized,
@@ -553,7 +555,7 @@ def _bluestein_fft_rows(x: wp.array, n: int, direction: str, device: str) -> wp.
 
 
 @functools.cache
-def _conj_kernels(_tag: str = "bluestein_conj"):
+def _conj_kernels(_tag: str = "bluestein_conj"):  # mosaic:physics
     """Conjugate kernel shared across all Bluestein sizes."""
 
     @wp.kernel(module="bluestein_conj")
@@ -564,7 +566,7 @@ def _conj_kernels(_tag: str = "bluestein_conj"):
     return {"conj": conj_k}
 
 
-def _conj_rows(x: wp.array, device: str) -> wp.array:
+def _conj_rows(x: wp.array, device: str) -> wp.array:  # mosaic:physics
     y = wp.zeros(x.shape, dtype=wp.vec2f, requires_grad=True, device=device)
     wp.launch(
         _conj_kernels()["conj"], dim=x.shape, inputs=[x], outputs=[y], device=device
@@ -573,7 +575,7 @@ def _conj_rows(x: wp.array, device: str) -> wp.array:
 
 
 @functools.cache
-def _generic_transpose_kernel(_tag: str = "bluestein_T"):
+def _generic_transpose_kernel(_tag: str = "bluestein_T"):  # mosaic:physics
     """Elementwise (non-tiled) square transpose, valid for any ``n``.
 
     The tiled ``transpose_kernel`` in :func:`_fft_kernels_2d` needs
@@ -592,7 +594,7 @@ def _generic_transpose_kernel(_tag: str = "bluestein_T"):
     return transpose_k
 
 
-def _transpose_rows(x: wp.array, device: str) -> wp.array:
+def _transpose_rows(x: wp.array, device: str) -> wp.array:  # mosaic:physics
     n0, n1 = x.shape
     y = wp.zeros((n1, n0), dtype=wp.vec2f, requires_grad=True, device=device)
     wp.launch(
@@ -606,7 +608,7 @@ def _transpose_rows(x: wp.array, device: str) -> wp.array:
 
 
 @functools.cache
-def _scale_by_field_kernel(_tag: str = "bluestein_scale"):
+def _scale_by_field_kernel(_tag: str = "bluestein_scale"):  # mosaic:physics
     """out[i,j] = z[i,j] * s[i,j] with z complex (vec2f) and s a real field."""
 
     @wp.kernel(module="bluestein_scale")
@@ -621,7 +623,7 @@ def _scale_by_field_kernel(_tag: str = "bluestein_scale"):
     return scale_k
 
 
-def _spectral_poisson_2d_bluestein(
+def _spectral_poisson_2d_bluestein(  # mosaic:physics
     rhs_c: wp.array, domain_extent: float, device: str
 ) -> wp.array:
     """Non-pow2 2-D spectral Poisson solve (Bluestein FFTs, on-GPU, differentiable).
@@ -660,7 +662,7 @@ def _spectral_poisson_2d_bluestein(
 
 # mosaic-intervention-end: bluestein-non-pow2-fft
 @functools.cache
-def _fft_kernels_2d(n: int):
+def _fft_kernels_2d(n: int):  # mosaic:physics
     """Build (and cache) the tiled FFT/transpose kernels for an N×N grid."""
     tile_transpose_dim = 16 if n % 16 == 0 else n
     block_dim = max(2, n // 2)  # cuFFTDx requires >=2 elements/thread
@@ -726,7 +728,9 @@ def _fft_kernels_2d(n: int):
 
 
 @functools.lru_cache(maxsize=1)
-def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
+def _inv_lambda_2d(
+    n: int, domain_extent: float, device: str
+) -> wp.array:  # mosaic:physics
     """Precompute 1/λ for the 2-D continuous-eigenvalue spectral Poisson solve.
 
     Uses the continuous eigenvalues -(2π/L)²k², unlike the discrete FD
@@ -744,7 +748,7 @@ def _inv_lambda_2d(n: int, domain_extent: float, device: str) -> wp.array:
     return wp.array2d(inv_lambda.astype(np.float32), dtype=wp.float32, device=device)
 
 
-def _spectral_poisson_2d_core(
+def _spectral_poisson_2d_core(  # mosaic:physics
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
     """Core 2-D spectral Poisson solve on an already-packed complex RHS.
@@ -843,7 +847,7 @@ def _spectral_poisson_2d_core(
     return p_c
 
 
-def _poisson_workspace_2d(n: int, device: str) -> dict:
+def _poisson_workspace_2d(n: int, device: str) -> dict:  # mosaic:physics
     """Pre-allocate (non-differentiable) scratch buffers for the forward-only path.
 
     Reused across every timestep instead of allocating fresh buffers per
@@ -861,7 +865,7 @@ def _poisson_workspace_2d(n: int, device: str) -> dict:
 
 # Two entries: a 3-D call uses the plain and the permuted layout.
 @functools.lru_cache(maxsize=2)
-def _inv_lambda_3d(
+def _inv_lambda_3d(  # mosaic:physics
     n: int, domain_extent: float, device: str, permute: tuple | None = None
 ) -> wp.array:
     """Precompute 1/λ for the 3-D spectral Poisson solve.
@@ -906,7 +910,7 @@ def _inv_lambda_3d(
 
 
 @functools.cache
-def _fft_kernels_3d(n: int):
+def _fft_kernels_3d(n: int):  # mosaic:physics
     """Build (and cache) the tiled FFT/transpose kernels for an N×N×N grid.
 
     A 3-D FFT is three passes of the 2-D row-wise-FFT-then-transpose scheme,
@@ -971,7 +975,7 @@ def _fft_kernels_3d(n: int):
     }
 
 
-def _fft3_pass(
+def _fft3_pass(  # mosaic:physics
     kernels: dict,
     direction: str,
     src: wp.array,
@@ -1036,7 +1040,7 @@ def _fft3_pass(
     return swapped
 
 
-def _fft_3d(
+def _fft_3d(  # mosaic:physics
     kernels: dict,
     direction: str,
     src: wp.array,
@@ -1069,7 +1073,7 @@ def _fft_3d(
 
 # mosaic-intervention: bluestein-non-pow2-fft
 @functools.cache
-def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
+def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):  # mosaic:physics
     """y[k, i, j] = x[i, j, k]: cyclic axis permutation, valid for any ``n``."""
 
     @wp.kernel(module="bluestein_swap3d")
@@ -1081,7 +1085,7 @@ def _swap_axes_kernel(_tag: str = "bluestein_swap3d"):
 
 
 @functools.cache
-def _scale_by_field_kernel_3d(_tag: str = "bluestein_scale3d"):
+def _scale_by_field_kernel_3d(_tag: str = "bluestein_scale3d"):  # mosaic:physics
     """out[i,j,k] = z[i,j,k] * s[i,j,k] with z complex and s a real field."""
 
     @wp.kernel(module="bluestein_scale3d")
@@ -1096,7 +1100,9 @@ def _scale_by_field_kernel_3d(_tag: str = "bluestein_scale3d"):
     return scale_k
 
 
-def _bluestein_fft_3d(src: wp.array, n: int, direction: str, device: str) -> wp.array:
+def _bluestein_fft_3d(
+    src: wp.array, n: int, direction: str, device: str
+) -> wp.array:  # mosaic:physics
     """Full 3-D DFT via three (Bluestein-rows + cyclic-axis-swap) passes.
 
     Mirrors :func:`_fft_3d` but uses the non-pow2-capable Bluestein row
@@ -1119,7 +1125,7 @@ def _bluestein_fft_3d(src: wp.array, n: int, direction: str, device: str) -> wp.
     return x
 
 
-def _spectral_poisson_3d_bluestein(
+def _spectral_poisson_3d_bluestein(  # mosaic:physics
     rhs_c: wp.array, domain_extent: float, device: str
 ) -> wp.array:
     """Non-pow2 3-D spectral Poisson solve (Bluestein FFTs, on-GPU, differentiable).
@@ -1146,7 +1152,7 @@ def _spectral_poisson_3d_bluestein(
 
 
 # mosaic-intervention-end: bluestein-non-pow2-fft
-def _spectral_poisson_3d_core(
+def _spectral_poisson_3d_core(  # mosaic:physics
     rhs_c: wp.array, domain_extent: float, device: str, workspace: dict | None = None
 ) -> wp.array:
     """Core 3-D spectral Poisson solve on an already-packed complex RHS.
@@ -1189,7 +1195,7 @@ def _spectral_poisson_3d_core(
     return _fft_3d(kernels, "bwd", p_c, n, device, workspaces=bwd_ws)
 
 
-def _poisson_workspace_3d(n: int, device: str) -> dict:
+def _poisson_workspace_3d(n: int, device: str) -> dict:  # mosaic:physics
     """Pre-allocate (non-differentiable) scratch buffers for the forward-only 3-D path.
 
     Reused across every timestep instead of allocating fresh buffers per
@@ -1209,7 +1215,7 @@ def _poisson_workspace_3d(n: int, device: str) -> dict:
     }
 
 
-def _body_force_2d(
+def _body_force_2d(  # mosaic:physics
     forcing_np: np.ndarray | None, linear_drag: float | None, n: int, device: str
 ) -> tuple[wp.array, wp.array, wp.array]:
     """Force components and drag coefficient for ``tentative_vel_2d_kernel``.
@@ -1229,7 +1235,7 @@ def _body_force_2d(
     return fx, fy, drag
 
 
-def ns2d_solve_tape(
+def ns2d_solve_tape(  # mosaic:physics
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1399,7 +1405,7 @@ def ns2d_solve_tape(
     )
 
 
-def ns2d_solve_forward(
+def ns2d_solve_forward(  # mosaic:physics
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1514,7 +1520,7 @@ def ns2d_solve_forward(
     return out
 
 
-def ns2d_vjp(
+def ns2d_vjp(  # mosaic:grad:v0,viscosity,dt:autodiff
     tape: wp.Tape,
     ux_final: wp.array,
     uy_final: wp.array,
@@ -1570,7 +1576,7 @@ def ns2d_vjp(
 # ============================================================
 
 
-def ns3d_solve_tape(
+def ns3d_solve_tape(  # mosaic:physics
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1750,7 +1756,7 @@ def ns3d_solve_tape(
     )
 
 
-def ns3d_solve_forward(
+def ns3d_solve_forward(  # mosaic:physics
     v0_np: np.ndarray,
     viscosity: float,
     dt: float,
@@ -1850,7 +1856,7 @@ def ns3d_solve_forward(
     return np.stack([ux_out, uy_out, uz_out], axis=-1)  # (N,N,N,3)
 
 
-def ns3d_vjp(
+def ns3d_vjp(  # mosaic:grad:v0,viscosity,dt:autodiff
     tape: wp.Tape,
     ux_final: wp.array,
     uy_final: wp.array,
@@ -1925,7 +1931,7 @@ def ns3d_vjp(
 
 
 @wp.kernel
-def channel_tentative_u_kernel(
+def channel_tentative_u_kernel(  # mosaic:physics
     u: wp.array2d(dtype=wp.float32),
     v: wp.array2d(dtype=wp.float32),
     inflow: wp.array(dtype=wp.float32),
@@ -1964,7 +1970,7 @@ def channel_tentative_u_kernel(
 
 
 @wp.kernel
-def channel_tentative_v_kernel(
+def channel_tentative_v_kernel(  # mosaic:physics
     u: wp.array2d(dtype=wp.float32),
     v: wp.array2d(dtype=wp.float32),
     v_star: wp.array2d(dtype=wp.float32),
@@ -1996,7 +2002,7 @@ def channel_tentative_v_kernel(
 
 
 @wp.kernel
-def channel_divergence_kernel(
+def channel_divergence_kernel(  # mosaic:physics
     u_star: wp.array2d(dtype=wp.float32),
     v_star: wp.array2d(dtype=wp.float32),
     open_u: wp.array2d(dtype=wp.int32),
@@ -2020,7 +2026,7 @@ def channel_divergence_kernel(
 
 
 @wp.kernel
-def channel_laplacian_kernel(
+def channel_laplacian_kernel(  # mosaic:physics
     x: wp.array(dtype=wp.float32),
     y: wp.array(dtype=wp.float32),
     z: wp.array(dtype=wp.float32),
@@ -2059,7 +2065,7 @@ def channel_laplacian_kernel(
 
 
 @wp.kernel
-def channel_correct_u_kernel(
+def channel_correct_u_kernel(  # mosaic:physics
     u_star: wp.array2d(dtype=wp.float32),
     p: wp.array2d(dtype=wp.float32),
     open_u: wp.array2d(dtype=wp.int32),
@@ -2084,7 +2090,7 @@ def channel_correct_u_kernel(
 
 
 @wp.kernel
-def channel_correct_v_kernel(
+def channel_correct_v_kernel(  # mosaic:physics
     v_star: wp.array2d(dtype=wp.float32),
     p: wp.array2d(dtype=wp.float32),
     open_v: wp.array2d(dtype=wp.int32),
@@ -2101,7 +2107,7 @@ def channel_correct_v_kernel(
 
 
 @wp.kernel
-def channel_force_kernel(
+def channel_force_kernel(  # mosaic:physics
     u_star: wp.array2d(dtype=wp.float32),
     v_star: wp.array2d(dtype=wp.float32),
     p: wp.array2d(dtype=wp.float32),
@@ -2140,7 +2146,7 @@ def channel_force_kernel(
 
 
 @wp.kernel
-def channel_init_u_kernel(
+def channel_init_u_kernel(  # mosaic:physics
     ux: wp.array2d(dtype=wp.float32),
     open_u: wp.array2d(dtype=wp.int32),
     inflow: wp.array(dtype=wp.float32),
@@ -2160,7 +2166,7 @@ def channel_init_u_kernel(
 
 
 @wp.kernel
-def channel_init_v_kernel(
+def channel_init_v_kernel(  # mosaic:physics
     uy: wp.array2d(dtype=wp.float32),
     open_v: wp.array2d(dtype=wp.int32),
     v: wp.array2d(dtype=wp.float32),
@@ -2174,7 +2180,7 @@ def channel_init_v_kernel(
 
 
 @wp.kernel
-def channel_centers_kernel(
+def channel_centers_kernel(  # mosaic:physics
     u: wp.array2d(dtype=wp.float32),
     v: wp.array2d(dtype=wp.float32),
     fluid: wp.array2d(dtype=wp.int32),
@@ -2190,7 +2196,7 @@ def channel_centers_kernel(
 
 # mosaic-intervention: channel-cg-preconditioner
 @wp.kernel
-def channel_basis_rows_kernel(
+def channel_basis_rows_kernel(  # mosaic:physics
     a: wp.array2d(dtype=wp.float32),
     src: wp.array2d(dtype=wp.float32),
     dst: wp.array2d(dtype=wp.float32),
@@ -2204,7 +2210,7 @@ def channel_basis_rows_kernel(
 
 
 @wp.kernel
-def channel_basis_cols_kernel(
+def channel_basis_cols_kernel(  # mosaic:physics
     src: wp.array2d(dtype=wp.float32),
     b: wp.array2d(dtype=wp.float32),
     scale: wp.array2d(dtype=wp.float32),
@@ -2225,7 +2231,7 @@ def channel_basis_cols_kernel(
 
 
 @wp.kernel
-def _flag_unconverged_kernel(
+def _flag_unconverged_kernel(  # mosaic:util
     r_norm_sq: wp.array(dtype=wp.float32),
     atol_sq: wp.array(dtype=wp.float32),
     flag: wp.array(dtype=wp.int32),
@@ -2241,7 +2247,7 @@ _CHANNEL_CG_TOL = 1e-3
 _CHANNEL_CG_MAXITER = 5000
 
 
-def _check_cg_converged(flag: wp.array) -> None:
+def _check_cg_converged(flag: wp.array) -> None:  # mosaic:util
     if flag.numpy()[0]:
         raise RuntimeError(
             f"pressure CG did not reach a relative residual of {_CHANNEL_CG_TOL} "
@@ -2249,7 +2255,7 @@ def _check_cg_converged(flag: wp.array) -> None:
         )
 
 
-def _channel_masks(
+def _channel_masks(  # mosaic:init
     nx: int, ny: int, dx: float, obstacle: dict, device: str
 ) -> tuple[wp.array, wp.array, wp.array]:
     """``(fluid, open_u, open_v)`` int32 masks for the staircase cylinder."""
@@ -2265,7 +2271,7 @@ def _channel_masks(
     )
 
 
-def _channel_pressure_solver(
+def _channel_pressure_solver(  # mosaic:physics
     fluid: wp.array, open_u: wp.array, open_v: wp.array, device: str
 ) -> tuple[Any, wp.array]:
     """``solve(rhs, x)`` for A x = rhs in place, and the flag it sets on failure.
@@ -2375,7 +2381,7 @@ def _channel_pressure_solver(
     return solve, unconverged
 
 
-def channel_solve(
+def channel_solve(  # mosaic:physics
     v0_np: np.ndarray,
     inflow_np: np.ndarray,
     viscosity: float,
@@ -2562,11 +2568,11 @@ class OutputSchema(
 # ============================================================
 
 
-def _warp_device() -> str:
+def _warp_device() -> str:  # mosaic:util
     return "cuda:0" if wp.is_cuda_available() else "cpu"
 
 
-def _is_3d(v0_np: np.ndarray) -> bool:
+def _is_3d(v0_np: np.ndarray) -> bool:  # mosaic:util
     """True if the velocity field is 3-D (shape N,N,N,3 with nz != 1)."""
     return v0_np.ndim == 4 and v0_np.shape[2] != 1 and v0_np.shape[3] == 3
 
@@ -2576,7 +2582,7 @@ def _is_3d(v0_np: np.ndarray) -> bool:
 # ============================================================
 
 
-def _channel_args(inputs: InputSchema) -> dict[str, Any]:
+def _channel_args(inputs: InputSchema) -> dict[str, Any]:  # mosaic:util
     return {
         "v0_np": np.asarray(inputs.v0, dtype=np.float32),
         "inflow_np": np.asarray(inputs.inflow_profile, dtype=np.float32),
@@ -2628,7 +2634,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(**out)
 
 
-def _body_force_args(inputs: InputSchema) -> dict[str, Any]:
+def _body_force_args(inputs: InputSchema) -> dict[str, Any]:  # mosaic:util
     return {
         "forcing_np": (
             None
@@ -2641,7 +2647,7 @@ def _body_force_args(inputs: InputSchema) -> dict[str, Any]:
     }
 
 
-def channel_vjp(
+def channel_vjp(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     cotangent_vector: dict[str, Any],
@@ -2676,7 +2682,7 @@ def channel_vjp(
     return {key: grads[key] for key in vjp_inputs}
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

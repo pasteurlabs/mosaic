@@ -41,4 +41,24 @@ Each module in `plots/` writes one or more figures to `figures/` (or `--out-dir`
 | `variance.tex`        | `tab:app:variance` | Coefficient of variation of the timed trials per problem                                       |
 | `outcomes16gb.tex`    | `tab:app:outcomes` | Configurations that failed on 16 GB GPUs and their outcome in the results                      |
 
-`outcomes16gb.tex` compares against two runs on 16 GB GPUs: a V100 run ([Zenodo](https://zenodo.org/records/20067888), `--v100-results`) and a T4 CI run (`--t4-results`). Without both flags it is skipped. `--extra-results` adds the extended mesh cost sweeps (`cost/spatial_cost_large`, `cost/vjp_cost_large/by_N`), which fill in mesh sizes beyond the main sweep. The convergence and gradient-support columns of `merged.tex` come from the `mosaic status` JSON, read from `status.json` next to the results directory unless `--status` is given. The integration-effort columns of `merged.tex` (bespoke lines of code per wrapper) are the counts taken on the reviewed release, stored in `LOC_REVIEWED` in `make_tables.py`.
+`outcomes16gb.tex` compares against two runs on 16 GB GPUs: a V100 run ([Zenodo](https://zenodo.org/records/20067888), `--v100-results`) and a T4 CI run (`--t4-results`). Without both flags it is skipped. `--extra-results` adds the extended mesh cost sweeps (`cost/spatial_cost_large`, `cost/vjp_cost_large/by_N`), which fill in mesh sizes beyond the main sweep. The convergence and gradient-support columns of `merged.tex` come from the `mosaic status` JSON, read from `status.json` next to the results directory unless `--status` is given. The integration-effort columns of `merged.tex` (bespoke lines of code per wrapper) come from `count_loc.py`, described below.
+
+## Counting lines of code
+
+`count_loc.py` counts the bespoke lines of every Tesseract wrapper in `mosaic/tesseracts/` from the `mosaic:<category>` tags in its code. `make_tables.py` imports it for the integration-effort columns of `merged.tex`, and running it on its own prints the counts per wrapper:
+
+```bash
+uv run paper/count_loc.py
+```
+
+In `tesseract_api.py`, a tag sits on the signature of each top-level function or class (`def build_mesh(...):  # mosaic:init`) and covers its whole body. In Julia and C/C++/CUDA files, a comment marker (`# mosaic:<category>` or `// mosaic:<category>`) covers every line up to the next marker. The schema classes, `apply`, `abstract_eval`, the `vjp_jit` and `jvp_jit` helpers, imports and other module-level statements are glue and are not counted.
+
+| Tag       | Contents                                            | Column |
+| --------- | --------------------------------------------------- | ------ |
+| `io`      | Data exchange with external solver processes        | IO     |
+| `init`    | Solver initialization and mesh setup                | Conf.  |
+| `physics` | Discretization, time stepping, boundary conditions  | Num.   |
+| `grad`    | Gradient code (VJPs, adjoint solves, checkpointing) | Num.   |
+| `util`    | Helpers shared by the above                         | Num.   |
+
+The script also prints the `grad` lines on their own (they are part of Num.), which the text of Section 4.1 quotes, and an `unknown` column for untagged code, which counts as Num. and should be 0.

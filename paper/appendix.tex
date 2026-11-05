@@ -82,9 +82,14 @@ solvers evolve and new backends land.
 \paragraph{Integration effort}
 The \textbf{IO}, \textbf{Num.}, and \textbf{Conf.}\ columns in \cref{tab:merged}
 report bespoke lines of code by category.
+Each wrapper tags its code with \texttt{mosaic:<category>} comments, and
+\texttt{paper/count\_loc.py} in the repository counts the lines per tag and maps them
+to the columns: \texttt{io} to IO, \texttt{init} to Conf., and \texttt{physics},
+\texttt{grad}, and \texttt{util} to Num.
 \emph{IO} covers serialization and file-based data exchange with external solver processes.
 \emph{Num.}\ is problem-specific numerical code (assembly, time-stepping, boundary
-conditions, and gradient plumbing).
+conditions, and gradient plumbing); the gradient lines quoted in \cref{sec:baselines}
+are its \texttt{grad} part.
 \emph{Conf.}\ covers solver initialization and mesh setup.
 Glue code (Tesseract schema definitions and entry-point boilerplate) is excluded; it
 consistently amounts to 100--400\,LOC across all backends.
@@ -848,6 +853,136 @@ The study is not part of the benchmark. Its code (the native solver state, the
 full and short training experiments, and the scripts that produce these tables)
 is on the \texttt{paper} branch of the released code, and
 \texttt{studies/kolmogorov-sil/} there describes how to run it.
+
+\section{Solver interventions}
+\label{app:interventions}
+
+Mosaic records every departure from a solver's default usage, so that a
+reader can tell a solver used as documented from one whose wrapper works
+around its limitations. The records ship in each solver's
+\texttt{tesseract\_config.yaml} and are shown with its results in the
+documentation. This appendix describes the record format and the rules
+around it, and summarizes the records of the code that produced the results
+in this paper.
+
+\subsection{Record format}
+
+\begin{table}[h]
+  \centering\small
+  \caption{Intervention levels, assigned by mechanism, with examples from the
+    records.}
+  \label{tab:app:ladder}
+  \begin{tabularx}{\linewidth}{@{}l l X@{}}
+    \toprule
+    \textbf{Level} & \textbf{Mechanism} & \textbf{Example} \\
+    \midrule
+    L0 & Documented options & MUMPS as FEniCS's forward linear solver \\
+    L1 & Undocumented settings & Re-initializing XLB's global velocity set and precision before building each operator set \\
+    L2 & User code on public primitives & A custom pyadjoint block for a nodal misfit in FEniCS \\
+    L3 & Changes to the solver & A monkeypatch of phiml's NumPy backend for 64-bit indices in PhiFlow \\
+    L4 & Unreleased upstream fixes & Not accepted \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\paragraph{Fields}
+Each intervention records what was done, its level (\cref{tab:app:ladder}),
+its necessity (required, a choice among library alternatives, or unknown),
+whether its value was tuned by measurement, who wrote it (the Mosaic team, a
+contributor, or a solver maintainer), and, per setup, why it is needed: the
+consequences of skipping it (the setup cannot be expressed, a crash,
+non-finite output, an inaccurate forward solution, a missing or incorrect
+gradient, an optimizer stall, excessive run time or memory, or
+non-reproducible results), the symptom with a number where one exists, and
+the evidence. Workarounds of upstream bugs link the upstream issue. The code
+of every L2 and L3 intervention is marked in the wrapper, and the test suite
+validates each record and its markers. Fixes to Mosaic's own code, failure
+detection that changes no result, and build infrastructure are not recorded.
+What counts as ordinary use depends on the library's abstraction level.
+Writing the assembly loop is ordinary use of deal.II, and for a kernel
+toolkit such as NVIDIA Warp the hand-written solver is the baseline, so only
+interventions made for the benchmark are recorded.
+
+\paragraph{Policies}
+(i) \emph{Choice of scheme.} A solver may run any scheme its library
+offers. A non-default scheme is allowed when an experienced user of this
+kind of simulator would pick it for the problem and a measurement shows its
+gain, and it is recorded as an intervention. Whichever scheme runs, its
+errors are artifacts of the method and stay in the results.
+(ii) \emph{Runtime adaptations.} Caches may hold state derived from inputs
+that are not differentiable and from array shapes, never values derived from
+differentiable inputs. One untimed warm-up call precedes the timed calls, and
+its wall time is reported as the first-call cost. The same contract applies
+to every solver.
+(iii) \emph{Setup deviations.} A solver may substitute a documented
+alternative for part of a setup it cannot express if it still passes the
+setup's checks. The deviation is shown with its results.
+(iv) \emph{Tuning.} Tuning is ordinary use and every solver receives it.
+Tolerances are set to the loosest value at which every check of the setup is
+unchanged, framework defaults are only disabled for reasons that reproduce on
+the benchmark hardware, and cost is compared within a device class.
+
+\paragraph{Rules}
+Every solver runs on a released upstream version, or on a pinned commit where
+the project has no releases. Upstream bugs are excluded by default. A
+workaround links the upstream issue and is removed once a release fixes the
+bug. A change to the discrete method itself, as opposed to how it is used,
+creates a separate solver entry. An intervention shown to be unnecessary is
+removed.
+
+\subsection{Records}
+
+\Cref{tab:app:records} counts the 72 interventions recorded in the 19 solver
+wrappers; only Firedrake's structural wrapper has none. Of the 72, 19 have a
+tuned value, and 62 carry evidence for every setup they apply to.
+Three setup deviations are recorded: PICT, which has no pressure outlet, runs
+the cylinder channel with an advective outflow; XLB sub-steps every
+prescribed time step to keep the lattice Mach number at its target, since the
+lattice Boltzmann method ties the time step to the grid; and TopOpt.jl, whose
+input reader takes surface loads only as normal pressure, receives the
+cantilever's tangential load as nodal forces, which on the uniform mesh equal
+the integrated traction.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Interventions in the 19 solver wrappers by level and necessity, and
+    by the consequence of skipping them on any setup. An intervention can
+    record several consequences, and 13 record none, mostly because no
+    reason or measurement exists.}
+  \label{tab:app:records}
+  \begin{tabular}{@{}lrrrr@{\qquad}lr@{}}
+    \toprule
+    \textbf{Level} & \textbf{Required} & \textbf{Choice} & \textbf{Unknown} & \textbf{Total} & \textbf{Consequence} & \\
+    \midrule
+    L0 & 9 & 25 & 8 & 42 & Too slow & 25 \\
+    L1 & 0 & 0 & 2 & 2 & Crash & 10 \\
+    L2 & 12 & 6 & 5 & 23 & Cannot express & 8 \\
+    L3 & 3 & 2 & 0 & 5 & Incorrect gradient & 8 \\
+    \midrule
+    Total & 24 & 33 & 15 & 72 & Inaccurate forward & 6 \\
+          &    &    &    &    & Other & 7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Findings}
+The same need lands at different levels across libraries. FEniCS needs
+MUMPS in its heat-transfer adjoint solve to stay within memory at the
+largest size, and because legacy dolfin-adjoint ignores the forward solver's
+settings, this takes an L3 patch, whereas Firedrake's adjoint inherits them.
+Likewise, the drag force on the cylinder is user code (L2) in PICT and
+PhiFlow and a documented function object in OpenFOAM. Counts alone say
+little about effort, since torch-fem's five interventions per domain are all
+documented options.
+The format grew out of an audit of all 19 wrappers at commit
+\texttt{6517f75}, which recorded only the level. Of the 92 interventions it
+found, 8 had a reason backed by a test, a measurement, or an upstream issue,
+and asking for the others' reasons surfaced dead code, unnecessary
+interventions, unreported upstream bugs, and departures from default schemes
+without a recorded measurement. The audit also showed that the level alone
+conflates how something was done with whether it was needed, which is why
+the records now include necessity, setup deviations, and the
+abstraction-dependent baseline.
 
 \section{Solver documentation}
 \label{app:solvers}
