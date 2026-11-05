@@ -68,7 +68,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # ---------------------------------------------------------------------------
 
 
-def _build_firedrake_mesh(
+def _build_firedrake_mesh(  # mosaic:init
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask: np.ndarray,
@@ -212,7 +212,7 @@ def _build_firedrake_mesh(
 # ---------------------------------------------------------------------------
 
 
-def _cell_reorder_map(
+def _cell_reorder_map(  # mosaic:util
     pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
 ) -> np.ndarray:
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching.
@@ -247,7 +247,7 @@ def _cell_reorder_map(
 # ---------------------------------------------------------------------------
 
 
-def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:
+def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """Extract Dirichlet mask and values arrays from a MeshBC object.
 
     When ``dirichlet.values`` is ``None`` (homogeneous BCs), the number of
@@ -274,7 +274,7 @@ def _extract_dirichlet(bc: Any) -> tuple[np.ndarray, np.ndarray]:
     return mask, values
 
 
-def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:
+def _extract_neumann(bc: Any) -> tuple[np.ndarray, np.ndarray]:  # mosaic:io
     """Extract Neumann mask and values arrays from a MeshBC object.
 
     Returns:
@@ -322,7 +322,9 @@ _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 _ADJOINT_KERNELS_COMPILED = False
 
 
-def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
+def _setup_cache_key(
+    *arrays: np.ndarray, params: tuple[float, ...]
+) -> str:  # mosaic:util
     """Hash everything the recorded tape depends on, i.e. all inputs except rho."""
     h = hashlib.sha256()
     for arr in arrays:
@@ -331,7 +333,7 @@ def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
     return h.hexdigest()
 
 
-def _build_reduced_functional(
+def _build_reduced_functional(  # mosaic:physics
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -459,7 +461,7 @@ def _build_reduced_functional(
     }
 
 
-def _replay_elasticity(
+def _replay_elasticity(  # mosaic:physics
     rho_values: np.ndarray,
     pts: np.ndarray,
     cells: np.ndarray,
@@ -545,7 +547,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(compliance=np.float32(J_val))
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
