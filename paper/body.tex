@@ -285,21 +285,17 @@ Details on contributing and containerization overhead are in \cref{app:software}
 \paragraph{What each solver needed}
 Almost any solver passes a benchmark if someone works around its bugs,
 performance limits, and missing gradients for long enough, and there is no
-principled place to draw the line between using a solver and developing it.
-Mosaic instead records where each wrapper stands relative to that line.
-Every departure from a solver's default usage is an \emph{intervention},
-recorded with a level for its mechanism (L0 documented options, L1
-undocumented settings, L2 user code on public primitives such as a custom
-adjoint, L3 changes to the solver itself such as monkeypatching), whether it
-was required, and why: what a user who skips it would see, backed by
-evidence. Substitutes for parts of a setup that a solver cannot express are
-recorded as \emph{setup deviations}, and adaptations to the stateless
-container interface, such as setup caches, follow one contract for all
-solvers. The record format, its rules, and an audit of all solver wrappers
-are in \cref{app:interventions}.
-
-Integration effort per backend is quantified in \cref{tab:merged}; column
-definitions and full experimental specifications are in \cref{app:effort}.
+principled line between using a solver and developing it. Mosaic instead
+records where each wrapper stands. Every departure from a solver's default
+usage is an \emph{intervention}, recorded with a level for its mechanism (L0
+documented options, L1 undocumented settings, L2 user code on public
+primitives such as a custom adjoint, L3 changes to the solver itself such as
+monkeypatching), whether it was required, and why, with evidence.
+Substitutes for parts of a setup that a solver cannot express are recorded
+as \emph{setup deviations}, and adaptations to the stateless container
+interface, such as setup caches, follow one contract for all solvers. The
+records ship with each solver, \cref{tab:merged} summarizes them, and
+\cref{app:interventions} describes the format and its rules.
 
 \subsection{Evaluation protocol}
 \label{sec:protocol}
@@ -441,10 +437,9 @@ between solvers, and they provide an initial empirical characterization
 that practitioners can use to guide solver selection.
 All experiments ran on an Azure Standard\_NC24ads\_A100\_v4 instance
 (one NVIDIA A100 80\,GB PCIe, 24-core AMD EPYC 7V13; full spec in \cref{app:effort}).
-Results reflect the solver configurations of the pinned release.
-Departures from each solver's default usage are recorded as interventions
-(\cref{sec:scope}), and all configurations are community-improvable via
-pull request. Reproduction instructions are in \cref{app:software}.
+Results reflect the solver configurations of the pinned release, whose
+interventions are recorded (\cref{sec:scope}). All configurations are
+community-improvable via pull request. Reproduction instructions are in \cref{app:software}.
 
 \subsection{Benchmark summary and implementation effort}
 \label{sec:baselines}
@@ -458,37 +453,18 @@ the NS domains, is reported in \cref{app:physical_accuracy}.
 Structural incompatibilities exclude some solvers from specific tasks;
 causes are detailed in \cref{sec:optimization,app:solver-issues}.
 
-Gradient implementation effort varies substantially among differentiable solvers.
-We report bespoke lines of code (LOC) as a coarse proxy for integration
-complexity (an imperfect metric, but one that captures order-of-magnitude
-differences reproducibly).
-Warp-NS requires over 800 bespoke lines for the initial-condition VJP alone,
-a direct consequence of its low-level CUDA kernel model where each adjoint pass
-must be written explicitly.
-PhiFlow and JAX-CFD each require just 12 shared lines with no per-variable
-additions, because autodifferentiation through their JAX backends provides
-gradients at no extra implementation cost.
-This pattern holds broadly: solvers built on modern AD frameworks (JAX,
-PyTorch) consistently require zero per-variable extra lines, while hand-written
-adjoint implementations carry substantially higher overhead.
-The boundary is not always sharp: INS.jl uses Zygote reverse-mode AD yet
-still requires over 470 shared lines of gradient-specific code,
-a reminder that AD framework support does not guarantee turnkey gradients.
-
-Lines of code do not show what kind of work they contain. An audit of all
-19 solver wrappers with the intervention records of \cref{sec:scope} found
-92 interventions: 39 at L0, 22 at L1, 23 at L2, and 8 at L3. The same need
-can land at very different levels: running the adjoint solve with the direct
-solver MUMPS takes a monkeypatch of dolfin-adjoint (L3) in FEniCS and
-nothing in Firedrake, where the adjoint inherits the forward solver's
-settings. Only 8 of the 92 reasons were backed by a test, a measurement, or
-an upstream issue, and 34 had none recorded. The audit also found dead code,
-unnecessary interventions, unreported upstream bugs, and departures from
-library default schemes without a recorded measurement
-(\cref{app:interventions}). Resolving them changed some results after the
-pinned release; the changes are published with the continuously updated
-results (\cref{app:software}).
-
+\Cref{tab:merged} also lists what each solver needed: the number of
+interventions on each domain's setups and the highest level among the
+required ones. On F2, every differentiable solver needs a required
+intervention at L2 or above, mostly for the cylinder channel or the
+Kolmogorov forcing, and Exponax and PhiFlow need L3 patches of private
+internals, while OpenFOAM needs only documented options. On the mesh
+domains, only FEniCS has required interventions above L0, both on H: a
+custom adjoint block for the nodal misfit (L2), and an L3 patch because
+legacy dolfin-adjoint ignores the forward solver's settings and runs out of
+memory with its default adjoint solver, whereas Firedrake's adjoint inherits
+them. A count alone says little about effort: torch-fem's five
+interventions per domain are all documented options.
 
 \begin{table}
   \centering\small
@@ -610,8 +586,7 @@ of a 16-call chain, cotangents are about $10^{-4}$ per entry, the solves
 stopped early, and the chained check measured a median relative error of
 0.89 at a cosine of 0.51. Rescaling the cotangent in the wrapper fixed it.
 With the fix, every solver that runs the forced flow stably passes the
-chained check with errors of $10^{-4}$ to $2\times10^{-3}$, except PhiFlow,
-whose chained finite differences vary erratically with~$\varepsilon$
+chained check, with median errors of $5\times10^{-5}$ to $6.4\times10^{-4}$
 (\cref{app:kolmogorov}).
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
@@ -705,28 +680,29 @@ by setup compatibility before gradient quality enters the picture.
 \subsection{Solver-in-the-loop training}
 \label{sec:sil}
 
-To test whether the standalone checks predict how a solver behaves inside a
-training loop, we trained a small periodic CNN to correct each solver's coarse
-Kolmogorov flow ($64^2$) every 0.1 time units, against that solver's own
-$256^2$ run (\cref{app:sil}). Three arms share their training windows, updates
-and initialization: supervised one-interval pairs with no solver in the graph,
-a 16-interval rollout with the gradient stopped at every solver call, and the
-same rollout differentiated through the solver.
-All five solvers that run the flow stably passed every training check, and
-none of the 45 trainings or 270 long rollouts failed. Averaged over three
+To test whether the standalone checks predict behavior in a training loop, we
+trained a small periodic CNN to correct each solver's coarse
+Kolmogorov flow ($64^2$) every 0.1 time units against its own $256^2$ run
+(\cref{app:sil}), in three arms with shared windows, updates and
+initialization: supervised one-interval pairs, a 16-interval rollout with the
+gradient stopped at every solver call, and the same rollout differentiated
+through the solver (SIL).
+All five admitted solvers pass the feasibility gates of a short run. The full
+study is limited to solvers that finish it in about an hour, which excludes
+PICT (most of a day). JAX-CFD, Exponax, XLB and INS.jl completed all 36
+trainings, and none of the 216 long rollouts diverged. Averaged over three
 seeds, supervised training reached the lowest test error on every solver
-except Exponax, and differentiating through the solver never beat stopping the
-gradient, although it did on individual seeds. Training through the solver
-therefore did not separate the solvers beyond their cost, from 1\,s (JAX-CFD)
-to 27\,s (PICT) per update.
-Chaining does expose the interface: restarting JAX-CFD or INS.jl from the
-cell-centered velocity at every call drifts 13\% from an unbroken run after 16
-calls, so the study passes native solver state between calls.
-The one defect the study surfaced, PICT's adjoint tolerance, is caught as well
-by the chained gradient check (\cref{sec:quality}), which needs neither a
-network nor native state. On this setup the standalone checks predicted
-whether a solver can be trained through, so the study is not part of the
-benchmark. Its code is archived for reproduction.
+except Exponax, and SIL never beat stopping the gradient, although it did on
+individual seeds. Training through the solver thus did not separate the
+solvers beyond their cost (1.0 to 2.8\,s per SIL update), and their chained
+Jacobians barely differ, so the setup cannot test conditioning as a predictor.
+Restarting JAX-CFD or INS.jl from the cell-centered velocity at every call
+drifts 13\% from an unbroken run after 16 calls, so the study passes native
+solver state between calls.
+The one defect the study surfaced, PICT's adjoint tolerance, is also caught by
+the chained gradient check (\cref{sec:quality}), which needs neither a network
+nor native state. On this setup the standalone checks predicted whether a
+solver can be trained through, so the study is not part of the benchmark.
 
 % ===========================================================================
 \section{Discussion and conclusion}
