@@ -137,8 +137,8 @@ def _timed_kernel(
 
 _CI_ISOLATION_NOTE = (
     "Wall-clock times measured on dedicated per-suite VM in CI."
-    " Relative rankings reliable; absolute times may vary"
-    " ±10-15% across runs."
+    " Absolute times may vary ±10-15% across runs, and rankings can"
+    " differ on other GPUs, most for solvers that compute in float64."
 )
 
 
