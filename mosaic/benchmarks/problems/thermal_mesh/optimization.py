@@ -157,7 +157,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
 
     Returns ``metrics`` keyed by solver name (``errors``, ``initial_error``,
     ``final_error``, ``error_reduction_pct``, ``n_iters``, ``iters_to_plateau``,
-    ``converged``, ``grad_norms``) plus the per-solver
+    ``seconds_to_plateau``, ``elapsed_s``, ``converged``, ``grad_norms``) plus the per-solver
     ``rho_final`` / ``rho_history`` snapshots and the shared ``rho_init`` /
     ``rho_truth`` arrays consumed by :func:`_conductivity_recovery_aggregate`.
     """
@@ -277,6 +277,8 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
         ),
         "n_iters": diag["n_iters"],
         "iters_to_plateau": diag["iters_to_plateau"],
+        "seconds_to_plateau": diag["seconds_to_plateau"],
+        "elapsed_s": diag["elapsed_s"],
         "converged": converged,
         "grad_norms": grad_norms,
     }

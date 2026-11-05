@@ -22,6 +22,7 @@ The inner Adam loop, ``_run_optim``, lives in ``shared/optimization.py``.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 import jax
@@ -37,7 +38,11 @@ from mosaic.benchmarks.core.io import (
     save_npz_merged,
 )
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
-from mosaic.benchmarks.problems.shared.optimization import _iters_to_plateau, _run_optim
+from mosaic.benchmarks.problems.shared.optimization import (
+    _iters_to_plateau,
+    _run_optim,
+    _seconds_to_plateau,
+)
 
 from . import cylinder
 
@@ -118,13 +123,15 @@ def _drag_build_solver_entry(
     converged: bool,
     in_progress: bool = False,
     error: str | None = None,
+    elapsed: list | None = None,
 ) -> dict:
     """Assemble a single solver's drag-opt result dict (used for partial + final).
 
     ``drags`` is the drag coefficient Cd at each iteration. The loss is
     proportional to Cd, so ``iters_to_plateau`` is :func:`_iters_to_plateau`
     of ``drags``, which includes the Cd of the final profile once the kernel
-    has appended it.
+    has appended it. ``elapsed[k]`` is the time at which ``drags[k]`` was
+    known (see :func:`_run_optim`), from which ``seconds_to_plateau`` follows.
     """
     entry = {
         "drags": drags,
@@ -137,6 +144,12 @@ def _drag_build_solver_entry(
         ),
         "n_iters": n_iters_total,
         "iters_to_plateau": _iters_to_plateau(drags) if drags else None,
+        "seconds_to_plateau": (
+            _seconds_to_plateau(drags, elapsed)
+            if drags and elapsed and len(elapsed) == len(drags)
+            else None
+        ),
+        "elapsed_s": elapsed,
         "converged": converged,
         "grad_norms": grad_norms,
     }
@@ -206,7 +219,7 @@ def _drag_opt_adam_loop(
     by_solver: dict,
     write_partial: Any,
     make_inputs: Any,
-) -> tuple[jax.Array, list, dict]:
+) -> tuple[jax.Array, list, dict, float]:
     """Adam loop for drag_opt; supports per-iter partial-checkpoint flushes.
 
     Thin wrapper around :func:`_run_optim` with ``has_aux=True``. The loss
@@ -214,7 +227,8 @@ def _drag_opt_adam_loop(
     coefficient flows through the shared ``aux_history`` plumbing. Partial-
     checkpoint flushes happen via the ``log_fn`` callback every 10 iterations.
 
-    Returns ``(profile_final, profile_history, by_solver_entry)``.
+    Returns ``(profile_final, profile_history, by_solver_entry, started_at)``,
+    where ``started_at`` is the loop's clock start (see :func:`_run_optim`).
     """
 
     def loss_fn(p: Any, _t: Any = t) -> Any:
@@ -257,9 +271,13 @@ def _drag_opt_adam_loop(
     grad_norms = list((diag or {}).get("grad_norms") or [])
     n_iters = len(losses)
     entry = _drag_build_solver_entry(
-        drags, grad_norms, n_iters, converged=n_iters < max_iters
+        drags,
+        grad_norms,
+        n_iters,
+        converged=n_iters < max_iters,
+        elapsed=diag["elapsed_s"],
     )
-    return profile, profile_history, entry
+    return profile, profile_history, entry, diag["started_at"]
 
 
 # ── kernel + aggregate ───────────────────────────────────────────────────────
@@ -444,7 +462,7 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
         partial_writer.write(ctx.name, by_solver_shim.get(ctx.name))
 
     # ── Optimisation loop ──────────────────────────────────────────────────
-    profile, profile_history, entry = _drag_opt_adam_loop(
+    profile, profile_history, entry, started_at = _drag_opt_adam_loop(
         ctx.name,
         t,
         profile_init,
@@ -462,12 +480,14 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
         t, profile, phys, name=ctx.name, make_inputs=ctx.make_inputs
     )
     if np.isfinite(cd_final):
-        # ``drags[k]`` is Cd after k updates. The final profile adds one more.
+        # ``drags[k]`` is Cd after k updates. The final profile adds one more,
+        # known once its forward pass returns, on the loop's clock.
         entry = _drag_build_solver_entry(
             [*entry["drags"], cd_final],
             entry["grad_norms"],
             entry["n_iters"],
             converged=entry["converged"],
+            elapsed=[*entry["elapsed_s"], time.perf_counter() - started_at],
         )
     # Final flush — replace the in-progress entry with the converged one.
     by_solver_shim[ctx.name] = entry
