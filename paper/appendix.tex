@@ -943,3 +943,67 @@ incompressible problems. The XLB Tesseract therefore runs each prescribed
 step as $k=\lceil \mathrm{Ma}/\mathrm{Ma}_\text{target}\rceil$ lattice steps of
 $\Delta t/k$, with $\mathrm{Ma}_\text{target}=0.1$, lowered in proportion to $1/N$
 above $N=64$ on the periodic boxes, which removes the error floor.
+
+% ===========================================================================
+\section{Excluded tasks and what would lift each exclusion}
+\label{app:exclusions}
+
+Setup compatibility is one of the protocol's metrics, so every task a
+solver does not run is recorded in the repository with a category and a
+reason. \Cref{tab:app:exclusions} lists the exclusions that affect the
+tasks and checks of this paper, with the change that would lift each.
+Categorical exclusions follow from the solver's method or from a missing
+adjoint, and the solver cannot be compared without a different
+discretization or an adjoint implementation. The others are work that a
+contribution could do. Results that a check flags but that have a
+recorded explanation still run and are not listed. Solvers left out of the
+benchmark altogether are described in \cref{app:excluded}.
+
+\begin{table}[h]
+  \centering\small
+  \caption{Solvers excluded from tasks or checks in this paper. Categories
+    are those recorded in the repository, except PICT's, which is the
+    runtime criterion of the solver-in-the-loop study (\cref{app:sil}).}
+  \label{tab:app:exclusions}
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabularx}{\linewidth}{@{}>{\raggedright}p{1.75cm}>{\raggedright}p{2.15cm}>{\raggedright}p{1.7cm}>{\raggedright}X>{\raggedright\arraybackslash}X@{}}
+    \toprule
+    \textbf{Solver} & \textbf{Tasks} & \textbf{Category} & \textbf{Reason}
+      & \textbf{What would lift it} \\
+    \midrule
+    Exponax & F2 channel: cylinder check, drag optimization & Categorical
+      & A Fourier pseudo-spectral method represents only periodic fields, so
+        it cannot express walls, an inflow, or an outflow.
+      & Nothing within the method. The channel needs a different
+        discretization. \\
+    JAX-CFD & F2 channel: cylinder check, drag optimization & Not implemented
+      & Version 0.2.1 supports no inflow in its advection, no zero-gradient
+        outlet for face-centered velocity, only scalar boundary values, and
+        no obstacles.
+      & Upstream support for these boundaries, or hand-written convection,
+        boundary conditions, and obstacle on its grid primitives. \\
+    OpenFOAM & All gradient-based experiments (F2, F3) & Categorical
+      & The standard solvers are forward-only C++ without an AD path.
+      & An adjoint-capable variant, such as DAFoam or OpenFOAM-AD, wrapped as
+        a separate backend. \\
+    deal.II & All gradient-based experiments (H, S) & Categorical
+      & The library offers no reverse-mode VJP through its solves, and the
+        wrapper is forward-only.
+      & A hand-written discrete adjoint in the wrapper, one transposed linear
+        solve per gradient for these steady linear problems. \\
+    Warp-NS & Solver-in-the-loop study & Unstable
+      & Explicit Euler with central advection is linearly unstable at the
+        time steps of the forced Kolmogorov flow, on which it diverges on
+        every grid.
+      & A stable time integrator or advection scheme. \\
+    PhiFlow & Solver-in-the-loop study & Unstable
+      & Its own finest-grid run, the training target, turns non-finite from
+        some test states. The cause has not been established.
+      & A diagnosis of the divergence. \\
+    PICT & Full solver-in-the-loop study & Runtime
+      & The full run would take most of a day, because PICT's linear solves
+        are bound by device synchronization.
+      & Fewer synchronizations per solve, or a larger compute budget. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
