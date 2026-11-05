@@ -77,6 +77,36 @@ def is_ok(metrics: dict) -> bool:
     return bool(metrics) and metrics.get("status", "ok") == "ok"
 
 
+# A container that exits while its GPU is full ran out of memory. PICT's
+# server exits at the device limit without raising an error (exit code 0), so
+# the harness records `container_died` instead of `OOM`.
+MASKED_OOM_FRACTION = 0.95
+
+
+@functools.cache
+def device_mib(root: Path, default: float | None = None) -> float | None:
+    """GPU memory of a run's device in MiB, from the first result that records it."""
+    for path in sorted(root.glob("*/cost/*/result.json")):
+        hardware = json.loads(path.read_text()).get("extras", {}).get("hardware") or {}
+        if gpus := hardware.get("gpus"):
+            return float(gpus[0].rsplit(",", 1)[1].split()[0])
+    return default
+
+
+def failure_type(metrics: dict, device: float | None) -> str | None:
+    """The recorded failure type, with a container death at a full GPU counted as OOM."""
+    ft = metrics.get("failure_type")
+    vram = metrics.get("vram_peak_mib")
+    if (
+        ft == "container_died"
+        and device is not None
+        and vram is not None
+        and vram >= MASKED_OOM_FRACTION * device
+    ):
+        return "OOM"
+    return ft
+
+
 @functools.cache
 def solver_metadata(problem: str) -> dict[str, dict]:
     """``metadata.mosaic`` of every Tesseract of *problem*, keyed by solver name."""

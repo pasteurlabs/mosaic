@@ -2,8 +2,8 @@
 
 Three panels against rollout steps (log-log): peak VRAM, wall time of the
 VJP call, and gradient norm. Each solver's line ends at its last successful
-horizon. Memory failures (out of memory, container died) are marked at the
-device limit in the VRAM panel; non-finite gradients are marked at the top
+horizon. Out-of-memory failures, including containers that exit with the GPU
+full, are marked at the device limit in the VRAM panel; non-finite gradients are marked at the top
 edge of the gradient-norm panel.
 
 Each horizon is a single VJP call; only the first horizon follows a warm-up
@@ -21,7 +21,15 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.transforms import blended_transform_factory
 
-from . import TEXTWIDTH, by_solver, is_ok, load_result
+from . import (
+    TEXTWIDTH,
+    by_solver,
+    device_mib,
+    failure_type,
+    is_ok,
+    load_result,
+    results_dir,
+)
 from .style import NS_ORDER, RCPARAMS, make_handle, solver_props
 
 DEVICE_GB = 80  # A100 80 GB = 81920 MiB; GB here means MiB / 1024
@@ -60,7 +68,10 @@ def generate(out_dir: Path) -> None:
     for s in solvers:
         pts = sorted((int(k), m) for k, m in data[s].items())
         ok[s] = [(t, m) for t, m in pts if is_ok(m)]
-        failed = [(t, m["failure_type"]) for t, m in pts if m.get("status") == "failed"]
+        device = device_mib(results_dir())
+        failed = [
+            (t, failure_type(m, device)) for t, m in pts if m.get("status") == "failed"
+        ]
         if failed:
             fail[s] = failed[0]
 
