@@ -1186,12 +1186,11 @@ of solver binaries or independent verification of gradient implementations.
 The FEniCS incompressible NS solver (CG1/CG1 elements, IPCS time-stepping)
 was evaluated for fluid benchmarks but excluded for two independent reasons.
 Without SUPG/GLS advection stabilization, stability requires
-$\mathrm{Pe}_h = Uh/(2\nu) \lesssim 1$; at $\nu < 0.01$ on the $N=64$
-benchmark grid, relative errors reach 31--212 while other solvers stay in
-0.02--0.16.
-Independently, wall-clock scaling is empirically $O(N^{2.45})$ in serial,
-and the VJP at $N=64$ takes 1248\,s, beyond the 1\,000\,s per-trial limit of
-the cost sweeps.
+$\mathrm{Pe}_h = Uh/(2\nu) \lesssim 1$, so at $\nu < 0.01$ on the $N=64$
+benchmark grid its errors were orders of magnitude above the other solvers'.
+Independently, its serial wall-clock time grew faster than quadratically in
+$N$, and a single VJP at $N=64$ exceeded the per-trial limit of the cost
+sweeps.
 FEniCS remains included for structural and heat-transfer domains (H, S),
 where neither constraint applies.
 
