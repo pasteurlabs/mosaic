@@ -107,16 +107,28 @@ def failure_type(metrics: dict, device: float | None) -> str | None:
 
 
 @functools.cache
+def _tesseracts(problem: str) -> list[tuple[str, dict]]:
+    """``(wrapper directory, metadata.mosaic)`` of every Tesseract of *problem*."""
+    domain = _TESSERACT_DOMAIN[problem]
+    return [
+        (f.parent.name, yaml.safe_load(f.read_text())["metadata"]["mosaic"])
+        for f in sorted(
+            (_REPO_ROOT / "mosaic" / "tesseracts" / domain).glob(
+                "*/tesseract_config.yaml"
+            )
+        )
+    ]
+
+
 def solver_metadata(problem: str) -> dict[str, dict]:
     """``metadata.mosaic`` of every Tesseract of *problem*, keyed by solver name."""
+    return {meta["name"]: meta for _, meta in _tesseracts(problem)}
+
+
+def solver_wrappers(problem: str) -> dict[str, tuple[str, str]]:
+    """``(domain directory, wrapper directory)`` of every Tesseract of *problem*, keyed by solver name."""
     domain = _TESSERACT_DOMAIN[problem]
-    out = {}
-    for f in sorted(
-        (_REPO_ROOT / "mosaic" / "tesseracts" / domain).glob("*/tesseract_config.yaml")
-    ):
-        meta = yaml.safe_load(f.read_text())["metadata"]["mosaic"]
-        out[meta["name"]] = meta
-    return out
+    return {meta["name"]: (domain, wrapper) for wrapper, meta in _tesseracts(problem)}
 
 
 def get_generate_fn(name: str) -> Callable[[Path], None]:

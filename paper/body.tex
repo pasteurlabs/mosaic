@@ -447,17 +447,16 @@ Gradient implementation effort varies substantially among differentiable solvers
 We report bespoke lines of code (LOC) as a coarse proxy for integration
 complexity (an imperfect metric, but one that captures order-of-magnitude
 differences reproducibly).
-Warp-NS requires over 800 bespoke lines for the initial-condition VJP alone,
-because the wrapper wrote its adjoint passes by hand.
-PhiFlow and JAX-CFD each require just 12 shared lines with no per-variable
-additions, because autodifferentiation through their JAX backends provides
-gradients at no extra implementation cost.
-This pattern holds broadly: solvers built on modern AD frameworks (JAX,
-PyTorch) consistently require zero per-variable extra lines, while hand-written
-adjoint implementations carry substantially higher overhead.
-The boundary is not always sharp: INS.jl uses Zygote reverse-mode AD yet
-still requires over 470 shared lines of gradient-specific code,
-a reminder that AD framework support does not guarantee turnkey gradients.
+Warp-NS carries over 2400 numerical lines because the wrapper implements the
+flow solver itself, and its gradients, recorded on Warp's tape, still take 235
+of them, the most of any solver.
+PhiFlow, JAX-CFD, and Exponax each require at most 20 gradient lines, a single
+VJP covering all differentiable inputs, because autodifferentiation through
+their JAX backends provides gradients at no extra implementation cost.
+AD is not always this cheap: INS.jl uses Zygote reverse-mode AD yet
+still requires 228 lines of gradient-specific code, PICT (PyTorch) 170, and
+XLB (JAX) 91, half of them to checkpoint its rollout, a reminder that AD
+framework support does not guarantee turnkey gradients.
 The maintained benchmark instead records each solver's interventions
 (\cref{app:interventions}).
 

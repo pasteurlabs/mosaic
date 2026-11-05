@@ -82,9 +82,14 @@ solvers evolve and new backends land.
 \paragraph{Integration effort}
 The \textbf{IO}, \textbf{Num.}, and \textbf{Conf.}\ columns in \cref{tab:merged}
 report bespoke lines of code by category.
+Each wrapper tags its code with \texttt{mosaic:<category>} comments, and
+\texttt{paper/count\_loc.py} in the repository counts the lines per tag and maps them
+to the columns: \texttt{io} to IO, \texttt{init} to Conf., and \texttt{physics},
+\texttt{grad}, and \texttt{util} to Num.
 \emph{IO} covers serialization and file-based data exchange with external solver processes.
 \emph{Num.}\ is problem-specific numerical code (assembly, time-stepping, boundary
-conditions, and gradient plumbing).
+conditions, and gradient plumbing); the gradient lines quoted in \cref{sec:baselines}
+are its \texttt{grad} part.
 \emph{Conf.}\ covers solver initialization and mesh setup.
 Glue code (Tesseract schema definitions and entry-point boilerplate) is excluded; it
 consistently amounts to 100--400\,LOC across all backends.

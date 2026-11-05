@@ -64,7 +64,7 @@ class OutputSchema(
 # ---------------------------------------------------------------------------
 
 
-def _build_firedrake_mesh(
+def _build_firedrake_mesh(  # mosaic:init
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask: np.ndarray,
@@ -173,7 +173,7 @@ def _build_firedrake_mesh(
 # ---------------------------------------------------------------------------
 
 
-def _cell_reorder_map(
+def _cell_reorder_map(  # mosaic:util
     pts: np.ndarray, input_cells: np.ndarray, fd_mesh: Any
 ) -> np.ndarray:
     """Build Firedrake-cell-index → input-cell-index permutation via centroid matching."""
@@ -186,7 +186,7 @@ def _cell_reorder_map(
     return fd_to_input
 
 
-def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:
+def _node_reorder_map(pts: np.ndarray, fd_mesh: Any) -> np.ndarray:  # mosaic:util
     """Build Firedrake-node-index → input-node-index permutation via coordinate matching."""
     fd_coords = fd_mesh.coordinates.dat.data_ro
     tree = cKDTree(pts)
@@ -231,7 +231,9 @@ _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 _ADJOINT_KERNELS_COMPILED = False
 
 
-def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
+def _setup_cache_key(
+    *arrays: np.ndarray, params: tuple[float, ...]
+) -> str:  # mosaic:util
     """Hash everything the recorded tape depends on, i.e. all inputs but rho/source."""
     h = hashlib.sha256()
     for arr in arrays:
@@ -240,7 +242,7 @@ def _setup_cache_key(*arrays: np.ndarray, params: tuple[float, ...]) -> str:
     return h.hexdigest()
 
 
-def _build_reduced_functionals(
+def _build_reduced_functionals(  # mosaic:physics
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -354,7 +356,7 @@ def _build_reduced_functionals(
     }
 
 
-def _replay_heat(
+def _replay_heat(  # mosaic:physics
     rho_values: np.ndarray,
     source_values: np.ndarray,
     pts: np.ndarray,
@@ -415,7 +417,7 @@ def _replay_heat(
     return float(J), T_fd[input_to_fd], entry
 
 
-def _gradient_pair(
+def _gradient_pair(  # mosaic:grad:rho,source:adjoint
     reduced_functional: Any, entry: dict[str, Any], n_cells: int, adj_input: Any = 1.0
 ) -> tuple[np.ndarray, np.ndarray]:
     """(d/drho, d/dsource) from one adjoint sweep, mapped to input cell order."""
@@ -485,7 +487,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     )
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho,source:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -573,9 +575,11 @@ def vector_jacobian_product(
     # mosaic-intervention-end: nodal-misfit-seed
 
     result: dict[str, Any] = {}
+    # mosaic:grad:rho:adjoint
     if want_rho:
         result["rho"] = np.zeros(len(np.asarray(inputs.rho)), dtype=np.float32)
         result["rho"][:n_cells] = grad_rho.astype(np.float32)
+    # mosaic:grad:source:adjoint
     if want_source:
         result["source"] = np.zeros(len(np.asarray(inputs.source)), dtype=np.float32)
         result["source"][:n_cells] = grad_source.astype(np.float32)
