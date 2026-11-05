@@ -79,15 +79,10 @@ solvers evolve and new backends land.
 \subsection{Benchmark specifications}
 \label{app:effort}
 
-\paragraph{Integration effort}
-The \textbf{IO}, \textbf{Num.}, and \textbf{Conf.}\ columns in \cref{tab:merged}
-report bespoke lines of code by category.
-\emph{IO} covers serialization and file-based data exchange with external solver processes.
-\emph{Num.}\ is problem-specific numerical code (assembly, time-stepping, boundary
-conditions, and gradient plumbing).
-\emph{Conf.}\ covers solver initialization and mesh setup.
-Glue code (Tesseract schema definitions and entry-point boilerplate) is excluded; it
-consistently amounts to 100--400\,LOC across all backends.
+\paragraph{Intervention columns}
+The \textbf{\#} column in \cref{tab:merged} counts a solver's interventions
+(\cref{app:interventions}) that apply to the setups of the domain, and
+\textbf{max L (req.)} is the highest level among those marked as required.
 
 \paragraph{Error column definitions}
 \textit{Ref.}: $\|\mathbf{f}_{\text{solver}} - \mathbf{f}_{\text{ref}}\|_2 / \|\mathbf{f}_{\text{ref}}\|_2$,
@@ -555,8 +550,8 @@ a state 1, 3, 8 and 16 calls before the loss disagreed with finite differences b
 0.04\%, 3.7\%, 10\% and 73\%, and the chained check reported a median error of
 0.89 at a cosine of 0.51. The wrapper now scales each cotangent to a largest
 entry of one before PICT's backward pass and scales the gradient back, which is
-exact for a linear VJP and makes the tolerance relative to the cotangent. This
-deviates from PICT's defaults and is documented with the solver.
+exact for a linear VJP and makes the tolerance relative to the cotangent. It is
+recorded as an L2 intervention (\cref{app:interventions}).
 
 \subsection{Optimization}
 \label{app:recovery}
@@ -825,23 +820,25 @@ is on the \texttt{paper} branch of the released code, and
 
 Mosaic records every departure from a solver's default usage, so that a
 reader can tell a solver used as documented from one whose wrapper works
-around its limitations. This appendix describes the record format and the
-rules around it, and reports an audit of all 19 solver wrappers in the
-repository (commit \texttt{6517f75}, October 2026).
+around its limitations. The records ship in each solver's
+\texttt{tesseract\_config.yaml} and are shown with its results in the
+documentation. This appendix describes the record format and the rules
+around it, and summarizes the records of the code that produced the results
+in this paper.
 
 \subsection{Record format}
 
 \begin{table}[h]
   \centering\small
-  \caption{Intervention levels, assigned by mechanism. Examples are from the
-    audit.}
+  \caption{Intervention levels, assigned by mechanism, with examples from the
+    records.}
   \label{tab:app:ladder}
   \begin{tabularx}{\linewidth}{@{}l l X@{}}
     \toprule
     \textbf{Level} & \textbf{Mechanism} & \textbf{Example} \\
     \midrule
     L0 & Documented options & MUMPS as FEniCS's forward linear solver \\
-    L1 & Undocumented settings & An undocumented collision-operator switch threshold in XLB \\
+    L1 & Undocumented settings & Re-initializing XLB's global velocity set and precision before building each operator set \\
     L2 & User code on public primitives & A custom pyadjoint block for a nodal misfit in FEniCS \\
     L3 & Changes to the solver & A monkeypatch of phiml's NumPy backend for 64-bit indices in PhiFlow \\
     L4 & Unreleased upstream fixes & Not accepted \\
@@ -852,17 +849,20 @@ repository (commit \texttt{6517f75}, October 2026).
 \paragraph{Fields}
 Each intervention records what was done, its level (\cref{tab:app:ladder}),
 its necessity (required, a choice among library alternatives, or unknown),
-whether its value was tuned by measurement, and, per setup, why it is
-needed: the consequences of skipping it (the setup cannot be expressed, a
-crash, non-finite output, an inaccurate forward solution, a missing or
-incorrect gradient, an optimizer stall, excessive run time or memory, or
+whether its value was tuned by measurement, who wrote it (the Mosaic team, a
+contributor, or a solver maintainer), and, per setup, why it is needed: the
+consequences of skipping it (the setup cannot be expressed, a crash,
+non-finite output, an inaccurate forward solution, a missing or incorrect
+gradient, an optimizer stall, excessive run time or memory, or
 non-reproducible results), the symptom with a number where one exists, and
-the evidence. Workarounds of upstream bugs link the upstream issue. Fixes to
-Mosaic's own code, failure detection that changes no result, and build
-infrastructure are not recorded. What counts as ordinary use depends on the
-library's abstraction level: writing the assembly loop is ordinary use of
-deal.II, and for a kernel toolkit such as NVIDIA Warp the hand-written solver
-is the baseline, so only interventions made for the benchmark are recorded.
+the evidence. Workarounds of upstream bugs link the upstream issue. The code
+of every L2 and L3 intervention is marked in the wrapper, and the test suite
+validates each record and its markers. Fixes to Mosaic's own code, failure
+detection that changes no result, and build infrastructure are not recorded.
+What counts as ordinary use depends on the library's abstraction level:
+writing the assembly loop is ordinary use of deal.II, and for a kernel
+toolkit such as NVIDIA Warp the hand-written solver is the baseline, so only
+interventions made for the benchmark are recorded.
 
 \paragraph{Policies}
 (i) \emph{Choice of scheme.} A solver may run any scheme its library
@@ -891,55 +891,54 @@ bug. A change to the discrete method itself, as opposed to how it is used,
 creates a separate solver entry. An intervention shown to be unnecessary is
 removed.
 
-\subsection{Audit}
+\subsection{Records}
 
-The audit used a first version of the format that recorded only the level.
-\Cref{tab:app:audit} summarizes it.
+\Cref{tab:app:records} counts the 72 interventions recorded in the 19 solver
+wrappers; only Firedrake's structural wrapper has none. Of the 72, 19 have a
+tuned value, and 62 carry evidence for every setup they apply to.
+Three setup deviations are recorded: PICT, which has no pressure outlet, runs
+the cylinder channel with an advective outflow; XLB sub-steps every
+prescribed time step to keep the lattice Mach number at its target, since the
+lattice Boltzmann method ties the time step to the grid; and TopOpt.jl, whose
+input reader takes surface loads only as normal pressure, receives the
+cantilever's tangential load as nodal forces, which on the uniform mesh equal
+the integrated traction.
 
 \begin{table}[h]
   \centering\small
-  \caption{Interventions found in all 19 solver wrappers, by level, by how
-    well their reason is supported, and by the consequence of skipping
-    them. \emph{Verified}: backed by a test, a measurement, or an upstream
-    issue. \emph{Stated}: asserted in a code comment or pull request.
-    \emph{Inferred}: no reason recorded.}
-  \label{tab:app:audit}
-  \begin{tabular}{@{}lr@{\qquad}lr@{\qquad}lr@{}}
+  \caption{Interventions in the 19 solver wrappers by level and necessity, and
+    by the consequence of skipping them on any setup. An intervention can
+    record several consequences, and 13 record none, mostly because no
+    reason or measurement exists.}
+  \label{tab:app:records}
+  \begin{tabular}{@{}lrrrr@{\qquad}lr@{}}
     \toprule
-    \multicolumn{2}{@{}l}{\textbf{Level}} & \multicolumn{2}{l}{\textbf{Reason}} & \multicolumn{2}{l@{}}{\textbf{Consequence}} \\
+    \textbf{Level} & \textbf{Required} & \textbf{Choice} & \textbf{Unknown} & \textbf{Total} & \textbf{Consequence} & \\
     \midrule
-    L0 & 39 & Verified & 8 & Too slow & 27 \\
-    L1 & 22 & Stated & 50 & Inaccurate forward & 17 \\
-    L2 & 23 & Inferred & 34 & Crash & 14 \\
-    L3 & 8 & & & Cannot express & 9 \\
-       &   & & & Out of memory & 9 \\
-       &   & & & Incorrect gradient & 8 \\
-       &   & & & Other & 8 \\
+    L0 & 9 & 25 & 8 & 42 & Too slow & 25 \\
+    L1 & 0 & 0 & 2 & 2 & Crash & 10 \\
+    L2 & 12 & 6 & 5 & 23 & Cannot express & 8 \\
+    L3 & 3 & 2 & 0 & 5 & Incorrect gradient & 8 \\
+    \midrule
+    Total & 24 & 33 & 15 & 72 & Inaccurate forward & 6 \\
+          &    &    &    &    & Other & 7 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \paragraph{Findings}
-The same need lands at very different levels across libraries. Running the
-adjoint solve with MUMPS takes an L3 monkeypatch in FEniCS and nothing in
-Firedrake; a nodal-sum misfit gradient takes a 78-line custom block in FEniCS
-and 14 lines of documented API in Firedrake; the drag force is hand-written
-(L2) in PICT and a documented function object in OpenFOAM. Asking for the
-reason behind each intervention surfaced dead code, interventions that turned
-out unnecessary, workarounds of upstream bugs that had never been reported,
-comments whose stated reason did not hold, and departures from library
-default schemes without a recorded measurement. It also showed that the
-level alone is not enough: it conflates how something was done with whether
-it was needed, it hides deviations from the prescribed setup, and what counts
-as ordinary use depends on the library's abstraction level. Necessity, setup
-deviations, and the abstraction-dependent baseline above were added in
-response.
-
-Resolving the findings changed several solvers after the pinned release, for
-example running XLB with its default BGK collision operator, Exponax with its
-default dealiasing, and PhiFlow with the schemes its documentation
-recommends. These changes are published with the continuously updated
-results; the tables in this paper reflect the pinned release.
+The same need lands at different levels across libraries. Besides the MUMPS
+adjoint of \cref{sec:baselines} (L3 in FEniCS, nothing in Firedrake), the drag
+force on the cylinder is user code (L2) in PICT and PhiFlow and a documented
+function object in OpenFOAM. The format grew out of an audit of
+all 19 wrappers at commit \texttt{6517f75}, which recorded only the level.
+Of the 92 interventions it found, 8 had a reason backed by a test, a
+measurement, or an upstream issue, and asking for the others' reasons
+surfaced dead code, unnecessary interventions, unreported upstream bugs, and
+departures from default schemes without a recorded measurement. The audit
+also showed that the level alone conflates how something was done with
+whether it was needed, which is why the records now include necessity, setup
+deviations, and the abstraction-dependent baseline.
 
 \section{Solver documentation}
 \label{app:solvers}
