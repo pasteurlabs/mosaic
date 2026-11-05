@@ -16,7 +16,8 @@ Each Tesseract wrapper tags its code with ``mosaic:<category>`` comments:
 
 Categories map to the table's columns: ``io`` → IO, ``init`` → Conf., and
 ``physics``, ``grad`` and ``util`` → Num. Untagged code counts as ``unknown``
-(also Num.).
+(also Num.). The ``grad`` lines are also reported on their own, for the
+gradient-code counts in the text.
 
 Usage:
     uv run paper/count_loc.py
@@ -83,7 +84,7 @@ def count_external(path: Path) -> Counter:
 
 
 def count_wrapper(wrapper: Path) -> dict[str, int]:
-    """IO / Num / Conf line counts of one wrapper directory."""
+    """IO / Num / Conf line counts of one wrapper directory, plus its grad lines (part of Num)."""
     counts: Counter = Counter()
     if (api := wrapper / "tesseract_api.py").exists():
         counts += count_python(api)
@@ -94,7 +95,13 @@ def count_wrapper(wrapper: Path) -> dict[str, int]:
             and not SKIP_DIRS.intersection(path.parts)
         ):
             counts += count_external(path)
-    columns = {"IO": 0, "Num": 0, "Conf": 0, "unknown": counts["unknown"]}
+    columns = {
+        "IO": 0,
+        "Num": 0,
+        "Conf": 0,
+        "grad": counts["grad"],
+        "unknown": counts["unknown"],
+    }
     for cat, n in counts.items():
         columns[COLUMNS.get(cat, "Num")] += n
     return columns
@@ -112,11 +119,11 @@ def line_counts() -> dict[tuple[str, str], dict[str, int]]:
 def main() -> None:
     """Print the line counts of every wrapper."""
     print(
-        f"{'domain':20} {'wrapper':24} {'IO':>5} {'Num':>5} {'Conf':>5} {'unknown':>8}"
+        f"{'domain':20} {'wrapper':24} {'IO':>5} {'Num':>5} {'Conf':>5} {'grad':>5} {'unknown':>8}"
     )
     for (domain, wrapper), c in line_counts().items():
         print(
-            f"{domain:20} {wrapper:24} {c['IO']:5} {c['Num']:5} {c['Conf']:5} {c['unknown']:8}"
+            f"{domain:20} {wrapper:24} {c['IO']:5} {c['Num']:5} {c['Conf']:5} {c['grad']:5} {c['unknown']:8}"
         )
 
 
