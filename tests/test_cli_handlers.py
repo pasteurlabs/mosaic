@@ -174,6 +174,22 @@ def test_new_domain_unknown_template_errors():
     assert isinstance(result.exception, FileNotFoundError)
 
 
+# ── ics ───────────────────────────────────────────────────────────────────────
+
+
+def test_ics_generates_and_replots_every_ic(tmp_path):
+    """`ics` runs each registered IC, and `--plots-only` redraws them."""
+    result = runner.invoke(app, ["ics", "-p", "thermal-mesh", "-o", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "thermal-mesh" / "ics" / "uniform" / "params.json").exists()
+
+    result = runner.invoke(
+        app, ["ics", "-p", "thermal-mesh", "-o", str(tmp_path), "--plots-only"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "uniform" in result.output
+
+
 # ── build ─────────────────────────────────────────────────────────────────────
 
 
