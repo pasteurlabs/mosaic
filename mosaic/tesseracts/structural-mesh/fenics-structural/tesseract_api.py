@@ -84,7 +84,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # ---------------------------------------------------------------------------
 
 
-def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
+def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:  # mosaic:init
     """Convert numpy hex mesh arrays to a FEniCS Mesh via meshio XDMF.
 
     DOLFIN XML only supports triangles/tetrahedra; XDMF supports hexahedra.
@@ -115,7 +115,7 @@ def _build_fenics_mesh(pts: np.ndarray, cells: np.ndarray) -> Mesh:
     return mesh
 
 
-def _cell_reorder_map(
+def _cell_reorder_map(  # mosaic:util
     pts: np.ndarray, input_cells: np.ndarray, fenics_mesh: Mesh
 ) -> np.ndarray:
     """Build FEniCS-cell-index to input-cell-index permutation via centroid matching.
@@ -150,7 +150,9 @@ def _cell_reorder_map(
 # ---------------------------------------------------------------------------
 
 
-def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunction:
+def _mark_neumann_facets(
+    mesh: Mesh, neumann_mask_vals: np.ndarray
+) -> MeshFunction:  # mosaic:init
     """Mark boundary facets by group from a per-node mask.
 
     A boundary facet is assigned group k if ALL of its vertices carry
@@ -212,7 +214,7 @@ def _mark_neumann_facets(mesh: Mesh, neumann_mask_vals: np.ndarray) -> MeshFunct
 _SETUP_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def _setup_cache_key(
+def _setup_cache_key(  # mosaic:util
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -242,7 +244,7 @@ def _setup_cache_key(
     return h.hexdigest()
 
 
-def _build_reduced_functional(
+def _build_reduced_functional(  # mosaic:physics
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -355,7 +357,7 @@ def _build_reduced_functional(
     }
 
 
-def _get_reduced_functional(
+def _get_reduced_functional(  # mosaic:util
     pts: np.ndarray,
     cells: np.ndarray,
     dirichlet_mask_vals: np.ndarray,
@@ -404,7 +406,7 @@ def _get_reduced_functional(
     return entry
 
 
-def _gradient_from_state(state: dict[str, Any]) -> np.ndarray:
+def _gradient_from_state(state: dict[str, Any]) -> np.ndarray:  # mosaic:grad:rho
     """Adjoint gradient dC/drho, around the point of the last `Jhat(rho)` call.
 
     No mesh rebuild, no form reconstruction, no forward re-solve: dolfin-
@@ -419,7 +421,7 @@ def _gradient_from_state(state: dict[str, Any]) -> np.ndarray:
     return dJ_input
 
 
-def _solve_forward(
+def _solve_forward(  # mosaic:physics
     rho_values: np.ndarray,
     pts: np.ndarray,
     cells: np.ndarray,
@@ -508,7 +510,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return OutputSchema(compliance=np.float32(float(state["J"])))
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho:adjoint
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
