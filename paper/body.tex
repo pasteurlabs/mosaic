@@ -435,7 +435,7 @@ subsections below.
 Per-domain physical-accuracy validation, including the F2 cylinder forward
 error and the divergence-RMS, kinetic-energy, and analytic-error sweeps for
 the NS domains, is reported in \cref{app:physical_accuracy}.
-Structural incompatibilities exclude some solvers from specific tasks;
+Setup incompatibilities exclude some solvers from specific tasks;
 causes are detailed in \cref{sec:optimization,app:solver-issues}.
 
 Gradient implementation effort varies substantially among differentiable solvers.
@@ -443,8 +443,7 @@ We report bespoke lines of code (LOC) as a coarse proxy for integration
 complexity (an imperfect metric, but one that captures order-of-magnitude
 differences reproducibly).
 Warp-NS requires over 800 bespoke lines for the initial-condition VJP alone,
-a direct consequence of its low-level CUDA kernel model where each adjoint pass
-must be written explicitly.
+because the wrapper wrote its adjoint passes by hand.
 PhiFlow and JAX-CFD each require just 12 shared lines with no per-variable
 additions, because autodifferentiation through their JAX backends provides
 gradients at no extra implementation cost.
@@ -454,97 +453,12 @@ adjoint implementations carry substantially higher overhead.
 The boundary is not always sharp: INS.jl uses Zygote reverse-mode AD yet
 still requires over 470 shared lines of gradient-specific code,
 a reminder that AD framework support does not guarantee turnkey gradients.
+The maintained benchmark instead records every departure from a solver's
+default usage (mechanism, whether needed, evidence) alongside each solver in
+the repository.
 
 
-\begin{table}
-  \centering\small
-  \setlength{\tabcolsep}{3pt}
-  \caption{Benchmark results, gradient support, and integration effort
-    per solver. Wall-clock times are means of 3 runs after 1 warmup.
-    Full specifications in \cref{app:effort}; initial conditions in
-    \cref{app:ics}. Legend below table.}
-  \label{tab:merged}
-  \vspace{4pt}
-  \begin{tabular}{@{}l r r c c c c | ccc | r r r@{}}
-    \toprule
-    \textbf{Solver}
-      & \multicolumn{2}{c}{\textbf{Wall time}}
-      & \multicolumn{3}{c}{\textbf{Error}}
-      & \textbf{Conv.}
-      & \multicolumn{3}{c|}{\textbf{Grad.\ support}}
-      & \multicolumn{3}{c@{}}{\textbf{Integ.\ effort}} \\
-    \cmidrule(lr){2-3}\cmidrule(lr){4-6}\cmidrule(lr){8-10}\cmidrule(lr){11-13}
-    & \textit{Fwd} & \textit{VJP} & \textit{Ref.} & \textit{An.} & \textit{FD} &
-      & \multicolumn{3}{c|}{\textit{input variables}} & \textit{IO} & \textit{Num.} & \textit{Conf.} \\
-    \midrule
-    \multicolumn{7}{@{}l}{\textit{Navier--Stokes grid (F2), wall time in ms}}
-      & \textit{$v_0$} & \textit{$\nu$} & \textit{inflow} & & & \\
-    \cmidrule(lr){8-10}
-    Warp-NS~\cite{macklin2024warp}        &    428 &    1400 & \textbf{1.9e-3} & \textbf{6.2e-4} & 8.4e-4 & $?$          & $\circ$   & $\circ$   & $?$     &   \textbf{0} & 1631 &  \textbf{0} \\
-    INS.jl~\cite{agdestein2024ins}       &    343 &    2800 & 2.8e-3 & 2.4e-3 & \textbf{1.7e-5} & $\bot$       & $\bullet$ & $\times$  & $\bot$  &   117 & 1097 &  97 \\
-    XLB~\cite{ataei2024xlb}               &     19 &    5200 & 2.5e-2 & 2.7e-2 & 2.1e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ &  13 &  464 &  58 \\
-    PICT~\cite{franz2025pict}             &   2200 &    7200 & 2.4e-3 & 1.1e-3 & 1.2e-3 & $\checkmark$ & $\bullet$ & $\bot$    & $\bullet$ &  48 &  329 & 892 \\
-    JAX-CFD~\cite{kochkov2021machine}     &     \textbf{11} &     \textbf{108} & 4.4e-3 & 4.6e-3 & 8.3e-4 & $\bot$       & $\bullet$ & $\bullet$ & $\bot$  &    38 &  286 &  21 \\
-    PhiFlow~\cite{holl2024phiflow}        &    713 &    2200 & 2.8e-3 & 2.4e-3 & 2.2e-5 & $\triangle$  & $\bullet$ & $\bullet$ & $\bullet$ &  38 &  262 &  36 \\
-    OpenFOAM~\cite{weller1998tensorial}   &   1300 &     $-$ & $-$    & 2.4e-3 & $-$    & $?$          & $?$       & $?$       & $?$     &   275 &  \textbf{127} & 437 \\
-%   FEniCS~\cite{farrell2013automated}    &  10000 & 1248000 & 2.3e-3 & 1.5e-4 & 9.8e-4 & $\times$     & $\circ$   & $?$       & $\circ$ &   $-$ &  397 &  49 \\
-    \midrule
-    \multicolumn{7}{@{}l}{\textit{Navier--Stokes grid (F3), wall time in ms}}
-      & \textit{$v_0$} & \textit{$\nu$} & & & & \\
-    \cmidrule(lr){8-9}
-    Warp-NS~\cite{macklin2024warp}        &    486 &    1500 & 2.0e-2 & \textbf{2.5e-3} & 2.5e-5 & $\checkmark$ & $\circ$   & $\circ$   & &   \textbf{0} & 1631 &  \textbf{0} \\
-    INS.jl~\cite{agdestein2024ins}       &   2500 &   17000 & 4.1e-2 & 1.0e-2 & 9.9e-6 & $\checkmark$ & $\bullet$ & $\times$  & &   117 & 1097 &  97 \\
-    XLB~\cite{ataei2024xlb}               &     43 &   48000 & 5.3e-2 & 1.9e-2 & \textbf{8.0e-6} & $\checkmark$ & $\bullet$ & $\bullet$ & &    13 &  464 &  58 \\
-    PICT~\cite{franz2025pict}             &    767 &    3300 & \textbf{1.9e-2} & \textbf{2.5e-3} & 9.2e-5 & $\checkmark$ & $\bullet$ & $\bot$    & &    48 &  329 & 892 \\
-    PhiFlow~\cite{holl2024phiflow}        &    627 &    1900 & 4.0e-2 & 1.0e-2 & 1.8e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & &    38 &  262 &  36 \\
-    Exponax~\cite{koehler2024apebench}    &     \textbf{22} &     \textbf{177} & 2.1e-2 & \textbf{2.5e-3} & 6.7e-4 & $\checkmark$ & $\bullet$ & $\bullet$ & &    41 &  160 &  \textbf{0} \\
-    OpenFOAM~\cite{weller1998tensorial}   &   4400 &     $-$ & $-$    & \textbf{2.5e-3} & $-$    & $-$          & $?$       & $?$       & &   275 &  \textbf{127} & 437 \\
-    \midrule
-    \multicolumn{7}{@{}l}{\textit{Structural mechanics (S), wall time in s}}
-      & \textit{$\rho$} & & & & & \\
-    \cmidrule(l){8-8}
-    deal.II~\cite{bangerth2007dealii}       &    166 &     $-$ & $-$    & $-$ & $-$    & $?$          & $\bot$    & & &   408 &  344 & 147 \\
-    TopOpt.jl~\cite{huang2021topoptjl}     &     78 &  \textbf{15} & 0.0    & $-$ & 3.0e-5 & $\checkmark$ & $\circ$   & & &   124 &  155 &  \textbf{42} \\
-    Firedrake~\cite{rathgeber2016firedrake} &    \textbf{7} &      17 & 0.0    & $-$ & 3.0e-5 & $\checkmark$ & $\circ$   & & &    39 &  221 & 137 \\
-    FEniCS~\cite{farrell2013automated}     &    140 &      86 & 0.0    & $-$ & 3.0e-5 & $\checkmark$ & $\circ$   & & &   \textbf{0} &  222 &  63 \\
-    JAX-FEM~\cite{xue2023jaxfem}           &     28 &      65 & 0.0    & $-$ & 3.0e-5 & $\checkmark$ & $\bullet$ & & &   \textbf{0} &  \textbf{150} & 133 \\
-    \midrule
-    \multicolumn{7}{@{}l}{\textit{Heat transfer (H), wall time in s}}
-      & \textit{$\rho$} & \textit{src} & & & & \\
-    \cmidrule(l){8-9}
-    deal.II~\cite{bangerth2007dealii}       &    9.4 &          $-$ & $-$    & $-$ & $-$    & $?$          & $\bot$    & $\bot$    & &   381 &  263 &  75 \\
-    FEniCS~\cite{farrell2013automated}      &     60 &     47 & 0.0    & $-$ & 2.2e-5 & $\checkmark$ & $\circ$   & $\circ$   & &   \textbf{0} &  513 &  \textbf{61} \\
-    torch-fem~\cite{meyer2024torchfem}      &     33 &     11 & 0.0    & $-$ & 2.2e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & &   \textbf{0} &  268 & 122 \\
-    JAX-FEM~\cite{xue2023jaxfem}            &   \textbf{4.5} &    9.8 & 0.0    & $-$ & 2.2e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & &   \textbf{0} &  \textbf{211} &  95 \\
-    Firedrake~\cite{rathgeber2016firedrake} &     10 &     20 & 0.0    & $-$ & 2.2e-5 & $\checkmark$ & $\circ$   & $\circ$   & &   \textbf{0} &  420 & 102 \\
-    \bottomrule
-  \end{tabular}
-  \par\vspace{4pt}
-  \begin{minipage}{\linewidth}\footnotesize\raggedright
-    \textit{Error:}
-    Ref.\,=\,vs.\ reference solver;
-    An.\,=\,vs.\ analytical solution (F2/F3);
-    FD\,=\,vs.\ finite differences;
-    $-$\,=\,not applicable.
-    \textit{Conv.:}
-    $\checkmark$\,=\,converged;
-    $\triangle$\,=\,partial;
-    $\times$\,=\,failed;
-    $?$\,=\,not attempted;
-    $\bot$\,=\,structurally excluded (\cref{app:solver-issues}).
-    \textit{Grad.\ support:}
-    $\bullet$\,=\,native AD;
-    $\circ$\,=\,implemented by wrapper;
-    $\times$\,=\,incorrect;
-    $?$\,=\,not obtained;
-    $\bot$\,=\,structurally blocked.
-    \textit{Integ.\ effort} (bespoke LOC):
-    IO\,=\,input/output marshalling;
-    Num.\,=\,numerics \& gradient code;
-    Conf.\,=\,solver configuration.
-    PhiFlow partially converges on F2 ($\triangle$): drag is reduced but the optimizer stalls before reaching the XLB/PICT solution.
-  \end{minipage}
-\end{table}
+\input{tables/merged}
 
 \subsection{Gradient quality}
 \label{sec:quality}
@@ -553,11 +467,22 @@ To assess whether AD gradients are correct, we compare each solver's
 gradients against central finite differences at solver-specific optimal
 perturbation size.
 
+% The gradient-check table and the memory figure share one float; the generated table's
+% float wrapper is disabled locally so that it can sit in a minipage.
 \begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{figures/horizon_sweep_limits.pdf}
-  \caption{VJP cost and stability vs.\ rollout length on F3.}
-  \label{fig:horizon_sweep}
+  \begin{minipage}[b]{0.48\linewidth}
+    \makeatletter
+    \renewenvironment{table}[1][]{\def\@captype{table}}{}
+    \makeatother
+    \input{tables/gradient_checks}
+  \end{minipage}\hfill
+  \begin{minipage}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=0.86\linewidth]{figures/memory_rollout.pdf}
+    \caption{Peak GPU memory of one VJP against rollout steps on F3
+      ($N=48$), by differentiation strategy (line style).}
+    \label{fig:memory_rollout}
+  \end{minipage}
 \end{figure}
 
 All differentiable solvers reach cosine similarity $>0.999$ between AD
@@ -568,6 +493,9 @@ errors are reported in the \textit{Error (FD)} column of
 magnitude across solvers and with rollout length and viscosity; see
 \cref{app:gradient} for the full per-domain U-shape curves and
 discussion.
+On F2, exact Taylor--Green gradients with respect to the initial state and
+the viscosity give larger errors than FD (\cref{tab:gradchecks}) because they
+also include the forward discretization error, which an optimizer sees as well.
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
@@ -579,9 +507,9 @@ different spectra.
 The sharp spectral drop-off in projection-based solvers is attributable
 to singular vectors associated with non-solenoidal velocity modes, which
 incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}.
-This distinction matters for optimization: conditioning predicts which
-solvers will struggle with second-order methods and long-horizon
-problems (\cref{sec:scaling,sec:optimization}).
+This distinction may matter for optimization, but conditioning alone does
+not predict stability: the well-conditioned XLB returns non-finite gradients
+at 320 rollout steps (\cref{sec:scaling}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_main.pdf}
@@ -592,7 +520,7 @@ problems (\cref{sec:scaling,sec:optimization}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/jacobian_svd_comparison.pdf}
-  \caption{Normalized Jacobian singular value spectra ($\sigma_i / \sigma_0$) for six solvers on the 3D periodic NS problem at four rollout lengths.
+  \caption{Normalized Jacobian singular value spectra ($\sigma_i / \sigma_0$) on F3 ($N=8$) after $T=0.5$, 1, and 2 time units (10, 20, and 40 steps) at $\nu=10^{-3}$, and after $T=0.5$ at $\nu=10^{-2}$.
     Exponax and XLB maintain a relatively flat spectrum across all rollout lengths; INS.jl and PhiFlow develop very steep spectra, indicating large condition numbers $\kappa = \sigma_1/\sigma_n$.}
   \label{fig:conditioning}
 \end{figure}
@@ -602,22 +530,37 @@ problems (\cref{sec:scaling,sec:optimization}).
 
 Absolute solver cost varies by orders of magnitude at the same
 resolution (\cref{tab:merged}; full scaling curves in \cref{app:cost}),
-but speed and generality are entangled: the fastest backends
-(Exponax, JAX-CFD) support only periodic boundaries and no solid
-obstacles, while solvers that handle the full F2 drag task (XLB, PICT)
-are up to ${\sim}200\times$ slower. Cost comparisons are therefore meaningful only
-within the set of solvers that can represent a given task (\cref{sec:optimization}).
+and speed is not tied to generality: XLB, which also runs the F2 drag
+channel, is the fastest F2 solver at $N=64$, while PICT is 85--190$\times$ slower
+than JAX-CFD across the F2 sweep.
 
-At larger resolutions and longer rollouts, memory becomes the binding
-constraint before gradient accuracy does: several solvers exceed the
-16\,GB GPU memory limit and fail to produce gradients entirely
-(\cref{fig:horizon_sweep}).
-Among solvers that remain within budget, the cost of obtaining a
-gradient depends on the AD strategy.
-Source-transformation AD (JAX-based solvers) maintains a nearly constant
-VJP/forward ratio across problem sizes, while tape-based adjoints
-(FEniCS, Firedrake) scale more steeply (\cref{app:cost}), making AD
-strategy a first-order predictor of gradient cost at scale.
+Memory follows the differentiation strategy. Reverse-mode AD through a time
+loop stores the trajectory, $O(T\cdot S)$ for $T$ steps of state size~$S$, or
+$O(T\cdot K\cdot S)$ if $K$ inner solver iterations are unrolled.
+Checkpointing reduces this to
+$O(\sqrt{T}\cdot S)$, and steady adjoints need $O(S)$. The F3 measurements
+match (\cref{fig:memory_rollout}): memory grows linearly with the rollout for
+the solvers that store their trajectory, while XLB's block checkpointing only
+doubles it from 500 to 2000 steps. On 80\,GB, Warp-NS runs out of memory at
+1000 steps and INS.jl, JAX-CFD, and PhiFlow at 2000, while the mesh solvers
+stay below 11\,GB. Memory is not always the first limit, however. Over longer
+F3 horizons (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite
+gradients at 160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run
+out of memory only beyond 20\,000 steps. Every NS configuration that ran out
+of memory on 16\,GB GPUs completes on the A100 (\cref{tab:app:outcomes}).
+
+Reverse-mode AD should cost a small constant multiple of the forward
+pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
+forward passes (\cref{tab:app:ratios}). Development runs measured up to
+$1100\times$ for XLB and 8--10$\times$ for Exponax and JAX-CFD, caused by a
+JAX fallback to the CPU, a timing that counted two forward solves per VJP, and
+full trajectory storage in XLB. Once fixed, all three stay below $5\times$
+across grid sizes. Ratios above $5\times$ on the grid sweeps
+remain for INS.jl (up to 7.8), whose VJP replaces the library's in-place time
+stepper with a slower non-mutating rollout that Zygote can differentiate, and
+for PhiFlow on small F2 grids (5.3), plausibly a fixed per-call overhead
+(\cref{app:ratios}). Across all timed trials, the median coefficient of
+variation is 2.4\% (\cref{tab:app:variance}).
 All timings are measured on one A100 GPU;
 relative rankings may differ on other hardware, particularly between
 GPU and CPU solvers.
@@ -645,17 +588,13 @@ Spectrally projecting the gradient onto the divergence-free subspace
 before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
 because the projection prevents non-solenoidal components from
 corrupting the curvature model.
-The 2D drag minimization (F2) is the hardest deployment test, and
-also the task where structural incompatibilities thin the solver field
-most: only three of seven backends support the non-periodic, obstacle-laden
-setup required for drag optimization.
-Of those, XLB and PICT converge to consistent drag reductions of
-around 60\%; PhiFlow partially converges, reducing drag by ${\sim}35\%$
-before stalling. The remaining backends are excluded for structural
-reasons (periodic BCs, penalization incompatibilities;
-\cref{app:solver-issues}). This attrition itself is a key finding:
-on the most practically demanding task, solver selection is constrained
-by setup compatibility before gradient quality enters the picture.
+On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
+DFG 2D-1 channel at a fixed flow rate. All five solvers that run the channel
+(INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic
+profile by 46--48\% in 44--69 iterations (\cref{fig:app:dragopt}).
+Only Exponax, which represents periodic fields only, and JAX-CFD, whose
+API cannot express the channel's inflow, outflow, and obstacle, are
+excluded (\cref{app:solver-issues}).
 
 \subsection{Solver-in-the-loop training}
 \label{sec:sil}
