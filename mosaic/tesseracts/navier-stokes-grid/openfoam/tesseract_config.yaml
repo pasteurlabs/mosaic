@@ -45,6 +45,7 @@ metadata:
     abstraction: application
     interventions:
       - id: momentum-tolerance
+        title: Tightens the momentum solver tolerance to 1e-8
         level: L0
         necessity: required
         tuned: true
@@ -57,13 +58,15 @@ metadata:
             consequences: [inaccurate-forward]
             symptom: >
               At 1e-5 the 2-D Taylor-Green error stalls at 2.7e-4 between
-              N = 64 and N = 128, which made forward/baseline borderline. At
-              1e-8 it reaches 5.9e-5 at N = 128.
+              N = 64 and N = 128, which made forward/baseline borderline.
+            notes: >
+              At 1e-8 it reaches 5.9e-5 at N = 128.
             evidence: >
               #222, table of U tolerances from 1e-5 to 1e-9 (merged through
               #232); 3-D results were unchanged.
         provenance: mosaic-team
       - id: periodic-pressure-solver
+        title: Solves the periodic pressure with GAMG
         level: L0
         necessity: choice
         tuned: true
@@ -76,19 +79,23 @@ metadata:
             consequences: [too-slow]
             symptom: >
               With PCG/DIC, spatial_cost at N = 256 takes 37.4 s against
-              16.4 s, and temporal_cost at 1000 steps 44.7 s against 27.8 s.
-              Every status is unchanged; forward errors move in the fifth
+              16.4 s.
+            notes: >
+              temporal_cost at 1000 steps takes 44.7 s against 27.8 s. Every
+              status is unchanged, and forward errors move in the fifth
               significant digit.
             evidence: "#306, before/after table."
           ns-3d:
             consequences: []
             symptom: >
-              Cost moves by less than 8% either way (spatial_cost at N = 64:
-              28.7 s with PCG/DIC against 27.1 s); the 3-D box shares the 2-D
-              box's fvSolution.
+              Cost moves by less than 8% either way.
+            notes: >
+              spatial_cost at N = 64 takes 28.7 s with PCG/DIC against 27.1 s.
+              The 3-D box shares the 2-D box's fvSolution.
             evidence: "#306, before/after table."
         provenance: mosaic-team
       - id: periodic-mpi-decomposition
+        title: Runs the periodic boxes in parallel with MPI
         level: L0
         necessity: choice
         tuned: true
@@ -100,22 +107,27 @@ metadata:
           ns-2d-periodic:
             consequences: [too-slow]
             symptom: >
-              Serial, spatial_cost at N = 256 takes 9.90 s against 6.39 s
-              decomposed. Statuses are unchanged. With the CPUs loaded by
-              other solvers, decomposed runs were slower than serial ones
-              (#306); the measurement assumes CI's cost jobs run alone.
+              Run serially, spatial_cost at N = 256 takes 9.90 s against
+              6.39 s decomposed.
+            notes: >
+              Statuses are unchanged. With the CPUs loaded by other solvers,
+              decomposed runs were slower than serial ones (#306). The
+              measurement assumes CI's cost jobs run alone.
             evidence: "#314, before/after table; #306, notes."
           ns-3d:
             consequences: [too-slow]
             symptom: >
-              Serial, spatial_cost at N = 64 takes 25.6 s against 12.9 s
-              decomposed, and 100 steps at N = 48 take 18.2 s against 7.24 s.
-              At 10 steps decomposing and reconstructing outweigh the solve
-              (3.92 s serial against 4.33 s). On a loaded CPU, N = 64 took
-              150 to 280 s at 24 ranks against 29 s serial (#306).
+              Run serially, spatial_cost at N = 64 takes 25.6 s against 12.9 s
+              decomposed.
+            notes: >
+              100 steps at N = 48 take 18.2 s serially against 7.24 s
+              decomposed. At 10 steps decomposing and reconstructing outweigh
+              the solve (3.92 s serial against 4.33 s). On a loaded CPU,
+              N = 64 took 150 to 280 s at 24 ranks against 29 s serial (#306).
             evidence: "#314, before/after table; #306, notes."
         provenance: mosaic-team
       - id: channel-momentum-tolerance
+        title: Tightens the channel's momentum tolerance to 1e-8
         level: L0
         necessity: choice
         what: >
@@ -125,42 +137,51 @@ metadata:
           ns-2d-cylinder:
             consequences: []
             symptom: >
-              None measured: at 1e-5, forward/cylinder gives the same Cd to
-              five digits with no speed-up. drag_opt was not run at 1e-5.
+              None measured. At 1e-5, forward/cylinder gives the same Cd to
+              five digits with no speed-up.
+            notes: >
+              drag_opt was not run at 1e-5.
             evidence: "#269, notes."
         provenance: mosaic-team
       - id: channel-non-orthogonal-corrector
+        title: Adds a non-orthogonal corrector on the cylinder mesh
         level: L0
         necessity: required
         what: >
           One non-orthogonal corrector (nNonOrthogonalCorrectors 1) on the
-          body-fitted O-grid, where the offsetCylinder tutorial uses 0. The
-          periodic case uses 0, as its tutorial does.
+          body-fitted O-grid, where the offsetCylinder tutorial uses 0.
         why:
           ns-2d-cylinder:
             consequences: [crash]
             symptom: >
               Without it, the run at 20 cells per diameter fails (maximum
               Courant number 11.9).
+            notes: >
+              The periodic case uses 0, as its tutorial does.
             evidence: "#269, before/after table."
         provenance: mosaic-team
       - id: graded-channel-mesh
+        title: Grades the channel mesh toward the cylinder
         level: L0
         necessity: choice
         tuned: true
         what: >
           The O-grid cells shrink radially to half the size of the box cells
-          at the cylinder wall, so the smallest cell is about 0.35 dx, and the
-          wake block coarsens to 10 dx at the outlet.
+          at the cylinder wall, and the wake block coarsens to 10 dx at the
+          outlet.
         why:
           ns-2d-cylinder:
             consequences: [too-slow]
             symptom: >
               A uniform mesh takes 111 s for forward/cylinder against 82 s,
-              both measured with the tighter pressure tolerance and MPI
-              decomposition the channel used before #269. Its Cd (5.567318 and
-              5.578718 at 10 and 20 cells per diameter) is closer to the
-              reference 5.5795 than the graded mesh's (5.563948 and 5.576608).
+              though its Cd is closer to the reference.
+            notes: >
+              The smallest graded cell is about 0.35 dx. Both times were
+              measured with the tighter pressure tolerance and MPI
+              decomposition the channel used before #269. The uniform mesh
+              gives Cd 5.567318 and 5.578718 at 10 and 20 cells per diameter,
+              against the graded mesh's 5.563948 and 5.576608 and the
+              reference 5.5795.
             evidence: "#269, before/after table; smallest cell from #263."
         provenance: mosaic-team
     deviations: []

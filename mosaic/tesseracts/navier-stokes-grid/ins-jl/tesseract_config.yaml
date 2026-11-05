@@ -48,6 +48,8 @@ env:
   JULIA_PROJECT: "/app/julia_env"
   PYTHON_JULIAPKG_PROJECT: "/app/julia_env"
   JULIA_DEPOT_PATH: "/app/julia_depot"
+  # Images run on other machines than the one that builds them, so the
+  # precompiled package images must not target the build machine's CPU.
   JULIA_CPU_TARGET: "generic"
   JULIA_EXECUTABLE: "/usr/local/bin/julia"
 
@@ -69,29 +71,32 @@ metadata:
     abstraction: framework
     interventions:
       - id: hand-written-rk4-rollout
+        title: Hand-writes the RK4 rollout that Zygote differentiates
         level: L2
         necessity: choice
         what: >
           The VJP differentiates a hand-written, non-mutating RK4 loop over
-          create_right_hand_side with Zygote.pullback. On periodic boxes apply
-          runs the library's in-place solve_unsteady with RKMethods.RK44
-          instead, except with a body force, a drag or snapshots, where it runs
-          the hand-written loop too, so that with a force both integrate the
-          same right-hand side. No comparison with the library's force! hook
-          (examples/Kolmogorov2D.jl) is recorded. In the channel apply runs the
-          hand-written loop too, with the channel's right-hand side, and records
-          the force on the cylinder after every step.
+          create_right_hand_side with Zygote.pullback. Plain periodic runs of
+          apply use the library's in-place solve_unsteady instead.
         why:
           ns-2d-periodic: &rollout-reason
             consequences: []
             symptom: >
               Zygote cannot differentiate array mutation, so the VJP needs a
-              non-mutating rollout; INS.jl's documented way is a loop over its
-              non-mutating timestep. No reason is recorded for writing RK4 by
-              hand instead. Keeping the in-place stepper for apply was faster
-              on the CPU, before the move to the GPU (#307): 0.56 s against
-              2.49 s for the non-mutating rollout at N = 256, 100 steps. The
-              two paths agreed to 2.2e-4 (2-D) and 1.0e-4 (3-D) in float32.
+              non-mutating rollout. No reason is recorded for writing RK4 by
+              hand instead of looping over INS.jl's own timestep.
+            notes: >
+              On periodic boxes apply runs solve_unsteady with RKMethods.RK44,
+              except with a body force, a drag or snapshots, where it runs the
+              hand-written loop too, so that with a force both integrate the
+              same right-hand side. No comparison with the library's force!
+              hook (examples/Kolmogorov2D.jl) is recorded. INS.jl's documented
+              way to get a non-mutating rollout is a loop over its
+              non-mutating timestep. Keeping the in-place stepper for apply was
+              faster on the CPU, before the move to the GPU (#307): 0.56 s
+              against 2.49 s for the non-mutating rollout at N = 256, 100
+              steps. The two paths agreed to 2.2e-4 (2-D) and 1.0e-4 (3-D) in
+              float32.
             evidence: >
               https://github.com/agdestein/IncompressibleNavierStokes.jl/blob/v5.0.0/examples/Differentiability.jl;
               #103.
@@ -101,35 +106,43 @@ metadata:
             consequences: []
             symptom: >
               The VJP needs the non-mutating rollout for the same reason as on
-              the periodic boxes. apply shares it, so the drag gradient check
-              compares the VJP with exactly the rollout it differentiates, and
-              the per-step force comes from the same loop. solve_unsteady was
-              not tried for the channel's apply.
+              the periodic boxes.
+            notes: >
+              In the channel apply runs the hand-written loop too, with the
+              channel's right-hand side, and records the force on the cylinder
+              after every step. Because apply shares the loop, the drag
+              gradient check compares the VJP with exactly the rollout it
+              differentiates, and the per-step force comes from the same loop.
+              solve_unsteady was not tried for the channel's apply.
             evidence: >
               tests/test_ins_jl_cylinder.py::test_drag_gradient_matches_fd.
         provenance: mosaic-team
       - id: brinkman-cylinder
+        title: Models the cylinder as a Brinkman penalization force
         level: L2
         necessity: required
         what: >
           Represents the cylinder as a Brinkman penalization force −χu/η in
-          the momentum right-hand side, with χ = 1 on every face touching a
-          cell of the shared staircase (solid_cells) and η = dt. The force on
-          the cylinder is the penalization's integral, the sum of χu/η Δx²
-          over the faces, after every step.
+          the momentum right-hand side, with η = dt. The force on the cylinder
+          is the penalization's integral after every step.
         why:
           ns-2d-cylinder:
             consequences: [cannot-express]
             symptom: >
-              INS.jl 5.0.0 has no obstacles or immersed boundaries. Its
-              documented hook for extra momentum terms is a body force
-              (examples/Actuator2D.jl), and the penalization is one. The force
-              is integrated explicitly: at η = dt / 2.5 a run at 20 cells per
-              diameter went non-finite. Halving η from dt moved Cd by 0.1% at
-              10 cells per diameter.
+              INS.jl 5.0.0 has no obstacles or immersed boundaries, so the
+              cylinder cannot be expressed without it.
+            notes: >
+              χ = 1 on every face touching a cell of the shared staircase
+              (solid_cells), and the force on the cylinder is the sum of χu/η
+              Δx² over the faces. INS.jl's documented hook for extra momentum
+              terms is a body force (examples/Actuator2D.jl), and the
+              penalization is one. The force is integrated explicitly: at η =
+              dt / 2.5 a run at 20 cells per diameter went non-finite. Halving
+              η from dt moved Cd by 0.1% at 10 cells per diameter.
             evidence: "#325, notes."
         provenance: mosaic-team
       - id: differentiable-inlet
+        title: Adds the inflow after INS.jl's boundary conditions
         level: L2
         necessity: required
         what: >
@@ -140,31 +153,39 @@ metadata:
           ns-2d-cylinder:
             consequences: [no-gradient]
             symptom: >
+              The inflow profile, which drag_opt optimizes, would get no
+              gradient through INS.jl's boundary conditions.
+            notes: >
               INS.jl's rrule for apply_bc_u returns no tangent for the setup,
               which holds a DirichletBC's value, and building a Setup inside
               Zygote.pullback fails with "Mutating arrays is not supported --
-              called push!". The inflow profile, which drag_opt optimizes,
-              would get no gradient. Added after the BCs, the drag gradient
-              matched a central difference to 1e-5 (prototype, 40 steps at 10
-              cells per diameter) and 3e-5 over drag_opt's horizon.
+              called push!". Added after the BCs, the drag gradient matched a
+              central difference to 1e-5 (prototype, 40 steps at 10 cells per
+              diameter) and 3e-5 over drag_opt's horizon.
             evidence: >
               src/boundary_conditions.jl of IncompressibleNavierStokes.jl
               v5.0.0 (the rrule of apply_bc_u);
               tests/test_ins_jl_cylinder.py::test_drag_gradient_matches_fd.
         provenance: mosaic-team
       - id: separable-pressure-solver
+        title: Solves the channel's pressure equation by diagonalization
         level: L2
         necessity: required
         what: >
           Solves the channel's pressure Poisson equation by diagonalizing
-          INS.jl's Laplacian, which on the uniform grid is the Kronecker sum
-          of an x and a y operator read off laplacian_mat(setup), instead of
-          with the psolver_direct that default_psolver picks. The transforms
-          run in Float64.
+          INS.jl's Laplacian as a Kronecker sum of x and y operators, instead
+          of with the default psolver_direct.
         why:
           ns-2d-cylinder:
             consequences: [crash, too-slow]
             symptom: >
+              On the GPU the default direct solver fails to load, the transform
+              solver rejects the outlet boundary, and CG was stopped after
+              600 s where this solver takes 2.7 s.
+            notes: >
+              On the uniform grid the Laplacian is the Kronecker sum of an x
+              and a y operator read off laplacian_mat(setup). psolver_direct is
+              the solver default_psolver picks. The transforms run in Float64.
               On CuArrays psolver_direct needs INS.jl's CUDSS extension, which
               imports CUDSS.CUDA. CUDSS 0.7 and later, the only versions
               compatible with CUDA.jl 6, no longer define it, so the extension
@@ -182,6 +203,7 @@ metadata:
           (or CUDACore) directly instead of through CUDSS.
         provenance: mosaic-team
       - id: float32-setup
+        title: Runs the solve and its pullback in float32
         level: L0
         necessity: choice
         what: >
@@ -193,10 +215,11 @@ metadata:
             symptom: >
               With Float64 grid vectors the state and the Zygote tape were
               promoted to Float64 after the first projection, so INS.jl paid
-              Float64 cost with float32 inputs and outputs. Float32 matches
-              the other float32 solvers; #103 offered keeping Float64 and
-              disclosing it instead. No cost factor was measured separately,
-              on the CPU or on the GPU.
+              Float64 cost with float32 inputs and outputs.
+            notes: >
+              Float32 matches the other float32 solvers. #103 offered keeping
+              Float64 and disclosing it instead. No cost factor was measured
+              separately, on the CPU or on the GPU.
             evidence: >
               #103, item 3; INS.jl's manual on floating point precision
               (docs/src/manual/backends.md at v5.0.0).
@@ -205,60 +228,45 @@ metadata:
           ns-2d-cylinder: *float32-reason
         provenance: maintainer-authored
       - id: cuda-backend
+        title: Runs the solver on INS.jl's CUDA backend
         level: L0
         necessity: choice
         tuned: true
         what: >
           With a GPU present, builds the Setup with backend = CUDABackend()
           and moves the initial state to the device, so the solve and its
-          Zygote pullback run on INS.jl's CUDA backend instead of the default
-          CPU backend.
+          Zygote pullback run on the GPU instead of the default CPU backend.
         why:
           ns-2d-periodic: &cuda-backend-periodic
             consequences: [too-slow]
             symptom: >
               On the CPU, vjp_cost at N = 256 took 9.20 s against 0.96 to
-              2.59 s on a shared A100. Small cases got slower: spatial_cost at
-              N = 64 went from 0.085 s to 0.16 to 0.64 s. Every status and
-              forward error is unchanged.
+              2.59 s on a shared A100.
+            notes: >
+              Small cases got slower on the GPU: spatial_cost at N = 64 went
+              from 0.085 s to 0.16 to 0.64 s. Every status and forward error
+              is unchanged.
             evidence: "#307, notes."
           ns-2d-kolmogorov: *cuda-backend-periodic
           ns-3d:
             consequences: [too-slow]
             symptom: >
               On the CPU, vjp_cost at N = 64 took 54.6 s against 1.58 to
-              3.72 s, and 100 steps 47.2 s against 2.38 to 3.15 s. The
+              3.72 s.
+            notes: >
+              100 steps took 47.2 s on the CPU against 2.38 to 3.15 s. The
               5120-step horizon_sweep_limits VJP needs 28.3 GB on the device
               and runs out of memory on the T4.
             evidence: "#307, notes."
           ns-2d-cylinder:
-            consequences: []
+            consequences: [too-slow]
             symptom: >
-              With one Julia thread on the CPU, a forward run to t = 8 took
-              3.4 s at 10 cells per diameter and 25.5 s at 20, against 2.7 s
-              and 5.4 s on an A100. drag_opt's VJP (10 cells per diameter,
-              t = 4) took 8.2 s against 3.9 s. Warm calls; the A100 was not
-              shared.
+              With one Julia thread on the CPU, a forward run to t = 8 at 20
+              cells per diameter took 25.5 s against 5.4 s on an A100.
+            notes: >
+              At 10 cells per diameter the same run took 3.4 s against 2.7 s.
+              drag_opt's VJP (10 cells per diameter, t = 4) took 8.2 s against
+              3.9 s. Warm calls. The A100 was not shared.
             evidence: "#325, notes."
-        provenance: mosaic-team
-      - id: julia-cpu-target-generic
-        level: L0
-        necessity: unknown
-        what: >
-          The image sets JULIA_CPU_TARGET=generic, so the package images Julia
-          precompiles at build time target a generic x86-64 CPU rather than
-          the build machine's. Code compiled at run time is unaffected.
-        why:
-          ns-2d-periodic: &target-reason
-            consequences: []
-            symptom: >
-              No reason recorded; present since the initial commit. Julia's
-              docs recommend it where images run on CPUs other than the one
-              that built them. The solver's kernels run on the GPU (#307) and
-              are compiled at run time, so only host-side code from the package
-              images could be slower; not measured.
-          ns-2d-kolmogorov: *target-reason
-          ns-3d: *target-reason
-          ns-2d-cylinder: *target-reason
         provenance: mosaic-team
     deviations: []

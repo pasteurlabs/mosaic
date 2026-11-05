@@ -85,6 +85,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: periodic-solve-tolerance
+        title: Tightens the periodic solve tolerance to 1e-6
         level: L0
         necessity: required
         tuned: true
@@ -95,16 +96,18 @@ metadata:
           ns-2d-periodic: &periodic-solve-tolerance-periodic
             consequences: [incorrect-gradient]
             symptom: >
-              At 1e-5 the residual error of the forward and adjoint solves caps
-              fd_check at about 1e-3 for every step size: the reported error is
-              8.8e-4 against 5.7e-5 at 1e-6, which becomes an anomaly against
-              the peer median after #282. Measured without cotangent-scaling,
-              which alone lowers the error at 1e-5 to 2.7e-4 (#294); the two
-              together are not measured.
+              At 1e-5, fd_check cannot get below about 1e-3 at any step size,
+              because of the residual error of the forward and adjoint solves.
+            notes: >
+              The reported error is 8.8e-4 at 1e-5 against 5.7e-5 at 1e-6,
+              which becomes an anomaly against the peer median after #282.
+              Measured without cotangent-scaling, which alone lowers the error
+              at 1e-5 to 2.7e-4 (#294). The two together are not measured.
             evidence: "#287, before/after table; #294, A/B table."
           ns-2d-kolmogorov: *periodic-solve-tolerance-periodic
         provenance: mosaic-team
       - id: periodic-3d-solve-tolerance
+        title: Uses the same 1e-6 solve tolerance in 3-D
         level: L0
         necessity: unknown
         what: >
@@ -113,11 +116,11 @@ metadata:
         why:
           ns-3d:
             consequences: []
-            symptom: >
-              Not measured on ns-3d-grid: #287 compared tolerances on ns-grid
-              only.
+            symptom: Its effect on ns-3d-grid has not been measured.
+            notes: "#287 compared tolerances on ns-grid only."
         provenance: mosaic-team
       - id: cotangent-scaling
+        title: Scales the cotangents before PICT's backward pass
         level: L2
         necessity: choice
         what: >
@@ -128,22 +131,25 @@ metadata:
           ns-2d-periodic: &cotangent-scaling-periodic
             consequences: [incorrect-gradient]
             symptom: >
+              Without it, gradients through a chain of calls with small cotangents come out
+              wrong, by up to 73% through 16 calls. Single calls with O(1)
+              cotangents are barely affected.
+            notes: >
               PICT's adjoint solves stop at an absolute residual, so its VJP is
-              not linear in the cotangent; single calls with O(1) cotangents,
-              which the gradient suite checks, are barely affected. ns-grid
-              fd_check at eps = 1 goes from 1.1e-3 to 2.7e-4 with it; every
-              status stays the same. Through a chain of 16 calls with
-              cotangents of about 1e-4, the gradient was off by up to 73%
-              without it. Measured at the earlier solve tolerance of 1e-5,
-              before periodic-solve-tolerance.
+              not linear in the cotangent. The gradient suite checks single
+              calls with O(1) cotangents. ns-grid fd_check at eps = 1 goes from
+              1.1e-3 to 2.7e-4 with it, and every status stays the same. The
+              chain of 16 calls had cotangents of about 1e-4. Measured at the
+              earlier solve tolerance of 1e-5, before periodic-solve-tolerance.
             evidence: "#294, A/B table; tests/test_pict_vjp.py."
           ns-2d-kolmogorov: *cotangent-scaling-periodic
           ns-3d:
             consequences: []
             symptom: >
-              Statuses unchanged, and fd_check moves within its spread. The
-              recovery's final IC error is 0.0022 to 0.0040 with it against
-              0.0013 to 0.0021 without, both far below the failure threshold;
+              Statuses are unchanged, and fd_check moves within its spread.
+            notes: >
+              The recovery's final IC error is 0.0022 to 0.0040 with it against
+              0.0013 to 0.0021 without, both far below the failure threshold.
               #294 has no verified explanation.
             evidence: "#294, A/B table."
         upstream: >
@@ -151,49 +157,56 @@ metadata:
           PISOtorch, whose criteria are all absolute.
         provenance: mosaic-team
       - id: warm-start-pressure
+        title: Warm-starts the channel's pressure solve
         level: L3
         necessity: choice
         tuned: true
         what: >
-          Subclasses PISOtorch_simulation.Simulation and overrides linear_solve
-          so that each channel pressure CG solve starts from the same
-          corrector's pressure one step earlier and stops at 1e-8. In
-          differentiable mode the solve is a torch.autograd.Function on the
-          private PISOtorch_diff._linear_solve_wrapper, with a warm-started
-          adjoint.
+          Overrides Simulation.linear_solve so that each channel pressure CG
+          solve starts from the same corrector's pressure one step earlier and
+          stops at 1e-8.
         why:
           ns-2d-cylinder:
             consequences: [too-slow]
             symptom: >
-              Without it the channel forward is 2.5x (10 cells per diameter) to
-              4.8x (20 cells per diameter) slower; with it Cd stays within
-              0.05%. The code comment gives 2e-5 against a solve from zero at
-              1e-8, and at 1e-6 Cd at 20 cells per diameter still drifts by
-              1e-3 over the final 40% of the run. drag_opt runs the
-              differentiable half; its effect there has not been measured.
+              Without it, the channel forward runs 2.5x (10 cells per diameter) to 4.8x
+              (20 cells per diameter) slower.
+            notes: >
+              The override subclasses PISOtorch_simulation.Simulation. In
+              differentiable mode the solve is a torch.autograd.Function on the
+              private PISOtorch_diff._linear_solve_wrapper, with a warm-started
+              adjoint. With it Cd stays within 0.05%. The code comment gives
+              2e-5 against a solve from zero at 1e-8, and at 1e-6 Cd at 20
+              cells per diameter still drifts by 1e-3 over the final 40% of the
+              run. drag_opt runs the differentiable half, and its effect there
+              has not been measured.
             evidence: "#239, summary and notes; comment above pressure_tol in _run_channel."
         upstream: None filed.
         provenance: mosaic-team
       - id: pressure-tol-flux-gate
+        title: Loosens PICT's startup flux check for the channel
         level: L1
         necessity: unknown
         what: >
-          Sets the channel's pressure_tol to max(1e-6, 2 x the boundary flux
-          imbalance). With the warm start active it only feeds the check at the
-          start of Simulation.run(), which refuses to run when the imbalance
-          exceeds it.
+          Sets pressure_tol to twice the measured boundary flux imbalance, and
+          at least 1e-6.
         why:
           ns-2d-cylinder:
             consequences: [crash]
             symptom: >
+              PICT refuses to start when the imbalance exceeds the tolerance.
+            notes: >
               Per the code comment, the float32 imbalance after balancing is
               about 4e-8 of the flux (1.4e-6 at 40 cells per diameter), which a
-              fixed 1e-6 would fail. PICT's float32 default of 1e-5 may already
-              be above it at the benchmark's 10 and 20 cells per diameter; not
+              fixed 1e-6 would fail. With the warm start active, pressure_tol
+              only feeds the check at the start of Simulation.run(). PICT's
+              float32 default of 1e-5 may already be above the imbalance at the
+              benchmark's 10 and 20 cells per diameter, which has not been
               checked.
             evidence: Comment above pressure_tol in _run_channel.
         provenance: mosaic-team
       - id: orthogonal-scheme-on-o-grid
+        title: Turns off PICT's non-orthogonal correction in the channel
         level: L0
         necessity: required
         what: >
@@ -205,29 +218,33 @@ metadata:
             consequences: [crash]
             symptom: >
               With the default non_orthogonal=True, CG and float32 BiCGStab
-              break down in the first pressure solve. Whether dropping the correction
-              contributes to PICT's Cd sitting about 3% high has not been
-              tested.
+              break down in the first pressure solve.
+            notes: >
+              Whether dropping the correction contributes to PICT's Cd sitting
+              about 3% high has not been tested.
             evidence: "#239, notes; comment at the _simulate call in _run_channel."
         upstream: https://github.com/tum-pbs/PICT/issues/9
         provenance: mosaic-team
       - id: channel-in-cell-units
+        title: Builds the channel in cell units
         level: L0
         necessity: unknown
         what: >
-          Builds the channel blocks in units of the canonical cell size dx
-          (vertices, viscosity and dt divided by dx), so that PICT's absolute
-          solver residual is measured on unit cells.
+          Builds the channel blocks in units of the canonical cell size dx, so
+          that PICT's absolute solver residual is measured on unit cells.
         why:
           ns-2d-cylinder:
             consequences: [inaccurate-forward]
             symptom: >
-              Not measured. In physical units the same absolute tolerance would
-              mean a different relative accuracy. The periodic box gets unit
-              cells from PICT's CreateBlockWithSize without asking.
+              In physical units the same absolute tolerance would mean a
+              different relative accuracy. The effect has not been measured.
+            notes: >
+              Vertices, viscosity and dt are divided by dx. The periodic box
+              gets unit cells from PICT's CreateBlockWithSize without asking.
             evidence: Header comment of the channel section in tesseract_api.py.
         provenance: mosaic-team
       - id: inflow-in-autograd-graph
+        title: Re-applies the inflow profile every step
         level: L0
         necessity: unknown
         what: >
@@ -237,35 +254,39 @@ metadata:
           ns-2d-cylinder:
             consequences: [incorrect-gradient]
             symptom: >
-              Per the code comment, a profile set once is not in the autograd
-              graph that PISOtorch_diff records, so the inflow_profile gradient
-              would come back as zeros. Not reproduced. drag_opt uses this
-              gradient, and with it PICT lowers Cd by 47% in 44 iterations
-              (A100).
+              Per the code comment, the inflow_profile gradient would come back
+              as zeros. This has not been reproduced.
+            notes: >
+              Per the same comment, a profile set once is not in the autograd
+              graph that PISOtorch_diff records. drag_opt uses this gradient,
+              and with it PICT lowers Cd by 47% in 44 iterations (A100).
             evidence: Comment in _pre_step in _run_channel.
         provenance: mosaic-team
       - id: body-force-integration
+        title: Integrates the wall force on the cylinder
         level: L2
         necessity: required
         what: >
-          Computes the force on the cylinder from the cells next to the wall:
-          wall pressure and shear from second-order one-sided fits to the first
-          two cells, integrated over the arc faces in a POST callback every
-          step.
+          Computes the force on the cylinder from wall pressure and shear,
+          taken from second-order one-sided fits to the first two cells next to
+          the wall and integrated over the arc faces every step.
         why:
           ns-2d-cylinder:
             consequences: [cannot-express]
             symptom: >
               PICT has no force or drag output, so body_force, which
-              forward/cylinder scores, could not be returned. #239 reports
-              PICT's control-volume Cd 7 to 11% off this surface Cd (about 1%
-              for the other solvers); not investigated.
+              forward/cylinder scores, could not be returned.
+            notes: >
+              The integration runs in a POST callback. #239 reports PICT's
+              control-volume Cd 7 to 11% off this surface Cd (about 1% for the
+              other solvers), which has not been investigated.
             evidence: >
               #239; PISOtorch_simulation.py at PICT 72a6e86 has no force
               routine.
         provenance: mosaic-team
     deviations:
       - id: advective-outflow
+        title: Replaces the pressure outlet with advective outflow
         setups: [ns-2d-cylinder]
         what: >
           PICT's advective outflow replaces the prescribed p = 0 outlet: outlet

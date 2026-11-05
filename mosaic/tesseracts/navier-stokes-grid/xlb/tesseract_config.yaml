@@ -29,6 +29,7 @@ metadata:
     abstraction: framework
     interventions:
       - id: float64-everywhere
+        title: Runs the solver and its gradients in float64
         level: L0
         necessity: unknown
         what: >
@@ -39,11 +40,12 @@ metadata:
           ns-2d-periodic: &float64-reason
             consequences: [incorrect-gradient]
             symptom: >
-              The code comment says float32 cancellation near omega = 2
-              corrupts gradients and that float32 gradients fail
-              gradient/fd_check. No float32 fd_check result is recorded, and
-              the comment's reasoning predates the switch to BGK everywhere
-              (#282).
+              Per the code comment, float32 gradients fail gradient/fd_check.
+              No float32 fd_check result is recorded.
+            notes: >
+              The comment attributes the failure to float32 cancellation near
+              omega = 2 corrupting the gradients. Its reasoning predates the
+              switch to BGK everywhere (#282).
             evidence: >
               Comment above _USE_F64_DIFF;
               https://github.com/pasteurlabs/mosaic/issues/125 (open) proposes
@@ -53,6 +55,7 @@ metadata:
           ns-3d: *float64-reason
         provenance: mosaic-team
       - id: xlb-init-per-velocity-set
+        title: Reinitializes XLB for each velocity set
         level: L1
         necessity: unknown
         what: >
@@ -63,10 +66,13 @@ metadata:
           ns-2d-periodic: &init-reason
             consequences: [crash]
             symptom: >
-              The recorded failure, a D3Q27 bundle built after xlb.init() with
-              D2Q9 failing to compile, involved the KBC operator, which #282
-              removed. Whether the remaining operators need it has not been
+              The recorded compile failure involved an operator that is no
+              longer used. Whether the remaining operators need it has not been
               checked.
+            notes: >
+              The recorded failure was a D3Q27 bundle, built after xlb.init()
+              with D2Q9, failing to compile. It involved the KBC operator,
+              which #282 removed.
             evidence: Docstring of _make_ops at 6517f75.
           ns-2d-kolmogorov: *init-reason
           ns-2d-cylinder: *init-reason
@@ -74,37 +80,44 @@ metadata:
         upstream: None filed.
         provenance: mosaic-team
       - id: sqrt-checkpointing
+        title: Checkpoints the time loop in blocks of sqrt(steps)
         level: L0
         necessity: required
         what: >
           Runs the time loop as nested jax.lax.scan blocks of about sqrt(steps)
           steps, with jax.checkpoint on each block and on each step inside it.
-          Reverse mode keeps the block-boundary populations and, while it
-          works through a block, that block's step inputs.
         why:
           ns-3d:
             consequences: [out-of-memory]
             symptom: >
-              #135 gives 110 GB at N = 64 for a plain scan, against a 0.3 GB
-              forward. Checkpointing each step but not the blocks still keeps
-              every step's populations: on an A100 80 GB, the 3-D TGV VJP at
-              N = 48 took 67 GB at 1000 steps and ran out of memory at 2000,
-              against 5.6 GB at both with the blocks checkpointed. At 50
-              steps, N = 96 took 69 GB against 12 GB, and N = 128 ran out of
-              memory against 38 GB. The block checkpoint makes the VJP 2-14%
-              slower and changes the gradient by at most 5e-9 relative.
-              Checkpointing the blocks without the steps inside them took
-              about twice the memory and was no faster.
+              The 3-D VJP runs out of memory. A plain scan needs 110 GB at
+              N = 64, against 0.3 GB for the forward.
+            notes: >
+              Reverse mode keeps the block-boundary populations and, while it
+              works through a block, that block's step inputs. The 110 GB for a
+              plain scan is from #135. Checkpointing each step but not the
+              blocks still keeps every step's populations: on an A100 80 GB,
+              the 3-D TGV VJP at N = 48 took 67 GB at 1000 steps and ran out of
+              memory at 2000, against 5.6 GB at both with the blocks
+              checkpointed. At 50 steps, N = 96 took 69 GB against 12 GB, and
+              N = 128 ran out of memory against 38 GB. The block checkpoint
+              makes the VJP 2-14% slower and changes the gradient by at most
+              5e-9 relative. Checkpointing the blocks without the steps inside
+              them took about twice the memory and was no faster.
             evidence: "#135 (plain scan); #329 (A100, one container per point)."
           ns-2d-periodic: &sqrt-checkpointing-periodic
             consequences: [too-slow]
             symptom: >
-              #135 says it fixes some of XLB's VJP slowness in 2-D. No number
-              is recorded, and the block checkpoint has not been timed in 2-D.
+              Per #135, the 2-D VJP is slower without it. No number is
+              recorded.
+            notes: >
+              #135 says it fixes some of XLB's VJP slowness in 2-D. The block
+              checkpoint has not been timed in 2-D.
             evidence: "#135; https://github.com/pasteurlabs/mosaic/issues/125."
           ns-2d-kolmogorov: *sqrt-checkpointing-periodic
         provenance: mosaic-team
       - id: channel-checkpointing
+        title: Checkpoints the channel's time loop in blocks
         level: L0
         necessity: unknown
         what: >
@@ -114,15 +127,17 @@ metadata:
           ns-2d-cylinder:
             consequences: []
             symptom: >
-              No reason recorded: the channel reuses the periodic boxes' helper
-              since #239, and no run without it is recorded. drag_opt
-              differentiates through the whole run.
+              No reason is recorded, and no run without it is recorded.
+            notes: >
+              The channel reuses the periodic boxes' helper since #239.
+              drag_opt differentiates through the whole run.
         provenance: mosaic-team
       - id: consistent-initial-populations
+        title: Starts periodic runs from populations consistent with v0
         level: L2
         necessity: required
         what: >
-          Periodic runs start from populations consistent with v0: density
+          Periodic runs start from populations consistent with v0, with density
           from a spectral pressure-Poisson solve plus the first-order
           Chapman-Enskog non-equilibrium part (Mei et al. 2006), instead of
           the equilibrium at density 1.
@@ -130,22 +145,27 @@ metadata:
           ns-2d-periodic: &consistent-initial-populations-periodic
             consequences: [inaccurate-forward]
             symptom: >
+              Start-up transients from the missing pressure and viscous stress
+              raise the Taylor-Green error to 0.031 to 0.035, against 6e-4 to
+              8e-4 with consistent populations.
+            notes: >
               Equilibrium-only populations leave out pressure and viscous
-              stress, which appear as start-up transients. On an offline copy
-              of the solver with sub-stepping, the Taylor-Green error was
-              0.031 to 0.035 without them and 6e-4 to 8e-4 with them, against
-              a peer median of 2.4e-3.
+              stress. Measured on an offline copy of the solver with
+              sub-stepping. The peer median is 2.4e-3.
             evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
           ns-2d-kolmogorov: *consistent-initial-populations-periodic
           ns-3d:
             consequences: [inaccurate-forward]
             symptom: >
-              The transient made the N = 8 forward/baseline error 0.273, 80x
-              the peers. On the offline copy the 3-D baselines became 0.032,
-              0.0031 and 0.0025 at N = 8, 16 and 32.
+              Without it, a start-up transient made the N = 8 forward/baseline error
+              0.273, 80x the peers.
+            notes: >
+              On the offline copy the 3-D baselines became 0.032, 0.0031 and
+              0.0025 at N = 8, 16 and 32.
             evidence: "https://github.com/pasteurlabs/mosaic/issues/38; #232."
         provenance: mosaic-team
       - id: manual-lbm-loop
+        title: Assembles the periodic time loop from XLB's operators
         level: L2
         necessity: unknown
         what: >
@@ -156,6 +176,8 @@ metadata:
           ns-2d-periodic: &loop-reason
             consequences: [too-slow]
             symptom: >
+              The recorded reason is compile time, which has not been measured.
+            notes: >
               The initial tesseract description gave "O(1) compile time" as
               the reason. Nothing was measured, and whether XLB's stepper works
               under scan and reverse mode was not recorded.
@@ -164,64 +186,75 @@ metadata:
           ns-3d: *loop-reason
         provenance: mosaic-team
       - id: exact-difference-forcing
+        title: Applies exact-difference forcing by hand
         level: L2
         necessity: required
         what: >
           Periodic runs with a body force or drag apply the exact difference
           method by hand in the manual LBM loop, with the drag evaluated
-          semi-implicitly at the half-force velocity. The initial populations
-          and the output velocity are shifted by half a kick.
+          semi-implicitly at the half-force velocity.
         why:
           ns-2d-kolmogorov:
             consequences: [cannot-express]
             symptom: >
               XLB 0.3.1's ExactDifference operator takes one constant force
-              vector ("currently we are limited to a single force vector not a
-              spatially dependent forcing field"), so it cannot apply the
-              Kolmogorov force sin(κy) or a drag that depends on the velocity.
+              vector, so it cannot apply the Kolmogorov force sin(κy) or a drag
+              that depends on the velocity.
+            notes: >
+              The operator's source says "currently we are limited to a single
+              force vector not a spatially dependent forcing field". The
+              hand-written forcing shifts the initial populations and the
+              output velocity by half a kick.
             evidence: >
               https://github.com/Autodesk/XLB/blob/v0.3.1/xlb/operator/force/exact_difference_force.py;
               tests/test_ns_grid_forcing.py; #272.
         provenance: mosaic-team
       - id: channel-boundary-conditions
+        title: Writes the channel's boundaries and loop by hand
         level: L2
         necessity: choice
         what: >
-          The channel is written by hand on XLB's operators: boundary link
-          masks for the staircase cylinder, halfway bounce-back on walls and
-          cylinder, velocity bounce-back at the inlet, an anti-bounce-back
-          outlet, the momentum-exchange force, and its own sub-stepped,
+          The channel is written by hand on XLB's operators, with its own
+          boundary conditions, momentum-exchange force and sub-stepped,
           checkpointed time loop.
         why:
           ns-2d-cylinder:
             consequences: []
-            symptom: >
-              No reason recorded. XLB 0.3.1 ships halfway bounce-back, Zou-He,
-              regularized and extrapolation-outflow boundary conditions and a
-              momentum-transfer force operator; whether they work under this
-              tesseract's scan and reverse mode was not checked.
+            symptom: No reason is recorded.
+            notes: >
+              The boundary conditions are boundary link masks for the staircase
+              cylinder, halfway bounce-back on walls and cylinder, velocity
+              bounce-back at the inlet and an anti-bounce-back outlet. XLB
+              0.3.1 ships halfway bounce-back, Zou-He, regularized and
+              extrapolation-outflow boundary conditions and a momentum-transfer
+              force operator. Whether they work under this tesseract's scan and
+              reverse mode was not checked.
             evidence: >
               https://github.com/Autodesk/XLB/tree/v0.3.1/xlb/operator/boundary_condition
         provenance: mosaic-team
       - id: channel-characteristic-outlet
+        title: Lets the outlet density follow the outgoing characteristic
         level: L2
         necessity: unknown
         what: >
           The outlet density follows the outgoing characteristic,
-          1 + (u_x - u_developed)/cs, relative to the fully developed profile
-          with the inlet's flux, so that p = 0 on the outlet face once the flow
-          is steady.
+          1 + (u_x - u_developed)/cs, so that p = 0 on the outlet face once the
+          flow is steady.
         why:
           ns-2d-cylinder:
             consequences: [inaccurate-forward]
             symptom: >
-              Per the docstring, a plain p = 0 face reflects the start-up
+              Per the docstring, a plain p = 0 face would reflect the start-up
               pressure waves, which then ring between inlet and outlet almost
-              undamped at nu = 1e-3. Not measured.
+              undamped at nu = 1e-3.
+            notes: >
+              u_developed is the fully developed profile with the inlet's flux.
+              The reflection has not been measured.
             evidence: "Docstring of _channel_run (#239)."
         provenance: mosaic-team
     deviations:
       - id: ma-targeted-substepping
+        title: Sub-steps each step to bound the Mach number
         setups: [ns-2d-periodic, ns-2d-kolmogorov, ns-2d-cylinder, ns-3d]
         what: >
           Each prescribed step runs as k = ceil(Ma / Ma_target) LBM steps of

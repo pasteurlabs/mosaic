@@ -112,6 +112,12 @@ def status(
     suite_list = (
         list(SUITES) if suites == "all" else [s.strip() for s in suites.split(",")]
     )
+    unknown_suites = [s for s in suite_list if s not in SUITES]
+    if unknown_suites:
+        raise typer.BadParameter(
+            f"{unknown_suites[0]!r} is not one of {', '.join(map(repr, SUITES))}.",
+            param_hint="'--suites'",
+        )
 
     # ── non-rich formats: skip terminal rendering and emit a snapshot ─────
     if format in ("md", "json"):

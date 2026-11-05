@@ -31,6 +31,21 @@ class TestFixedCflDtSteps:
         with pytest.raises(ValueError, match="end time"):
             fixed_cfl_dt_steps(0.01, 100, 16, cfl_N_base=128)
 
+    def test_debug_run_keeps_the_cfl_and_whole_steps(self) -> None:
+        from mosaic.benchmarks.core.utils import iter_runs
+
+        run = {
+            "physics": {"N": 16, "dt": 0.01, "steps": 128, "cfl_N_base": 128},
+            "sweep": {"key": "N", "values": [16, 32, 64, 128]},
+        }
+        (debug,) = iter_runs([run], {"debug": True})
+        p = debug["physics"]
+        for n in debug["sweep"]["values"]:
+            dt, _ = fixed_cfl_dt_steps(
+                p["dt"], p["steps"], n, cfl_N_base=p["cfl_N_base"]
+            )
+            assert dt == pytest.approx(0.01 * 128 / n)
+
 
 @pytest.mark.parametrize(
     ("problem", "phys"),

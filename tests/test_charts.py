@@ -16,7 +16,7 @@ from mosaic.benchmarks.problems.shared.plots.charts.common import (
     log_axis,
 )
 
-# Every PNG stem the results pages show (docs/generate_results.py).
+# Every PNG stem the results pages show (docs/scripts/generate_results.py).
 EXPECTED = {
     "agreement",
     "analytic_check",

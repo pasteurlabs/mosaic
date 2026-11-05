@@ -218,7 +218,7 @@ problem.add_experiment(
     agreement,
     plot_description=(
         "Thermal compliance $C$ vs mesh resolution $N$ with random density; "
-        "compares FV and FEM solvers across refinements."
+        "compares the solvers across refinements."
     ),
     ic={"name": "random", "seed": 0},
     physics={

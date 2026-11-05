@@ -1,0 +1,110 @@
+---
+title: Add a solver
+---
+
+A solver wraps one library as a Tesseract in the directory of an existing domain. The harness discovers it there and runs it on every experiment of the problems that use that domain. Besides its own directory, a solver touches the problem packages under `mosaic/benchmarks/problems/`, which hold per-solver exclusions and input overrides, and the plot style registry. To add new physics with its own canonical schema, see [Add a problem](add-problem.qmd).
+
+The quickest start is to copy an existing solver of the same domain. [`navier-stokes-grid/exponax`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/tesseracts/navier-stokes-grid/exponax) is a compact example, with a schema subclass, an input check, all three endpoints, and an intervention record with code markers. The steps below say what each part is for and where its rules are defined.
+
+You need a development install of Mosaic (see [Setup](contributing.qmd#setup)) and a running Docker daemon. An NVIDIA GPU is only needed if your solver runs on one.
+
+## 1. Create the solver directory
+
+Each solver lives in its own directory, `mosaic/tesseracts/<domain>/<solver>/`, with three files: `tesseract_config.yaml`, `tesseract_api.py` and `tesseract_requirements.txt`. There is no registration step in Python, since the harness picks up every subdirectory whose `tesseract_config.yaml` has a `metadata.mosaic` block. The directory name, with hyphens replaced by underscores, becomes the solver key that exclusions, input overrides and plot styles refer to.
+
+## 2. Describe the solver in `tesseract_config.yaml`
+
+The top-level keys belong to tesseract-core and are documented in [Configuration (tesseract_config.yaml)](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/config.html). By convention, `name`, which becomes the image name, follows the pattern `<solver>_<domain>` with underscores. The top-level `description` doubles as the solver's summary in the [solver reference](solvers.qmd), so keep it to one or two sentences on the method and how gradients are computed.
+
+Mosaic reads its own keys from the `metadata.mosaic` block, which tesseract-core ignores. The docstring of `discover_solvers` in [`mosaic/benchmarks/core/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py) lists them all. Discovery only needs `name`, the display name that `mosaic run -s` selects, but CI also requires `backend` and `mosaic validate-domain` requires `scheme`, so set all three. `differentiable` says whether the solver implements `vector_jacobian_product`.
+
+[]{#gpu-memory-settings} **GPU memory settings.** A JAX solver sets `XLA_PYTHON_CLIENT_PREALLOCATE: "false"` and `XLA_PYTHON_CLIENT_MEM_FRACTION: "0.95"` under `env` unless it declares `uses_gpu: false`, and CI rejects one that doesn't. By default, XLA reserves most of the device at startup, so the measured peak memory would show that reservation instead of what the solver uses. The settings are the same for every JAX solver and are not interventions.
+
+## 3. Record the interventions {#the-intervention-record}
+
+Almost any solver passes a benchmark if someone works around its problems hard enough, so the effort it took is part of the result. Every solver records it in its `metadata.mosaic` block, and the tests fail for a solver without a record. The record has three keys:
+
+- `abstraction` sets what counts as ordinary use of the library, which is running a program as documented (`application`), expressing the setup through the library's API (`framework`), or building on its primitives (`kernel-toolkit`).
+- `interventions` lists everything beyond that ordinary use, each with a level from L0 to L3, whether it is needed, and for each setup what a user who skipped it would see.
+- `deviations` lists the places where the solver runs a substitute for part of the prescribed setup, with their effect on the results.
+
+The format is defined in [`mosaic/benchmarks/core/interventions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/interventions.py). Its module docstring has an annotated example and says which fields are written for readers of the results, the constants at the top list the allowed values, and `DOMAIN_SETUPS` lists the setups each domain's records may name. The [solver reference](solvers.qmd#effort-levels) defines the levels, and the records of the existing solvers show how they are applied.
+
+A few rules are not encoded in the checks. Record `L0` changes too, such as a tolerance picked by measuring alternatives (`tuned: true`), so that readers can see which options were set and why. If nobody knows why an intervention is needed, say `necessity: unknown` instead of guessing. Leave out fixes to Mosaic's own wrapper code, the GPU memory settings, code that only detects failures, setup caches and warm-ups that every solver may use under the same rules, and build infrastructure that cannot affect the results.
+
+Code that implements an `L2` or `L3` intervention sits between marker comments, with `//` instead of `#` in C and C++:
+
+```python
+# mosaic-intervention: <id>
+...
+# mosaic-intervention-end: <id>
+```
+
+`pytest tests/core/test_interventions.py` checks every record and its markers.
+
+## 4. Implement `tesseract_api.py`
+
+The structure of this file comes from tesseract-core, whose [endpoint reference](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/endpoints.html) documents the signatures. Mosaic adds requirements on the schemas and on which endpoints exist.
+
+### Subclass the canonical schemas
+
+Each domain defines a canonical `InputSchema` and `OutputSchema` in `mosaic/mosaic_shared/problems/<domain>/schemas.py`, with the domain name in underscores. Every solver of the domain subclasses them, so that all solvers read and write the same fields, and may add solver-specific inputs with defaults. The canonical fields carry no gradient annotations. A differentiable solver wraps the fields it differentiates with `make_differentiable(base, [...])` from `mosaic_shared.schema_types`, as the docstring of each canonical schema module shows.
+
+A canonical schema usually describes more than any single solver implements. The `navier-stokes-grid` schema, for instance, also covers 3D boxes, channel flow around an obstacle and a body force. A solver must raise an error on any input it doesn't support instead of quietly solving a different problem, typically in a Pydantic `model_validator` on its `InputSchema`. For `navier-stokes-grid`, `mosaic_shared.problems.navier_stokes_grid.channel` has helpers that reject unsupported boundary conditions. Experiments the solver can't run also need [exclusions](#exclusions-and-overrides).
+
+### Endpoints
+
+`apply` runs the forward simulation and returns a dict that matches `OutputSchema`. `abstract_eval` returns the output shapes and dtypes without running the solver. The harness calls solvers through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), which relies on it, so every Mosaic solver implements it.
+
+A differentiable solver (`differentiable: true`) also implements `vector_jacobian_product`. A solver without gradients sets `differentiable: false` and leaves the VJP out, and the experiments that need one skip it.
+
+## 5. List the dependencies
+
+`tesseract_requirements.txt` is a pip requirements file that tesseract-core installs when it builds the image. Its last line is `../../../mosaic_shared`, the relative path from the solver directory to the shared schema package, which makes the canonical schemas importable inside the container.
+
+Runtimes that pip can't install go into `custom_build_steps` in `tesseract_config.yaml`. Several existing solvers do this, for example `ins-jl` for Julia and `openfoam` for OpenFOAM, and the [pasteurlabs/tesseracts](https://github.com/pasteurlabs/tesseracts) repository collects more patterns.
+
+## 6. Build and run the solver
+
+Build the image with [`tesseract build`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/api/tesseract-cli.html#tesseract-build), then run the forward suite through the harness at reduced problem size:
+
+```bash
+tesseract build mosaic/tesseracts/<domain>/<solver>
+mosaic run -p <problem> --suites forward -s "<Display Name>" --debug --no-build
+```
+
+`-s` matches the display name case-insensitively, and `--no-build` reuses the image you just built. `--debug` shrinks grids, step counts and sweeps, and writes to `<experiment>_debug/` directories that `mosaic status` ignores. Once the debug run completes, leave out `--debug` and `--suites` to run every suite at full size, and check the outcome:
+
+```bash
+mosaic status -p <problem> -f
+```
+
+`-f` lists the reason for every failed cell, and [How to read the results](results/index.qmd#how-to-read-the-results) explains the states. A domain can back several problems, such as `navier-stokes-grid`, whose solvers run in both `ns-grid` and `ns-3d-grid`, so run every problem of the domain. [Choosing what runs](getting-started.qmd#choosing-what-runs) describes the other selection options.
+
+If the solver doesn't show up, check that its `tesseract_config.yaml` parses, that it has a `metadata.mosaic` block with a `name`, and that its directory sits directly under the domain directory.
+
+## 7. Declare exclusions and overrides {#exclusions-and-overrides}
+
+Most solvers run with the default problem configuration. Settings that apply to one solver on one problem live in that problem's package under `mosaic/benchmarks/problems/` and refer to the solver by its key. Declare them in every problem that uses the domain.
+
+### Exclusions
+
+When a solver can't run an experiment, register an exclusion so that the harness skips it and the results pages say why. Each existing problem collects these in the `register()` function of its `exclusions.py`, as `problem.exclude(key, {solver_key: Exclusion(category, reason)})`. The key matches by longest prefix, so a suite name such as `"gradient"` covers all of that suite's experiments, and the tests check that every key names a registered experiment. The docstring of `ExclusionCategory` in [`mosaic/benchmarks/core/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py) describes the categories. `CATEGORICAL` is for experiments the method cannot express. It is the only permanent category, while the others count as work left to do.
+
+### Explained anomalies {#explained-anomalies}
+
+If a solver trips a quality check for a reason intrinsic to its method, document the cause with an `ANOMALY_EXPLAINED` exclusion, registered the same way. The solver still runs and the cell keeps its status, with the explanation attached. Describe the mechanism instead of quoting measured numbers, since the report shows the live values. If the cause is a bug that should be fixed, open an issue instead.
+
+### Input overrides
+
+If a solver needs different values for fields of the canonical schema, set them in the problem's `config.py` after solver discovery, as `_SOLVERS["<solver_key>"].input_overrides = {...}`. They are merged into every input dict the problem builds for that solver.
+
+## 8. Register a plot style
+
+Plot colors, line styles and markers are not part of the YAML. Add an entry for the solver key to `SOLVER_STYLES` in [`mosaic/benchmarks/problems/shared/plots/solver_styles.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/problems/shared/plots/solver_styles.py). A solver without one is drawn in a neutral grey.
+
+## 9. Open a pull request {#open-a-pull-request}
+
+Run the pre-commit hooks and the tests (see [Setup](contributing.qmd#setup)), then open the pull request against `main` and fill in the [template](https://github.com/pasteurlabs/mosaic/blob/main/.github/PULL_REQUEST_TEMPLATE.md), whose solver checklist repeats the main checks from this page. CI runs the [checks](contributing.qmd#ci-checks) that every pull request gets. A maintainer then applies a [benchmark label](contributing.qmd#benchmark-labels), usually `benchmark:solver`, and the results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
+
+In the description, say which library and method the solver wraps, list the exclusions and explained anomalies with their reasons, and summarize the interventions and deviations, so that reviewers can check their level, necessity and evidence.

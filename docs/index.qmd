@@ -4,74 +4,120 @@ title: ""
 
 ::: {.hero}
 ::: {.hero-body}
-[Differentiable physics benchmark]{.eyebrow}
+![](figures/logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
 
-![](logo.webp){.hero-wordmark .nolightbox fig-alt="Mosaic, written in tiles that show solution fields from the benchmark"}
-
-[An extensible benchmark framework for differentiable physics solvers that treats gradient quality as a first-class criterion alongside forward accuracy and throughput.]{.hero-lede}
+[Mosaic benchmarks differentiable physics solvers on accuracy, gradient quality and cost, in compute and in development effort.]{.hero-lede}
 
 ::: {.hero-actions}
-[Get started](getting-started.qmd){.btn-m .primary} [Results](results.qmd){.btn-m} [Solver Reference](solvers.qmd){.btn-m}
+[Results](results/index.qmd){.btn-m .primary} [Run the benchmark](getting-started.qmd){.btn-m} [Solvers](solvers.qmd){.btn-m}
 :::
 :::
 :::
 
-## What this measures, and why
+## What Mosaic measures {#what-mosaic-measures}
 
-If you train a model or run an optimizer through a physics simulation, the simulation has to return two things: a correct prediction (the *forward* pass) **and** a correct gradient of that prediction with respect to your inputs (the *backward* pass, or vector–Jacobian product, VJP). Most solver benchmarks only check the forward pass. Mosaic checks both, because a solver that runs fast and predicts accurately is still useless for gradient-based learning if its VJP is wrong, noisy, or numerically ill-conditioned.
-
-Concretely, every solver is asked to compute an output $y = f(x)$ and the VJP $\bar{x} = (\partial f / \partial x)^\top \bar{y}$, and we score it on three axes:
+If you train a model or run an optimizer through a simulation, the solver has to return a correct prediction (the *forward* pass) and a usable gradient of that prediction with respect to your inputs (the vector–Jacobian product, VJP). A solver that predicts accurately is of little use for gradient-based work if its VJP is wrong, noisy or ill-conditioned, so Mosaic checks both. The [results](results/index.qmd) answer two questions for every solver on every setup:
 
 ::: {.axis-row}
 ::: {.axis-card style="--tile: var(--m-indigo)"}
-[Forward]{.eyebrow}
+[Is the solver accurate, and are its gradients usable?]{.axis-q}
 
-[Does the forward solution match a trusted reference?]{.axis-q}
+Forward accuracy against a reference, gradients against finite differences, and whether an optimizer makes progress through the solver.
 :::
 ::: {.axis-card style="--tile: var(--m-accent)"}
-[Gradient]{.eyebrow}
+[At what compute and development cost?]{.axis-q}
 
-[Does the gradient match a finite-difference ground truth?]{.axis-q}
-:::
-::: {.axis-card style="--tile: var(--m-saffron)"}
-[Cost]{.eyebrow}
-
-[How much wall-clock time and memory does each cost?]{.axis-q}
+Wall-clock time and peak memory of the forward and VJP calls, and the effort it took to make the solver run the setup.
 :::
 :::
 
-## How solvers are compared
+::: {.callout-note title="Development effort"}
+Comparisons of solvers rarely report what it took to make each one run a problem, from setting a documented option to patching the library. Mosaic records every such intervention, with its reason and evidence, and rates each solver's effort per setup from L0 (the public API with documented options) to L3 (changes to the solver itself). The [solver reference](solvers.qmd#effort-levels) defines the levels and lists every intervention.
+:::
 
-Built on [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which wraps each solver in a Docker container exposing a uniform `apply` / `vjp` interface, and [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax), which calls those containers as native JAX functions (with full JIT and `grad` support) from the benchmark harness. This lets a single harness compare solvers built on incompatible AD backends (JAX, PyTorch, Julia Zygote, hand-written C++ adjoints) without any shared dependency, by talking only to the common `apply` / `vjp` interface.
+## Setups {#setups}
 
-## Benchmark domains
+Results are reported per setup, meaning one problem statement with its own experiments and checks. A solver that handles one setup need not handle another, so Mosaic never averages across setups. Each card links to the setup's results page, and its chips link to the solvers that run it. The badge names the physics, as in the paper: heat transfer (H), structural mechanics (S), and incompressible flow in 2D (F2) and 3D (F3).
 
 ::: {.domain-grid}
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_periodic.svg){.nolightbox fig-alt="Schematic of the periodic box: four Taylor–Green vortices in a box with periodic edges evolve into a mixed field over a Navier–Stokes rollout."}
+:::
 ::: {.domain-card-body}
-[H]{.domain-id .d-H}
+[[F2]{.domain-id .d-F2} [Periodic box](results/ns-2d-periodic.qmd)]{.domain-card-title}
 
-[[Heat transfer](results_thermal_mesh.qmd)]{.domain-card-title}
+Decaying 2D flow without walls. Forward accuracy against the analytic Taylor–Green solution, and how gradients hold up as the rollout lengthens and the flow becomes chaotic.
 
-Conductivity inversion
-
-[Control dim. 128]{.domain-meta}
+[Problem `ns-grid`, suites forward, gradient, cost]{.domain-meta}
 
 ::: {.backend-chips}
-[deal.II](solvers.qmd#thermal-mesh-dealii-heat) [FEniCS](solvers.qmd#thermal-mesh-fenics-heat) [Firedrake](solvers.qmd#thermal-mesh-firedrake-heat) [JAX-FEM](solvers.qmd#thermal-mesh-jax-fem) [torch-fem](solvers.qmd#thermal-mesh-torch-fem-thermal)
+[Exponax](solvers.qmd#navier-stokes-grid-exponax) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [XLB](solvers.qmd#navier-stokes-grid-xlb)
 :::
 :::
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_cylinder.svg){.nolightbox fig-alt="Schematic of the channel: a parabolic inflow profile on the left, a cylinder with a drag arrow, and a vortex street downstream between two walls."}
+:::
 ::: {.domain-card-body}
-[S]{.domain-id .d-S}
+[[F2]{.domain-id .d-F2} [Channel flow past a cylinder](results/ns-2d-cylinder.qmd)]{.domain-card-title}
 
-[[Structural mechanics](results_structural_mesh.qmd)]{.domain-card-title}
+The Schäfer–Turek DFG 2D-1 channel at $Re = 20$, with walls, an obstacle, an inflow and an outflow. Drag against the literature value, and drag minimization over the inflow profile.
 
-Compliance minimization (SIMP)
+[Problem `ns-grid`, suites forward, optimization]{.domain-meta}
 
-[Control dim. 2048]{.domain-meta}
+::: {.backend-chips}
+[INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [XLB](solvers.qmd#navier-stokes-grid-xlb)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_2d_kolmogorov.svg){.nolightbox fig-alt="Schematic of Kolmogorov flow: a sinusoidal body force drives a turbulent field, which passes through a chain of solver calls with the gradient flowing back through the chain."}
+:::
+::: {.domain-card-body}
+[[F2]{.domain-id .d-F2} [Forced Kolmogorov flow](results/ns-2d-kolmogorov.qmd)]{.domain-card-title}
+
+Forced 2D turbulence that settles into a statistically steady state. Forward accuracy against a converged high-resolution run, and gradients through a chain of solver calls, as in training a model through a solver.
+
+[Problem `ns-grid`, suites forward, gradient]{.domain-meta}
+
+::: {.backend-chips}
+[Exponax](solvers.qmd#navier-stokes-grid-exponax) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [XLB](solvers.qmd#navier-stokes-grid-xlb)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_ns_3d.svg){.nolightbox fig-alt="Schematic of the 3D task: an initial velocity field in a cube evolves into a later snapshot, and the optimizer recovers the initial field from that snapshot."}
+:::
+::: {.domain-card-body}
+[[F3]{.domain-id .d-F3} [Triply periodic box](results/ns-3d.qmd)]{.domain-card-title}
+
+Recover the initial velocity field of a 3D flow from a later snapshot, with one control per velocity component and cell of a $16^3$ grid (12,288 values). Also measures how far each solver's gradient stays usable as the rollout lengthens.
+
+[Problem `ns-3d-grid`, suites forward, gradient, cost, optimization]{.domain-meta}
+
+::: {.backend-chips}
+[Exponax](solvers.qmd#navier-stokes-grid-exponax) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [XLB](solvers.qmd#navier-stokes-grid-xlb)
+:::
+:::
+:::
+
+::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_structural.svg){.nolightbox fig-alt="Schematic of the cantilever: a beam clamped on the left with a load at its tip, filled with a truss-like material layout."}
+:::
+::: {.domain-card-body}
+[[S]{.domain-id .d-S} [Linear-elastic cantilever](results/structural.qmd)]{.domain-card-title}
+
+Place a fixed budget of material in a clamped 3D beam, two cells thick, to make it as stiff as possible. The control is one density per cell of a $16\times2\times8$ mesh (256 values).
+
+[Problem `structural-mesh`, suites forward, gradient, cost, optimization]{.domain-meta}
 
 ::: {.backend-chips}
 [deal.II](solvers.qmd#structural-mesh-dealii-structural) [FEniCS](solvers.qmd#structural-mesh-fenics-structural) [Firedrake](solvers.qmd#structural-mesh-firedrake-structural) [JAX-FEM](solvers.qmd#structural-mesh-jax-fem) [TopOpt.jl](solvers.qmd#structural-mesh-topopt-jl) [torch-fem](solvers.qmd#structural-mesh-torch-fem-structural)
@@ -80,98 +126,75 @@ Compliance minimization (SIMP)
 :::
 
 ::: {.domain-card}
+::: {.domain-thumb}
+![](figures/setup_heat.svg){.nolightbox fig-alt="Schematic of the slab: a conductivity field on the left produces a temperature field on the right through a steady solve, and the inversion recovers the conductivity from the temperature."}
+:::
 ::: {.domain-card-body}
-[F2]{.domain-id .d-F2}
+[[H]{.domain-id .d-H} [Steady conduction in a slab](results/heat.qmd)]{.domain-card-title}
 
-[[Incompressible fluids (2D)](results_ns_grid.qmd)]{.domain-card-title}
+Invert for the conductivity field of a slab from its temperature, with one conductivity per cell of a $16\times8\times1$ mesh (128 values). Also checks gradients with respect to the heat source.
 
-Inflow optimization for drag min.
-
-[Control dim. 41]{.domain-meta}
+[Problem `thermal-mesh`, suites forward, gradient, cost, optimization]{.domain-meta}
 
 ::: {.backend-chips}
-[JAX-CFD](solvers.qmd#navier-stokes-grid-jax-cfd) [PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [XLB](solvers.qmd#navier-stokes-grid-xlb) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam)
-:::
-:::
-:::
-
-::: {.domain-card}
-::: {.domain-card-body}
-[F3]{.domain-id .d-F3}
-
-[[3D Navier-Stokes](results_ns_3d_grid.qmd)]{.domain-card-title}
-
-Initial condition recovery
-
-[Control dim. 12288]{.domain-meta}
-
-::: {.backend-chips}
-[PhiFlow](solvers.qmd#navier-stokes-grid-phiflow) [XLB](solvers.qmd#navier-stokes-grid-xlb) [PICT](solvers.qmd#navier-stokes-grid-pict) [Warp-NS](solvers.qmd#navier-stokes-grid-warp-ns) [Exponax](solvers.qmd#navier-stokes-grid-exponax) [INS.jl](solvers.qmd#navier-stokes-grid-ins-jl) [OpenFOAM](solvers.qmd#navier-stokes-grid-openfoam)
+[deal.II](solvers.qmd#thermal-mesh-dealii-heat) [FEniCS](solvers.qmd#thermal-mesh-fenics-heat) [Firedrake](solvers.qmd#thermal-mesh-firedrake-heat) [JAX-FEM](solvers.qmd#thermal-mesh-jax-fem) [torch-fem](solvers.qmd#thermal-mesh-torch-fem-thermal)
 :::
 :::
 :::
 :::
 
-The full catalog — per-solver numerical scheme, AD strategy, image name, schema fields, and known limitations — is on the [Solver Reference](solvers.qmd) page.
+## Terminology {#terminology}
 
-::: {.cta-panel}
-::: {}
-### See how the solvers compare {.unlisted}
+The results and the rest of these docs use five terms with a fixed meaning.
 
-Each domain has a results page with the task setup, pass/fail checks for every solver, and every plot:
-:::
+Domain
+: A family of solvers that share one canonical schema and one directory under `mosaic/tesseracts/`. There are three: `navier-stokes-grid`, `structural-mesh` and `thermal-mesh`.
 
-::: {.cta-links}
-[Navier–Stokes 2D](results_ns_grid.qmd){.btn-m} [Navier–Stokes 3D](results_ns_3d_grid.qmd){.btn-m} [Structural mechanics](results_structural_mesh.qmd){.btn-m} [Heat transfer](results_thermal_mesh.qmd){.btn-m}
-:::
-:::
+Problem
+: The benchmark package selected with `mosaic run -p`, which registers experiments and their settings. There are four: `ns-grid`, `ns-3d-grid`, `structural-mesh` and `thermal-mesh`. Both Navier–Stokes problems use the `navier-stokes-grid` domain. You only need this term to run the benchmark or contribute to it.
 
-## Evaluation protocol
+Setup
+: A problem statement that results are reported for, such as channel flow past a cylinder. There are six, shown [above](#setups). A problem can have several setups, and every experiment belongs to exactly one. Checks, effort and deviations are reported per setup.
 
-All metrics are computed uniformly across solvers through the Tesseract interface. The protocol is solver-agnostic: it operates on `apply` and `vjp` and never inspects solver internals. Mosaic reports several categories of metrics:
+Solver
+: One Tesseract under a domain directory, wrapping one library. A solver can serve several problems and setups. The `navier-stokes-grid` solvers serve both Navier–Stokes problems.
 
-**Setup compatibility.** For each solver--task pair: whether the solver produces a usable gradient, fails numerically, or cannot run due to structural constraints (e.g. periodic-only BCs on a channel domain).
+Backend
+: The runtime or AD framework a solver is built on, such as JAX or PyTorch, as recorded in its `metadata.mosaic.backend`.
 
-**Gradient accuracy.** Central finite differences (FD) through the Tesseract interface serve as the solver-agnostic ground truth. We never inspect a solver's AD machinery, only the gradient it returns. Directional derivatives are evaluated along $K$ random perturbation vectors ($K = 6\text{--}20$) and reported as:
+## Solvers as Tesseracts {#tesseracts}
 
-- **Cosine similarity** between the AD gradient $g_\text{ad}$ and the FD gradient $g_\text{fd}$ (direction agreement, $1$ = identical direction)
-- **Relative $L^2$ error** $\dfrac{\lVert g_\text{ad} - g_\text{fd} \rVert}{\lVert g_\text{fd} \rVert}$ (magnitude agreement, $0$ = exact)
+Each solver is wrapped in a Docker container by [tesseract-core](https://github.com/pasteurlabs/tesseract-core), which exposes a uniform `apply` / `vjp` interface. The harness calls those containers as JAX functions through [tesseract-jax](https://github.com/pasteurlabs/tesseract-jax) and never inspects how a solver computes its gradient, so it can compare solvers built on JAX, PyTorch, Julia or hand-written C++ adjoints without a shared dependency. The same containers work outside the benchmark: [Use a solver in your code](standalone.qmd) shows how to call one from JAX or PyTorch.
 
-The FD step size is swept over $\varepsilon \in \{10^{-6}, \dots, 10^{-1}\}$ and the minimum error is reported, avoiding both the truncation regime (large $\varepsilon$) and the roundoff regime (small $\varepsilon$). For Navier–Stokes problems (F2, F3), the full Jacobian is additionally computed and its singular-value spectrum inspected. A wide spread of singular values signals an ill-conditioned gradient that will stall an optimizer.
+## Benchmark suites {#suites}
 
-**Performance.** Forward and VJP wall-clock time, their ratio, and peak memory, measured on each solver's intended hardware target across 3--4 problem sizes. All timings are averaged over 3 runs after 1 warmup iteration (to pre-populate JIT caches and stabilize memory allocation).
+Experiments are grouped into suites, which you select with `mosaic run --suites`. The settings of every experiment (grid sizes, sweep ranges, finite-difference steps, iteration caps and pass criteria) live next to it in the problem configurations under [`mosaic/benchmarks/problems/`](https://github.com/pasteurlabs/mosaic/tree/main/mosaic/benchmarks/problems), and each [results page](results/index.qmd) describes the experiments of its setup.
 
-**Forward accuracy.** Resolution sweep against a reference: an analytical solution where one exists (e.g. the 2D Taylor–Green vortex), the Schäfer–Turek literature values for the 2D cylinder, converged high-resolution spectral runs for the 3D Taylor–Green vortex and the 2D Kolmogorov flow, and otherwise the trimmed-mean consensus of all solvers. Physical-law adherence (e.g. a divergence-free velocity field, $\nabla \cdot \mathbf{u} = 0$) is checked where applicable.
+**Forward accuracy (`forward`).** Resolution sweeps against a reference: an analytic solution where one exists (the 2D Taylor–Green vortex, the laminar Kolmogorov shear flow), the Schäfer–Turek literature value for the cylinder, converged high-resolution spectral runs for the 3D Taylor–Green vortex and the turbulent Kolmogorov flow, and for the mesh setups the trimmed mean of all solvers, stored as a precomputed reference. Where it applies, the suite also checks physical laws such as a divergence-free velocity field.
 
-**Optimization convergence.** The ultimate test: can you actually optimize *through* the solver? Each task runs a gradient-based optimizer up to a fixed iteration cap: L-BFGS for H (1000) and F3 (100, projected onto divergence-free fields), Adam for S (2500) and F2 (100, stopping early at a plateau). A solver **succeeds** if it brings the objective to at most half its initial value. For F2, it must reach at most 70% of its initial drag and end within 30% of the other solvers' final drag. This catches solvers whose gradients pass the FD check pointwise but still fail to drive a full optimization loop.
+**Gradient accuracy (`gradient`).** Central finite differences through the Tesseract interface are the solver-agnostic ground truth. Along random directions $v_k$, the harness compares the VJP's directional derivatives $d^\text{ad}_k = \langle g, v_k \rangle$ of a scalar loss with finite-difference estimates $d^\text{fd}_k$, at the step size $\varepsilon$ that fits best, and reports:
 
-## Benchmark suites
+- *direction agreement*, the cosine similarity of $d^\text{ad}$ and $d^\text{fd}$ ($1$ is identical);
+- *magnitude agreement*, the median of $|d^\text{ad}_k - d^\text{fd}_k| / \max(|d^\text{ad}_k|, |d^\text{fd}_k|)$ ($0$ is exact).
 
-The CLI exposes four suites, each running a set of experiments:
+Depending on the setup, the suite also compares against analytic gradients, follows the gradient error as the rollout lengthens, differentiates through a chain of solver calls, and inspects the singular values of the Jacobian, whose spread shows how ill-conditioned the gradient is.
 
-| Suite | CLI command | Experiments | What it measures |
-|:------|:-----------|:------------|:-----------------|
-| **forward** | `mosaic run --suites forward` | `baseline`, `agreement`, `physical_laws` | Forward accuracy vs. reference and analytic solutions |
-| **cost** | `mosaic run --suites cost` | `spatial_cost`, `temporal_cost`, `vjp_cost` | Wall-clock scaling with problem size |
-| **gradient** | `mosaic run --suites gradient` | `fd_check`, `analytic_check`, `param_sweep`, `horizon_sweep`, `jacobian_svd` | Gradient correctness and conditioning |
-| **optimization** | `mosaic run --suites optimization` | domain-specific (e.g. `recovery`, `drag_opt`, `topopt`) | End-to-end optimization convergence |
+**Optimization (`optimization`).** A gradient-based optimizer (L-BFGS or Adam, depending on the setup) runs through the solver up to an iteration cap. The check passes when the objective falls below a set fraction of its initial value, and drag minimization also requires the final drag to land close to the other solvers' median. This catches solvers whose gradients pass the finite-difference check but still fail to drive a full optimization.
 
-Results are saved to `mosaic-results/<problem>/<suite>/` as JSON (metrics), NPZ (arrays), and PNG/PDF (plots). Per-domain breakdowns with embedded plots live under the **Results** menu.
+**Cost (`cost`).** Forward and VJP wall-clock time and peak memory, swept over problem size and rollout length on each solver's hardware target. Each sweep point starts with an untimed warm-up call, which covers compilation, followed by repeated timed trials.
+
+**Initial conditions (`ics`).** Generates and plots the initial conditions, without running a solver.
+
+A run writes metrics as JSON, fields as NPZ, and plots as PNG with a Vega-Lite `.vl.json` spec next to each, under `mosaic-results/<problem>/<suite>/<experiment>/`. [Reading the output](getting-started.qmd#reading-the-output) explains the layout.
 
 ::: {.next-steps}
 ::: {}
-[Run it]{.eyebrow}
-
-Head over to **[Getting Started](getting-started.qmd)** for installation, the smoke-test workflow, and the full CLI reference.
+To run the benchmark yourself, start with **[Run the benchmark](getting-started.qmd)**, which covers installation, a first run and the CLI.
 :::
 ::: {}
-[Reuse it]{.eyebrow}
-
-To call a Mosaic solver from your own code without the harness, see **[Use Mosaic solvers elsewhere](standalone.qmd)**.
+To call a Mosaic solver from your own JAX or PyTorch code without the harness, see **[Use a solver in your code](standalone.qmd)**.
 :::
 ::: {}
-[Ask]{.eyebrow}
-
-For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)**.
+For questions and support, visit the **[Tesseract Forum](https://si-tesseract.discourse.group/)** or [open an issue](https://github.com/pasteurlabs/mosaic/issues).
 :::
 :::

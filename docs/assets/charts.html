@@ -1,19 +1,20 @@
 <script type="text/javascript">
 // Interactive charts for the results pages.
 //
-// figure.m-chart[data-spec] (written by docs/generate_results.py) points at a
-// Vega-Lite spec exported next to each plot by docs/export_charts.py (charts
-// defined in docs/vl/). Vega and the spec are fetched the first time a chart
-// scrolls into view; on any failure the fallback image inside the figure
-// stays. Specs carry no styling: the page's colours are passed as a Vega
-// config, so charts follow the site theme (and its dark mode, if any).
+// figure.m-chart[data-spec] (written by docs/scripts/generate_results.py)
+// points at a Vega-Lite spec exported next to each plot by the plot harness
+// (charts defined in mosaic/benchmarks/problems/shared/plots/charts/). Vega
+// and the spec are fetched the first time a chart scrolls into view; on any
+// failure the fallback image inside the figure stays. Specs carry no styling:
+// the page's colours are passed as a Vega config, so charts follow the site
+// theme (and its dark mode, if any).
 
 (function () {
   "use strict";
 
   // ── Interactive charts (Vega-Lite) ────────────────────────────────────────
   // figure.m-chart[data-spec] points at a Vega-Lite spec written next to the
-  // PNG by docs/export_charts.py (charts defined in docs/vl/). Vega and the
+  // PNG by the plot harness (charts defined in plots/charts/). Vega and the
   // spec are fetched the first time a chart scrolls into view; on any failure
   // the fallback PNG inside the figure stays. Specs carry no styling: the site
   // theme is passed as a Vega config, so charts follow light/dark mode, and
@@ -75,7 +76,7 @@
   }
 
   // Animated charts (usermeta.animation = {param, frames, fps}, see
-  // docs/vl/animations.py) get a play/pause button that steps the frame
+  // plots/charts/animations.py) get a play/pause button that steps the frame
   // signal. They play while on screen and stay still for readers who prefer
   // reduced motion.
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -174,6 +174,22 @@ def test_new_domain_unknown_template_errors():
     assert isinstance(result.exception, FileNotFoundError)
 
 
+# ── ics ───────────────────────────────────────────────────────────────────────
+
+
+def test_ics_generates_and_replots_every_ic(tmp_path):
+    """`ics` runs each registered IC, and `--plots-only` redraws them."""
+    result = runner.invoke(app, ["ics", "-p", "thermal-mesh", "-o", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "thermal-mesh" / "ics" / "uniform" / "params.json").exists()
+
+    result = runner.invoke(
+        app, ["ics", "-p", "thermal-mesh", "-o", str(tmp_path), "--plots-only"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "uniform" in result.output
+
+
 # ── build ─────────────────────────────────────────────────────────────────────
 
 
@@ -304,6 +320,16 @@ def test_status_unknown_format_is_a_usage_error(monkeypatch, tmp_path):
     )
     assert result.exit_code == 2
     assert "markdown" in result.output
+
+
+def test_status_unknown_suite_is_a_usage_error(monkeypatch, tmp_path):
+    """`status --suites forwrd` errors instead of printing an empty table."""
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    result = runner.invoke(app, ["status", "-p", "thermal-mesh", "--suites", "forwrd"])
+    assert result.exit_code == 2
+    assert "forwrd" in result.output
 
 
 def test_status_json_keeps_warnings_out_of_stdout(monkeypatch, tmp_path):

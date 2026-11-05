@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-# The GPU memory settings every JAX solver runs with (docs/tutorial.qmd,
+# The GPU memory settings every JAX solver runs with (docs/add-solver.qmd,
 # "GPU memory settings"): no preallocation, and the same cap for all.
 JAX_GPU_ENV = {
     "XLA_PYTHON_CLIENT_PREALLOCATE": "false",

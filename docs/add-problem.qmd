@@ -1,0 +1,81 @@
+---
+title: Add a problem
+---
+
+A problem is the benchmark package you select with `mosaic run -p`. It registers the experiments for one kind of physics, and its solvers share one canonical schema, which makes them a domain. A problem for new physics therefore needs a canonical schema, a problem package, the setups its results are reported for, and at least one solver. The [terminology](index.qmd#terminology) on the Overview page explains how domains, problems and setups relate. [Add a solver](add-solver.qmd) covers the solver side, so read it first if Tesseracts are new to you.
+
+You need a development install of Mosaic (see [Setup](contributing.qmd#setup)) and a running Docker daemon.
+
+## 1. Scaffold the files
+
+Mosaic ships templates that scaffold a new problem and its domain. List them, inspect one, and generate the files from the closest match:
+
+```bash
+mosaic templates
+mosaic templates --show <template>
+mosaic new-domain <name> --from-template <template>
+```
+
+`--show` prints the existing schema module the template was modeled on, its output and IC keys, default physics parameters, and suggested experiments per suite. `mosaic new-domain` then generates three directories and prints the paths of everything it created:
+
+- `mosaic/mosaic_shared/problems/<package>/`, the canonical schema package, with empty `InputSchema` and `OutputSchema` classes.
+- `mosaic/tesseracts/<name>/`, the empty domain directory for the solvers.
+- `mosaic/benchmarks/problems/<package>/`, the problem package. Its `config.py` holds the `Problem`, stubs for the IC generator and `make_inputs`, and the template's suggested experiments as `TODO` comments.
+
+`<name>` becomes the problem name and the domain directory, and `<package>` is the same name with underscores. The registry picks up every package under `mosaic/benchmarks/problems/` whose `config.py` defines a module-level `problem`, so there is nothing else to register. It skips a `config.py` that fails to import, so if Mosaic reports the new problem as unknown, import the module directly to see the error.
+
+`mosaic validate-domain <name>` checks the problem package. It fails until the schema has the output field and the domain has a solver, so run it again after each of the following steps.
+
+## 2. Define the canonical schemas
+
+The schemas in `mosaic/mosaic_shared/problems/<package>/schemas.py` are the contract between the harness and every solver in the domain. All solvers subclass them, so settle them first. The existing schema modules under `mosaic/mosaic_shared/problems/` are worked examples, and they follow a few conventions:
+
+- Array fields use tesseract-core's [`Array[(shape,), dtype]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#arrays-in-the-schema) annotation, with `None` for dimensions that vary at runtime.
+- The canonical fields carry plain types without [`Differentiable[...]`](https://docs.pasteurlabs.ai/projects/tesseract-core/latest/content/creating-tesseracts/create.html#differentiability). Each solver marks the fields it differentiates, as [Add a solver](add-solver.qmd#subclass-the-canonical-schemas) describes, since solvers of one domain differ in what they can differentiate.
+- `OutputSchema` contains the field that the harness compares across solvers, which the `Problem` names as its `output_key`. `InputSchema` contains the field that receives the initial condition, named as `ic_key`.
+
+The schema package is installed into every solver image of the domain, together with the dependencies declared in `mosaic/mosaic_shared/pyproject.toml`. The harness environment need not have it, so the problem package must import without `mosaic_shared`, which `tests/test_problem_configs.py` checks.
+
+## 3. Define the problem
+
+`config.py` holds the problem definition, and the scaffold marks what to fill in:
+
+- The IC generators, registered with `problem.add_ic(...)`.
+- `make_inputs(spec, ic, **physics)`, which builds the input dict for one solver from the IC and the experiment's physics parameters, and merges the solver's `input_overrides` last.
+- The fields of the `Problem`, documented on the `Problem` dataclass in [`mosaic/benchmarks/core/config.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/config.py).
+- The experiments, registered with `problem.add_experiment("<suite>/<experiment>", kernel, ...)`. Its docstring explains how list values become sweeps and how `runs=` fans out variants.
+
+The forward, gradient and cost kernels are shared and live in `mosaic/benchmarks/problems/shared/`. Optimization kernels are written per problem, as in the `optimization.py` of each existing problem, and a kernel of your own is a function decorated with `@kernel(...)` from `mosaic.benchmarks.core.experiment`. The existing problem packages show how the pieces fit together, and how a `config.py` splits into modules such as `ics.py`, `physics.py` and `exclusions.py` as it grows.
+
+Every experiment needs a status check, which decides whether a cell passes. Set suite-level checks with `status_checks=` on the `Problem`, or per experiment with `status_check=`, built from the factories in `mosaic/benchmarks/core/status_checks.py`. Without one, any solver that returns finite numbers would pass, so the same test file fails for an experiment that resolves no check.
+
+The shared `agreement` kernel scores each solver against a reference solution when one exists for the IC, such as an analytic solution passed as `reference=` to the `Problem`, and against the consensus of the solvers otherwise. With a single solver and no reference, the cells stay unscored, so a new domain benefits from at least one IC with a known solution.
+
+## 4. Register the setups
+
+Results are reported per setup. Add each setup of the new problem to `SETUPS` in [`mosaic/benchmarks/core/interventions.py`](https://github.com/pasteurlabs/mosaic/blob/main/mosaic/benchmarks/core/interventions.py), and add the domain with its setups to `DOMAIN_SETUPS` in the same file. The setups listed there are the ones that the intervention records of the domain's solvers may name. A setup without `claims` owns every experiment of its problem that no other setup claims, so a problem with one setup needs no claims, and a problem with several gives all but one of them `claims`, as `ns-grid` does.
+
+The results pages are configured separately, under `docs/scripts/` and `docs/results/`, and a maintainer can help add the new setup there.
+
+## 5. Add a solver
+
+The domain needs at least one solver before `mosaic validate-domain` passes. [Add a solver](add-solver.qmd) applies unchanged, with the solver directory under the new domain directory, `mosaic/tesseracts/<name>/<solver>/`.
+
+A forward-only reference solver, such as an analytic or spectral baseline, is a reasonable first solver. It sets `differentiable: false`, and the experiments that need a VJP skip it, so the gradient results stay empty until the domain has a differentiable solver.
+
+## 6. Check the result
+
+Validate the problem, then run the forward suite at reduced problem size:
+
+```bash
+mosaic validate-domain <name>
+mosaic run -p <name> --suites forward --debug
+```
+
+`mosaic validate-domain` checks the solver metadata, the IC generators, the solver directories, and that `output_key` is a field of `OutputSchema`. Once the debug run completes, run `mosaic run -p <name>` at full size and check the outcome with `mosaic status -p <name> -f`, as in [Add a solver](add-solver.qmd#build-and-run-the-solver). The test suite also covers the new problem, including its status checks, exclusion keys and the intervention records of its solvers.
+
+## 7. Open a pull request
+
+Run the pre-commit hooks and the tests (see [Setup](contributing.qmd#setup)), then open the pull request against `main` and fill in the [template](https://github.com/pasteurlabs/mosaic/blob/main/.github/PULL_REQUEST_TEMPLATE.md), whose checklists cover new domains and new solvers. CI runs the [checks](contributing.qmd#ci-checks) that every pull request gets, a maintainer applies a [benchmark label](contributing.qmd#benchmark-labels), and the results appear in [the PR benchmark comment](contributing.qmd#the-pr-benchmark-comment).
+
+In the description, say what physics the problem adds and why it makes a useful benchmark, describe the canonical interface (what goes in and what comes out), and point out the design decisions that reviewers should know about, such as the output key, the IC generators and the experiment parameters.
