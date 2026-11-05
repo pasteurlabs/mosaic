@@ -5,7 +5,8 @@
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
     rollout steps for the \emph{steps} and \emph{horizon} sweeps. The V100 run stored most
     failures without a reason (\emph{no reason}). \emph{skipped}: not attempted after an
-    earlier failure in the same sweep; \emph{died}: the container exited; \emph{not in sweep}:
+    earlier failure in the same sweep; \emph{OOM} includes containers that exited with the GPU's
+    memory full; \emph{not in sweep}:
     outside the sweep range of the A100 run. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{30}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite. \Cref{tab:app:a100failures} lists
@@ -28,21 +29,21 @@
       F3 & VJP, size & INS.jl & T4: 96 OOM, 128 skipped & ok 96--128 (79\,GB) \\
       F3 & VJP, size & JAX-CFD & T4: 128 OOM & ok 128 (28\,GB) \\
       F3 & VJP, size & PhiFlow & T4: 96 OOM, 128 skipped & ok 96--128 (68\,GB) \\
-      F3 & VJP, size & PICT & T4: 96 OOM, 128 skipped & ok 96 (43\,GB); died 128 \\
+      F3 & VJP, size & PICT & T4: 96 OOM, 128 skipped & ok 96 (43\,GB); OOM 128 \\
       F3 & VJP, size & Warp-NS & T4: 96 OOM, 128 skipped & ok 96--128 (58\,GB) \\
       F3 & VJP, size & XLB & V100: 48--64 no reason; T4: 128 OOM & ok 48--128 (44\,GB) \\
       F3 & VJP, steps & Exponax & T4: 2000 OOM & ok 2000 (30\,GB) \\
       F3 & VJP, steps & INS.jl & T4: 500 OOM, 1000--2000 skipped & ok 500--1000 (79\,GB); OOM 2000 \\
       F3 & VJP, steps & JAX-CFD & T4: 1000 OOM, 2000 skipped & ok 1000 (52\,GB); OOM 2000 \\
       F3 & VJP, steps & PhiFlow & V100: 10--100 no reason; T4: 500 OOM, 1000--2000 skipped & ok 10--1000 (65\,GB); OOM 2000 \\
-      F3 & VJP, steps & PICT & T4: 500--2000 died & ok 500--2000 (74\,GB) \\
+      F3 & VJP, steps & PICT & T4: 500--2000 OOM & ok 500--2000 (74\,GB) \\
       F3 & VJP, steps & Warp-NS & T4: 500 OOM, 1000--2000 skipped & ok 500 (72\,GB); OOM 1000; skipped 2000 \\
       F3 & VJP, steps & XLB & V100: 10--100 no reason & ok 10--100 (2.2\,GB) \\
       F3 & horizon & Exponax & V100: 10240 OOM; T4: 20480 OOM, 40960--81920 skipped & ok 10240--81920 (64\,GB) \\
       F3 & horizon & INS.jl & T4: 5120 OOM, 10240--81920 skipped & ok 5120--10240 (53\,GB); OOM 20480; skipped 40960--81920 \\
       F3 & horizon & JAX-CFD & T4: 10240 OOM, 20480--81920 skipped & ok 10240--20480 (64\,GB); OOM 40960; skipped 81920 \\
       F3 & horizon & PhiFlow & V100: 160 NaN, 320--10240 skipped; T4: 160 NaN, 320--81920 skipped & NaN 160; skipped 320--81920 \\
-      F3 & horizon & PICT & V100: 5120 OOM, 10240 skipped; T4: 10240 died, 20480--81920 skipped & ok 5120--20480 (52\,GB); died 40960; skipped 81920 \\
+      F3 & horizon & PICT & V100: 5120 OOM, 10240 skipped; T4: 10240 OOM, 20480--81920 skipped & ok 5120--20480 (52\,GB); OOM 40960; skipped 81920 \\
       F3 & horizon & Warp-NS & V100: 160 NaN, 320--10240 skipped; T4: 160 NaN, 320--81920 skipped & NaN 160; skipped 320--81920 \\
       F3 & horizon & XLB & V100: 160 OOM, 320--10240 skipped; T4: 320 NaN, 640--81920 skipped & ok 160 (0.7\,GB); NaN 320; skipped 640--81920 \\
     \midrule
@@ -81,7 +82,7 @@
     \toprule
     & \textbf{Sweep} & \textbf{Solver} & \textbf{First failure} & \textbf{Outcome} & \textbf{VRAM (GB)} \\
     \midrule
-      F3 & VJP, size & PICT & $N=128$ & died & 79 \\
+      F3 & VJP, size & PICT & $N=128$ & OOM & 79 \\
       F3 & VJP, steps & INS.jl & 2000 steps & OOM & 79 \\
       F3 & VJP, steps & JAX-CFD & 2000 steps & OOM & 52 \\
       F3 & VJP, steps & PhiFlow & 2000 steps & OOM & 65 \\
@@ -89,7 +90,7 @@
       F3 & horizon & INS.jl & 20480 steps & OOM & 79 \\
       F3 & horizon & JAX-CFD & 40960 steps & OOM & 64 \\
       F3 & horizon & PhiFlow & 160 steps & NaN & 1.5 \\
-      F3 & horizon & PICT & 40960 steps & died & 79 \\
+      F3 & horizon & PICT & 40960 steps & OOM & 79 \\
       F3 & horizon & Warp-NS & 160 steps & NaN & 2.3 \\
       F3 & horizon & XLB & 320 steps & NaN & 0.7 \\
     \bottomrule
