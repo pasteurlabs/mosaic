@@ -22,7 +22,15 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-from plots import by_solver, is_ok, load_result, results_dir, solver_metadata
+from plots import (
+    by_solver,
+    device_mib,
+    failure_type,
+    is_ok,
+    load_result,
+    results_dir,
+    solver_metadata,
+)
 
 PROBLEMS = ["ns-grid", "ns-3d-grid", "structural-mesh", "thermal-mesh"]
 PROBLEM_LABEL = {
@@ -653,7 +661,10 @@ FAILURE_LABEL = {
 }
 
 
-def failure_label(m: dict | None) -> str | None:
+T4_DEVICE_MIB = 15360
+
+
+def failure_label(m: dict | None, device: float | None = None) -> str | None:
     """Short outcome label of a failed entry, or None if it succeeded."""
     if m is None:
         return "no reason"
@@ -661,7 +672,8 @@ def failure_label(m: dict | None) -> str | None:
         return None
     if m.get("status") == "skipped":
         return "skipped"
-    return FAILURE_LABEL.get(m.get("failure_type"), m.get("failure_type") or "error")
+    ft = failure_type(m, device)
+    return FAILURE_LABEL.get(ft, ft or "error")
 
 
 def v100_failures(root: Path) -> dict[tuple[str, str, str], dict[str, str]]:
@@ -679,7 +691,9 @@ def v100_failures(root: Path) -> dict[tuple[str, str, str], dict[str, str]]:
     return out
 
 
-def v1_failures(root: Path) -> dict[tuple[str, str, str], dict[str, str]]:
+def v1_failures(
+    root: Path, device: float | None
+) -> dict[tuple[str, str, str], dict[str, str]]:
     out: dict[tuple[str, str, str], dict[str, str]] = defaultdict(dict)
     for p, exps in OUTCOME_EXPERIMENTS.items():
         for exp in exps:
@@ -687,7 +701,7 @@ def v1_failures(root: Path) -> dict[tuple[str, str, str], dict[str, str]]:
             if not path.exists():
                 continue
             for r in json.loads(path.read_text())["results"]:
-                if (lab := failure_label(r.get("metrics"))) is not None:
+                if (lab := failure_label(r.get("metrics"), device)) is not None:
                     out[(p, exp, r["solver"])][str(r["sweep_value"])] = lab
     return out
 
@@ -727,7 +741,11 @@ def a100_outcomes(
     parts: list[list] = []  # [first, last, label, max memory of the ok points]
     for v in values:
         m = pts.get(v)
-        lab = "not in sweep" if m is None else ("ok" if is_ok(m) else failure_label(m))
+        lab = (
+            "not in sweep"
+            if m is None
+            else ("ok" if is_ok(m) else failure_label(m, device_mib(results_dir())))
+        )
         mem = m.get(mem_key) if lab == "ok" else None
         if parts and parts[-1][2] == lab and lab in ("ok", "not in sweep", "skipped"):
             parts[-1][1] = v
@@ -746,7 +764,10 @@ def a100_outcomes(
 def outcomes_table(
     status: dict, v100_root: Path, t4_root: Path, extra: Path | None
 ) -> tuple[str, dict]:
-    runs = {"V100": v100_failures(v100_root), "T4": v1_failures(t4_root)}
+    runs = {
+        "V100": v100_failures(v100_root),
+        "T4": v1_failures(t4_root, device_mib(t4_root, T4_DEVICE_MIB)),
+    }
     keys = sorted(
         set(runs["V100"]) | set(runs["T4"]),
         key=lambda k: (
@@ -785,7 +806,7 @@ def outcomes_table(
             key = res["sweep"]["key"]
             for s, pts in sorted(by_solver(res).items(), key=lambda kv: kv[0].lower()):
                 for v, m in pts.items():
-                    lab = failure_label(m)
+                    lab = failure_label(m, device_mib(results_dir()))
                     if lab in (None, "skipped"):
                         continue
                     n_new += 1
@@ -795,6 +816,11 @@ def outcomes_table(
                     )
     body = "\n    ".join(rows)
     new_body = "\n    ".join(new_rows)
+    died_note = (
+        r" \emph{died}: the container exited otherwise;"
+        if any(" died" in r for r in rows + new_rows)
+        else ""
+    )
     text = rf"""\begin{{table}}[p]
   \centering\scriptsize
   \setlength{{\tabcolsep}}{{3pt}}
@@ -802,7 +828,8 @@ def outcomes_table(
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
     rollout steps for the \emph{{steps}} and \emph{{horizon}} sweeps. The V100 run stored most
     failures without a reason (\emph{{no reason}}). \emph{{skipped}}: not attempted after an
-    earlier failure in the same sweep; \emph{{died}}: the container exited; \emph{{not in sweep}}:
+    earlier failure in the same sweep; \emph{{OOM}} includes containers that exited with the GPU's
+    memory full;{died_note} \emph{{not in sweep}}:
     outside the sweep range of the A100 run. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{{30}}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite. \Cref{{tab:app:a100failures}} lists

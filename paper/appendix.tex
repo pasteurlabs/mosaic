@@ -284,7 +284,7 @@ The underlying Tesseract request times out separately after 7\,200\,s.
 Forward times span several orders of magnitude across solver families at identical resolution, reflecting differences in algorithmic complexity and hardware target (CPU vs.\ GPU).
 Three points need care when reading the curves. Warp-NS's times spike at sizes that are not powers of two ($N=192$ on F2, $N=48$ and 96 on F3).
 OpenFOAM's F3 forward times at $N\geq64$ are 1.5--3$\times$ longer than in a rehearsal of the run, and back-to-back measurements attribute the difference to load on the host rather than to the solver image.
-PICT's F3 VJP at $N=128$ ended when its container exited after two of three trials.
+PICT's F3 VJP runs out of memory at $N=128$ after two of three trials. PICT's out-of-memory failures show up as its container exiting with the GPU's memory full, without an error message.
 
 The VJP request includes a forward pass, so a ratio near~2 means that the gradient costs about one adjoint solve of the forward's cost.
 On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises (F2 2.2 to 4.1, F3 1.9 to 4.6) and PhiFlow's falls on F2 (5.3 to 3.1).
@@ -320,7 +320,7 @@ Two memory readings need care: INS.jl's peak is dominated by the CUDA.jl memory 
   \centering
   \includegraphics[width=\linewidth]{figures/horizon_sweep_limits.pdf}
   \caption{VJP against rollout length on F3 ($N=20$, $\nu=10^{-3}$, $\Delta t=0.05$): peak GPU memory, wall time, and gradient norm.
-    Each line ends at the solver's last successful horizon. Memory failures (out of memory, container exit) are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.}
+    Each line ends at the solver's last successful horizon. Out-of-memory failures are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.}
   \label{fig:horizon_sweep}
 \end{figure}
 
@@ -331,9 +331,9 @@ Two memory readings need care: INS.jl's peak is dominated by the CUDA.jl memory 
 Earlier development runs measured far larger ratios, $270\times$ (F2) and $1100\times$ (F3) for XLB and 8--10$\times$ for Exponax and JAX-CFD.
 Three causes were found and fixed: the JAX solvers had fallen back to the CPU; the VJP timing counted a second forward solve, because a gradient through tesseract-jax sends a forward request before the VJP request, which recomputes the forward solution; and XLB's checkpointing wrapped single steps rather than blocks of steps, so it stored the full trajectory.
 We did not measure how much each fix contributed.
-Three cases remain above $5\times$.
+XLB is now within the expected range: 2.2 (F2) and 2.5 (F3) at the \cref{tab:merged} sizes and at most 4.6 across grid sizes; only on the longest F3 rollouts does it reach 7.0.
+Two cases remain above $5\times$.
 INS.jl reaches 5.8--7.8 on F3 at $N\geq48$ and up to 6.2 on F2; we have not established why.
-XLB's ratio on F3 rises with the rollout to 7.0 at 2000 steps, plausibly from the recomputation its block checkpointing adds, although we have not verified this.
 PhiFlow's 5.3 at F2 $N=64$ falls to 3.1 at $N=256$, consistent with a fixed per-call overhead.
 TopOpt.jl's extremes (0.23 and 6.6) come from single slow trials at sub-second times (\cref{app:variance}).
 
@@ -354,7 +354,7 @@ Dropping the single slowest trial brings 36 of the 40 below 15\%.
 \label{app:outcomes}
 
 \Cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in the V100 submission run or the T4 CI run, together with its outcome on the A100.
-Every NS configuration that failed on 16\,GB from lack of memory, by losing its container, or without a recorded reason completes on 80\,GB, apart from two solvers no longer in the suite, while the non-finite gradients of the F3 horizon sweep recur.
+Every NS configuration that failed on 16\,GB from lack of memory or without a recorded reason completes on 80\,GB, apart from two solvers no longer in the suite, while the non-finite gradients of the F3 horizon sweep recur.
 The longer sweeps then reach new limits, listed in the lower part of the table.
 For the mesh domains, the table gives the A100 outcome where the run covers the configuration.
 

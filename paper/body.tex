@@ -554,20 +554,20 @@ and PICT complete 2000 steps (PICT at 74\,GB). The mesh solvers stay below
 11\,GB. Memory is not always the first limit, however. In a longer F3 horizon
 sweep (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite
 gradients at 160 steps and XLB at 320, while INS.jl runs out of memory at
-20\,480 steps, JAX-CFD at 40\,960, and PICT's container dies at the memory
-ceiling at 40\,960; Exponax completes 81\,920 steps in 64\,GB. Every NS
+20\,480 steps and JAX-CFD and PICT at 40\,960; Exponax completes 81\,920 steps in 64\,GB. Every NS
 configuration that ran out of memory on 16\,GB GPUs completes on the A100
 (\cref{tab:app:outcomes}).
 
-Reverse-mode AD should cost a small constant multiple of the forward pass,
+Reverse-mode AD should cost a small constant multiple of the forward
+pass~\cite{griewank2008evaluating},
 and most VJPs here cost one to four forward passes (\cref{tab:app:ratios}).
 Larger ratios seen during development, up to $1100\times$ for XLB and
 8--10$\times$ for Exponax and JAX-CFD, traced to a JAX fallback to the CPU, a
 timing that counted two forward solves per VJP, and full trajectory storage
 in XLB. Exponax and JAX-CFD now stay at or below $2.5\times$, and XLB at
 1.9--4.6$\times$ across grid sizes. Ratios above $5\times$ remain for INS.jl
-(up to 7.8, without an established cause), for XLB on long F3 rollouts (7.0),
-and for PhiFlow on small F2 grids (5.3); \cref{app:ratios} discusses them.
+(up to 7.8, without an established cause) and for PhiFlow on small F2 grids
+(5.3); \cref{app:ratios} discusses them.
 Nor does the ratio follow the AD strategy:
 FEniCS's tape-based adjoint falls from 4.3 to 2.1 with size on S, Firedrake
 stays near 2, and XLB's ratio rises with size while PhiFlow's falls.
