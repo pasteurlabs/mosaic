@@ -513,7 +513,9 @@ at 320 rollout steps (\cref{sec:scaling}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_main.pdf}
-  \caption{F3 IC recovery for selected solvers and different optimizers; full version in \cref{fig:app:recovery}.}
+  \caption{F3 IC recovery with L-BFGS+proj. Left and middle: loss and IC error
+    against iteration for the first target. Right: final IC error per solver,
+    mean (dot) and range (bar) over three targets.}
   \label{fig:recovery_main}
 \end{figure}
 
@@ -576,18 +578,12 @@ drives the temperature misfit down by orders of magnitude, but the poorly
 conditioned inversion leaves the recovered conductivity dependent on the
 optimizer's path within the iteration budget
 (\cref{fig:app:conductivity_recovery}).
-On F3 (IC recovery), we report the relative $\ell_2$ distance between
-the recovered and true initial states (\textit{IC error})
-alongside the optimization loss. Adam stagnates
-above 40\% IC error across all solvers (\cref{fig:recovery_main}):
-the loss decreases, but the recovered IC differs noticeably from the
-target.
-L-BFGS converges to substantially lower loss and below 6\% IC error in
-fewer iterations.
-Spectrally projecting the gradient onto the divergence-free subspace
-before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
-because the projection prevents non-solenoidal components from
-corrupting the curvature model.
+On F3, L-BFGS with the gradient projected onto divergence-free fields
+(L-BFGS+proj) recovers the initial state of a 100-step rollout with a relative
+$\ell_2$ error (\textit{IC error}), averaged over three targets, of 0.01\% for
+Exponax, 0.29--0.32\% for INS.jl, JAX-CFD, PhiFlow, and PICT, 0.45\% for
+Warp-NS, and 0.85\% for XLB (\cref{fig:recovery_main}).
+\Cref{app:recovery} compares this optimizer with Adam and plain L-BFGS.
 On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
 DFG 2D-1 channel at a fixed flow rate. All five solvers that run the channel
 (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic

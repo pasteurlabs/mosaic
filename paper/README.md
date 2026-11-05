@@ -29,7 +29,7 @@ uv run paper/make_tables.py --v100-results path/to/v100-results --t4-results pat
 
 Results are read from `$MOSAIC_RESULTS_DIR` if set, else `./mosaic-results`. `uv run` installs the pinned dependencies declared at the top of each script. Without uv, install `matplotlib==3.10.9`, `numpy==2.4.4` and `pyyaml==6.0.3` and run the scripts with `python`. Both scripts also read the solver metadata (differentiation strategy, GPU use) from `mosaic/tesseracts/*/*/tesseract_config.yaml` in this repository.
 
-Each module in `plots/` writes one or more figures to `figures/` (or `--out-dir`). `pl-labs.png` (logo), `recovery_main.pdf`, `recovery_overview.pdf`, `recovery_adam_proj.pdf`, `topopt_overview.pdf` and `appendix_ucurves_f3.pdf` are static and have no generator.
+Each module in `plots/` writes one or more figures to `figures/` (or `--out-dir`). `pl-labs.png` (logo), `recovery_overview.pdf`, `recovery_adam_proj.pdf`, `topopt_overview.pdf` and `appendix_ucurves_f3.pdf` are static and have no generator.
 
 `make_tables.py` writes these files to `tables/` (or `--out-dir`) and prints the key numbers they contain:
 

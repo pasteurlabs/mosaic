@@ -34,6 +34,7 @@ MODULES = [
     "drag_opt",
     "conductivity_overview",
     "memory_rollout",
+    "recovery_main",
 ]
 
 # Tesseract directory per results problem directory.

@@ -533,13 +533,14 @@ The minimum rises as the rollout grows, and for several solvers it moves from $\
 All optimization runs use Adam (\texttt{optax.adam}, default
 $\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$), L-BFGS
 (\texttt{optax.lbfgs} with the default zoom line search and a 10-step
-inverse-Hessian memory), or, on H, SciPy's L-BFGS-B with its default memory
+inverse-Hessian memory), or, on H and for the F3 results in
+\cref{sec:optimization}, SciPy's L-BFGS-B with its default memory
 of 10 correction pairs. Unless stated otherwise, runs use patience-based
 early stopping on the loss:
 the run terminates as soon as the loss has not strictly improved over
 the running minimum for \emph{patience} consecutive iterations, or when
 the maximum iteration budget is reached.
-The 3D NS recovery plots use
+The 3D NS optimizer comparison plots use
 \emph{gradient evaluations} on the x-axis rather than outer iterations:
 Adam costs one value-and-gradient call per step, while L-BFGS's zoom line
 search adds an empirically observed average of $\sim$3 probes per outer
@@ -562,8 +563,11 @@ Per-task settings:
         iterations. Each iterate is projected onto non-negative inlet profiles
         with the benchmark's flow rate and a peak of at most the benchmark's
         $U_m$.
-  \item \textbf{F3 (3D NS IC recovery)}: Adam $\eta{=}10^{-3}$, 500 iters,
-        patience 50; L-BFGS, 100 iters, patience 20.
+  \item \textbf{F3 (3D NS IC recovery)}: L-BFGS-B with the solenoidal
+        projection (L-BFGS+proj), 100 iters, for the results in
+        \cref{sec:optimization}. For the optimizer comparison: Adam
+        $\eta{=}10^{-3}$, 500 iters, patience 50; L-BFGS, 100 iters,
+        patience 20.
         L-BFGS+proj and Adam+proj variants apply a solenoidal projection to
         the gradient at each step (see next paragraph) with otherwise
         identical settings. All variants start from $u\equiv 0$ and minimize
@@ -584,7 +588,7 @@ where $\hat g$ is the FFT of the gradient on the periodic box. This
 restricts the search direction to the divergence-free subspace and is
 exact to machine precision on the periodic NS state space. The
 projection is implemented once in the harness and applied uniformly to
-all six fluid solvers; we do not project elsewhere because the
+all fluid solvers; we do not project elsewhere because the
 divergence-free constraint is specific to the incompressible NS state.
 
 \paragraph{2D drag minimization}
@@ -612,14 +616,18 @@ channel's inflow, outflow, and obstacle through its API
 \end{figure}
 
 \paragraph{3D NS IC recovery}
-\Cref{fig:app:recovery} compares three optimizer configurations on the 3D NS IC recovery task ($[0,2\pi)^3$ TGV box, $16^3$ grid).
+The 3D NS IC recovery task ($[0,2\pi)^3$ TGV box, $16^3$ grid) recovers the initial state of a 100-step rollout ($\nu=0.01$, $\Delta t=0.02$).
 Each run starts from a constant zero-velocity field and minimizes the $\ell_2$ distance to a target final state.
 We report the \emph{IC error} as the relative $\ell_2$ distance between the recovered and true initial velocity fields,
 $\|\mathbf{u}^{*}_0 - \mathbf{u}_0\|_2 / \|\mathbf{u}_0\|_2$,
 where $\mathbf{u}_0$ is the ground-truth IC and $\mathbf{u}^{*}_0$ is the optimizer iterate at the reported checkpoint.
+With L-BFGS+proj (\cref{fig:recovery_main}), the IC error of individual targets ranges from 0.008\% (Exponax) to 1.1\% (XLB), and the loss levels off after 45 (Exponax) to 86 (Warp-NS) iterations on average.
+
+\paragraph{Optimizer comparison on F3}
+\Cref{fig:app:recovery} compares three optimizer configurations on this task.
 Solver color and marker encode the backend; line style encodes the optimizer.
 Adam stagnates above 40\% normalized IC error across all solvers, while L-BFGS converges below 6\% in fewer gradient evaluations.
-Adding a solenoidal projection after each L-BFGS update (L-BFGS+proj) reduces the final IC error to below 0.5\% and keeps the recovered IC divergence at the physical level of the true IC throughout.
+Adding a solenoidal projection after each L-BFGS update (L-BFGS+proj) reduces the final IC error to the sub-percent level and keeps the recovered IC divergence at the physical level of the true IC throughout.
 The projection benefit is specific to the second-order optimizer, and the asymmetry has a structural cause.
 L-BFGS builds its Hessian approximation from secant pairs $s_k = x_{k+1} - x_k$; without projection these steps carry large irrotational components orthogonal to the solenoidal manifold, corrupting the curvature model, whereas projection confines $s_k$ to the correct tangent space and recovers the superlinear convergence behavior associated with projected Newton-type methods~\citep{bertsekas1982projected}.
 Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the iterate does not repair the miscalibrated scaling; \cref{fig:app:recovery:adamproj} confirms this.
