@@ -216,32 +216,34 @@ gradient checks of \cref{sec:protocol} (\cref{app:kolmogorov}).
   \centering
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/domain4_heat.pdf}
+    \includegraphics[width=\linewidth]{figures/domain_thermal_mesh.pdf}
     \caption{\textbf{H}\,: Conductivity inversion in steady heat conduction.}
     \label{fig:domain_h}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/domain3_structures.pdf}
+    \includegraphics[width=\linewidth]{figures/domain_structural_mesh.pdf}
     \caption{\textbf{S}\,: Compliance minimization of a cantilever (SIMP).}
     \label{fig:domain_s}
   \end{subfigure}\\[0.2em]
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/domain1_2d_fluids.pdf}
+    \includegraphics[width=\linewidth]{figures/domain_ns_grid.pdf}
     \caption{\textbf{F2}\,: Inflow optimization for a 2D cylinder.}
     \label{fig:domain_f2}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.48\linewidth}
     \centering
-    \includegraphics[width=.85\linewidth]{figures/domain2a_3d_ic_recovery.pdf}
+    \includegraphics[width=\linewidth]{figures/domain_ns_3d_grid.pdf}
     \caption{\textbf{F3}\,: Initial condition (IC) recovery in a 3D periodic box.}
     \label{fig:domain_f3}
   \end{subfigure}
   \caption{Benchmark tasks across the four physical domains in Mosaic,
     ordered by difficulty.
     Each panel shows the control variable, the physical process,
-    and the optimization objective.}
+    and the optimization objective.
+    Blue marks the control, rust marks forces and heat input,
+    and green marks the observation or target.}
   \label{fig:domains}
 \end{figure}
 

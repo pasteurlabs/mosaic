@@ -20,7 +20,6 @@ import yaml
 TEXTWIDTH = 5.5
 
 MODULES = [
-    "domain_illustrations",
     "visual_abstract",
     "cylinder",
     "fd_check",
