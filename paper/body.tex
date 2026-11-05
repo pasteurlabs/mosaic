@@ -605,21 +605,18 @@ forced Kolmogorov flow every 0.1 time units against the solver's own $256^2$
 run (\cref{app:sil}). Three arms share windows, updates and initialization:
 supervised one-interval pairs, a 16-interval rollout with the gradient stopped
 at every solver call, and the same rollout differentiated through the solver
-(SIL). Five of the seven differentiable F2 solvers pass the feasibility gates
-of a short run, and the full study is limited to those that finish it in about
-an hour, which excludes PICT (most of a day). JAX-CFD, Exponax, XLB and INS.jl
-completed all 36 trainings, and none of the 216 long rollouts diverged.
-Averaged over three seeds, supervised training reached the lowest test error on
-every solver except Exponax, and SIL never beat stopping the gradient, although
-it did on individual seeds. Training through the solver thus did not separate
-the solvers beyond their cost (1.0 to 2.8\,s per SIL update).
-The single-call checks of \cref{sec:protocol} miss the one defect the study
-surfaced. PICT's adjoint solves stop at an absolute residual tolerance, so they
-stop early for the small cotangents deep in a chain. A finite-difference check
-of a loss through 16 chained calls catches it (median error 0.89 at a cosine of
-0.51 before a fix in the wrapper) and needs no network. On this setup, the
-standalone checks plus this chained check predicted whether a solver can be
-trained through.
+(SIL). Five of the seven differentiable F2 solvers pass the gates of a short
+run; the full study keeps those that finish it in about an hour, which excludes
+PICT. JAX-CFD, Exponax, XLB and INS.jl completed all 36 trainings, and none of
+the 216 long rollouts diverged. Averaged over three seeds, supervised training
+reached the lowest test error on every solver except Exponax, and SIL never beat
+stopping the gradient, although it did on individual seeds, so training through
+the solver did not separate the solvers beyond their cost (1.0 to 2.8\,s per
+update). The one defect the study surfaced, PICT's adjoint solves stopping at an
+absolute tolerance for the small cotangents deep in a chain, escapes the
+single-call checks but not a finite-difference check through 16 chained calls
+(median error 0.89 at a cosine of 0.51 before the fix), which needs no network.
+On this setup, these checks predicted whether a solver can be trained through.
 
 % ===========================================================================
 \section{Discussion and conclusion}
@@ -666,15 +663,13 @@ frameworks (JAX, PyTorch) produces gradients accurate enough for
 optimization at a fraction of the implementation cost.
 
 \paragraph{Scope of the conclusions}
-Rankings, timings, and memory walls are out-of-the-box results. They
-describe the configurations as run (each solver as published, with the
-departures recorded in the repository), at our task sizes and on our
-hardware, so the order within a solver class need not generalize.
-Category-level findings should transfer: the failure modes that matter
-more than gradient accuracy (memory, stability, setup compatibility), how
-VJP cost and memory scale with each differentiation strategy, and the
-protocol itself. \Cref{app:exclusions} lists every task exclusion and
-what would lift it.
+Rankings, timings, and memory walls are out-of-the-box results for the
+configurations as run (each solver as published, with departures recorded
+in the repository), our task sizes, and our hardware; the order within a
+solver class need not generalize. Category-level findings should transfer:
+which failure modes matter more than gradient accuracy, how VJP cost and
+memory scale per differentiation strategy, and the protocol.
+\Cref{app:exclusions} lists each exclusion and what would lift it.
 
 \paragraph{Limitations}
 The evaluation rests on three assumptions: that central
