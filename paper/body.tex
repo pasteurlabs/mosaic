@@ -136,7 +136,8 @@ wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-infrastructure on which solver-in-the-loop ML research can build.
+infrastructure on which solver-in-the-loop ML research can build;
+\cref{sec:sil} reports one such study.
 
 % ===========================================================================
 \section{The Mosaic benchmark suite}
@@ -649,6 +650,31 @@ reasons (periodic BCs, penalization incompatibilities;
 \cref{app:solver-issues}). This attrition itself is a key finding:
 on the most practically demanding task, solver selection is constrained
 by setup compatibility before gradient quality enters the picture.
+
+\subsection{Solver-in-the-loop training}
+\label{sec:sil}
+
+To test whether the standalone checks predict behavior in a training loop, we
+trained a small periodic CNN to correct each solver's coarse ($64^2$) run of
+forced Kolmogorov flow every 0.1 time units against the solver's own $256^2$
+run (\cref{app:sil}). Three arms share windows, updates and initialization:
+supervised one-interval pairs, a 16-interval rollout with the gradient stopped
+at every solver call, and the same rollout differentiated through the solver
+(SIL). Five of the seven differentiable F2 solvers pass the feasibility gates
+of a short run, and the full study is limited to those that finish it in about
+an hour, which excludes PICT (most of a day). JAX-CFD, Exponax, XLB and INS.jl
+completed all 36 trainings, and none of the 216 long rollouts diverged.
+Averaged over three seeds, supervised training reached the lowest test error on
+every solver except Exponax, and SIL never beat stopping the gradient, although
+it did on individual seeds. Training through the solver thus did not separate
+the solvers beyond their cost (1.0 to 2.8\,s per SIL update).
+The single-call checks of \cref{sec:protocol} miss the one defect the study
+surfaced. PICT's adjoint solves stop at an absolute residual tolerance, so they
+stop early for the small cotangents deep in a chain. A finite-difference check
+of a loss through 16 chained calls catches it (median error 0.89 at a cosine of
+0.51 before a fix in the wrapper) and needs no network. On this setup, the
+standalone checks plus this chained check predicted whether a solver can be
+trained through.
 
 % ===========================================================================
 \section{Discussion and conclusion}

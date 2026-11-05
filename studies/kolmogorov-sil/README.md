@@ -2,7 +2,7 @@
 
 This directory and the code it runs reproduce a study of training a learned corrector _through_ each differentiable ns-grid solver. The study did not become a benchmark. Every solver that can run the flow passed every training check, so the setup did not tell solvers apart beyond the forward cost that `forward/kolmogorov` already measures. The one defect it surfaced, PICT's adjoint tolerance, is caught as well by `gradient/chain_fd_check`, which needs neither a corrector nor native solver state.
 
-Warp and PhiFlow are not part of the study. Warp diverges on the turbulent flow at every grid. PhiFlow's 256² run, which would be its reference, turns non-finite before t = 4 from two of the three test states in `forward/kolmogorov`.
+Warp and PhiFlow are not part of the study. Warp diverges on the turbulent flow at every grid. PhiFlow's 256² run, which would be its reference, turns non-finite within the study's horizon from some of the reference states.
 
 ## What runs
 
@@ -42,7 +42,13 @@ To see the PICT defect, build PICT without #294 (`git revert 3d480d0`). Then the
 
 ## Results
 
-All results are from one A100 80 GB, with images built from this code merged with `main` on 2026-10-28 and PICT with #294.
+The results below are from one A100 80 GB, with images built from this code merged with `main` on 2026-10-28 and PICT with #294.
+
+The paper reports a rerun on the merged code at 5adefd7 on an A100 80 GB, with no other GPU jobs: `optimization/kolmogorov_sil` for all five solvers, and `optimization/kolmogorov_sil_stability` for JAX-CFD, Exponax, XLB and INS.jl. PICT was left out of the stability run, which takes most of a day for it against 29 to 67 minutes for the others. The numbers are in `sil-summary.md` of the paper run's archive (`a100-final-5adefd7`):
+
+- All five solvers pass every gate of `optimization/kolmogorov_sil`, with FD errors of 5.8e-5 to 1.8e-3.
+- The stability run's test errors equal the table below to every printed digit. All 36 trainings complete, and none of the 216 long rollouts turns non-finite.
+- Seconds per update at K = 16 (supervised / stopped / sil): JAX-CFD 0.02 / 0.79 / 1.02, Exponax 0.02 / 0.80 / 1.04, XLB 0.02 / 0.85 / 1.39, INS.jl 0.02 / 1.22 / 2.84.
 
 ### Closure
 
@@ -84,7 +90,7 @@ Mean relative test error over 40 intervals per model seed, with the uncorrected 
 
 - All 45 trainings complete their 256 updates. SIL's gradient norms are 10–20× the stopped arm's but stay bounded.
 - No arm makes a corrector less stable than the uncorrected solver, whose own peak energy is 1.09–1.45 times its mean over the same rollouts.
-- Averaged over the three seeds, supervised training gives the lowest error on every solver except Exponax, where the stopped arm is lower, and training through the solver is never better than stopping the gradient at the solver. On single seeds of JAX-CFD, INS.jl, PICT and Exponax it is.
+- Averaged over the three seeds, supervised training gives the lowest error on every solver except Exponax, where the stopped arm is lower, and training through the solver is never better than stopping the gradient at the solver. On single seeds of JAX-CFD, INS.jl, PICT, Exponax and XLB it is.
 - Seconds per update at K = 16 (supervised / stopped / sil): JAX-CFD 0.02 / 0.69 / 1.00, Exponax 0.02 / 0.75 / 1.02, XLB 0.02 / 0.85 / 1.38, INS.jl 0.02 / 0.87 / 2.35, PICT 0.02 / 4.73 / 26.8. These runs partly shared the GPU with other jobs, so treat them as rough.
 
 JAX-CFD and INS.jl agree to every printed digit throughout, as they do in the forward checks.
