@@ -231,17 +231,29 @@ $(0.7\,L_x,\,0.5\,L_y)$ with width $\sigma=0.15\,\min(L_x,L_y)$.
 \Cref{fig:app:scaling,fig:app:scaling:fem} show forward time, VJP time, and VJP/forward ratio vs.\ element count for all four domains.
 The x-axis is total element count, parameterized by a single integer $N$:
 F2 uses an $N\times N$ uniform Cartesian grid ($N\in\{64,128,192,256\}$, giving $4\text{k}$--$66\text{k}$ cells);
-F3 uses an $N\times N\times N$ Cartesian grid ($N\in\{16,32,48,64\}$, giving $4\text{k}$--$262\text{k}$ cells);
-S uses an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{8,\ldots,3200\}$, giving $64$--$10\text{M}$ elements);
-H uses an $N\times\lfloor N/2\rfloor\times 1$ hex mesh ($N\in\{16,\ldots,4500\}$, giving $128$--$10\text{M}$ elements).
-Table~\ref{tab:merged} wall times are at $N=64$ (F2), $N=16$ (F3), $N=128$ (S), $N=256$ (H).
+F3 uses an $N\times N\times N$ Cartesian grid ($N\in\{16,32,48,64,96,128\}$, giving $4\text{k}$--$2.1\text{M}$ cells);
+S uses an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{4,\ldots,128\}$, giving $16$--$16\text{k}$ elements);
+H uses an $N\times\lfloor N/2\rfloor\times 1$ hex mesh ($N\in\{16,\ldots,1024\}$, giving $128$--$524\text{k}$ elements).
+Table~\ref{tab:merged} wall times are at $N=64$ (F2), $N=32$ (F3), $N=128$ (S), $N=256$ (H).
+The rollout-length sweeps run F2 at $N=128$ for 10--1000 steps and F3 at $N=48$ for 10--2000 steps.
 
 The fixed RPC overhead (host serialization and HTTP round-trip) adds approximately 2--20\,ms per call and is visible as a floor for the fastest solvers at small problem sizes.
-Lines that terminate before the full size range indicate that the solver either raised an exception (typically an out-of-memory error) or exceeded the 1\,000\,s per-trial wall limit at that problem size (the underlying Tesseract HTTP request has a separate 1\,200\,s watchdog); all larger sizes for that solver are omitted.
+Lines that terminate before the full size range indicate that the solver either raised an exception (typically an out-of-memory error) or that its first trial exceeded the 1\,000\,s per-trial wall limit at that problem size; all larger sizes for that solver are omitted.
+The underlying Tesseract request times out separately after 7\,200\,s.
 Forward times span several orders of magnitude across solver families at identical resolution, reflecting differences in algorithmic complexity and hardware target (CPU vs.\ GPU).
-VJP overhead tracks forward cost for source-transformation AD (JAX).
-For the NS domains the VJP/forward ratio is roughly constant across problem sizes: both forward and backward passes integrate the same $T$ timesteps, so their costs scale identically with $N$.
-For structural and thermal domains the ratio sits close to~1 at moderate sizes because the adjoint of a symmetric elliptic system shares the same stiffness matrix as the forward solve and can reuse its factorization; at the largest problem sizes the adjoint-based solvers (FEniCS, Firedrake) show steeper VJP scaling as the adjoint solve cost begins to dominate.
+OpenFOAM's F3 forward times at $N\geq64$ are 1.5--3$\times$ longer than in a rehearsal of the run, and back-to-back measurements attribute the difference to load on the host rather than to the solver image.
+PICT's F3 VJP runs out of memory at $N=128$ after two of three trials. PICT's out-of-memory failures show up as its container exiting with the GPU's memory full, without an error message.
+
+The VJP request includes a forward pass, so a ratio near~2 means that the gradient costs about one adjoint solve of the forward's cost.
+On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises (F2 2.2 to 4.1, F3 1.9 to 4.6) and PhiFlow's falls on F2 (5.3 to 3.1).
+Along the rollout sweeps, the ratio grows with the number of steps for most NS solvers, most strongly for INS.jl (to 7.1) and XLB (to 7.0) on F3.
+On the mesh domains, TopOpt.jl's VJP costs about one forward solve and torch-fem's 1.3--1.6.
+Firedrake stays near~2, while FEniCS falls from 4.3 (S) and 3.2 (H) at the smallest sizes to 2.1--2.3, and JAX-FEM from about 2.5 to 1.5--1.8.
+Ratios thus move in both directions within each differentiation strategy.
+
+\Cref{fig:horizon_sweep} extends the F3 rollout to 81\,920 steps at $N=20$, one VJP per horizon.
+Peak GPU memory is device-wide and excludes the 768\,MiB the driver reserves.
+Two memory readings need care: INS.jl's peak is dominated by the CUDA.jl memory pool, and Warp-NS's peak cannot be read against $N$ because its memory pools carry over between sizes.
 
 \begin{figure}
   \centering
@@ -258,12 +270,53 @@ For structural and thermal domains the ratio sits close to~1 at moderate sizes b
   \includegraphics[width=\linewidth]{figures/scaling_fem_combined.pdf}
   \caption{Gradient overhead scaling for the mesh domains (Structural,
     top; Thermal, bottom). Same layout as \cref{fig:app:scaling}.
-    deal.II VJP times are omitted (no native adjoint).
-    Source-transformation AD (JAX-FEM) maintains a nearly constant
-    ratio; adjoint-based solvers (FEniCS, Firedrake) show steeper VJP
-    scaling at large problem sizes.}
+    deal.II VJP times are omitted (no native adjoint).}
   \label{fig:app:scaling:fem}
 \end{figure}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\linewidth]{figures/horizon_sweep_limits.pdf}
+  \caption{VJP against rollout length on F3 ($N=20$, $\nu=10^{-3}$, $\Delta t=0.05$): peak GPU memory, wall time, and gradient norm.
+    Each line ends at the solver's last successful horizon. Out-of-memory failures are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.}
+  \label{fig:horizon_sweep}
+\end{figure}
+
+\subsection{VJP/forward ratios}
+\label{app:ratios}
+
+\Cref{tab:app:ratios} lists the ratio of VJP to forward time at the \cref{tab:merged} sizes and its range over each sweep.
+Development runs measured far larger ratios, $270\times$ (F2) and $1100\times$ (F3) for XLB and 8--10$\times$ for Exponax and JAX-CFD.
+Three causes were found and fixed: the JAX solvers had fallen back to the CPU; the VJP timing counted a second forward solve, because a gradient through tesseract-jax sends a forward request before the VJP request, which recomputes the forward solution; and XLB's checkpointing wrapped single steps rather than blocks of steps, so it stored the full trajectory.
+We did not measure how much each fix contributed.
+XLB stays within the expected range: 2.2 (F2) and 2.5 (F3) at the \cref{tab:merged} sizes and at most 4.6 across grid sizes; only on the longest F3 rollouts does it reach 7.0.
+Two other solvers exceed $5\times$.
+INS.jl reaches 5.8--7.8 on F3 at $N\geq48$ and up to 6.2 on F2. Its forward call runs the library's in-place time stepper, but Zygote cannot differentiate array mutation, so its VJP runs a hand-written non-mutating rollout instead. On the CPU, that rollout alone took 2.49\,s against 0.56\,s for the in-place stepper at $N=256$ and 100 steps. The ratio therefore compares two different forward implementations.
+PhiFlow's 5.3 at F2 $N=64$ falls to 3.1 at $N=256$, consistent with a fixed per-call overhead.
+TopOpt.jl's extremes (0.23 and 6.6) come from single slow trials at sub-second times (\cref{app:variance}).
+
+\input{tables/vjp_ratios}
+
+\subsection{Timing variance}
+\label{app:variance}
+
+\Cref{tab:app:variance} lists the coefficient of variation (CV) of the timed trials per configuration, with the sample standard deviation.
+The NS suites take 3 trials per configuration and the mesh suites 10.
+Across 513 configurations, the median CV is 2.4\% and 40 configurations exceed 15\%.
+Of these 40, 26 belong to the two Julia solvers, TopOpt.jl (12) and INS.jl (14), all at sub-second times, and 3 to OpenFOAM on F3 at $N\geq64$, which host load slowed (\cref{app:cost}).
+Dropping the single slowest trial brings 36 of the 40 below 15\%.
+
+\input{tables/variance}
+
+\subsection{Outcomes of the \texorpdfstring{16\,GB}{16 GB} failures}
+\label{app:outcomes}
+
+\Cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, a V100 or one of the T4 GPUs of our CI, together with its outcome on the A100.
+Every NS configuration that failed on 16\,GB from lack of memory or without a recorded reason completes on 80\,GB, apart from two solvers that are no longer part of the suite, while the non-finite gradients of the F3 horizon sweep recur.
+The longer A100 sweeps then reach new limits, which the outcome column also lists.
+For the mesh domains, the table gives the A100 outcome where the run covers the configuration.
+
+\input{tables/outcomes16gb}
 
 \subsection{Physical accuracy}
 \label{app:physical_accuracy}
@@ -346,11 +399,22 @@ All differentiable solvers reach cosine similarity $>0.999$ at their optimal~$\v
   \label{fig:app:fdcheck:ns2d}
 \end{figure}
 
+\paragraph{Exact-gradient checks}
+On F2, two checks compare against the exact Taylor--Green solution at $N=32$ after 20 steps of $\Delta t=0.05$, for $\nu\in\{0.001,0.005,0.01,0.02,0.05\}$.
+The first compares the gradient of $J=\sum|\mathbf{u}(T)|^2$ with respect to the initial field against $\nabla J = 2e^{-4\nu T}\mathbf{u}_0$, after projecting out the gradient's curl-free part, since the closed form holds for divergence-free perturbations.
+The second compares $\mathrm{d}J/\mathrm{d}\nu$ against $-4TJ$.
+Neither needs a step size, but both include the forward discretization error.
+Exponax represents the Taylor--Green mode exactly, and its errors of about $10^{-5}$ are consistent with float32 roundoff.
+JAX-CFD, PhiFlow, and INS.jl average the collocated input onto their staggered grids and back, which scales the mode by $\cos^2(\Delta x/2)$, a factor the gradient picks up twice. At $N=32$ this accounts for their shared initial-state error of $1.9\times10^{-2}$; their viscosity errors also coincide, at $2.2\times10^{-2}$.
+XLB's initial-state error grows with~$\nu$ from $7\times10^{-5}$ to $8\times10^{-4}$, Warp-NS's stays near $5\times10^{-3}$, and PICT's grows from $4\times10^{-3}$ to $2\times10^{-2}$; PICT's viscosity error reaches $5.4\times10^{-2}$ at $\nu=0.001$.
+All solvers pass the checks' thresholds (error at most 0.1 and within $3\times$ the peer median), which are provisional.
+\Cref{tab:gradchecks} reports the errors at $\nu=0.01$.
+
 \paragraph{Jacobian singular value spectra}
 \Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_0$ of the solver Jacobian for 2D NS across varying viscosity and rollout length; the 3D NS spectra appear in \cref{fig:conditioning} in the main text.
-Faster spectral decay indicates a more ill-conditioned Jacobian and correspondingly harder gradient-based optimization.
-Across both domains, increasing rollout length ($T$) consistently steepens the decay, while higher viscosity ($\nu$) slightly moderates it.
-Solver families cluster: spectral solvers retain flatter spectra at longer horizons, while projection-based solvers exhibit sharper decay.
+Faster spectral decay indicates a more ill-conditioned Jacobian.
+Rollout length and viscosity change individual condition numbers by up to two orders of magnitude without a consistent direction, while the ordering of the solvers stays the same in every configuration: in 2D, XLB has the smallest condition number (20--48), followed by PICT ($2\times10^5$--$2\times10^6$), with the other solvers between $2\times10^7$ and $10^{11}$.
+Exponax, which solves the 2D problem in vorticity form and thus discards the curl-free part of its input, joins the projection solvers at about $10^{10}$ there, unlike in 3D.
 The sharp spectral drop-off in projection-based solvers is attributable to singular vectors associated with non-solenoidal velocity modes, which incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}; these higher modes are mostly attributed to divergence and are correspondingly less relevant for gradient-based optimization.
 
 \begin{figure}
@@ -358,13 +422,14 @@ The sharp spectral drop-off in projection-based solvers is attributable to singu
   \includegraphics[width=\linewidth]{figures/appendix_jacobian_svd_2d.pdf}
   \caption{Normalized Jacobian singular value spectra for 2D NS.
     Each panel shows a different $(\nu, T)$ configuration.
-    Faster decay corresponds to a more ill-conditioned Jacobian and harder gradient optimization.}
+    Faster decay corresponds to a more ill-conditioned Jacobian.}
   \label{fig:app:svd2d}
 \end{figure}
 
 \paragraph{Gradient quality over rollout length}
-\Cref{fig:app:horizon} shows how FD gradient quality evolves with rollout length on the 2D NS domain.
-Even solvers with correct gradients at short horizons can degrade at longer rollouts, consistent with the Jacobian conditioning analysis in \cref{fig:conditioning}: solvers with rapidly decaying singular value spectra lose useful gradient signal faster.
+\Cref{fig:app:horizon} shows how FD gradient quality evolves with rollout length on the 2D NS domain ($N=16$, 5 to 320 steps).
+The best relative FD error grows from $3\times10^{-6}$--$4\times10^{-5}$ at 5 steps to $2\times10^{-4}$--$6\times10^{-4}$ at 320 steps, and $1-{}$cosine stays below $10^{-7}$ throughout, so no solver loses gradient accuracy within this range.
+The growth does not follow the conditioning: XLB, the best-conditioned solver, ends within the range of the others.
 The optimal perturbation size~$\varepsilon$ also drifts with horizon, reinforcing that a fixed FD step used for validation can give misleading results at longer rollout lengths.
 
 \begin{figure}
@@ -373,15 +438,14 @@ The optimal perturbation size~$\varepsilon$ also drifts with horizon, reinforcin
   \caption{Gradient quality vs.\ rollout length (2D NS).
     Left: gradient norm over rollout length.
     Middle: best-achievable FD relative error at each horizon.
-    Right: $1-{}$cosine similarity at the best~$\varepsilon$.
-    Solvers with poor Jacobian conditioning degrade fastest with increasing rollout length.}
+    Right: $1-{}$cosine similarity at the best~$\varepsilon$.}
   \label{fig:app:horizon}
 \end{figure}
 
 \paragraph{FD U-curves}
 \Cref{fig:app:ucurves_f2,fig:app:ucurves_f3} show full FD U-curves (relative error vs.\ perturbation size~$\varepsilon$) at each rollout length, for the 2D and 3D NS domains respectively.
 Each U-curve has a characteristic minimum: too-small $\varepsilon$ is dominated by floating-point cancellation; too-large $\varepsilon$ by nonlinear truncation error.
-The minimum shifts rightward and rises as the rollout grows, reflecting increasing Jacobian ill-conditioning.
+The minimum rises as the rollout grows, and for several solvers it moves from $\varepsilon\approx1$ to smaller~$\varepsilon$.
 
 \begin{figure}
   \centering
@@ -401,14 +465,16 @@ The minimum shifts rightward and rises as the rollout grows, reflecting increasi
 \label{app:recovery}
 
 \paragraph{Optimizer configurations}
-All optimization runs use either Adam (\texttt{optax.adam}, default
-$\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$) or L-BFGS
+All optimization runs use Adam (\texttt{optax.adam}, default
+$\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$), L-BFGS
 (\texttt{optax.lbfgs} with the default zoom line search and a 10-step
-inverse-Hessian memory), with patience-based early stopping on the loss:
+inverse-Hessian memory), or, on H, SciPy's L-BFGS-B with its default memory
+of 10 correction pairs. Unless stated otherwise, runs use patience-based
+early stopping on the loss:
 the run terminates as soon as the loss has not strictly improved over
 the running minimum for \emph{patience} consecutive iterations, or when
 the maximum iteration budget is reached.
-The 3D NS recovery and thermal conductivity convergence plots use
+The 3D NS recovery plots use
 \emph{gradient evaluations} on the x-axis rather than outer iterations:
 Adam costs one value-and-gradient call per step, while L-BFGS's zoom line
 search adds an empirically observed average of $\sim$3 probes per outer
@@ -416,16 +482,21 @@ step, so a per-iteration x-axis would understate L-BFGS's true
 forward-and-backward cost.
 Per-task settings:
 \begin{itemize}\itemsep0pt
-  \item \textbf{H (conductivity recovery)}: Adam $\eta{=}10^{-2}$,
-        2\,000 iters, patience 200; L-BFGS, 200 iters, patience 30.
+  \item \textbf{H (conductivity recovery)}: L-BFGS-B, 1\,000 iters, on a
+        sigmoid reparametrization that keeps the density in $[10^{-3},1]$ and
+        makes the SIMP conductivity affine in the latent variable. It stops at
+        the iteration budget, when the gradient's 2-norm falls below $10^{-7}$,
+        or when its line search fails.
   \item \textbf{S (topology optimization)}: Adam $\eta{=}5{\times}10^{-2}$,
         2\,500 iters, patience 100, with a soft volume-fraction penalty
         of weight 50; L-BFGS, 100 iters, patience 20 (fails to reach Adam's optimum, see below);
         MMA via NLopt~\citep{svanberg1987mma}, 200 iters, patience 30,
         with a hard volume inequality and native box constraints.
-  \item \textbf{F2 (drag minimization, Re=20)}: Adam $\eta{=}5{\times}10^{-4}$,
-        500 iters, patience 100, with a flow-rate penalty of weight 50;
-        L-BFGS, 50 iters, patience 15 (diverges, see below).
+  \item \textbf{F2 (drag minimization, Re=20)}: Adam $\eta{=}10^{-2}$, at
+        most 100 iters, stopping once the loss has not dropped by 0.1\% in 10
+        iterations. Each iterate is projected onto non-negative inlet profiles
+        with the benchmark's flow rate and a peak of at most the benchmark's
+        $U_m$.
   \item \textbf{F3 (3D NS IC recovery)}: Adam $\eta{=}10^{-3}$, 500 iters,
         patience 50; L-BFGS, 100 iters, patience 20.
         L-BFGS+proj and Adam+proj variants apply a solenoidal projection to
@@ -452,18 +523,26 @@ all six fluid solvers; we do not project elsewhere because the
 divergence-free constraint is specific to the incompressible NS state.
 
 \paragraph{2D drag minimization}
-\Cref{fig:app:dragopt} shows convergence for the 2D cylinder-flow drag minimization task.
-This task is notably difficult to deploy: the channel geometry with advective outflow requires non-periodic pressure boundary conditions that exclude spectral solvers, while Brinkman penalization of the cylinder obstacle is incompatible with LU-factored Poisson projections, collectively ruling out four of the seven F2 backends (detailed in \cref{app:solver-issues}).
-XLB and PICT converge to consistent drag reduction of around 60\% at Re\,=\,20; PhiFlow partially converges, reducing drag by ${\sim}35\%$ before stalling.
-We also attempted L-BFGS on this task.
-It failed universally: XLB diverged to NaN within 50 iterations (drag coefficients blowing up from 0.083 to over 8) and PICT produced no converged result.
-The failure is structural: the inflow-to-drag map is strongly non-convex (advection-driven, with separation and re-attachment regimes), so secant pairs $s_k = x_{k+1} - x_k$ taken across iterations sample regions where the local Hessian differs in sign, violating the positive-curvature condition and causing the limited-memory model to blow up.
-This contrasts with the quasi-static problems in \cref{fig:app:topopt,fig:app:conductivity_recovery}, where L-BFGS converges reliably; the determining factor is whether the landscape is stationary enough to sustain a coherent curvature model across iterations.
+\Cref{fig:app:dragopt} shows the drag minimization on the DFG 2D-1 channel at
+Re\,=\,20 with 10 cells per cylinder diameter, run to $t=4$, by which time the
+drag coefficient $C_d$ is within 0.1\% of its steady value at this resolution.
+The loss is $C_d/C_{d,0}$, where $C_{d,0}$ is the drag of the benchmark's
+parabolic inlet profile. From initial drag coefficients of 5.3--5.9, all five
+solvers that run the channel reduce drag by 46--48\% in 44--69 iterations:
+INS.jl by 48.0\%, PhiFlow by 47.7\%, XLB by 47.1\%, PICT by 46.8\%, and
+Warp-NS by 46.3\%. Their loss levels off after 27--34 iterations.
+Exponax represents only periodic fields, and JAX-CFD~0.2.1 cannot express the
+channel's inflow, outflow, and obstacle through its API
+(\cref{app:solver-issues}).
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/drag_opt_re20.pdf}
-  \caption{2D drag minimization at Re\,=\,20. XLB and PICT converge to ${\sim}60\%$ drag reduction; PhiFlow stalls at ${\sim}35\%$.}
+  \caption{2D drag minimization on the DFG 2D-1 channel at Re\,=\,20.
+    Top left: $C_d/C_{d,0}$ per Adam iteration, with a dot where the loss
+    levels off. Top right: initial and optimized inlet profiles. Bottom:
+    velocity magnitude near the cylinder before and after optimization for
+    the solver with the largest drag reduction.}
   \label{fig:app:dragopt}
 \end{figure}
 
@@ -523,16 +602,14 @@ MMA is therefore the recommended optimizer for this task class, consistent with 
 \paragraph{Conductivity recovery}
 \Cref{fig:app:conductivity_recovery} shows convergence for the thermal conductivity inversion task.
 The ground-truth conductivity field has two Gaussian peaks; the solver observes the steady-state temperature distribution under a known heat source and recovers the conductivity by minimizing the $\ell_2$ error between simulated and observed temperature.
-Adam and L-BFGS are compared across solvers that support differentiation w.r.t.\ the conductivity field.
-FEniCS and Firedrake form a distinct cluster: with Adam their final error is modestly higher ($\sim\!1{,}600$ vs.\ $\sim\!1{,}300$), and with L-BFGS the gap widens sharply ($\sim\!8.5{\times}10^4$ vs.\ $\sim\!1{,}100$).
-The cause is a gradient inconsistency in the adjoint-based solvers: the forward pass reports $\sum_i(T_i - T_i^*)^2$ (a nodal sum), while the adjoint differentiates $\int(T-T^*)^2\,\mathrm{d}\Omega$ (an area-weighted integral) and applies a scalar correction factor $n_\text{nodes}/|\Omega|$ to bridge the two.
-This correction is only approximate, so the returned gradient is not the exact derivative of the reported objective.
-First-order methods tolerate this mismatch because they use only gradient direction; L-BFGS accumulates gradient differences to estimate curvature, so an inconsistent gradient corrupts the Hessian approximation and causes convergence to a suboptimal point.
+Starting from a uniform field, L-BFGS-B lowers the misfit of all four solvers from $6.1\times10^{9}$ to 34--51 within 1\,000 iterations (JAX-FEM 34, Firedrake 39, torch-fem 49, FEniCS 51), leveling off after 735--846 iterations.
+The recovered conductivity is 4.2--5.9\% from the truth in relative $\ell_2$ norm, and the four recovered fields differ from each other by 1--3.5\% of the truth's norm.
+We attribute the spread to the poor conditioning of the inversion: many conductivity fields fit the temperatures almost equally well, and which one the optimizer reaches depends on its path.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/conductivity_recovery_overview.pdf}
-  \caption{Thermal conductivity recovery comparing Adam and L-BFGS optimizers. \emph{Top:} identification error vs.\ gradient evaluations; color encodes solver, linestyle encodes optimizer. \emph{Bottom:} final recovered conductivity profiles (all solvers) vs.\ ground truth (dashed).}
+  \caption{Thermal conductivity recovery with L-BFGS-B. \emph{Top:} temperature misfit and relative error of the recovered conductivity against iteration, per solver. \emph{Bottom:} ground-truth and recovered conductivity fields.}
   \label{fig:app:conductivity_recovery}
 \end{figure}
 
