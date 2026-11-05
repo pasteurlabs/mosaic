@@ -85,7 +85,7 @@ from xlb.precision_policy import PrecisionPolicy  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any):
+def _make_ops(vset: Any, pp: Any, cb: Any, fdtype: Any):  # mosaic:init
     """Build the XLB operator bundle for a given (ndim, precision).
 
     XLB keeps the velocity set and precision policy in global state, so
@@ -144,7 +144,7 @@ _D2Q9_C = np.array(_vsets[(2, False)].c).T.astype(int)
 _D2Q9_OPP = np.array([np.flatnonzero((_D2Q9_C == -c).all(axis=1))[0] for c in _D2Q9_C])
 
 
-def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):
+def _checkpointed_scan(body: Any, f0: jnp.ndarray, steps: int):  # mosaic:grad
     """Run ``steps`` LBM steps with sqrt-checkpointing for memory-bounded AD.
 
     A plain ``jax.lax.scan`` stores every step's populations for the reverse
@@ -199,7 +199,7 @@ _MA_TARGET = 0.1
 _MA_TARGET_N = 64
 
 
-def _sub_steps(inputs: dict) -> int:
+def _sub_steps(inputs: dict) -> int:  # mosaic:physics
     """LBM sub-steps per dt that bring a run to its target Mach number.
 
     The lattice Mach number is Ma = u_max · (dt/dx) / cs with cs = 1/√3,
@@ -222,7 +222,7 @@ def _sub_steps(inputs: dict) -> int:
     return max(1, math.ceil(ma / ma_target))
 
 
-def _forced_speed(inputs: dict) -> float:
+def _forced_speed(inputs: dict) -> float:  # mosaic:physics
     """Speed bound for a body force, independent of the flow it drives.
 
     A steady force F against viscosity and drag drives a laminar flow of at most
@@ -241,7 +241,7 @@ def _forced_speed(inputs: dict) -> float:
     )
 
 
-def _continued_populations(
+def _continued_populations(  # mosaic:physics
     state: jnp.ndarray, u0_phys: jnp.ndarray, scale: Any, drag: Any, ops: dict
 ) -> jnp.ndarray:
     """Populations continuing from a native state, taking on v0's change.
@@ -262,7 +262,9 @@ def _continued_populations(
 
 
 # mosaic-intervention: consistent-initial-populations
-def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
+def _periodic_populations(
+    u: jnp.ndarray, omega: Any, ops: dict
+) -> jnp.ndarray:  # mosaic:physics
     """Populations consistent with a divergence-free periodic velocity field.
 
     Starting from feq(ρ=1, u) leaves out the pressure field and the viscous
@@ -314,7 +316,7 @@ def _periodic_populations(u: jnp.ndarray, omega: Any, ops: dict) -> jnp.ndarray:
 
 # mosaic-intervention-end: consistent-initial-populations
 # mosaic-intervention: channel-boundary-conditions
-def _channel_links(
+def _channel_links(  # mosaic:init
     shape: tuple[int, int], dx: float, obstacle: dict
 ) -> tuple[np.ndarray, ...]:
     """Solid nodes and boundary links of the 2-D channel with a cylinder.
@@ -346,7 +348,7 @@ def _channel_links(
     return (solid, *masks)
 
 
-def _channel_run(
+def _channel_run(  # mosaic:physics
     u0: jnp.ndarray,
     u_in: jnp.ndarray,
     omega: Any,
@@ -436,7 +438,7 @@ def _channel_run(
 # mosaic-intervention-end: channel-boundary-conditions
 
 
-def xlb_fwd(
+def xlb_fwd(  # mosaic:physics
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
@@ -643,12 +645,12 @@ def xlb_fwd(
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:
+def apply_jit(inputs: dict) -> dict:  # mosaic:io
     """JIT-compiled forward pass for the XLB solver."""
     return xlb_fwd(**inputs)
 
 
-def _concrete_inputs(inputs: InputSchema) -> dict:
+def _concrete_inputs(inputs: InputSchema) -> dict:  # mosaic:io
     """Inputs as a dict with Python-float viscosity and dt, and the grid spacing."""
     d = inputs.model_dump()
     for key in ("viscosity", "dt", "linear_drag"):
@@ -673,7 +675,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_jit(d)
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,state,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],
@@ -716,7 +718,7 @@ def abstract_eval(abstract_inputs: Any) -> dict:
 
 
 @functools.cache
-def _diff_apply(sub_k: int, dx: float) -> Any:
+def _diff_apply(sub_k: int, dx: float) -> Any:  # mosaic:grad
     """Forward pass differentiated by jax_vjp, for one (_sub_k, dx).
 
     Runs in float64 by default, or float32 when XLB_VJP_FP32=1 (see

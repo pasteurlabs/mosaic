@@ -1,3 +1,4 @@
+# mosaic:util
 using IncompressibleNavierStokes
 using Zygote
 using CUDA
@@ -12,6 +13,7 @@ const _ON_GPU = CUDA.functional()
 const _BACKEND_KW = _ON_GPU ? (; backend = CUDABackend()) : (;)
 to_device(a) = _ON_GPU ? CuArray(a) : a
 
+# mosaic:init
 # ---------------------------------------------------------------------------
 # Setup cache (indexed by (n, L, ndim), or by the channel's grid); holds the
 # current setup only
@@ -59,6 +61,7 @@ function get_setup_and_psolver(n::Int, L::Float64, ndim::Int)
 end
 
 
+# mosaic:util
 # ---------------------------------------------------------------------------
 # Ghost cell utilities — 2-D  (n,n,2) <-> (n+2,n+2,2)
 # ---------------------------------------------------------------------------
@@ -152,6 +155,7 @@ function stag_to_coloc_3d(u::AbstractArray, n::Int)
 end
 
 
+# mosaic:physics
 # ---------------------------------------------------------------------------
 # Forward passes (RK4, non-mutating, Zygote-differentiable)
 # ---------------------------------------------------------------------------
@@ -270,6 +274,7 @@ function forced_rhs(rhs, f, drag::Real)
 end
 
 
+# mosaic:util
 # ---------------------------------------------------------------------------
 # Native state (2-D): the high-face velocities and the returned velocity
 # ---------------------------------------------------------------------------
@@ -293,6 +298,7 @@ function lift_coloc_to_stag_2d(d::AbstractArray, n::Int)
     return cat(reshape(T.(ux), n, n, 1), reshape(T.(uy), n, n, 1); dims=3)
 end
 
+# mosaic:physics
 """
 Ghosted staggered state continuing from the native `state` (n,n,4) with `v0`.
 
@@ -330,6 +336,7 @@ end
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
+# mosaic:io
 """
     ns_apply(v0_np, nu, dt, steps, n, L; force, drag, snapshot_every, state,
              return_state) -> v_out_np
@@ -413,6 +420,7 @@ function ns_apply(v0_np, nu::Float64, dt::Float64, steps::Int, n::Int, L::Float6
     return Array(T.(v_out))
 end
 
+# mosaic:grad:v0,state,viscosity,dt:adjoint
 """
     ns_vjp(v0_np, cotangent_np, nu, dt, steps, n, L; force, drag, state,
            return_state, state_cotangent)
@@ -491,6 +499,7 @@ function ns_vjp(v0_np, cotangent_np, nu::Float64, dt::Float64,
 end
 
 
+# mosaic:init
 # ---------------------------------------------------------------------------
 # 2-D channel with a cylinder (Schäfer–Turek DFG 2D-1)
 # ---------------------------------------------------------------------------
@@ -525,6 +534,7 @@ function get_channel_setup_and_psolver(nx::Int, ny::Int, Lx::Float64, Ly::Float6
     return _SETUP_CACHE[key]
 end
 
+# mosaic:physics
 # mosaic-intervention: separable-pressure-solver
 """
 Exact pressure solver for the channel, by diagonalizing the Laplacian.
@@ -574,6 +584,7 @@ diverged. η = dt leaves room for the diffusion on the same faces.
 penalization_time(dt) = dt
 # mosaic-intervention-end: brinkman-cylinder
 
+# mosaic:init
 """
 Device arrays for one channel run: the coefficient χ / η of the penalization
 force, the weights that sum it into the force on the cylinder, the inlet
@@ -601,6 +612,7 @@ function channel_fields(solid::AbstractMatrix{Bool}, setup, eta::Float64, dx::Fl
     )
 end
 
+# mosaic:util
 # mosaic-intervention: differentiable-inlet
 """
 The inflow profile on the inlet faces, zero elsewhere.
@@ -615,6 +627,7 @@ function inlet_field(inlet, profile)
 end
 # mosaic-intervention-end: differentiable-inlet
 
+# mosaic:physics
 """
 Momentum right-hand side before the projection: that of
 `create_right_hand_side`, with the inflow profile `uin` and the cylinder's
@@ -631,6 +644,7 @@ function channel_momentum(u, uin, chi_eta, setup, nu)
     return apply_bc_u(f, zero(T), setup; dudt = true)
 end
 
+# mosaic:util
 """
 Cell-centered (nx,ny,2) → ghosted staggered channel field. The outlet face
 takes the last cell's value; the inlet, wall and ghost faces are zero.
@@ -657,6 +671,7 @@ function channel_stag_to_coloc(u::AbstractArray, nx::Int, ny::Int)
     return cat(ux, uy; dims = 3)
 end
 
+# mosaic:physics
 # mosaic-intervention: hand-written-rk4-rollout
 """
 Channel forward: v0 (nx,ny,2) at the cell centers → the velocity (nx,ny,2) at
@@ -703,6 +718,7 @@ function channel_pressure(u, profile, nu::Real, setup, psolver, fields)
     return apply_bc_p(p, zero(T), setup)[setup.Ip]
 end
 
+# mosaic:io
 """
     channel_apply(v0_np, solid_np, profile_np, nu, dt, steps, Lx, Ly)
         -> (velocity, pressure, body_force)
@@ -726,6 +742,7 @@ function channel_apply(v0_np, solid_np, profile_np, nu::Float64, dt::Float64,
     return Array(velocity), Array(pressure), force
 end
 
+# mosaic:grad:v0,inflow_profile,viscosity,dt:adjoint
 """
     channel_vjp(v0_np, solid_np, profile_np, nu, dt, steps, Lx, Ly,
                 ct_result_np, ct_force_np)

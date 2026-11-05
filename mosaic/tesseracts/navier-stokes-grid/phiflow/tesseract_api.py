@@ -38,7 +38,7 @@ from tesseract_core.runtime.tree_transforms import filter_func, flatten_with_pat
 _numpy_ravel_multi_index = NumPyBackend.ravel_multi_index
 
 
-def _ravel_multi_index_int64(
+def _ravel_multi_index_int64(  # mosaic:util
     self: NumPyBackend,
     multi_index: np.ndarray,
     shape: tuple[int, ...],
@@ -92,7 +92,7 @@ _CG_TOL = 1e-5
 _CHANNEL_CG_TOL = 1e-2
 
 
-def periodic_fwd(
+def periodic_fwd(  # mosaic:physics
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
@@ -286,7 +286,7 @@ _CHANNEL_PRESSURE = extrapolation.combine_sides(
 )
 
 
-def channel_fwd(
+def channel_fwd(  # mosaic:physics
     v0: jnp.ndarray,
     viscosity: float,
     dt: float,
@@ -451,7 +451,7 @@ def channel_fwd(
 
 
 @eqx.filter_jit
-def apply_jit(inputs: dict) -> dict:
+def apply_jit(inputs: dict) -> dict:  # mosaic:io
     """JIT-compiled forward pass: the channel when an obstacle is set, else the periodic box."""
     if inputs["obstacle"] is not None:
         return channel_fwd(
@@ -478,7 +478,7 @@ def apply_jit(inputs: dict) -> dict:
 _SCALAR_KEYS = ("viscosity", "dt", "linear_drag")
 
 
-def _unpack_scalars(d: dict) -> dict:
+def _unpack_scalars(d: dict) -> dict:  # mosaic:io
     """Extract Python floats from 1-element arrays for JIT-static scalar params."""
     for key in _SCALAR_KEYS:
         if d.get(key) is not None:
@@ -491,7 +491,7 @@ def apply(inputs: InputSchema) -> dict[str, Any]:
     return apply_jit(_unpack_scalars(inputs.model_dump()))
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:v0,viscosity,dt,inflow_profile:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

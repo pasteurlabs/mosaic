@@ -1,3 +1,4 @@
+// mosaic:util  (third-party I/O utility — not authored solver code)
 // cnpy — C++ library for reading/writing NumPy .npy and .npz files.
 // MIT License — original by Carl Rogers (https://github.com/rogersce/cnpy).
 // This is a self-contained single-header/implementation split version.
@@ -14,6 +15,7 @@
 
 namespace cnpy {
 
+// mosaic:io
 struct NpyArray {
   NpyArray(const std::vector<size_t> &shape, size_t word_size_, bool fortran_order_)
     : shape(shape), word_size(word_size_), fortran_order(fortran_order_)
@@ -45,6 +47,7 @@ struct NpyArray {
   size_t num_vals_;
 };
 
+// mosaic:io
 NpyArray npy_load(const std::string &fname);
 
 template<typename T>
