@@ -420,14 +420,15 @@ def profiles(
                 )
     if not rows:
         return None
-    df = pd.DataFrame(rows, columns=["solver", "panel", "x", "value", "residual"])
+    df = pd.DataFrame(rows, columns=["solver", "panel", "x", "curve", "residual"])
     enc = solver_encodings(df["solver"])
+    # melt writes its values to a "value" column, which must not exist yet.
     df = enc.relabel(df).melt(
         id_vars=["solver", "panel", "x"],
-        value_vars=["value", "residual"],
+        value_vars=["curve", "residual"],
         var_name="row",
     )
-    df["row"] = df["row"].map({"value": ylabel, "residual": f"Δ {ylabel}"})
+    df["row"] = df["row"].map({"curve": ylabel, "residual": f"Δ {ylabel}"})
     pick = legend_pick()
     lines = solver_lines(
         None,

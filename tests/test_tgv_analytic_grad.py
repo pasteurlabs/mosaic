@@ -1,7 +1,7 @@
 # Copyright 2026 Pasteur Labs. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""The exact TGV gradient behind ``gradient/analytic_check``."""
+"""The exact TGV gradients behind ``gradient/analytic_check`` and ``analytic_check_nu``."""
 
 from __future__ import annotations
 
@@ -10,7 +10,13 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv, _tgv_analytic_grad
+from mosaic.benchmarks.core.experiment import KernelContext
+from mosaic.benchmarks.problems.navier_stokes_grid.ics import (
+    _tgv,
+    _tgv_analytic_dJ_dnu,
+    _tgv_analytic_grad,
+)
+from mosaic.benchmarks.problems.shared import gradient
 from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_free
 
 L = 2 * np.pi
@@ -86,3 +92,69 @@ def test_projection_keeps_tgv_and_drops_gradients():
     grad = np.stack([np.cos(X) * np.sin(2 * Y), 2 * np.sin(X) * np.cos(2 * Y)], -1)
     grad = grad[:, :, None, :]
     np.testing.assert_allclose(project_divergence_free(tgv + grad, L), tgv, atol=1e-12)
+
+
+def test_dJ_dnu_matches_a_finite_difference_of_the_closed_form():
+    u0 = np.asarray(_tgv(16), dtype=np.float64)
+    nu, t, h = 0.01, 1.0, 1e-5
+
+    def j(nu_):
+        return np.exp(-4.0 * nu_ * t) * np.sum(u0**2)
+
+    fd = (j(nu + h) - j(nu - h)) / (2 * h)
+    assert _tgv_analytic_dJ_dnu(u0, nu=nu, t=t) == pytest.approx(fd, rel=1e-8)
+
+
+def test_dJ_dnu_matches_a_spectral_solver():
+    N, nu, dt, steps = 16, 0.01, 0.05, 20
+    u0 = _tgv(N)
+    g = jax.grad(lambda n: jnp.sum(_spectral_solver(N, n, dt, steps)(u0) ** 2))(nu)
+    ref = _tgv_analytic_dJ_dnu(np.asarray(u0), nu=nu, t=dt * steps)
+    assert float(g) == pytest.approx(ref, rel=1e-4)
+
+
+@pytest.mark.parametrize("excess", [0.0, 0.02])
+def test_param_check_kernel_scores_a_fake_solver(monkeypatch, excess):
+    """A solver whose TGV decays at ``ν(1 + excess)`` gets the matching signed error."""
+    N, nu, dt, steps = 8, 0.01, 0.05, 20
+    t_end = dt * steps
+
+    def fake_apply(_t, inputs):
+        decay = jnp.exp(-2.0 * inputs["viscosity"][0] * (1 + excess) * t_end)
+        return {"result": decay * inputs["v0"]}
+
+    monkeypatch.setattr(gradient, "apply_tesseract", fake_apply)
+
+    def make_inputs(_name, ic, *, nu, dt, steps, **_):
+        return {
+            "v0": ic,
+            "viscosity": jnp.array([nu], dtype=jnp.float32),
+            "dt": jnp.array([dt], dtype=jnp.float32),
+            "steps": steps,
+        }
+
+    phys = {"N": N, "nu": nu, "dt": dt, "steps": steps}
+    ctx = KernelContext(
+        name="fake",
+        cfg=None,
+        ic=_tgv(N),
+        phys=phys,
+        sweep_key="nu",
+        sweep_value=nu,
+        ic_key="v0",
+        output_key="result",
+        make_inputs=make_inputs,
+        domain_extent=L,
+        run={"wrt": "viscosity", "reference": _tgv_analytic_dJ_dnu},
+    )
+    m = gradient.analytic_param_check(None, ctx)["metrics"]
+
+    # d/dν of e^{-4ν(1+a)T} S is (1+a) e^{-4νaT} times the exact one.
+    expected = (1 + excess) * np.exp(-4.0 * nu * excess * t_end) - 1.0
+    assert m["valid"] is True
+    assert m["reference"] == pytest.approx(
+        _tgv_analytic_dJ_dnu(np.asarray(_tgv(N)), nu=nu, t=t_end)
+    )
+    assert m["signed_error"] == pytest.approx(expected, abs=1e-5)
+    assert m["error"] == pytest.approx(abs(expected), abs=1e-5)
+    assert m["grad"] == pytest.approx(m["reference"] * (1 + expected), rel=1e-5)

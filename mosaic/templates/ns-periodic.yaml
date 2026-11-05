@@ -1,8 +1,7 @@
 # Template: Incompressible Navier-Stokes on a periodic grid (IC recovery).
 #
 # Based on the ns-grid domain. Extend to new boundary conditions, obstacle
-# geometries, or optimisation objectives by editing the generated ics.py /
-# physics.py / experiments.py.
+# geometries, or optimisation objectives by editing the generated config.py.
 
 name: ns-periodic
 description: >
@@ -28,8 +27,8 @@ physics_defaults:
   steps: 100
   nu: 0.05
 
-# All scaffold experiments reference this IC by name; the generated ics.py
-# registers `_default_ic` under the same key. Edit ics.py to add more ICs.
+# All scaffold experiments reference this IC by name; the generated config.py
+# registers `_default_ic` under the same key. Edit config.py to add more ICs.
 ic_defaults:
   name: default
   seed: 42

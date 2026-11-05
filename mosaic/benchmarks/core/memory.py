@@ -7,11 +7,24 @@
 * :func:`sample_container_ram_mib` — single-shot Docker-SDK query.
 * :func:`container_id_from_tesseract` — pull the container name from a
   served Tesseract handle (via ``container_info()``).
-* :class:`MemoryPoller` — context manager that records **peak** observed
-  VRAM and RAM. Use it when the container may be OOM-killed mid-call so
-  the last sample before the kill captures the threshold;
-  :class:`~mosaic.benchmarks.core.hardware.ResourceSampler` is the cheaper
-  delta variant for healthy steady-state workloads.
+* :class:`MemoryPoller` — context manager that records the **peak**
+  observed VRAM and RAM over a block of work.
+
+What the numbers mean:
+
+* VRAM is NVML's used memory of the whole device, not of one process. It
+  includes the CUDA context and whatever the solver's allocator holds in
+  its pools, and anything else running on the same GPU. It excludes the
+  memory the driver reserves for itself (768 MiB on an A100 80 GB with
+  driver 580), which is what ``nvidia-smi`` shows as "Used".
+* RAM is the solver container's memory as ``docker stats`` reports it: the
+  cgroup's usage minus its inactive page cache. The harness process is not
+  part of it.
+* Allocators (XLA, PyTorch, CUDA.jl, Warp) keep their pools between calls,
+  and the container serves a whole sweep. Each sweep point's peak is
+  therefore at least the pool the points before it left behind. Sweeps run
+  in increasing size order, so a recorded peak is the running maximum of the
+  true per-point peaks.
 
 Single-shot queries are best-effort (no NVIDIA driver, no Docker socket,
 container gone → ``None``) so callers degrade gracefully on CPU-only
@@ -81,8 +94,23 @@ def _docker_client():
 # ── Single-shot queries ──────────────────────────────────────────────────────
 
 
+def gpu_count() -> int:
+    """Number of NVIDIA GPUs visible via NVML, 0 on any failure."""
+    nvml = _nvml_ready()
+    if nvml is None:
+        return 0
+    try:
+        return nvml.nvmlDeviceGetCount()
+    except Exception:
+        return 0
+
+
 def sample_vram_mib(gpu_id: int | str) -> float | None:
     """Used VRAM on one GPU, in MiB, via NVML.
+
+    Uses the v2 memory query, whose ``used`` leaves out driver-reserved
+    memory; the v1 query counts it as used, so a CPU-only solver would read
+    several hundred MiB. Drivers without v2 fall back to v1.
 
     Returns ``None`` on any failure (no NVIDIA driver, invalid ``gpu_id``,
     NVML error) so callers degrade gracefully.
@@ -92,13 +120,22 @@ def sample_vram_mib(gpu_id: int | str) -> float | None:
         return None
     try:
         handle = nvml.nvmlDeviceGetHandleByIndex(int(gpu_id))
-        return nvml.nvmlDeviceGetMemoryInfo(handle).used / (1024 * 1024)
+        try:
+            info = nvml.nvmlDeviceGetMemoryInfo(handle, version=nvml.nvmlMemory_v2)
+        except Exception:
+            info = nvml.nvmlDeviceGetMemoryInfo(handle)
+        return info.used / (1024 * 1024)
     except Exception:
         return None
 
 
 def sample_container_ram_mib(container_id: str) -> float | None:
-    """Resident RAM of a Docker container, in MiB, via the Docker SDK.
+    """Memory of a Docker container, in MiB, via the Docker SDK.
+
+    Computed like ``docker stats``: the cgroup's usage minus its inactive
+    page cache (``inactive_file`` on cgroup v2, ``total_inactive_file`` on
+    v1). ``one_shot`` skips the second sample the daemon otherwise waits
+    about a second for to compute CPU usage.
 
     Returns ``None`` on any failure (no Docker socket, container gone,
     missing stats field).
@@ -108,9 +145,15 @@ def sample_container_ram_mib(container_id: str) -> float | None:
         return None
     try:
         container = client.containers.get(container_id)
-        stats = container.stats(stream=False)
-        usage = stats.get("memory_stats", {}).get("usage")
-        return float(usage) / (1024 * 1024) if usage is not None else None
+        mem = container.stats(stream=False, one_shot=True).get("memory_stats", {})
+        usage = mem.get("usage")
+        if usage is None:
+            return None
+        stats = mem.get("stats", {})
+        inactive = stats.get("inactive_file", stats.get("total_inactive_file", 0))
+        if inactive < usage:
+            usage -= inactive
+        return float(usage) / (1024 * 1024)
     except Exception:
         return None
 
@@ -134,7 +177,10 @@ def container_id_from_tesseract(t: object) -> str | None:
 class MemoryPoller:
     """Poll GPU VRAM and container RAM in a daemon thread at fixed intervals.
 
-    Records the **peak** observed value over the lifetime of the context.
+    Records the **peak** observed value over the lifetime of the context,
+    sampling on entry, every ``interval`` seconds, and once more on exit.
+    The exit sample covers blocks shorter than ``interval``; since allocator
+    pools stay allocated after a call, it sees what the call left resident.
     Sampling is best-effort: any GPU/container that returns ``None`` from
     its query is silently skipped that round, and the corresponding key in
     :attr:`summary` is ``None`` if no sample ever succeeded.
@@ -180,6 +226,7 @@ class MemoryPoller:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=6.0)
+        self._sample()
 
     @property
     def summary(self) -> dict:
@@ -197,14 +244,17 @@ class MemoryPoller:
             "ram_peak_mib": max(self._ram) if self._ram else None,
         }
 
+    def _sample(self) -> None:
+        if self._gpu_id is not None:
+            v = sample_vram_mib(self._gpu_id)
+            if v is not None:
+                self._vram.append(v)
+        if self._container_id is not None:
+            r = sample_container_ram_mib(self._container_id)
+            if r is not None:
+                self._ram.append(r)
+
     def _loop(self) -> None:
         while not self._stop.is_set():
-            if self._gpu_id is not None:
-                v = sample_vram_mib(self._gpu_id)
-                if v is not None:
-                    self._vram.append(v)
-            if self._container_id is not None:
-                r = sample_container_ram_mib(self._container_id)
-                if r is not None:
-                    self._ram.append(r)
+            self._sample()
             self._stop.wait(self._interval)

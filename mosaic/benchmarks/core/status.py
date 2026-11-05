@@ -428,7 +428,7 @@ def _refine_forward(data: dict, cells: dict[str, Cell], checks: list) -> None:
 
 
 def _refine_fd_check(data: dict, cells: dict[str, Cell], checks: list) -> None:
-    """Anomaly checks for fd_check / source_fd_check.
+    """Anomaly checks for fd_check / source_fd_check / chain_fd_check.
 
     For each solver we compute ``best_rel`` = the minimum across ε of the
     *median-across-directions* rel_error. "Median across directions" is more
@@ -571,7 +571,7 @@ def _refine_recovery(data: dict, cells: dict[str, Cell], checks: list) -> None:
             elif initial > 0:
                 ratio = final / initial
         summaries[solver] = OptimizationSummary(
-            final_initial_ratio=ratio, final_value=final
+            final_initial_ratio=ratio, final_value=final, metrics=entry
         )
 
     finals = [s.final_value for s in summaries.values() if s.final_value is not None]
@@ -715,10 +715,23 @@ def _fail_reason_from_metrics(metrics: dict) -> str:
     Cost/timing failures carry ``failure_type`` + ``exc_type`` + ``exc_msg``
     (see :meth:`TimedResult.as_record`); other suites carry ``failure_type`` +
     ``error``. Both render as ``"<failure_type>: [<exc_type>: ]<message>"``.
+
+    A dead container's record also carries ``container_exit`` and
+    ``container_log``. The exit then forms the first line, followed by the
+    exception and the log tail.
     """
     exc_type = metrics.get("exc_type")
     exc_msg = metrics.get("exc_msg") or metrics.get("error")
     failure_type = metrics.get("failure_type")
+    container_exit = metrics.get("container_exit")
+    if container_exit:
+        lines = [f"{failure_type}: {container_exit}"]
+        if exc_msg:
+            head = str(exc_msg).strip().splitlines()[0][:160]
+            lines.append(f"{exc_type}: {head}" if exc_type else head)
+        if metrics.get("container_log"):
+            lines += ["", "last lines of the container log:", metrics["container_log"]]
+        return "\n".join(lines)
     if exc_msg:
         head = str(exc_msg).strip().splitlines()[0][:160]
         prefix = "".join(f"{p}: " for p in (failure_type, exc_type) if p)
@@ -872,7 +885,10 @@ def _v1_to_legacy_view(data: dict) -> dict:
 
 
 def _is_analytic_grad_check(suite: str, exp_label: str) -> bool:
-    return suite == "gradient" and exp_label.split("/")[0] == "analytic_check"
+    return suite == "gradient" and exp_label.split("/")[0] in (
+        "analytic_check",
+        "analytic_check_nu",
+    )
 
 
 def _refine_for_suite(
@@ -895,6 +911,7 @@ def _refine_for_suite(
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
+        "chain_fd_check",
     ):
         _refine_fd_check(view, cells, checks)
     elif suite == "optimization":
@@ -1090,6 +1107,7 @@ def _collect_metrics_for_suite(
     elif suite == "gradient" and exp_label.split("/")[0] in (
         "fd_check",
         "source_fd_check",
+        "chain_fd_check",
     ):
         _collect_fd_metrics(view, cells)
     elif suite == "optimization":

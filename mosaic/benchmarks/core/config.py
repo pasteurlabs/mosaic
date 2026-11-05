@@ -1078,8 +1078,7 @@ class SolverSpec:
     # for this solver (e.g. material constants, solver-specific tunables).
     uses_gpu: bool = True  # False for CPU-only solvers
     image_tag: str | None = None
-    # Set by discover_solvers to "<image_name>:latest". Used by ``--no-build``
-    # mode and by ResourceSampler for GPU bookkeeping.
+    # Set by discover_solvers to "<image_name>:latest". Used by ``--no-build`` mode.
     normalize_output: Callable | None = None
     # Optional fn(arr) -> arr applied to forward-suite outputs to convert
     # solver units back to canonical IC units before comparison.

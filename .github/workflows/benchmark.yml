@@ -483,7 +483,7 @@ jobs:
                 ;;
               "")
                 if [[ "${MOSAIC_TOUCHED}" == "true" ]]; then
-                  VERDICT='**Benchmarks:** not run — add a `benchmark:solver` or `benchmark:all` label (`mosaic/` was changed).'
+                  VERDICT='**Benchmarks:** not run, because `mosaic/` changed but no benchmark label is set. A maintainer adds one of `benchmark:none`, `benchmark:solver`, `benchmark:domain` or `benchmark:all`.'
                 else
                   VERDICT='**Benchmarks:** not applicable (no `mosaic/` changes).'
                 fi

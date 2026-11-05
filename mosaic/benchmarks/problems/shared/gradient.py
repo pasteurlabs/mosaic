@@ -75,6 +75,19 @@ def _fd_cosine(fd_arr: np.ndarray, vjp_arr: np.ndarray) -> float:
     )
 
 
+def fd_eps_sweep(vjp_arr: np.ndarray, fd_per_eps: dict) -> dict:
+    """Per-ε ``rel_error`` per direction, ``cosine`` and ``fd_arr`` of an FD check."""
+    sweep: dict = {}
+    for eps, fd_arr in fd_per_eps.items():
+        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
+        sweep[eps] = {
+            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
+            "cosine": _fd_cosine(fd_arr, vjp_arr),
+            "fd_arr": fd_arr.tolist(),
+        }
+    return sweep
+
+
 _DEFAULT_EPS = [1e0, 1e-1, 1e-2, 1e-3]
 _FD_CHECK_DEFAULT_EPS = [5e0, 1e0, 1e-1, 1e-2, 1e-3, 1e-4]
 
@@ -153,19 +166,11 @@ def fd_check(t: Any, ctx: KernelContext) -> dict:
     nonfinite = _nonfinite_grad_error(g)
     if nonfinite is not None:
         raise ValueError(nonfinite)
-    eps_sweep: dict = {}
-    for eps, fd_arr in fd_per_eps.items():
-        denom = np.maximum(np.maximum(np.abs(fd_arr), np.abs(vjp_arr)), 1e-30)
-        eps_sweep[eps] = {
-            "rel_error": (np.abs(fd_arr - vjp_arr) / denom).tolist(),
-            "cosine": _fd_cosine(fd_arr, vjp_arr),
-            "fd_arr": fd_arr.tolist(),
-        }
     return {
         "metrics": {
             "ic_scale": ic_scale,
             "vjp_arr": vjp_arr.tolist(),
-            "eps_sweep": eps_sweep,
+            "eps_sweep": fd_eps_sweep(vjp_arr, fd_per_eps),
         },
         "snapshot": np.asarray(g),
         # Override the framework's raw-IC default with the post-make_inputs
@@ -220,6 +225,48 @@ def analytic_check(t: Any, ctx: KernelContext) -> dict:
             ),
             "off_subspace": float(np.linalg.norm(g - g_cmp) / ref_norm),
             "grad_norm": float(np.linalg.norm(g)),
+        },
+    }
+
+
+@kernel(sweep_mode="default", catch_label="VJP failed")
+def analytic_param_check(t: Any, ctx: KernelContext) -> dict:
+    """One sweep point of an analytic check of the gradient w.r.t. a scalar input.
+
+    ``ctx.run["wrt"]`` names the input (e.g. ``"viscosity"``), and
+    ``ctx.run["reference"]`` gives the exact derivative of ``sum(output**2)``
+    w.r.t. it as ``reference(ic, t=t_end, **physics)``, receiving the physics
+    keys it names. Since the reference is the continuum derivative, the error
+    also contains the solver's discretization error.
+
+    ``signed_error`` is the relative error of the solver's derivative
+    ``grad``, positive where it exceeds the ``reference``, and ``error`` its
+    magnitude.
+    """
+    wrt = ctx.run["wrt"]
+    reference = ctx.run["reference"]
+    inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
+    base_ic = np.asarray(inputs[ctx.ic_key], dtype=np.float64)
+    t_end = float(np.asarray(inputs["dt"])[0]) * int(inputs["steps"])
+    params = inspect.signature(reference).parameters
+    extra = {k: ctx.phys[k] for k in params if k in ctx.phys and k not in ("ic", "t")}
+    ref = float(reference(base_ic, t=t_end, **extra))
+
+    g = _vjp_grad(t, inputs, ctx.output_key, wrt)
+    nonfinite = _nonfinite_grad_error(g)
+    if nonfinite is not None:
+        return {
+            "metrics": {"status": "failed", "failure_type": "nan", "error": nonfinite}
+        }
+    grad = float(np.sum(np.asarray(g, dtype=np.float64)))
+    signed = grad / ref - 1.0
+    return {
+        "metrics": {
+            "valid": True,
+            "error": abs(signed),
+            "signed_error": signed,
+            "grad": grad,
+            "reference": ref,
         },
     }
 
@@ -290,7 +337,7 @@ def horizon_sweep_limits(t: Any, ctx: KernelContext) -> dict:
     Intended to be run with one GPU per solver so OOM reflects a single GPU
     budget::
 
-        mosaic gradient ns-3d-grid --experiments horizon_sweep_limits --gpu-ids 0 1 2 3
+        mosaic run -p ns-3d-grid -e gradient/horizon_sweep_limits --gpus 0,1,2,3
     """
     inputs = ctx.make_inputs(ctx.name, ctx.ic, **ctx.phys)
     g = _vjp_grad(t, inputs, ctx.output_key, ctx.ic_key)

@@ -27,15 +27,14 @@ if TYPE_CHECKING:
 
 JAX_CFD_NO_OBSTACLE = Exclusion(
     ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; jax-cfd itself has "
-    "non-periodic pressure solvers for channel flows, which are not wired "
-    "up here",
-)
-INS_JL_NO_OBSTACLE = Exclusion(
-    ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract implements only periodic flows; INS.jl itself supports "
-    "channel BCs (Dirichlet inflow, pressure outflow) and obstacles via "
-    "Brinkman forcing, which are not wired up here",
+    "jax-cfd 0.2.1 cannot express the channel through its API. Its advection "
+    "raises NotImplementedError for any inflow (only no-penetration and "
+    "periodic boundaries are supported), it pads a zero-gradient boundary only "
+    "for cell-centered fields, so the outlet's face-centered u_x cannot have "
+    "one, its boundary values are scalars, so the inlet cannot carry a "
+    "profile, and it has no obstacles. Running it would take a hand-written "
+    "convection, inlet and outlet conditions and obstacle on jax-cfd's grid "
+    "primitives, which this tesseract does not have",
 )
 EXPONAX_PERIODIC_ONLY = Exclusion(
     ExclusionCategory.CATEGORICAL,
@@ -50,6 +49,42 @@ EXPONAX_EXACT_TGV = Exclusion(
     "steps rather than shrinking with the grid spacing, so no positive order "
     "can be observed",
 )
+OPENFOAM_COLLOCATED_TGV = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "OpenFOAM stores velocity at cell centres and makes only the face fluxes "
+    "divergence-free. In the Taylor–Green vortex, advection is a gradient at "
+    "twice the vortex's wavenumber, which the pressure cancels exactly. Most "
+    "of OpenFOAM's error is a compressive component at that wavenumber in the "
+    "cell-centred velocity. The staggered and spectral solvers have none of "
+    "it, the other solvers at most a tenth of it. It is second order in the grid spacing, grows with the simulated "
+    "time and the vortex's amplitude, and changes little with the timestep. "
+    "It shrinks as the viscosity grows, so it stands out only at the lowest "
+    "viscosities",
+)
+OPENFOAM_NO_SOURCE_TERM = Exclusion(
+    ExclusionCategory.NOT_IMPLEMENTED,
+    "this tesseract runs icoFoam, which has no momentum source term, so it "
+    "cannot apply the body force or the drag. OpenFOAM's foamRun "
+    "incompressibleFluid solver supports both through an fvModel, but this "
+    "tesseract does not use it",
+)
+EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
+    ExclusionCategory.ANOMALY_EXPLAINED,
+    "the solver advances with explicit Euler and central differences for "
+    "advection, which is linearly unstable unless the timestep is below about "
+    "4ν/u², a bound that does not shrink with the grid spacing. The turbulent "
+    "Kolmogorov flow's speeds put that bound far below the timestep of every "
+    "grid, so the solver diverges on all of them",
+)
+EXPLICIT_CENTRAL_UNSTABLE_CHAIN = Exclusion(
+    ExclusionCategory.UNSTABLE,
+    "the solver advances with explicit Euler and central differences for "
+    "advection, which is linearly unstable at the timestep of the chain (see "
+    "forward/kolmogorov). Over the chain's calls the unstable modes grow, so "
+    "they dominate both the gradient and the finite differences, which then "
+    "disagree at every ε a float32 run resolves. Where they grow fast enough, "
+    "the chain from the ground-truth state diverges",
+)
 OPENFOAM_NO_VJP = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM has no VJP to benchmark",
@@ -63,12 +98,6 @@ OPENFOAM_NON_DIFFERENTIABLE_OPT = Exclusion(
     ExclusionCategory.CATEGORICAL,
     "OpenFOAM is a non-differentiable, forward-only solver",
 )
-PICT_DRAG_OPT_TOO_SLOW = Exclusion(
-    ExclusionCategory.INFEASIBLE,
-    "each drag_opt iteration runs a full forward and VJP through PICT's "
-    "unpreconditioned pressure solves on the body-fitted channel mesh, so the "
-    "experiment takes hours on the benchmark GPU",
-)
 PICT_LATENCY_BOUND_SOLVES = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "PICT's linear solves are bound by synchronisation, not by grid size. "
@@ -77,7 +106,8 @@ PICT_LATENCY_BOUND_SOLVES = Exclusion(
     "and frees device memory 10 times, and its CG copies scalars back to the "
     "host about three times per iteration. A 64-times larger grid (N = 32 to "
     "256) makes a solve only about 4 times slower, so at ns-grid's sizes the "
-    "GPU mostly waits",
+    "GPU mostly waits. The VJP solves the transposed systems with the same "
+    "solvers",
 )
 PICT_PISO_SPLITTING_FLOOR = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
@@ -88,20 +118,22 @@ PICT_PISO_SPLITTING_FLOOR = Exclusion(
     "order drops. More correctors remove the floor at a multiple of the wall "
     "time and reverse-mode memory",
 )
-PHIFLOW_SPARSE_CG_COST = Exclusion(
-    ExclusionCategory.ANOMALY_EXPLAINED,
-    "PhiFlow solves each pressure projection with phiml's conjugate gradient "
-    "on an explicit sparse matrix, as phiml does for every linear solve on a "
-    "backend with sparse tensors, JAX included. JAX runs the sparse "
-    "matrix-vector product as a gather and a scatter-add, about 160 of the "
-    "184 µs per CG iteration at 256², against 14 µs for the same Laplacian "
-    "as a stencil. A projection takes about 300 iterations at 256², and each "
-    "RK4 step four projections",
-)
 _OBSTACLE_GATE = {
     "jax_cfd": JAX_CFD_NO_OBSTACLE,
-    "ins_jl": INS_JL_NO_OBSTACLE,
     "exponax": EXPONAX_PERIODIC_ONLY,
+}
+
+PHIFLOW_REFERENCE_DIVERGES = Exclusion(
+    ExclusionCategory.UNSTABLE,
+    "the corrector trains against the solver's own run on the finest grid of "
+    "forward/kolmogorov, and that run turns non-finite within the study's "
+    "horizon from some of the ground truth's test states; the cause has not "
+    "been established",
+)
+# The solver-in-the-loop experiments run the forward/kolmogorov configurations.
+_KOLMOGOROV_DIVERGES = {
+    "phiflow": PHIFLOW_REFERENCE_DIVERGES,
+    "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
 }
 
 
@@ -113,23 +145,30 @@ def register(problem: Problem) -> None:
         {"pict": PICT_PISO_SPLITTING_FLOOR, "exponax": EXPONAX_EXACT_TGV},
     )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
+    problem.exclude("forward/tgv_nu_sweep", {"openfoam": OPENFOAM_COLLOCATED_TGV})
+    problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
+    problem.exclude(
+        "forward/kolmogorov",
+        {
+            "openfoam": OPENFOAM_NO_SOURCE_TERM,
+            "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
+        },
+    )
 
     # Cost
-    for key in ("cost/spatial_cost", "cost/temporal_cost"):
+    for key in ("cost/spatial_cost", "cost/temporal_cost", "cost/vjp_cost/by_N"):
         problem.exclude(key, {"pict": PICT_LATENCY_BOUND_SOLVES})
     problem.exclude("cost/vjp_cost", {"openfoam": OPENFOAM_NO_VJP})
-    for key in (
-        "cost/spatial_cost",
-        "cost/temporal_cost",
-        "cost/vjp_cost/by_N",
-        "cost/vjp_cost/by_steps",
-    ):
-        problem.exclude(key, {"phiflow": PHIFLOW_SPARSE_CG_COST})
 
     # Gradient — suite-level, covers every gradient/* below
     problem.exclude("gradient", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_GRAD})
+    problem.exclude(
+        "gradient/chain_fd_check",
+        {"warp_ns": EXPLICIT_CENTRAL_UNSTABLE_CHAIN},
+    )
 
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
-    problem.exclude("optimization/drag_opt", {"pict": PICT_DRAG_OPT_TOO_SLOW})
+    problem.exclude("optimization/kolmogorov_sil", _KOLMOGOROV_DIVERGES)
+    problem.exclude("optimization/kolmogorov_sil_stability", _KOLMOGOROV_DIVERGES)

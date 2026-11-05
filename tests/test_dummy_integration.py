@@ -491,6 +491,40 @@ def test_analytic_check_scores_every_sweep_point(ns_grid_tags, tmp_path, monkeyp
     assert (out_dir / "analytic_check.vl.json").exists()
 
 
+def test_analytic_check_nu_scores_every_sweep_point(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """The registered dJ/dν check records one scored point per viscosity.
+
+    The dummies' viscosity VJP is zero, which gives a signed relative error
+    of -1 against the negative exact derivative.
+    """
+    from mosaic.benchmarks.core.status import OK, _classify_result
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    exp = cfg.experiments["gradient/analytic_check_nu"]
+    exp.fn(cfg, tags)
+
+    out_dir = tmp_path / "ns-grid" / "gradient" / "analytic_check_nu"
+    data = json.loads((out_dir / "result.json").read_text())
+    nus = data["sweep"]["values"]
+    solver = cfg.solver_names[0]
+    entries = [e for e in data["results"] if e["solver"] == solver]
+    assert sorted(float(e["sweep_value"]) for e in entries) == sorted(map(float, nus))
+    for e in entries:
+        m = e["metrics"]
+        assert m["valid"] is True
+        assert m["grad"] == 0.0
+        assert m["reference"] < 0
+        assert m["signed_error"] == pytest.approx(-1.0)
+        assert m["error"] == pytest.approx(1.0)
+    assert _classify_result(data, [solver], [])[solver].status == OK
+
+    cfg.plot_fns["gradient/analytic_check_nu"](cfg)
+    assert (out_dir / "analytic_check.vl.json").exists()
+
+
 @pytest.mark.parametrize(
     ("failure", "only_seed_1"),
     [("target", False), ("optim", False), ("target", True), ("optim", True)],
@@ -927,6 +961,7 @@ _PARTIAL_KERNELS = (
     "fd_check",
     "param_sweep",
     "analytic_check",
+    "analytic_param_check",
     "spatial_cost",
     "temporal_cost",
     "vjp_cost",
@@ -948,7 +983,10 @@ _MEASURED = {
 
 def _register_partial_kernel(cfg, kernel_name: str) -> str:
     """Register a small *kernel_name* experiment on *cfg* and return its key."""
-    from mosaic.benchmarks.problems.navier_stokes_grid.ics import _tgv_analytic_grad
+    from mosaic.benchmarks.problems.navier_stokes_grid.ics import (
+        _tgv_analytic_dJ_dnu,
+        _tgv_analytic_grad,
+    )
     from mosaic.benchmarks.problems.shared import cost, forward, gradient
 
     multimode = {"name": "multimode", "seed": 0}
@@ -975,6 +1013,15 @@ def _register_partial_kernel(cfg, kernel_name: str) -> str:
             "gradient",
             gradient.analytic_check,
             {"ic": {"name": "tgv", "seed": 0}, "reference": _tgv_analytic_grad},
+        ),
+        "analytic_param_check": (
+            "gradient",
+            gradient.analytic_param_check,
+            {
+                "ic": {"name": "tgv", "seed": 0},
+                "wrt": "viscosity",
+                "reference": _tgv_analytic_dJ_dnu,
+            },
         ),
         "spatial_cost": (
             "cost",

@@ -4,7 +4,7 @@ description: >
   FEniCS P1 FEM heat-conduction solver with SIMP penalisation. Gradients (∂C/∂ρ, ∂C/∂source)
   via dolfin-adjoint tape replay.
 build_config:
-  base_image: "condaforge/miniforge3:26.1.1-3"
+  base_image: "condaforge/miniforge3:26.1.1-3@sha256:958d2675e9a43e199cc85345ff4c60796236b651a9da4982765d99bd34a682d1"
   requirements:
     provider: conda
   package_data:

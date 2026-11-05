@@ -50,6 +50,7 @@ from mosaic.benchmarks.problems.shared.diagnostics import project_divergence_fre
 from mosaic.benchmarks.problems.shared.forward import agreement, physical_laws
 from mosaic.benchmarks.problems.shared.gradient import (
     analytic_check,
+    analytic_param_check,
     fd_check,
     jacobian_svd,
     param_sweep,
@@ -70,12 +71,18 @@ from mosaic.benchmarks.problems.shared.plots.gradient import (
 from mosaic.benchmarks.problems.shared.plots.ics import plot_ic
 from mosaic.benchmarks.problems.shared.plots.solver_styles import apply_styles
 
-from . import cylinder
+from . import chain, cylinder, kolmogorov, sil, sil_status
 from .exclusions import register as _register_exclusions
-from .ics import _multimode, _tgv, _tgv_analytic, _tgv_analytic_grad
+from .ics import (
+    _multimode,
+    _tgv,
+    _tgv_analytic,
+    _tgv_analytic_dJ_dnu,
+    _tgv_analytic_grad,
+)
 from .optimization import drag_opt
 from .physics import DIAGNOSTICS, make_inputs
-from .plots import plot_drag_opt
+from .plots import plot_drag_opt, plot_kolmogorov, plot_kolmogorov_sil
 
 _TESSERACT_SLUG = "navier-stokes-grid"
 
@@ -115,7 +122,12 @@ problem = Problem(
         "transfers energy across scales; at low $\\nu$ the flow develops turbulent "
         "cascades and a positive Lyapunov exponent, so long-horizon gradients grow "
         "exponentially sensitive to perturbations. This is the regime where "
-        "backprop-through-simulation is hardest."
+        "backprop-through-simulation is hardest.\n\n"
+        "The Kolmogorov-flow experiments add a steady body force "
+        "$\\mathbf{f} = (\\sin 4y, 0)$ and a linear drag $-\\alpha\\mathbf{u}$ "
+        "to the right-hand side. The force drives the flow, and the drag removes "
+        "the energy that piles up at the largest scales, so the turbulent flow "
+        "settles into a statistically steady state."
     ),
     bc_description=(
         "Doubly-periodic square domain $[0, 2\\pi]^2$ (the flow wraps around at every "
@@ -164,6 +176,16 @@ problem.add_ic(
     description=(
         "Taylor–Green vortex $u=\\sin(x)\\cos(y)$, $v=-\\cos(x)\\sin(y)$; has a closed-form "
         "analytic solution for viscous decay, enabling solver verification."
+    ),
+    plot_params={"N": 64},
+    plot=plot_ic,
+)
+problem.add_ic(
+    "rest",
+    fn=kolmogorov.rest,
+    description=(
+        "The fluid at rest. A constant body force then drives the laminar "
+        "Kolmogorov transient, which has a closed form."
     ),
     plot_params={"N": 64},
     plot=plot_ic,
@@ -298,6 +320,61 @@ problem.add_experiment(
         cylinder.max_cd_drift(1e-3),
     ],
 )
+problem.add_experiment(
+    "forward/kolmogorov_laminar",
+    agreement,
+    plot_description=(
+        "Relative error vs grid resolution $N$ of the flow that the Kolmogorov"
+        " force $(A\\sin(\\kappa y), 0)$, $\\kappa = 4$, drives from rest"
+        " against linear drag, at $t = 2$. The flow stays a shear flow, so it has"
+        " the exact solution $u = (A/\\lambda)(1 - e^{-\\lambda t})"
+        " \\sin(\\kappa y)$ with $\\lambda = \\nu\\kappa^2 + \\alpha$. The"
+        " timestep is small enough that the error is the spatial one."
+    ),
+    ic={"name": "rest", "seed": 0},
+    physics={
+        "N": [32, 64, 128],
+        "nu": 0.05,
+        "dt": 0.002,
+        "steps": 1000,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.laminar_reference,
+    plot=plot_agreement,
+    # A second-order scheme misses this mode by about (κh)²/12 in its
+    # diffusion rate, 1.3% at N = 64, while a wrong 2π/L factor, a flipped
+    # sign or a force half a cell off (a phase error of κh/2) cost 20% or
+    # more. A 5% bound at N = 64 separates the two, and min_order covers the
+    # rest of the sweep. Both bounds come from the exact solution, not from
+    # the peers.
+    status_check=[max_error(0.05, at=64), min_order(0.8)],
+)
+problem.add_experiment(
+    "forward/kolmogorov",
+    kolmogorov.forward,
+    plot_description=(
+        "Each solver on 32² to 256² grids against a converged Exponax run at"
+        " 1024², from three turbulent states of the Kolmogorov flow at"
+        " ν = 2·10⁻³. Every grid runs at the CFL number of 64² with dt = 0.01"
+        " and is scored on the 64² grid. Relative error at t = 4 against the"
+        " wall time of one time unit, and relative error per time on each"
+        " grid, as medians over the states."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "dt": kolmogorov.COARSE_DT,
+        "grids": list(kolmogorov.FORWARD_GRIDS),
+        "nu": kolmogorov.VISCOSITY,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    reference=kolmogorov.generate_ground_truth,
+    plot=plot_kolmogorov,
+    # Space and time are refined together, so a consistent scheme converges
+    # at order 1 or more, as on forward/baseline. A bound of 0.8 catches error
+    # floors and non-convergence. It comes from the scheme's consistency, not
+    # from the peers.
+    status_check=[kolmogorov.min_refinement_order(0.8)],
+)
 # Cost
 problem.add_experiment(
     "cost/spatial_cost",
@@ -357,6 +434,43 @@ problem.add_experiment(
     ],
 )
 problem.add_experiment(
+    "gradient/chain_fd_check",
+    chain.chain_fd_check,
+    plot_description=(
+        "Finite-difference check of the gradient of a loss on 16 chained solver"
+        " calls of 0.1 time units each, on the Kolmogorov flow at 64² and"
+        " dt = 0.01, from a turbulent state of its ground truth plus a 1%"
+        " divergence-free offset. The loss is the mean relative squared"
+        " distance to the solver's chain from that state, as in training"
+        " through a solver, so its cotangents are far smaller than those of"
+        " the single-call checks. Error and 1 − cos against ε, over 8"
+        " divergence-free directions."
+    ),
+    physics={
+        "N": kolmogorov.COARSE_N,
+        "dt": kolmogorov.COARSE_DT,
+        "steps": 10,
+        "intervals": 16,
+        "offset": 0.01,
+        "nu": kolmogorov.VISCOSITY,
+        **kolmogorov.FORCING_PHYSICS,
+    },
+    fd={"eps_values": [1e0, 1e-1, 1e-2], "n_dirs": 8},
+    plot=plot_fd_check,
+    # The finite differences run the solver in float32, so even an exact VJP
+    # meets them only to the rounding and truncation error of the difference
+    # quotient. On the A100, the best ε gives median errors of order 1e-4 to
+    # 1e-3 for the solvers whose VJP is linear in the cotangent, with cosines
+    # above 0.9999. A VJP whose adjoint solves stop at an absolute tolerance
+    # is off by tens of percent, with a cosine near 0.5. Both bounds sit at
+    # least a factor of five from either side.
+    status_check=[
+        min_cosine(0.99),
+        max_rel_err(1e-2),
+        rel_err_peer_outlier(50.0),
+    ],
+)
+problem.add_experiment(
     "gradient/analytic_check",
     analytic_check,
     plot_description=(
@@ -380,6 +494,25 @@ problem.add_experiment(
     # Provisional. In-process CPU runs at N=32 and nu = 0.01 gave errors of
     # 0.019 (jax-cfd, PhiFlow), 0.005 (Warp-NS) and 0.035 (XLB). INS.jl and
     # PICT have not been measured.
+    status_check=[median_k(3.0), max_error(0.1)],
+)
+problem.add_experiment(
+    "gradient/analytic_check_nu",
+    analytic_param_check,
+    plot_description=(
+        "Relative error of each solver's derivative of"
+        " $J = \\sum \\lvert\\mathbf{u}(T)\\rvert^2$ with respect to the viscosity"
+        " for the TGV, against the exact $dJ/d\\nu = -4T\\,J$ with"
+        " $J = e^{-4\\nu T} \\sum \\lvert\\mathbf{u}_0\\rvert^2$ on the grid."
+        " The error includes the forward discretization error."
+    ),
+    ic={"name": "tgv", "seed": 0},
+    physics={"N": 32, "dt": 0.05, "steps": 20, "nu": [0.001, 0.005, 0.01, 0.02, 0.05]},
+    wrt="viscosity",
+    reference=_tgv_analytic_dJ_dnu,
+    plot=plot_analytic_check,
+    # Provisional: the same thresholds as gradient/analytic_check, which this
+    # check has not been run against on every solver yet.
     status_check=[median_k(3.0), max_error(0.1)],
 )
 problem.add_experiment(
@@ -473,6 +606,73 @@ problem.add_experiment(
     # known.
     status_check=[max_final_ratio(0.7), max_final_peer_dev(0.3)],
 )
+_SIL_PHYSICS = {
+    "N": kolmogorov.COARSE_N,
+    "nu": kolmogorov.VISCOSITY,
+    "dt": kolmogorov.COARSE_DT,
+    "reference_factor": kolmogorov.REFERENCE_FACTOR,
+    **kolmogorov.FORCING_PHYSICS,
+}
+_SIL_DESCRIPTION = (
+    "A small CNN corrects each solver's coarse Kolmogorov flow (64², ν = 2·10⁻³)"
+    " every 0.1 time units and is trained against that solver's own 256²"
+    " reference: on one-interval pairs (supervised), through a 4-interval"
+    " rollout with the gradient stopped at the solver, and through the same"
+    " rollout differentiated through the solver (solver in the loop). Wall time"
+    " per training update of each. A solver passes when its reference agrees"
+    " with a finer run, chained calls reproduce one long call, the gradient of"
+    " the training loss through 16 intervals matches finite differences, and"
+    " training completes with finite losses. 32 updates are too few to say how"
+    " much the corrector helps, so its errors are not scored."
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil",
+    sil.solver_in_loop,
+    plot_description=_SIL_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    reference=sil.generate_initial_states,
+    optim={
+        "unrolls": [4],
+        "updates": 32,
+        "model_seeds": [0],
+        "learning_rates": [1e-3],
+        "validation_interval": 16,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5]},
+        "train_frames": 24,
+        "eval_frames": 40,
+    },
+    plot=plot_kolmogorov_sil,
+    # Feasibility only: no arm has to win. See sil_status.
+    status_check=[sil_status.feasible()],
+)
+_SIL_STABILITY_DESCRIPTION = (
+    "The setup of optimization/kolmogorov_sil, trained long enough to compare"
+    " the arms: 16-interval rollouts, 256 updates, three seeds, scored on three"
+    " test states. Every trained corrector, as selected by validation and as"
+    " it stood after its last update, is then rolled out for 200 intervals to"
+    " see whether training through the solver leaves it less stable than the"
+    " other arms."
+)
+problem.add_experiment(
+    "optimization/kolmogorov_sil_stability",
+    sil.solver_in_loop,
+    plot_description=_SIL_STABILITY_DESCRIPTION,
+    physics=_SIL_PHYSICS,
+    optim={
+        "unrolls": [16],
+        "updates": 256,
+        "model_seeds": [0, 1, 2],
+        "learning_rates": [1e-3],
+        "validation_interval": 32,
+        "seeds": {"train": [0, 1, 2, 3], "validation": [4], "test": [5, 6, 7]},
+        "train_frames": 24,
+        "eval_frames": 40,
+        "stability_frames": 200,
+    },
+    # Feasibility only, as for optimization/kolmogorov_sil.
+    status_check=[sil_status.feasible()],
+)
+
 # Bonus plot (not paired with an experiment).
 problem.add_extra_plot(
     "_extra/gradient/jacobian_svd_comparison",

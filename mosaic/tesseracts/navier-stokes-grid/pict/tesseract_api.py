@@ -760,12 +760,46 @@ def _run_periodic(
     ndim: int,
     dtype: torch.dtype,
     differentiable: bool,
-) -> tuple[torch.Tensor, PISOtorch.Domain]:
-    """Run PICT on the periodic box and return the final velocity in PICT layout."""
+    force: torch.Tensor | None = None,
+    drag: float | None = None,
+    snapshot_every: int | None = None,
+) -> tuple[torch.Tensor, PISOtorch.Domain, list[torch.Tensor]]:
+    """Run PICT on the periodic box and return the final velocity in PICT layout.
+
+    ``force`` (PICT layout) and ``drag`` enter as PICT's velocity source,
+    ``force - drag * u`` from the velocity at the start of each step, so the
+    drag is explicit. Both are in PICT's unit-cell units.
+
+    Also returns copies of the velocity after every ``snapshot_every`` steps,
+    in PICT layout (none without ``snapshot_every``).
+    """
     domain = _make_periodic_domain(viscosity_val, N, ndim, dtype)
     domain.PrepareSolve()  # allocate internal structures first
-    domain.getBlock(0).setVelocity(v0_tensor)
+    block = domain.getBlock(0)
+    block.setVelocity(v0_tensor)
     domain.UpdateDomainData()
+    prep_fn = {}
+    if force is not None or drag is not None:
+
+        def _pre_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
+            # Set every step, from the current velocity, so the source stays
+            # in the graph that PISOtorch_diff records.
+            source = torch.zeros_like(block.velocity) if force is None else force
+            if drag is not None:
+                source = source - drag * block.velocity
+            block.setVelocitySource(source.contiguous())
+
+        prep_fn["PRE"] = _pre_step
+    snapshots: list[torch.Tensor] = []
+    if snapshot_every is not None:
+        steps_done = [0]
+
+        def _post_step(domain: PISOtorch.Domain, **_kw: Any) -> None:
+            steps_done[0] += 1
+            if steps_done[0] % snapshot_every == 0:
+                snapshots.append(block.velocity.detach().clone())
+
+        prep_fn["POST"] = _post_step
     # PICT's float32 default tolerance for the advection and pressure solves is
     # 1e-5. Its residual error in the forward and adjoint solves puts a floor of
     # about 1e-3 under the VJP's agreement with finite differences on the
@@ -775,11 +809,12 @@ def _run_periodic(
         dt_val,
         steps,
         differentiable,
+        prep_fn=prep_fn or None,
         non_orthogonal=False,
         advection_tol=_PERIODIC_SOLVE_TOL,
         pressure_tol=_PERIODIC_SOLVE_TOL,
     )
-    return domain.getBlock(0).velocity, domain
+    return block.velocity, domain, snapshots
 
 
 def _run_channel(
@@ -913,10 +948,40 @@ def apply(inputs: InputSchema) -> OutputSchema:
     # Viscosity is passed as a CPU torch tensor (PISOtorch requirement).
     nu_pict_t = torch.tensor([nu_pict], dtype=dtype, device=torch.device("cpu"))
     v0_t = _v0_to_pict(v0_np, _DEVICE, dtype, requires_grad=False)
-    result_t, _ = _run_periodic(
-        v0_t, nu_pict_t, dt_pict, inputs.steps, N, ndim, dtype, differentiable=False
+    result_t, _, snapshots = _run_periodic(
+        v0_t,
+        nu_pict_t,
+        dt_pict,
+        inputs.steps,
+        N,
+        ndim,
+        dtype,
+        differentiable=False,
+        snapshot_every=inputs.snapshot_every,
+        **_periodic_source(inputs, dtype),
     )
-    return {"result": _pict_to_v0(result_t, N, ndim).detach().cpu().numpy()}
+    out = {"result": _pict_to_v0(result_t, N, ndim).detach().cpu().numpy()}
+    if inputs.snapshot_every is not None:
+        out["snapshots"] = np.stack(
+            [_pict_to_v0(v, N, ndim).cpu().numpy() for v in snapshots]
+        )
+    return out
+
+
+def _periodic_source(inputs: InputSchema, dtype: torch.dtype) -> dict[str, Any]:
+    """Body force and drag in PICT's unit-cell units.
+
+    With x_pict = x · N/L and the velocity unchanged, time scales like length,
+    so an acceleration and a drag rate both divide by N/L.
+    """
+    phys_scale, _, _ = _periodic_scaling(inputs)
+    force = None
+    if inputs.forcing is not None:
+        force = _v0_to_pict(np.asarray(inputs.forcing) / phys_scale, _DEVICE, dtype)
+    drag = None
+    if inputs.linear_drag is not None:
+        drag = float(inputs.linear_drag[0]) / phys_scale
+    return {"force": force, "drag": drag}
 
 
 def vector_jacobian_product(
@@ -969,8 +1034,16 @@ def vector_jacobian_product(
         # Viscosity must be a CPU tensor (PISOtorch requirement).
         nu_t = torch.tensor([nu_pict], dtype=dtype, requires_grad=want["viscosity"])
         profile_t = None
-        result_t, domain = _run_periodic(
-            v0_t, nu_t, dt_pict, inputs.steps, N, ndim, dtype, differentiable=True
+        result_t, domain, _ = _run_periodic(
+            v0_t,
+            nu_t,
+            dt_pict,
+            inputs.steps,
+            N,
+            ndim,
+            dtype,
+            differentiable=True,
+            **_periodic_source(inputs, dtype),
         )
         if "result" in vjp_outputs and "result" in cotangent_vector:
             outputs.append(result_t)
@@ -1029,4 +1102,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict[str, dict[str, Any]]:
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": tuple(shape[:3]), "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
