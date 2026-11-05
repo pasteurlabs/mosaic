@@ -75,6 +75,17 @@ def test_cpu_and_gpu_artifacts_merge_per_solver(tmp_path):
             assert float(fields[f"{solver}_0"][0]) == len(solver)
 
 
+def test_solver_failures_from_both_runs_are_kept():
+    from mosaic.benchmarks.core.experiment import merge_results
+
+    a = {"schema_version": 1, "results": [], "_solver_failures": {"XLB": "boom"}}
+    b = {"schema_version": 1, "results": [], "_solver_failures": {"PICT": "bang"}}
+
+    merged = merge_results(a, b)
+
+    assert merged["_solver_failures"] == {"XLB": "boom", "PICT": "bang"}
+
+
 def test_files_in_one_artifact_are_copied(tmp_path):
     staging = tmp_path / "staging"
     exp = _write_artifact(staging, "results-forward-ns-grid-gpu", {}, "XLB")

@@ -92,7 +92,8 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
     (``rho_history``), the shared ``rho_init`` array, and a metrics dict
     matching the on-disk schema (``compliances``, ``vol_fracs``,
     ``final_compliance``, ``final_vol_frac``, ``n_iters``, ``iters_to_plateau``,
-    ``converged``, ``grad_norms``). ``iters_to_plateau`` follows the loss,
+    ``seconds_to_plateau``, ``elapsed_s``, ``converged``, ``grad_norms``).
+    ``iters_to_plateau`` follows the loss,
     which includes the volume penalty, so it can differ from where the
     compliance alone levels off.
     """
@@ -149,7 +150,7 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
                 f"  [green]{_n}[/] topopt_bfgs iter {i}/{_m} loss={loss_val:.4g}"
             )
 
-        rho_opt, losses, diag = _run_lbfgs(
+        rho_opt, _, diag = _run_lbfgs(
             loss_with_aux,
             rho_init,
             max_iters=max_iters,
@@ -169,7 +170,7 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
         lr = float(optim_cfg.get("lr", 1e-2))
         max_iters = int(optim_cfg.get("max_iters", 200))
         patience = int(optim_cfg.get("patience", 30))
-        rho_opt, losses, diag = _run_optim(
+        rho_opt, _, diag = _run_optim(
             loss_with_aux,
             rho_init,
             lr=lr,
@@ -187,7 +188,6 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
     compliances = aux_history.get("compliance", [])
     vol_fracs = aux_history.get("vol_frac", [])
     final_vol_frac = vol_fracs[-1] if vol_fracs else float(jnp.mean(rho_opt))
-    n_iters = len(losses)
     converged = diag["converged"]
     grad_norms = diag.get("grad_norms")
 
@@ -201,8 +201,10 @@ def topopt(t: Any, ctx: KernelContext) -> dict:
             "vol_fracs": vol_fracs,
             "final_compliance": final_compliance,
             "final_vol_frac": final_vol_frac,
-            "n_iters": n_iters,
+            "n_iters": diag["n_iters"],
             "iters_to_plateau": diag["iters_to_plateau"],
+            "seconds_to_plateau": diag["seconds_to_plateau"],
+            "elapsed_s": diag["elapsed_s"],
             "converged": converged,
             "grad_norms": grad_norms,
         },

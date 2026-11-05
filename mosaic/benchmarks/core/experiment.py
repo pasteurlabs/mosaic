@@ -259,6 +259,10 @@ def merge_results(a: dict, b: dict) -> dict:
         b_val = b.get("provenance", {}).get(key, {})
         if a_val or b_val:
             merged.setdefault("provenance", {})[key] = {**a_val, **b_val}
+    a_failures = a.get("_solver_failures") or {}
+    b_failures = b.get("_solver_failures") or {}
+    if a_failures or b_failures:
+        merged["_solver_failures"] = {**a_failures, **b_failures}
     # Merge extras
     a_extras = a.get("extras", {})
     b_extras = b.get("extras", {})
