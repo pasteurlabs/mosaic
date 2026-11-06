@@ -363,7 +363,7 @@ Dropping the single slowest trial brings 36 of the 40 below 15\%.
 
 Many practitioners have smaller GPUs than the A100, so \cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in a run on a V100 or on the T4 GPUs of our CI, together with its outcome on the A100.
 Every NS configuration that failed on 16\,GB from lack of memory or without a recorded reason completes on 80\,GB, apart from two solvers that are no longer part of the suite.
-The non-finite gradients of the F3 horizon sweep recur on the A100, and the longer A100 sweeps reach new limits, which the outcome column also lists.
+The non-finite gradients of the F3 horizon sweep recur on the A100, and with more memory the sweeps get further and reach new limits, which the outcome column also lists.
 For the mesh domains, the table gives the A100 outcome where the run covers the configuration.
 
 \input{tables/outcomes16gb}
