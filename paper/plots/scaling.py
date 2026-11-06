@@ -6,7 +6,9 @@ Two figures, each with a shared legend:
 
 Each domain gets one row of 3 log-log panels: forward | VJP | ratio.
 Solver labels carry (G) / (C) for GPU vs. CPU execution. A failed run is
-marked with an x at the top edge of its panel.
+marked with an x at the top edge of its panel. With extended mesh cost sweeps
+(make_figures.py --extra-results), the mesh rows continue past the main sweep,
+and the sizes only the extended sweep covers are shaded.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from . import (
     TEXTWIDTH,
     by_solver,
     is_ok,
+    load_extra_result,
     load_result,
     median_time,
     solver_metadata,
@@ -51,6 +54,8 @@ Row = tuple[str, str, Callable[[int], int]]
 
 
 def _fmt_size(x: float, _pos=None) -> str:
+    if x >= 1e7:
+        return f"{round(x / 1e6):.0f}M"
     if x >= 1e6:
         return f"{x / 1e6:.1f}M"
     if x >= 1e3:
@@ -58,12 +63,30 @@ def _fmt_size(x: float, _pos=None) -> str:
     return str(int(x))
 
 
+def _sweep(problem: str, experiment: str) -> tuple[dict[str, dict], int | None]:
+    """``{solver: {sweep_value: metrics}}`` of a cost sweep, extended by the extended
+    sweep where one exists, and the largest sweep value of the main sweep if so.
+    Where both sweeps cover a size, the main sweep's point is kept."""
+    pts = by_solver(load_result(problem, experiment))
+    extra = load_extra_result(problem, experiment)
+    if extra is None:
+        return pts, None
+    main_max = max(int(v) for sweep in pts.values() for v in sweep)
+    for solver, ext in by_solver(extra).items():
+        pts[solver] = {**ext, **pts.get(solver, {})}
+    return pts, main_max
+
+
 def _times(metrics: dict[str, dict], size: Callable[[int], int]):
     """Split one solver's sweep into ({size: median time}, {size: (fastest, slowest)},
     [sizes of failed runs])."""
     ok = {size(int(v)): median_time(m) for v, m in metrics.items() if is_ok(m)}
     spread = {size(int(v)): trial_range(m) for v, m in metrics.items() if is_ok(m)}
-    failed = sorted(size(int(v)) for v, m in metrics.items() if not is_ok(m))
+    failed = sorted(
+        size(int(v))
+        for v, m in metrics.items()
+        if not is_ok(m) and m.get("status") != "skipped"
+    )
     return dict(sorted(ok.items())), spread, failed
 
 
@@ -77,8 +100,8 @@ def _combined_fig(rows: list[Row], order: list[str], xlabel: str) -> plt.Figure:
     for (row_label, problem, size), (ax_fwd, ax_vjp, ax_ratio) in zip(
         rows, axes, strict=True
     ):
-        fwd = by_solver(load_result(problem, "cost/spatial_cost"))
-        vjp = by_solver(load_result(problem, "cost/vjp_cost/by_N"))
+        fwd, fwd_max = _sweep(problem, "cost/spatial_cost")
+        vjp, vjp_max = _sweep(problem, "cost/vjp_cost/by_N")
         meta = solver_metadata(problem)
         solvers = sorted(set(fwd) | set(vjp), key=order.index)
         sizes: set[int] = set()
@@ -133,6 +156,14 @@ def _combined_fig(rows: list[Row], order: list[str], xlabel: str) -> plt.Figure:
                 sizes.update(xs, failed)
             gpu.setdefault(solver, meta[solver]["uses_gpu"])
 
+        # One x range per row, with matplotlib's default 5% margin in log space.
+        pad = 0.05 * np.log(max(sizes) / min(sizes))
+        xlim = (min(sizes) * np.exp(-pad), max(sizes) * np.exp(pad))
+        main_max = max(fwd_max or 0, vjp_max or 0)
+        for ax in (ax_fwd, ax_vjp, ax_ratio):
+            if main_max:
+                ax.axvspan(size(main_max), xlim[1], color="0.93", lw=0, zorder=0)
+            ax.set_xlim(xlim)
         ax_ratio.axhline(1.0, color="0.5", linestyle="--", linewidth=0.8, zorder=0)
         ax_ratio.yaxis.set_major_locator(mticker.LogLocator(base=10, subs=(1, 2, 5)))
         ax_ratio.yaxis.set_major_formatter(mticker.FuncFormatter(lambda y, _: f"{y:g}"))

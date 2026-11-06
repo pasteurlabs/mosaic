@@ -25,9 +25,11 @@ from pathlib import Path
 import count_loc
 from plots import (
     by_solver,
+    container_ram_mib,
     device_mib,
     failure_type,
     is_ok,
+    load_extra_result,
     load_result,
     median_time,
     results_dir,
@@ -668,13 +670,9 @@ V100_LOCATION = {
     "gradient/horizon_sweep": ("gradient/horizon_sweep", "by_solver"),
     "gradient/horizon_sweep_limits": ("gradient/horizon_sweep_limits", "by_solver"),
 }
-# Experiments of the extended mesh sweep (--extra-results).
-EXTRA_EXPERIMENT = {
-    "cost/spatial_cost": "cost/spatial_cost_large",
-    "cost/vjp_cost/by_N": "cost/vjp_cost_large/by_N",
-}
 FAILURE_LABEL = {
     "OOM": "OOM",
+    "host_OOM": "RAM cap",
     "nan": "NaN",
     "container_died": "died",
     "timeout": "timeout",
@@ -685,7 +683,9 @@ FAILURE_LABEL = {
 T4_DEVICE_MIB = 15360
 
 
-def failure_label(m: dict | None, device: float | None = None) -> str | None:
+def failure_label(
+    m: dict | None, device: float | None = None, ram_cap: float | None = None
+) -> str | None:
     """Short outcome label of a failed entry, or None if it succeeded."""
     if m is None:
         return "no reason"
@@ -693,7 +693,7 @@ def failure_label(m: dict | None, device: float | None = None) -> str | None:
         return None
     if m.get("status") == "skipped":
         return "skipped"
-    ft = failure_type(m, device)
+    ft = failure_type(m, device, ram_cap)
     return FAILURE_LABEL.get(ft, ft or "error")
 
 
@@ -752,23 +752,29 @@ def a100_outcomes(
     cell = status.get((p, exp, solver)) or {}
     if cell.get("status") == "excluded":
         return "excluded"
-    pts = by_solver(load_result(p, exp)).get(solver, {})
-    if extra is not None and exp in EXTRA_EXPERIMENT:
-        path = extra / p / EXTRA_EXPERIMENT[exp] / "result.json"
-        if path.exists():
-            extra_pts = by_solver(json.loads(path.read_text())).get(solver, {})
-            pts = {**extra_pts, **pts}
+    # Each point with the run root it comes from, for that run's memory limits.
+    pts = {
+        v: (m, results_dir())
+        for v, m in by_solver(load_result(p, exp)).get(solver, {}).items()
+    }
+    if extra is not None and (ext := load_extra_result(p, exp, extra)) is not None:
+        extra_pts = by_solver(ext).get(solver, {})
+        pts = {**{v: (m, extra) for v, m in extra_pts.items()}, **pts}
     mem_key = "vram_peak_mib" if meta[solver]["uses_gpu"] else "ram_peak_mib"
     parts: list[list] = []  # [first, last, label, max memory of the ok points]
     for v in values:
-        m = pts.get(v)
+        m, root = pts.get(v, (None, None))
         lab = (
             "not in sweep"
             if m is None
-            else ("ok" if is_ok(m) else failure_label(m, device_mib(results_dir())))
+            else (
+                "ok"
+                if is_ok(m)
+                else failure_label(m, device_mib(root), container_ram_mib(root))
+            )
         )
         mem = m.get(mem_key) if lab == "ok" else None
-        if parts and parts[-1][2] == lab and lab in ("ok", "not in sweep", "skipped"):
+        if parts and parts[-1][2] == lab:
             parts[-1][1] = v
             parts[-1][3] = max(parts[-1][3] or 0, mem or 0)
         else:
@@ -819,21 +825,31 @@ def outcomes_table(
         )
 
     body = "\n    ".join(rows)
-    died_note = (
-        r" \emph{died}: the container exited otherwise;"
-        if any(" died" in r for r in rows)
-        else ""
-    )
+    ram_caps = {container_ram_mib(results_dir())}
+    if extra is not None:
+        ram_caps.add(container_ram_mib(extra))
+    # Legend entries, each only if a row uses its label.
+    notes = [
+        r"\emph{skipped}: not attempted after an earlier failure in the same sweep",
+        r"\emph{OOM} includes containers that exited with the GPU's memory full",
+    ]
+    if any(" RAM cap" in r for r in rows):
+        notes.append(
+            r"\emph{RAM cap}: killed at the solver container's host-memory cap of "
+            f"{'/'.join(gb(c) for c in sorted(ram_caps) if c)}\\,GB"
+        )
+    if any(" died" in r for r in rows):
+        notes.append(r"\emph{died}: the container exited otherwise")
+    if any("not in sweep" in r for r in rows):
+        notes.append(r"\emph{not in sweep}: outside the sweep range of the A100 run")
+    legend = "; ".join(notes)
     text = rf"""\begin{{table}}[p]
   \centering\scriptsize
   \setlength{{\tabcolsep}}{{3pt}}
   \caption{{Configurations that failed on a 16\,GB GPU, in a V100 run or the T4
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
     rollout steps for the \emph{{steps}} and \emph{{horizon}} sweeps. The V100 run stored most
-    failures without a reason (\emph{{no reason}}). \emph{{skipped}}: not attempted after an
-    earlier failure in the same sweep; \emph{{OOM}} includes containers that exited with the GPU's
-    memory full;{died_note} \emph{{not in sweep}}:
-    outside the sweep range of the A100 run. Memory is the largest peak over the successful
+    failures without a reason (\emph{{no reason}}). {legend}. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{{30}}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite.}}
   \label{{tab:app:outcomes}}

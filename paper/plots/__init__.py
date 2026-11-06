@@ -62,6 +62,37 @@ def load_result(problem: str, experiment: str) -> dict:
     return json.loads(path.read_text())
 
 
+# Experiments of the extended mesh cost sweeps, keyed by the experiment whose
+# size range they extend.
+EXTRA_EXPERIMENT = {
+    "cost/spatial_cost": "cost/spatial_cost_large",
+    "cost/vjp_cost/by_N": "cost/vjp_cost_large",
+}
+_extra_results: Path | None = None
+
+
+def set_extra_results_dir(path: Path | None) -> None:
+    """Set the results directory of the extended mesh cost sweeps."""
+    global _extra_results
+    _extra_results = path
+
+
+def extra_results_dir() -> Path | None:
+    """Results directory of the extended mesh cost sweeps, if set."""
+    return _extra_results
+
+
+def load_extra_result(
+    problem: str, experiment: str, root: Path | None = None
+) -> dict | None:
+    """Load the extended sweep of *experiment* from *root* (default: :func:`extra_results_dir`), or None."""
+    root = root or extra_results_dir()
+    if root is None or experiment not in EXTRA_EXPERIMENT:
+        return None
+    path = root / problem / EXTRA_EXPERIMENT[experiment] / "result.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
 def by_solver(result: dict) -> dict[str, dict[str, dict]]:
     """Index a schema-v1 result as ``{solver: {sweep_value: metrics}}``.
 
@@ -104,21 +135,46 @@ def is_ok(metrics: dict) -> bool:
 # the harness records `container_died` instead of `OOM`.
 MASKED_OOM_FRACTION = 0.95
 
+# The harness caps each solver container at this fraction of host RAM
+# (MOSAIC_CONTAINER_MEM_FRACTION, default 0.9). At the cap, the kernel kills a
+# process in the container, which the harness records as `container_died` if it
+# was the Tesseract server and as `error` if it was a solver subprocess.
+CONTAINER_MEM_FRACTION = 0.9
+
+
+def _hardware(root: Path) -> list[dict]:
+    """Hardware records of a run's cost results."""
+    return [
+        json.loads(path.read_text()).get("extras", {}).get("hardware") or {}
+        for path in sorted(root.glob("*/cost/*/result.json"))
+    ]
+
 
 @functools.cache
 def device_mib(root: Path, default: float | None = None) -> float | None:
     """GPU memory of a run's device in MiB, from the first result that records it."""
-    for path in sorted(root.glob("*/cost/*/result.json")):
-        hardware = json.loads(path.read_text()).get("extras", {}).get("hardware") or {}
+    for hardware in _hardware(root):
         if gpus := hardware.get("gpus"):
             return float(gpus[0].rsplit(",", 1)[1].split()[0])
     return default
 
 
-def failure_type(metrics: dict, device: float | None) -> str | None:
-    """The recorded failure type, with a container death at a full GPU counted as OOM."""
+@functools.cache
+def container_ram_mib(root: Path) -> float | None:
+    """Memory cap of a run's solver containers in MiB, from the first result that records the host RAM."""
+    for hardware in _hardware(root):
+        if ram_gb := hardware.get("ram_gb"):
+            return CONTAINER_MEM_FRACTION * ram_gb * 1e9 / 2**20
+    return None
+
+
+def failure_type(
+    metrics: dict, device: float | None, ram_cap: float | None = None
+) -> str | None:
+    """The recorded failure type, with a failure at a full GPU or at the container's RAM cap counted as OOM."""
     ft = metrics.get("failure_type")
     vram = metrics.get("vram_peak_mib")
+    ram = metrics.get("ram_peak_mib")
     if (
         ft == "container_died"
         and device is not None
@@ -126,6 +182,13 @@ def failure_type(metrics: dict, device: float | None) -> str | None:
         and vram >= MASKED_OOM_FRACTION * device
     ):
         return "OOM"
+    if (
+        ft in ("container_died", "error")
+        and ram_cap is not None
+        and ram is not None
+        and ram >= MASKED_OOM_FRACTION * ram_cap
+    ):
+        return "host_OOM"
     return ft
 
 

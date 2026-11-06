@@ -5,7 +5,7 @@
 """Regenerate the paper figures from a Mosaic results directory.
 
 Usage:
-    uv run paper/make_figures.py [--only NAME,...] [--out-dir DIR]
+    uv run paper/make_figures.py [--only NAME,...] [--out-dir DIR] [--extra-results DIR]
 
 Results are read from ``$MOSAIC_RESULTS_DIR`` if set, else ``./mosaic-results``.
 """
@@ -21,7 +21,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-from plots import MODULES, get_generate_fn, results_dir
+from plots import MODULES, get_generate_fn, results_dir, set_extra_results_dir
 
 
 def main() -> int:
@@ -38,7 +38,13 @@ def main() -> int:
         default=Path(__file__).parent / "figures",
         help="Output directory (default: paper/figures).",
     )
+    parser.add_argument(
+        "--extra-results",
+        type=Path,
+        help="Results of the extended mesh cost sweeps (cost/*_large experiments).",
+    )
     args = parser.parse_args()
+    set_extra_results_dir(args.extra_results)
 
     names = [n.strip() for n in args.only.split(",")]
     unknown = sorted(set(names) - set(MODULES))

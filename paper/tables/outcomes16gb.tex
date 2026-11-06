@@ -4,10 +4,7 @@
   \caption{Configurations that failed on a 16\,GB GPU, in a V100 run or the T4
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
     rollout steps for the \emph{steps} and \emph{horizon} sweeps. The V100 run stored most
-    failures without a reason (\emph{no reason}). \emph{skipped}: not attempted after an
-    earlier failure in the same sweep; \emph{OOM} includes containers that exited with the GPU's
-    memory full; \emph{not in sweep}:
-    outside the sweep range of the A100 run. Memory is the largest peak over the successful
+    failures without a reason (\emph{no reason}). \emph{skipped}: not attempted after an earlier failure in the same sweep; \emph{OOM} includes containers that exited with the GPU's memory full; \emph{RAM cap}: killed at the solver container's host-memory cap of 195\,GB. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{30}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite.}
   \label{tab:app:outcomes}
@@ -46,27 +43,27 @@
       F3 & horizon & Warp-NS & V100: 160 NaN, 320--10240 skipped; T4: 160 NaN, 320--81920 skipped & NaN 160; skipped 320--81920 \\
       F3 & horizon & XLB & V100: 160 OOM, 320--10240 skipped; T4: 320 NaN, 640--81920 skipped & ok 160 (0.7\,GB); NaN 320; skipped 640--81920 \\
     \midrule
-      S & fwd, size & deal.II & V100: 256--3200 no reason & not in sweep 256--3200 \\
-      S & fwd, size & FEniCS & V100: 256--3200 no reason & not in sweep 256--3200 \\
-      S & fwd, size & Firedrake & V100: 256 error, 512--3200 no reason & not in sweep 256--3200 \\
-      S & fwd, size & JAX-FEM & V100: 512--3200 no reason & not in sweep 512--3200 \\
-      S & fwd, size & TopOpt.jl & V100: 1024--3200 no reason & not in sweep 1024--3200 \\
+      S & fwd, size & deal.II & V100: 256--3200 no reason & ok 256--1024 (56\,GB); RAM cap 2048--3200 \\
+      S & fwd, size & FEniCS & V100: 256--3200 no reason & ok 256--1024 (49\,GB); RAM cap 2048; error 3200 \\
+      S & fwd, size & Firedrake & V100: 256 error, 512--3200 no reason & ok 256--1024 (59\,GB); RAM cap 2048; error 3200 \\
+      S & fwd, size & JAX-FEM & V100: 512--3200 no reason & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
+      S & fwd, size & TopOpt.jl & V100: 1024--3200 no reason & ok 1024 (83\,GB); RAM cap 2048--3200 \\
       S & VJP, size & deal.II & V100: 2048 timeout, 3200 no reason & excluded \\
-      S & VJP, size & FEniCS & V100: 512 error, 1024--3200 no reason & not in sweep 512--3200 \\
-      S & VJP, size & Firedrake & V100: 256 error, 512--3200 no reason & not in sweep 256--3200 \\
-      S & VJP, size & JAX-FEM & V100: 512 error, 1024--3200 no reason & not in sweep 512--3200 \\
-      S & VJP, size & TopOpt.jl & V100: 2048 timeout, 3200 no reason & not in sweep 2048--3200 \\
+      S & VJP, size & FEniCS & V100: 512 error, 1024--3200 no reason & ok 512--1024 (49\,GB); RAM cap 2048; error 3200 \\
+      S & VJP, size & Firedrake & V100: 256 error, 512--3200 no reason & ok 256--1024 (97\,GB); RAM cap 2048; error 3200 \\
+      S & VJP, size & JAX-FEM & V100: 512 error, 1024--3200 no reason & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
+      S & VJP, size & TopOpt.jl & V100: 2048 timeout, 3200 no reason & RAM cap 2048--3200 \\
     \midrule
-      H & fwd, size & deal.II & V100: 2048--4500 no reason & not in sweep 2048--4500 \\
-      H & fwd, size & FEniCS & V100: 1024--4500 no reason & ok 1024 (4.6\,GB); not in sweep 2048--4500 \\
-      H & fwd, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--1024 (5.6\,GB); not in sweep 2048--4500 \\
-      H & fwd, size & JAX-FEM & V100: 2048--4500 no reason & not in sweep 2048--4500 \\
-      H & fwd, size & torch-fem & V100: 2048 OOM, 4500 no reason & not in sweep 2048--4500 \\
+      H & fwd, size & deal.II & V100: 2048--4500 no reason & ok 2048--4500 (31\,GB) \\
+      H & fwd, size & FEniCS & V100: 1024--4500 no reason & ok 1024--4500 (78\,GB) \\
+      H & fwd, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--4500 (108\,GB) \\
+      H & fwd, size & JAX-FEM & V100: 2048--4500 no reason & ok 2048--4500 (32\,GB) \\
+      H & fwd, size & torch-fem & V100: 2048 OOM, 4500 no reason & ok 2048 (17\,GB); OOM 4500 \\
       H & VJP, size & deal.II & V100: 2048 timeout, 4500 no reason & excluded \\
-      H & VJP, size & FEniCS & V100: 1024 error, 2048--4500 no reason & ok 1024 (4.8\,GB); not in sweep 2048--4500 \\
-      H & VJP, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--1024 (7.7\,GB); not in sweep 2048--4500 \\
-      H & VJP, size & JAX-FEM & V100: 2048 error, 4500 no reason & not in sweep 2048--4500 \\
-      H & VJP, size & torch-fem & V100: 2048 OOM, 4500 no reason & not in sweep 2048--4500 \\
+      H & VJP, size & FEniCS & V100: 1024 error, 2048--4500 no reason & ok 1024--4500 (79\,GB) \\
+      H & VJP, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--4500 (160\,GB) \\
+      H & VJP, size & JAX-FEM & V100: 2048 error, 4500 no reason & ok 2048--4500 (32\,GB) \\
+      H & VJP, size & torch-fem & V100: 2048 OOM, 4500 no reason & ok 2048 (19\,GB); OOM 4500 \\
     \bottomrule
   \end{tabular}
 \end{table}

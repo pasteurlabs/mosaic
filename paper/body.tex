@@ -552,9 +552,11 @@ at 1\,000 steps and INS.jl, JAX-CFD, and PhiFlow at 2\,000. Memory is not always
 the first limit, however. On the longer horizon sweep at $N=20$
 (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite gradients at
 160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run out of memory
-only beyond 20\,000 steps. The mesh solvers stay below 11\,GB, and every NS
-configuration that runs out of memory on a 16\,GB GPU completes on the A100
-(\cref{tab:app:outcomes}).
+only beyond 20\,000 steps. Every NS configuration that runs out of memory on a
+16\,GB GPU completes on the A100. The mesh solvers stay below 11\,GB in the main
+sweeps. Extended to the larger meshes of the V100 run, all H solvers except
+torch-fem complete the sweep, while every S solver fails at $n_x=2\,048$, out of
+either GPU memory or host memory (\cref{tab:app:outcomes}).
 
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four

@@ -24,7 +24,9 @@ A standard TeX Live installation covers both. The preprint additionally uses the
 export MOSAIC_RESULTS_DIR=path/to/a100-run/results
 uv run paper/make_figures.py                     # all figures
 uv run paper/make_figures.py --only scaling,fd_check
-uv run paper/make_tables.py --v100-results path/to/v100-results --t4-results path/to/t4-results
+uv run paper/make_figures.py --only scaling --extra-results path/to/mesh-large-results
+uv run paper/make_tables.py --v100-results path/to/v100-results --t4-results path/to/t4-results \
+    --extra-results path/to/mesh-large-results
 ```
 
 Results are read from `$MOSAIC_RESULTS_DIR` if set, else `./mosaic-results`. `uv run` installs the pinned dependencies declared at the top of each script. Without uv, install `matplotlib==3.10.9`, `numpy==2.4.4` and `pyyaml==6.0.3` and run the scripts with `python`. Both scripts also read the solver metadata (differentiation strategy, GPU use) from `mosaic/tesseracts/*/*/tesseract_config.yaml` in this repository.
@@ -41,7 +43,7 @@ Each module in `plots/` writes one or more figures to `figures/` (or `--out-dir`
 | `variance.tex`        | `tab:app:variance` | Coefficient of variation of the timed trials per problem                                       |
 | `outcomes16gb.tex`    | `tab:app:outcomes` | Configurations that failed on 16 GB GPUs and their outcome in the results                      |
 
-`outcomes16gb.tex` compares against two runs on 16 GB GPUs: a V100 run ([Zenodo](https://zenodo.org/records/20067888), `--v100-results`) and a T4 CI run (`--t4-results`). Without both flags it is skipped. `--extra-results` adds the extended mesh cost sweeps (`cost/spatial_cost_large`, `cost/vjp_cost_large/by_N`), which fill in mesh sizes beyond the main sweep. The convergence and gradient-support columns of `merged.tex` come from the `mosaic status` JSON, read from `status.json` next to the results directory unless `--status` is given. The integration-effort columns of `merged.tex` (bespoke lines of code per wrapper) come from `count_loc.py`, described below.
+`outcomes16gb.tex` compares against two runs on 16 GB GPUs: a V100 run ([Zenodo](https://zenodo.org/records/20067888), `--v100-results`) and a T4 CI run (`--t4-results`). Without both flags it is skipped. `--extra-results`, for both scripts, adds the extended mesh cost sweeps (`cost/spatial_cost_large`, `cost/vjp_cost_large`), which fill in mesh sizes beyond the main sweep; `scaling_fem_combined.pdf` shades these sizes. Failures at the container's host-memory cap, which the harness records as `error` or `container_died` depending on which process the kernel killed, are labeled _RAM cap_. The convergence and gradient-support columns of `merged.tex` come from the `mosaic status` JSON, read from `status.json` next to the results directory unless `--status` is given. The integration-effort columns of `merged.tex` (bespoke lines of code per wrapper) come from `count_loc.py`, described below.
 
 ## Counting lines of code
 

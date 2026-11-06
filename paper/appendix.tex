@@ -282,6 +282,7 @@ F2 uses an $N\times N$ uniform Cartesian grid ($N\in\{64,128,192,256\}$, giving 
 F3 uses an $N\times N\times N$ Cartesian grid ($N\in\{16,32,48,64,96,128\}$, giving $4\text{k}$--$2.1\text{M}$ cells);
 S uses an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{4,\ldots,128\}$, giving $16$--$16\text{k}$ elements);
 H uses an $N\times\lfloor N/2\rfloor\times 1$ hex mesh ($N\in\{16,\ldots,1024\}$, giving $128$--$524\text{k}$ elements).
+For the mesh domains, \cref{fig:app:scaling:fem} adds the extended sweeps of \cref{app:outcomes}, which continue S to $N=3\,200$ and H to $N=4\,500$ (10\,M elements each) with three trials per point.
 Table~\ref{tab:merged} wall times are at $N=64$ (F2), $N=32$ (F3), $N=128$ (S), $N=256$ (H).
 The rollout-length sweeps run F2 at $N=128$ for 10--1\,000 steps and F3 at $N=48$ for 10--2\,000 steps.
 
@@ -297,6 +298,7 @@ On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio acros
 Along the rollout sweeps, the ratio grows with the number of steps for most NS solvers, most strongly for INS.jl (to 7.1) and XLB (to 7.0) on F3.
 On the mesh domains, TopOpt.jl's VJP costs about one forward solve and torch-fem's 1.3--1.6.
 Firedrake stays near~2, while FEniCS falls from 4.0 (S) and 3.2 (H) at the smallest sizes to 2.1--2.3, and JAX-FEM from about 2.5 to 1.7--1.8.
+On the larger meshes of the extended sweeps, every ratio except TopOpt.jl's lies between 1.6 and 2.1, with torch-fem's rising to 1.9 on S.
 Ratios thus move in both directions within each differentiation strategy.
 
 \Cref{fig:horizon_sweep} extends the F3 rollout to 81\,920 steps at $N=20$, one VJP per horizon.
@@ -319,7 +321,10 @@ Two memory readings are less informative than the others. INS.jl's peak is domin
   \includegraphics[width=\linewidth]{figures/scaling_fem_combined.pdf}
   \caption{Gradient overhead scaling for the mesh domains (Structural,
     top; Thermal, bottom). Same layout as \cref{fig:app:scaling}.
-    deal.II VJP times are omitted (no native adjoint).}
+    deal.II VJP times are omitted (no native adjoint). Shaded: sizes beyond
+    the main sweep, from the extended sweeps with three trials per point
+    (\cref{app:outcomes}). A cross at the top edge marks a failed size;
+    \cref{tab:app:outcomes} gives the causes.}
   \label{fig:app:scaling:fem}
 \end{figure}
 
@@ -364,7 +369,12 @@ Dropping the single slowest trial brings 36 of the 40 below 15\%.
 Many practitioners have smaller GPUs than the A100, so \cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in a run on a V100 or on the T4 GPUs of our CI, together with its outcome on the A100.
 Every NS configuration that failed on 16\,GB from lack of memory or without a recorded reason completes on 80\,GB, apart from two solvers that are no longer part of the suite.
 The non-finite gradients of the F3 horizon sweep recur on the A100, and with more memory the sweeps get further and reach new limits, which the outcome column also lists.
-For the mesh domains, the table gives the A100 outcome where the run covers the configuration.
+The V100 run swept the mesh domains to larger sizes than our main sweeps ($n_x$ up to 3\,200 for S and 4\,500 for H), so we extended the size sweeps to these sizes in a separate run on the same A100 machine, with three trials per point.
+Where the two runs overlap, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
+On the A100, every mesh configuration that failed on the V100 gets at least one size further, except TopOpt.jl's S VJP, which timed out at $n_x=2\,048$ on the V100 and reaches the host-memory cap of its container there on the A100.
+All H configurations reach $n_x=4\,500$ except torch-fem, which runs out of GPU memory at that size.
+On S, every solver reaches $n_x=1\,024$ and none reaches 2\,048, where JAX-FEM and torch-fem run out of GPU memory and the CPU solvers reach the 195\,GB cap of their containers.
+At $n_x=3\,200$, Firedrake fails below the cap because the stiffness matrix has $2.9\times10^9$ nonzeros, more than PETSc's 32-bit indices allow, and FEniCS fails in PETSc's matrix preallocation, probably for the same reason.
 
 \input{tables/outcomes16gb}
 
