@@ -675,7 +675,7 @@ MMA is therefore the recommended optimizer for this task class, consistent with 
 \Cref{fig:app:conductivity_recovery} shows convergence for the thermal conductivity inversion task.
 The ground-truth conductivity field has two Gaussian peaks; the solver observes the steady-state temperature distribution under a known heat source and recovers the conductivity by minimizing the $\ell_2$ error between simulated and observed temperature.
 Starting from a uniform field, L-BFGS-B lowers the misfit of all four solvers from $6.1\times10^{9}$ to 34--51 within 1\,000 iterations (JAX-FEM 34, Firedrake 39, torch-fem 49, FEniCS 51), leveling off after 735--846 iterations.
-The recovered conductivity is 4.2--5.9\% from the truth in relative $\ell_2$ norm, and the four recovered fields differ from each other by 1--3.5\% of the truth's norm.
+The recovered SIMP density is 4.2--5.9\% from the truth in relative $\ell_2$ norm, and the four recovered fields differ from each other by 1--3.5\% of the truth's norm.
 We attribute the spread to the poor conditioning of the inversion: many conductivity fields fit the temperatures almost equally well, and which one the optimizer reaches depends on its path.
 
 \begin{figure}
