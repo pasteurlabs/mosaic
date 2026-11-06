@@ -114,7 +114,9 @@ def _plot_rows(
     ic_true_div = _div_rms(runs[keys[0]].fields["ic_true"])
     ax_div.axhline(ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0)
     if log:
-        # Minor labels crowd the axis when the divergence spans under a decade.
+        # The divergence spans about a decade: label 1-2-5 steps, not just powers of ten.
+        ax_div.yaxis.set_major_locator(ticker.LogLocator(subs=(1.0, 2.0, 5.0)))
+        ax_div.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax_div.yaxis.set_minor_formatter(ticker.NullFormatter())
     for ax, title in zip(
         axes, ("IC recovery error", "IC divergence", "Optimization loss"), strict=True

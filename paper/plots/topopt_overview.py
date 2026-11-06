@@ -523,8 +523,10 @@ def generate(out_dir: Path) -> None:
 
         v_frac_target = ph_coarse["v_frac"]
         ax_volf.axhline(v_frac_target, color="#555555", linestyle=":", linewidth=1.0)
-        ax_volf.yaxis.set_major_locator(ticker.MaxNLocator(4, prune="both"))
-        ax_volf.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+        ax_volf.yaxis.set_major_locator(
+            ticker.MaxNLocator(4, steps=[1, 2, 5, 10], prune="both")
+        )
+        ax_volf.yaxis.set_major_formatter(ticker.ScalarFormatter(useOffset=False))
 
         # Flag the mesh-resolution mismatch between the two columns.
         fine_tag = f"Final fields, fine mesh ({nx}×{ny}×{nz}, MMA)"
