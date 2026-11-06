@@ -688,7 +688,7 @@ def failure_label(
 ) -> str | None:
     """Short outcome label of a failed entry, or None if it succeeded."""
     if m is None:
-        return "no reason"
+        return "no result"
     if is_ok(m):
         return None
     if m.get("status") == "skipped":
@@ -848,8 +848,9 @@ def outcomes_table(
   \setlength{{\tabcolsep}}{{3pt}}
   \caption{{Configurations that failed on a 16\,GB GPU, in a V100 run or the T4
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
-    rollout steps for the \emph{{steps}} and \emph{{horizon}} sweeps. The V100 run stored most
-    failures without a reason (\emph{{no reason}}). {legend}. Memory is the largest peak over the successful
+    rollout steps for the \emph{{steps}} and \emph{{horizon}} sweeps. The V100 run stored
+    no result for some points (\emph{{no result}}), most of them after an earlier stop.
+    {legend}. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{{30}}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite.}}
   \label{{tab:app:outcomes}}

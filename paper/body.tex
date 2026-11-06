@@ -316,7 +316,7 @@ VJP) and never inspects solver internals.
     precision is additionally measured against it.
   \item[Optimization convergence.] We run the optimizers with each solver's
     gradients on each benchmark task for a fixed iteration budget
-    (at most 100 iterations for F2 and F3, with a plateau stop on F2; 1\,000 for H;
+    (at most 100 iterations for F2 and for L-BFGS on F3, with a plateau stop on F2; 1\,000 for H;
     2\,500 for S) and report convergence curves and final objective value.
     A run succeeds if its final objective is at most half the initial one.
     For drag, the final value must be at most 0.7 of the initial one and
@@ -424,7 +424,7 @@ between solvers, and they provide an initial empirical characterization
 that practitioners can use to guide solver selection.
 All experiments ran on an Azure Standard\_NC24ads\_A100\_v4 instance
 (one NVIDIA A100 80\,GB PCIe, 24 vCPUs of an AMD EPYC 7V13; full spec in \cref{app:effort}).
-Results reflect default solver configurations at the time of the pinned
+Results reflect the solver configurations of the pinned
 release; all configurations are published and community-improvable via
 pull request. Reproduction instructions are in \cref{app:software}.
 
@@ -552,11 +552,11 @@ at 1\,000 steps and INS.jl, JAX-CFD, and PhiFlow at 2\,000. Memory is not always
 the first limit, however. On the longer horizon sweep at $N=20$
 (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite gradients at
 160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run out of memory
-only beyond 20\,000 steps. Every NS configuration that runs out of memory on a
-16\,GB GPU completes on the A100. The mesh solvers stay below 11\,GB in the main
-sweeps. Extended to the larger meshes of the V100 run, all H solvers except
-torch-fem complete the sweep, while every S solver fails at $n_x=2\,048$, out of
-either GPU memory or host memory (\cref{tab:app:outcomes}).
+only beyond 20\,000 steps. The mesh solvers stay below 11\,GB in the main
+sweeps. On larger meshes, up to $n_x=4\,500$ on H and $3\,200$ on S, all H
+solvers except torch-fem complete the sweep, while every S solver fails at
+$n_x=2\,048$, out of either GPU memory or host memory
+(\cref{fig:app:scaling:fem,tab:app:outcomes}).
 
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
@@ -571,7 +571,7 @@ stepper with a slower non-mutating rollout that Zygote can differentiate, and
 PhiFlow's ratio falls with grid size, plausibly because of a fixed per-call
 overhead.
 All timings are measured on one A100 machine, and relative rankings may differ on
-other hardware, particularly between GPU and CPU solvers.
+other hardware, most for solvers that compute in float64, such as XLB.
 
 \subsection{Optimization task performance}
 \label{sec:optimization}

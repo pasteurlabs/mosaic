@@ -3,8 +3,9 @@
   \setlength{\tabcolsep}{3pt}
   \caption{Configurations that failed on a 16\,GB GPU, in a V100 run or the T4
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
-    rollout steps for the \emph{steps} and \emph{horizon} sweeps. The V100 run stored most
-    failures without a reason (\emph{no reason}). \emph{skipped}: not attempted after an earlier failure in the same sweep; \emph{OOM} includes containers that exited with the GPU's memory full; \emph{RAM cap}: killed at the solver container's host-memory cap of 195\,GB. Memory is the largest peak over the successful
+    rollout steps for the \emph{steps} and \emph{horizon} sweeps. The V100 run stored
+    no result for some points (\emph{no result}), most of them after an earlier stop.
+    \emph{skipped}: not attempted after an earlier failure in the same sweep; \emph{OOM} includes containers that exited with the GPU's memory full; \emph{RAM cap}: killed at the solver container's host-memory cap of 195\,GB. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{30}$ bytes.
     FEniCS-NS and SU2 are no longer part of the suite.}
   \label{tab:app:outcomes}
@@ -12,29 +13,29 @@
     \toprule
     & \textbf{Sweep} & \textbf{Solver} & \textbf{16\,GB failures} & \textbf{A100 outcome} \\
     \midrule
-      F2 & fwd, size & SU2 & V100: 192--256 no reason & solver not in suite \\
-      F2 & VJP, size & FEniCS-NS & V100: 128--256 no reason & solver not in suite \\
-      F2 & VJP, size & PhiFlow & V100: 192--256 no reason & ok 192--256 (2.6\,GB) \\
-      F2 & VJP, size & XLB & V100: 192--256 no reason & ok 192--256 (1.4\,GB) \\
-      F2 & VJP, steps & FEniCS-NS & V100: 50--1000 no reason & solver not in suite \\
-      F2 & VJP, steps & JAX-CFD & V100: 1000 no reason & ok 1000 (3.7\,GB) \\
-      F2 & VJP, steps & PhiFlow & V100: 10--1000 no reason & ok 10--1000 (4.5\,GB) \\
-      F2 & VJP, steps & PICT & V100: 1000 no reason & ok 1000 (4.4\,GB) \\
-      F2 & VJP, steps & XLB & V100: 10--1000 no reason & ok 10--1000 (0.95\,GB) \\
+      F2 & fwd, size & SU2 & V100: 192--256 no result & solver not in suite \\
+      F2 & VJP, size & FEniCS-NS & V100: 128--256 no result & solver not in suite \\
+      F2 & VJP, size & PhiFlow & V100: 192--256 no result & ok 192--256 (2.6\,GB) \\
+      F2 & VJP, size & XLB & V100: 192--256 no result & ok 192--256 (1.4\,GB) \\
+      F2 & VJP, steps & FEniCS-NS & V100: 50--1000 no result & solver not in suite \\
+      F2 & VJP, steps & JAX-CFD & V100: 1000 no result & ok 1000 (3.7\,GB) \\
+      F2 & VJP, steps & PhiFlow & V100: 10--1000 no result & ok 10--1000 (4.5\,GB) \\
+      F2 & VJP, steps & PICT & V100: 1000 no result & ok 1000 (4.4\,GB) \\
+      F2 & VJP, steps & XLB & V100: 10--1000 no result & ok 10--1000 (0.95\,GB) \\
     \midrule
       F3 & VJP, size & INS.jl & T4: 96 OOM, 128 skipped & ok 96--128 (79\,GB) \\
       F3 & VJP, size & JAX-CFD & T4: 128 OOM & ok 128 (28\,GB) \\
       F3 & VJP, size & PhiFlow & T4: 96 OOM, 128 skipped & ok 96--128 (68\,GB) \\
       F3 & VJP, size & PICT & T4: 96 OOM, 128 skipped & ok 96 (43\,GB); OOM 128 \\
       F3 & VJP, size & Warp-NS & T4: 96 OOM, 128 skipped & ok 96--128 (58\,GB) \\
-      F3 & VJP, size & XLB & V100: 48--64 no reason; T4: 128 OOM & ok 48--128 (44\,GB) \\
+      F3 & VJP, size & XLB & V100: 48--64 no result; T4: 128 OOM & ok 48--128 (44\,GB) \\
       F3 & VJP, steps & Exponax & T4: 2000 OOM & ok 2000 (30\,GB) \\
       F3 & VJP, steps & INS.jl & T4: 500 OOM, 1000--2000 skipped & ok 500--1000 (79\,GB); OOM 2000 \\
       F3 & VJP, steps & JAX-CFD & T4: 1000 OOM, 2000 skipped & ok 1000 (52\,GB); OOM 2000 \\
-      F3 & VJP, steps & PhiFlow & V100: 10--100 no reason; T4: 500 OOM, 1000--2000 skipped & ok 10--1000 (65\,GB); OOM 2000 \\
+      F3 & VJP, steps & PhiFlow & V100: 10--100 no result; T4: 500 OOM, 1000--2000 skipped & ok 10--1000 (65\,GB); OOM 2000 \\
       F3 & VJP, steps & PICT & T4: 500--2000 OOM & ok 500--2000 (74\,GB) \\
       F3 & VJP, steps & Warp-NS & T4: 500 OOM, 1000--2000 skipped & ok 500 (72\,GB); OOM 1000; skipped 2000 \\
-      F3 & VJP, steps & XLB & V100: 10--100 no reason & ok 10--100 (2.2\,GB) \\
+      F3 & VJP, steps & XLB & V100: 10--100 no result & ok 10--100 (2.2\,GB) \\
       F3 & horizon & Exponax & V100: 10240 OOM; T4: 20480 OOM, 40960--81920 skipped & ok 10240--81920 (64\,GB) \\
       F3 & horizon & INS.jl & T4: 5120 OOM, 10240--81920 skipped & ok 5120--10240 (53\,GB); OOM 20480; skipped 40960--81920 \\
       F3 & horizon & JAX-CFD & T4: 10240 OOM, 20480--81920 skipped & ok 10240--20480 (64\,GB); OOM 40960; skipped 81920 \\
@@ -43,27 +44,27 @@
       F3 & horizon & Warp-NS & V100: 160 NaN, 320--10240 skipped; T4: 160 NaN, 320--81920 skipped & NaN 160; skipped 320--81920 \\
       F3 & horizon & XLB & V100: 160 OOM, 320--10240 skipped; T4: 320 NaN, 640--81920 skipped & ok 160 (0.7\,GB); NaN 320; skipped 640--81920 \\
     \midrule
-      S & fwd, size & deal.II & V100: 256--3200 no reason & ok 256--1024 (56\,GB); RAM cap 2048--3200 \\
-      S & fwd, size & FEniCS & V100: 256--3200 no reason & ok 256--1024 (49\,GB); RAM cap 2048; error 3200 \\
-      S & fwd, size & Firedrake & V100: 256 error, 512--3200 no reason & ok 256--1024 (59\,GB); RAM cap 2048; error 3200 \\
-      S & fwd, size & JAX-FEM & V100: 512--3200 no reason & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
-      S & fwd, size & TopOpt.jl & V100: 1024--3200 no reason & ok 1024 (83\,GB); RAM cap 2048--3200 \\
-      S & VJP, size & deal.II & V100: 2048 timeout, 3200 no reason & excluded \\
-      S & VJP, size & FEniCS & V100: 512 error, 1024--3200 no reason & ok 512--1024 (49\,GB); RAM cap 2048; error 3200 \\
-      S & VJP, size & Firedrake & V100: 256 error, 512--3200 no reason & ok 256--1024 (97\,GB); RAM cap 2048; error 3200 \\
-      S & VJP, size & JAX-FEM & V100: 512 error, 1024--3200 no reason & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
-      S & VJP, size & TopOpt.jl & V100: 2048 timeout, 3200 no reason & RAM cap 2048--3200 \\
+      S & fwd, size & deal.II & V100: 256--3200 no result & ok 256--1024 (56\,GB); RAM cap 2048--3200 \\
+      S & fwd, size & FEniCS & V100: 256--3200 no result & ok 256--1024 (49\,GB); RAM cap 2048; error 3200 \\
+      S & fwd, size & Firedrake & V100: 256 error, 512--3200 no result & ok 256--1024 (59\,GB); RAM cap 2048; error 3200 \\
+      S & fwd, size & JAX-FEM & V100: 512--3200 no result & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
+      S & fwd, size & TopOpt.jl & V100: 1024--3200 no result & ok 1024 (83\,GB); RAM cap 2048--3200 \\
+      S & VJP, size & deal.II & V100: 2048 timeout, 3200 no result & excluded \\
+      S & VJP, size & FEniCS & V100: 512 error, 1024--3200 no result & ok 512--1024 (49\,GB); RAM cap 2048; error 3200 \\
+      S & VJP, size & Firedrake & V100: 256 error, 512--3200 no result & ok 256--1024 (97\,GB); RAM cap 2048; error 3200 \\
+      S & VJP, size & JAX-FEM & V100: 512 error, 1024--3200 no result & ok 512--1024 (32\,GB); OOM 2048; skipped 3200 \\
+      S & VJP, size & TopOpt.jl & V100: 2048 timeout, 3200 no result & RAM cap 2048--3200 \\
     \midrule
-      H & fwd, size & deal.II & V100: 2048--4500 no reason & ok 2048--4500 (31\,GB) \\
-      H & fwd, size & FEniCS & V100: 1024--4500 no reason & ok 1024--4500 (78\,GB) \\
-      H & fwd, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--4500 (108\,GB) \\
-      H & fwd, size & JAX-FEM & V100: 2048--4500 no reason & ok 2048--4500 (32\,GB) \\
-      H & fwd, size & torch-fem & V100: 2048 OOM, 4500 no reason & ok 2048 (17\,GB); OOM 4500 \\
-      H & VJP, size & deal.II & V100: 2048 timeout, 4500 no reason & excluded \\
-      H & VJP, size & FEniCS & V100: 1024 error, 2048--4500 no reason & ok 1024--4500 (79\,GB) \\
-      H & VJP, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--4500 (160\,GB) \\
-      H & VJP, size & JAX-FEM & V100: 2048 error, 4500 no reason & ok 2048--4500 (32\,GB) \\
-      H & VJP, size & torch-fem & V100: 2048 OOM, 4500 no reason & ok 2048 (19\,GB); OOM 4500 \\
+      H & fwd, size & deal.II & V100: 2048--4500 no result & ok 2048--4500 (31\,GB) \\
+      H & fwd, size & FEniCS & V100: 1024--4500 no result & ok 1024--4500 (78\,GB) \\
+      H & fwd, size & Firedrake & V100: 512 error, 1024--4500 no result & ok 512--4500 (108\,GB) \\
+      H & fwd, size & JAX-FEM & V100: 2048--4500 no result & ok 2048--4500 (32\,GB) \\
+      H & fwd, size & torch-fem & V100: 2048 OOM, 4500 no result & ok 2048 (17\,GB); OOM 4500 \\
+      H & VJP, size & deal.II & V100: 2048 timeout, 4500 no result & excluded \\
+      H & VJP, size & FEniCS & V100: 1024 error, 2048--4500 no result & ok 1024--4500 (79\,GB) \\
+      H & VJP, size & Firedrake & V100: 512 error, 1024--4500 no result & ok 512--4500 (160\,GB) \\
+      H & VJP, size & JAX-FEM & V100: 2048 error, 4500 no result & ok 2048--4500 (32\,GB) \\
+      H & VJP, size & torch-fem & V100: 2048 OOM, 4500 no result & ok 2048 (19\,GB); OOM 4500 \\
     \bottomrule
   \end{tabular}
 \end{table}

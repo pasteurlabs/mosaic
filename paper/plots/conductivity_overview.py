@@ -73,9 +73,7 @@ def generate(out_dir: Path) -> None:
             ax.set_xlabel("L-BFGS-B iteration")
             ax.set_xlim(0, len(misfit) - 1)
         ax_mis.set_title("Temperature misfit")
-        ax_rho.set_title(
-            r"Conductivity error $\|\rho - \rho^\ast\| / \|\rho^\ast\|$ (%)"
-        )
+        ax_rho.set_title(r"Density error $\|\rho - \rho^\ast\| / \|\rho^\ast\|$ (%)")
 
         # ── Fields ───────────────────────────────────────────────────────────
         fields = [("Truth", truth)] + [

@@ -367,7 +367,7 @@ Dropping the single slowest trial brings 36 of the 40 below 15\%.
 \label{app:outcomes}
 
 Many practitioners have smaller GPUs than the A100, so \cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in a run on a V100 or on the T4 GPUs of our CI, together with its outcome on the A100.
-Every NS configuration that failed on 16\,GB from lack of memory or without a recorded reason completes on 80\,GB, apart from two solvers that are no longer part of the suite.
+Every NS configuration that failed on 16\,GB from lack of memory completes on 80\,GB, apart from two solvers that are no longer part of the suite.
 The non-finite gradients of the F3 horizon sweep recur on the A100, and with more memory the sweeps get further and reach new limits, which the outcome column also lists.
 The V100 run swept the mesh domains to larger sizes than our main sweeps ($n_x$ up to 3\,200 for S and 4\,500 for H), so we extended the size sweeps to these sizes in a separate run on the same A100 machine, with three trials per point.
 Where the two runs overlap, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
@@ -691,7 +691,7 @@ We attribute the spread to the poor conditioning of the inversion: many conducti
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/conductivity_recovery_overview.pdf}
-  \caption{Thermal conductivity recovery with L-BFGS-B. \emph{Top:} temperature misfit and relative error of the recovered conductivity against iteration, per solver. \emph{Bottom:} ground-truth and recovered conductivity fields.}
+  \caption{Thermal conductivity recovery with L-BFGS-B. \emph{Top:} temperature misfit and relative error of the recovered SIMP density against iteration, per solver. \emph{Bottom:} ground-truth and recovered density fields.}
   \label{fig:app:conductivity_recovery}
 \end{figure}
 
