@@ -86,6 +86,7 @@ committing to a particular stack. Our contributions are:
 
 \paragraph{Adjoint methods and differentiable physics}
 Adjoint methods for PDE-constrained optimization date back to
+Lions~\cite{lions1971optimal}, and were brought to fluid design by
 Pironneau~\cite{pironneau1974optimum} and
 Jameson~\cite{jameson1988aerodynamic}, with discrete adjoint
 formulations following in~\cite{giles2000introduction,nadarajah2000studies}.
@@ -118,9 +119,10 @@ APEBench~\cite{koehler2024apebench} benchmarks neural PDE emulators on
 forward accuracy without evaluating solver gradients.
 PDEBench~\cite{takamoto2022pdebench} provides datasets of PDE solutions
 for surrogate training but includes no gradient evaluation.
-NeuralFluid~\cite{fei2024neuralfluid} benchmarks differentiable
-Navier--Stokes solvers on control tasks and reports gradient runtime, yet
-does not systematically assess gradient accuracy, conditioning, or setup compatibility across backends.
+NeuralFluid~\cite{fei2024neuralfluid} pairs a differentiable
+Navier--Stokes solver with a benchmark of design and control tasks and
+compares its forward and backward runtime against PhiFlow, yet
+does not assess gradient accuracy, conditioning, or setup compatibility across backends.
 List et al.~\cite{list2024differentiability} analyze gradient behavior in
 unrolled training, focusing on convergence dynamics rather than
 cross-solver comparison.
@@ -255,7 +257,7 @@ community adds solvers, improves configurations, and extends to new
 domains.
 
 \paragraph{Solver interface and extensibility}
-Each solver is wrapped as a containerized component exposing two entry points,
+Each solver is wrapped as a containerized component exposing two entrypoints,
 \texttt{apply(inputs)\,$\rightarrow$\,outputs} and
 \texttt{vector\_jacobian\_product(inputs, cotangents)\,$\rightarrow$\,vjp}.
 The container isolates all dependencies (language, libraries, GPU

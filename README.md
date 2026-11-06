@@ -81,7 +81,7 @@ Start here:
 [Add a Backend](https://docs.pasteurlabs.ai/projects/mosaic/stable/docs/tutorial.html)
 
 > [!TIP]
-> **Reproducing our paper?** See the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions.
+> **Reproducing our paper?** See the [`v0.3+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions.
 
 ---
 

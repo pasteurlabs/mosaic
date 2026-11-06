@@ -9,7 +9,7 @@ reproduction instructions are available at
 \url{https://github.com/pasteurlabs/mosaic}.
 
 The paper corresponds to the tag
-\href{https://github.com/pasteurlabs/mosaic/tree/v0.1%2Bpaper-repro}{\texttt{v0.1+paper-repro}}
+\href{https://github.com/pasteurlabs/mosaic/tree/v0.3%2Bpaper-repro}{\texttt{v0.3+paper-repro}}
 which contains all code, plotting scripts,
 solver wrappers, and a pinned dependency lockfile sufficient for full
 reproduction. Two reproduction paths are supported. Figures can be
@@ -399,8 +399,9 @@ $4.2\times10^{-2}$ (INS.jl and JAX-CFD). Exponax's $5$--$9\times10^{-4}$ largely
 measures agreement with its own finer run.
 
 \paragraph{F2 cylinder-flow forward accuracy}
-The cylinder experiments use the DFG 2D-1 channel (\cref{app:effort}), whose steady
-drag coefficient $C_d=5.5795$ is known from the literature~\cite{schafer1996benchmark}.
+The cylinder experiments use the DFG 2D-1 channel (\cref{app:effort}). The original
+benchmark bounds its steady drag coefficient to $C_d\in[5.57,5.59]$~\cite{schafer1996benchmark},
+and we score against the high-accuracy reference value $C_d=5.5795$~\cite{nabh1998high}.
 Each solver runs at 10 and 20 cells per diameter until $C_d$ is steady, and its $C_d$ at
 20 cells per diameter must lie within 5\% of the literature value, a tolerance that
 admits staircase representations of the cylinder as well as body-fitted meshes.
@@ -416,7 +417,7 @@ Exponax and JAX-CFD cannot represent the channel and do not run it (\cref{app:ex
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_cylinder.pdf}
   \caption{F2 cylinder benchmark (DFG 2D-1, $\mathrm{Re}=20$). Left: signed error of
-    each solver's drag coefficient against the literature value $C_d=5.5795$ at 10 and 20
+    each solver's drag coefficient against the reference value $C_d=5.5795$~\cite{nabh1998high} at 10 and 20
     cells per diameter. Right: steady velocity magnitude of the most accurate solver at
     20 cells per diameter.}
   \label{fig:app:cylinder}
