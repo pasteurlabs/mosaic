@@ -521,7 +521,7 @@ does not predict numerical stability over long rollouts (\cref{sec:scaling}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/jacobian_svd_comparison.pdf}
-  \caption{Normalized Jacobian singular value spectra ($\sigma_i / \sigma_0$) on F3 ($N=8$) after $T=0.5$, 1, and 2 time units (10, 20, and 40 steps) at $\nu=10^{-3}$, and after $T=0.5$ at $\nu=10^{-2}$.
+  \caption{Normalized Jacobian singular value spectra ($\sigma_i / \sigma_1$) on F3 ($N=8$) after $T=0.5$, 1, and 2 time units (10, 20, and 40 steps) at $\nu=10^{-3}$, and after $T=0.5$ at $\nu=10^{-2}$.
     Exponax and XLB maintain a relatively flat spectrum across all rollout lengths; INS.jl and PhiFlow develop very steep spectra, indicating large condition numbers $\kappa = \sigma_1/\sigma_n$.}
   \label{fig:conditioning}
 \end{figure}
