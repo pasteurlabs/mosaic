@@ -194,7 +194,7 @@ supplementary material).
     S & Structural mech.\ (cantilever) & Compliance minimization (SIMP)
       & 256 & 6 \\
     & \multicolumn{2}{l}{\textit{%
-      Well-studied topology optimization with known optimal}} & & \\[5pt]
+      Well-studied topology optimization with known optimum}} & & \\[5pt]
     F2 & Incompr.\ fluids (2D cylinder) & Inflow optimization for drag min.
       & 41 & 8 \\
     & \multicolumn{2}{l}{\textit{%
@@ -274,7 +274,7 @@ Benchmark tasks are templates, not fixed endpoints: each template is a
 validated starting configuration with known-good settings, so users can
 modify the physical setup (geometry, Reynolds number, boundary conditions)
 while inheriting the evaluation protocol and finite-difference reference.
-Details on contributing and containerization overhead are in \cref{app:software}.
+Details on contributing are in \cref{app:software}, and containerization overhead in \cref{app:cost}.
 
 Integration effort per backend is quantified in \cref{tab:merged}; column
 definitions and full experimental specifications are in \cref{app:effort}.
@@ -470,13 +470,15 @@ perturbation size.
 % The gradient-check table and the memory figure share one float; the generated table's
 % float wrapper is disabled locally so that it can sit in a minipage.
 \begin{figure}[t]
-  \begin{minipage}[b]{0.48\linewidth}
+  \begin{minipage}[t]{0.48\linewidth}
+    \vspace{0pt}
     \makeatletter
     \renewenvironment{table}[1][]{\def\@captype{table}}{}
     \makeatother
     \input{tables/gradient_checks}
   \end{minipage}\hfill
-  \begin{minipage}[b]{0.48\linewidth}
+  \begin{minipage}[t]{0.48\linewidth}
+    \vspace{0pt}
     \centering
     \includegraphics[width=0.86\linewidth]{figures/memory_rollout.pdf}
     \caption{Peak GPU memory of one VJP against rollout steps on F3
@@ -536,8 +538,8 @@ the F2 sweep.
 
 Memory use depends on the differentiation strategy. Reverse-mode AD through a
 time loop stores the trajectory, $O(T\cdot S)$ for $T$ steps of state
-size~$S$. Checkpointing reduces this trajectory memory to
-$O(\sqrt{T}\cdot S)$, and steady adjoints need only $O(S)$.
+size~$S$. Checkpointing, used here only by XLB, reduces this trajectory memory
+to $O(\sqrt{T}\cdot S)$, and steady adjoints need only $O(S)$.
 Unrolling $K$ inner solver iterations multiplies both the stored trajectory
 and the cost of the reverse sweep by~$K$. By the implicit function theorem, a
 solve-level adjoint instead needs only the converged state and one solve with
