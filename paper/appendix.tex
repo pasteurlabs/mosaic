@@ -486,7 +486,7 @@ All solvers pass the checks' thresholds (error at most 0.1 and within $3\times$ 
 \Cref{tab:gradchecks} reports the errors at $\nu=0.01$.
 
 \paragraph{Jacobian singular value spectra}
-\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_0$ of the solver Jacobian for 2D NS across varying viscosity and rollout length; the 3D NS spectra appear in \cref{fig:conditioning} in the main text.
+\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_1$ of the solver Jacobian for 2D NS across varying viscosity and rollout length; the 3D NS spectra appear in \cref{fig:conditioning} in the main text.
 Faster spectral decay indicates a more ill-conditioned Jacobian.
 In 2D, unlike on F3 (\cref{fig:conditioning}), rollout length and viscosity change individual condition numbers by up to two orders of magnitude without a consistent direction, while the ordering of the solvers stays the same in every configuration: XLB has the smallest condition number (20--48), followed by PICT ($2\times10^5$--$2\times10^6$), with the other solvers between $2\times10^7$ and $10^{11}$.
 Exponax, which solves the 2D problem in vorticity form and thus discards the curl-free part of its input, joins the projection solvers at about $10^{10}$ there, unlike in 3D.
