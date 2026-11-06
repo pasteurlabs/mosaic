@@ -542,30 +542,30 @@ The minimum rises as the rollout grows, and for several solvers it moves from $\
 \paragraph{Optimizer configurations}
 All optimization runs use Adam (\texttt{optax.adam}, default
 $\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$), L-BFGS
-(\texttt{optax.lbfgs} with the default zoom line search and a 10-step
-inverse-Hessian memory), or, on H, SciPy's L-BFGS-B with its default memory
-of 10 correction pairs. Unless stated otherwise, runs use patience-based
-early stopping on the loss:
+(SciPy's L-BFGS-B with its default memory of 10 correction pairs), or, on S,
+MMA. Adam runs use patience-based early stopping on the loss:
 the run terminates as soon as the loss has not strictly improved over
 the running minimum for \emph{patience} consecutive iterations, or when
-the maximum iteration budget is reached.
+the maximum iteration budget is reached. L-BFGS stops at the iteration
+budget, when the gradient's 2-norm falls below $10^{-7}$, or when its line
+search fails.
 The 3D NS recovery plots use
 \emph{gradient evaluations} on the x-axis rather than outer iterations:
-Adam costs one value-and-gradient call per step, while L-BFGS's zoom line
-search adds an empirically observed average of $\sim$3 probes per outer
-step, so a per-iteration x-axis would understate L-BFGS's true
-forward-and-backward cost.
+Adam costs one value-and-gradient call per step, while L-BFGS's line
+search can evaluate several trial points per step, so a per-iteration
+x-axis would understate L-BFGS's true forward-and-backward cost. The plots
+count every evaluation the optimizer made.
 Per-task settings:
 \begin{itemize}\itemsep0pt
-  \item \textbf{H (conductivity recovery)}: L-BFGS-B, 1\,000 iters, on a
+  \item \textbf{H (conductivity recovery)}: L-BFGS, 1\,000 iters, on a
         sigmoid reparametrization that keeps the density in $[10^{-3},1]$ and
-        makes the SIMP conductivity affine in the latent variable. It stops at
-        the iteration budget, when the gradient's 2-norm falls below $10^{-7}$,
-        or when its line search fails.
+        makes the SIMP conductivity affine in the latent variable.
   \item \textbf{S (topology optimization)}: Adam $\eta{=}5{\times}10^{-2}$,
         2\,500 iters, patience 100, with a soft volume-fraction penalty
-        of weight 50; L-BFGS, 100 iters, patience 20 (fails to reach Adam's optimum, see below);
-        MMA via NLopt~\citep{svanberg1987mma}, 200 iters, patience 30,
+        of weight 50; L-BFGS, 100 iters, with the same penalty and box
+        constraints (fails to reach Adam's optimum, see below);
+        MMA via NLopt~\citep{svanberg1987mma}, at most 200 objective
+        evaluations, stopping after 30 evaluations without a lower compliance,
         with a hard volume inequality and native box constraints.
   \item \textbf{F2 (drag minimization, Re=20)}: Adam $\eta{=}10^{-2}$, at
         most 100 iters, stopping once the loss has not dropped by 0.1\% in 10
@@ -573,7 +573,7 @@ Per-task settings:
         with the benchmark's flow rate and a peak of at most the benchmark's
         $U_m$.
   \item \textbf{F3 (3D NS IC recovery)}: Adam $\eta{=}10^{-3}$, 500 iters,
-        patience 50; L-BFGS, 100 iters, patience 20.
+        patience 50; L-BFGS, 100 iters.
         L-BFGS+proj and Adam+proj variants apply a solenoidal projection to
         the gradient at each step (see next paragraph) with otherwise
         identical settings. All variants start from $u\equiv 0$ and minimize
@@ -594,7 +594,7 @@ where $\hat g$ is the FFT of the gradient on the periodic box. This
 restricts the search direction to the divergence-free subspace and is
 exact to machine precision on the periodic NS state space. The
 projection is implemented once in the harness and applied uniformly to
-all six fluid solvers; we do not project elsewhere because the
+all seven fluid solvers; we do not project elsewhere because the
 divergence-free constraint is specific to the incompressible NS state.
 
 \paragraph{2D drag minimization}
@@ -625,11 +625,11 @@ We report the \emph{IC error} as the relative $\ell_2$ distance between the reco
 $\|\mathbf{u}^{*}_0 - \mathbf{u}_0\|_2 / \|\mathbf{u}_0\|_2$,
 where $\mathbf{u}_0$ is the ground-truth IC and $\mathbf{u}^{*}_0$ is the optimizer iterate at the reported checkpoint.
 Solver color and marker encode the backend; line style encodes the optimizer.
-Adam stagnates above 40\% normalized IC error across all solvers, while L-BFGS converges below 6\% in fewer gradient evaluations.
-Adding a solenoidal projection after each L-BFGS update (L-BFGS+proj) reduces the final IC error to below 0.5\% and keeps the recovered IC divergence at the physical level of the true IC throughout.
+After its 500 iterations, Adam still has 38--49\% normalized IC error (Exponax 38\%, the other solvers 47--49\%), while L-BFGS reaches 0.01--4\% in 58--109 gradient evaluations.
+Projecting each L-BFGS gradient onto divergence-free fields (L-BFGS+proj) lowers the final IC error to 0.01--0.85\% (below 0.5\% on every solver except XLB) and keeps the recovered IC divergence at the level of the true IC throughout.
 The projection benefit is specific to the second-order optimizer, and the asymmetry has a structural cause.
 L-BFGS builds its Hessian approximation from secant pairs $s_k = x_{k+1} - x_k$; without projection these steps carry large irrotational components orthogonal to the solenoidal manifold, corrupting the curvature model, whereas projection confines $s_k$ to the correct tangent space and recovers the superlinear convergence behavior associated with projected Newton-type methods~\citep{bertsekas1982projected}.
-Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the iterate does not repair the miscalibrated scaling; \cref{fig:app:recovery:adamproj} confirms this.
+Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the gradient does not repair the miscalibrated scaling; \cref{fig:app:recovery:adamproj} confirms this.
 The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (L-BFGS+proj/PhiFlow).
 
 \begin{figure}
@@ -646,7 +646,7 @@ The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_adam_proj.pdf}
   \caption{Adam vs.\ Adam+proj on the 3D NS IC recovery task (linear scale).
-    Adding a solenoidal projection step after each Adam update leaves IC error, IC divergence, and optimization loss essentially unchanged across all solvers, confirming that the projection benefit observed in \cref{fig:app:recovery} is specific to L-BFGS.}
+    Projecting each Adam gradient onto divergence-free fields does not lower the IC error on any solver: the final error changes by at most 1.1 percentage points on five solvers and rises by 8 on XLB and 17 on Exponax, and the IC divergence grows as without projection. The projection benefit observed in \cref{fig:app:recovery} is specific to L-BFGS.}
   \label{fig:app:recovery:adamproj}
 \end{figure}
 
@@ -656,9 +656,9 @@ All solvers converge to the same final compliance (${\approx}0.001$): for smooth
 The optimized density fields (bottom row) are visually identical across solvers, recovering the classic cantilever-beam truss topology.
 
 We also evaluated L-BFGS and MMA~\citep{svanberg1987mma} on this task.
-After 100 quasi-Newton steps, L-BFGS final compliance ranged from $0.001$ (TopOpt.jl) to $0.008$ (JAX-FEM), well above the Adam solution.
+After 100 quasi-Newton steps, L-BFGS final compliance ranged from $0.00108$ (JAX-FEM) to $0.00112$ (FEniCS, Firedrake, TopOpt.jl), 7--12\% above the Adam solution ($0.00100$).
 L-BFGS fails for two reinforcing reasons: the SIMP penalization ($p=3$) makes the objective globally non-convex, so the positive-curvature condition $y_k^\top s_k > 0$ required for valid BFGS updates is frequently violated and updates are skipped~\citep{fu2023quasinewton}; and box constraints $\rho \in [0,1]$ cause rapid active-set changes that invalidate the limited curvature history.
-MMA, by contrast, converges to compliance ${\approx}0.00099$ in only 40 iterations, matching Adam's solution in under 2\% of its iteration budget, because it builds a strictly convex separable approximation at each step that sidesteps the SIMP non-convexity and handles box constraints and the volume inequality natively.
+MMA, by contrast, reaches compliance ${\approx}0.00099$ on every solver within 35--40 objective evaluations, slightly below Adam's solution in under 2\% of its iteration budget, because it builds a strictly convex separable approximation at each step that sidesteps the SIMP non-convexity and handles box constraints and the volume inequality natively.
 MMA is therefore the recommended optimizer for this task class, consistent with standard practice in the topology optimization community.
 
 \begin{figure}
@@ -666,7 +666,7 @@ MMA is therefore the recommended optimizer for this task class, consistent with 
   \includegraphics[width=\linewidth]{figures/topopt_overview.pdf}
   \caption{Structural topology optimization overview.
     \emph{Left:} final optimized density fields from a finer-mesh ($32{\times}4{\times}16$) MMA run, both as 3D voxel renderings (one per solver) and projected along each principal axis.
-    \emph{Right:} compliance and volume-fraction vs.\ iteration for Adam and MMA (line style = optimizer, color = solver) on the coarser $16{\times}2{\times}8$ mesh used throughout the rest of the comparison; MMA converges in $\sim$40 iterations, Adam requires $\sim$2500.
+    \emph{Right:} compliance and volume-fraction vs.\ iteration for Adam and MMA (line style = optimizer, color = solver) on the coarser $16{\times}2{\times}8$ mesh used throughout the rest of the comparison. The MMA x-axis counts objective evaluations: MMA stops after 35--40, Adam runs its full budget of 2\,500 iterations.
     The two columns therefore use different mesh resolutions, as flagged in the panel headers: the finer run sharpens the recovered topology visually, while the coarser run keeps optimizer convergence directly comparable to the other tasks.}
   \label{fig:app:topopt}
 \end{figure}
