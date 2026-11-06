@@ -257,8 +257,8 @@ background ($\rho_\text{bg}=0.1$).
 
 \paragraph{Heat transfer (\cref{fig:app:ics_thermal})}
 All ICs are conductivity or source fields over the thermal mesh.
-\textbf{Uniform conductivity:} $k_0 = 0.5$ everywhere.
-\textbf{Random conductivity:} Gaussian noise centered at $k_0=0.5$
+\textbf{Uniform conductivity:} SIMP density $\rho_0 = 0.5$ everywhere.
+\textbf{Random conductivity:} Gaussian noise in the SIMP density centered at $\rho_0=0.5$
 ($\sigma=0.3$), clipped to $[0.05,\,0.95]$.
 \textbf{Gaussian source:} single heat source centered at
 $(0.5\,L_x,\,0.5\,L_y)$ with width $\sigma=0.2\,\min(L_x,L_y)$.
@@ -1048,7 +1048,7 @@ Finite-element solver using Q1 elements (CG1 on hexahedra) for thermal and struc
 dolfin-adjoint automates the discrete adjoint by replaying the forward tape.
 
 \paragraph{Firedrake~\cite{rathgeber2016firedrake}}
-Mirrors the FEniCS P1/CG1 formulation for structural and thermal problems.
+Mirrors the FEniCS Q1/CG1 formulation for structural and thermal problems.
 Differentiates via firedrake-adjoint, providing an independent
 tape-based adjoint implementation for cross-validation.
 
