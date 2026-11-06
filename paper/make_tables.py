@@ -414,8 +414,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
   \centering\footnotesize
   \setlength{{\tabcolsep}}{{2.5pt}}
   \caption{{Benchmark results, gradient support, and integration effort per solver.
-    Wall-clock times are medians of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
-    1 warmup ($^\dagger$: the runs vary by more than {NOISY_CV * 100:.0f}\%,
+    Wall-clock times are medians of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed trials after
+    1 warmup ($^\dagger$: the trials vary by more than {NOISY_CV * 100:.0f}\%,
     \cref{{tab:app:variance}}), at $N={TABLE_SIZE["ns-grid"]}$ (F2),
     $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
     $n_x={TABLE_SIZE["structural-mesh"]}$ (S), and $n_x={TABLE_SIZE["thermal-mesh"]}$ (H).
@@ -448,8 +448,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
     $\checkmark$\,=\,passes the checks; $\triangle$\,=\,flagged; $\times$\,=\,failed.
     \textit{{Grad.\ support}}: $\bullet$\,=\,AD through the solver; $\circ$\,=\,adjoint or
     hand-written VJP for at least part of it; $\times$\,=\,incorrect; $?$\,=\,not obtained;
-    inflow evidenced only by a converged drag optimization.
-    $\bot$\,=\,excluded (\cref{{app:solver-issues}}); $-$\,=\,not applicable.
+    $\bot$\,=\,excluded (\cref{{app:exclusions}}); $-$\,=\,not applicable.
+    Inflow support is shown only by a converged drag optimization.
     \textit{{Integ.\ effort}} (bespoke LOC): IO\,=\,input/output marshalling;
     Num.\,=\,numerics \& gradient code; Conf.\,=\,solver configuration.
   \end{{minipage}}
@@ -589,7 +589,7 @@ def variance_table(n_worst: int = 3) -> tuple[str, dict]:
   \centering\footnotesize
   \caption{{Run-to-run variation of the timed cost measurements: coefficient of variation (CV,
     sample standard deviation with $n-1$ over the mean of the timed trials) per configuration,
-    i.e.\ per solver, cost experiment and sweep value, with the {n_worst} configurations of
+    i.e.\ per solver, cost experiment, and sweep value, with the {n_worst} configurations of
     highest CV per problem.}}
   \label{{tab:app:variance}}
   \begin{{tabular}}{{@{{}}l r r r {ragged(0.48)}@{{}}}}
@@ -827,7 +827,7 @@ def outcomes_table(
     text = rf"""\begin{{table}}[p]
   \centering\scriptsize
   \setlength{{\tabcolsep}}{{3pt}}
-  \caption{{Configurations that failed on a 16\,GB GPU, in the V100 submission run or the T4
+  \caption{{Configurations that failed on a 16\,GB GPU, in a V100 run or the T4
     CI run, and their outcome on the A100 80\,GB. Sizes are $N$ or $n_x$ for the size sweeps and
     rollout steps for the \emph{{steps}} and \emph{{horizon}} sweeps. The V100 run stored most
     failures without a reason (\emph{{no reason}}). \emph{{skipped}}: not attempted after an

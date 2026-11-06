@@ -136,7 +136,7 @@ wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-infrastructure on which solver-in-the-loop ML research can build;
+infrastructure on which solver-in-the-loop ML research can build, and
 \cref{sec:sil} reports one such study.
 
 % ===========================================================================
@@ -294,20 +294,21 @@ VJP) and never inspects solver internals.
     solver's own forward pass serve as the reference. We
     evaluate directional derivatives along $K$ random perturbation
     vectors ($K{=}6$--$20$) and report cosine similarity and relative
-    error for all problems. On the 2D Taylor--Green vortex, we also check
-    the gradients with respect to the initial field and $\nu$ against
-    closed forms (\cref{tab:gradchecks}). For the two Navier--Stokes
-    problems (F2, F3) we additionally compute the full Jacobian and
-    inspect its singular value spectrum. On forced Kolmogorov flow
-    (\cref{app:kolmogorov}), we also check the gradient through 16 chained
+    error for all problems. On the 2D Taylor--Green vortex, closed-form
+    gradients with respect to the initial field and $\nu$ provide a second
+    reference (\cref{tab:gradchecks}). For the two Navier--Stokes
+    problems (F2, F3), we compute the full Jacobian and inspect its
+    singular value spectrum, and on forced Kolmogorov flow
+    (\cref{app:kolmogorov}) we check the gradient through 16 chained
     calls, as in a training loop.
   \item[Performance.] We measure primal and VJP wall-clock time, their
     ratio, and peak GPU (device-wide) and host memory on each solver's intended
-    hardware target across 4 to 11 problem sizes (grid resolutions or cell counts).
+    hardware target across four to eleven problem sizes (grid resolutions or cell counts).
     The VJP time is the cost of one gradient from scratch, a forward plus an
     adjoint pass (\cref{app:effort}).
     All timings are medians of 3 trials (10 on the mesh domains) after 1 warmup call
-    (to pre-populate JIT caches and stabilize memory allocation).
+    (to pre-populate JIT caches and stabilize memory allocation). The median
+    trial-to-trial coefficient of variation is 2.4\% (\cref{tab:app:variance}).
   \item[Forward accuracy.] We compare accuracy across resolutions against a reference
     (a cross-solver consensus, or a converged spectral run for F3 and
     Kolmogorov flow) and verify adherence to physical laws where applicable
@@ -317,8 +318,9 @@ VJP) and never inspects solver internals.
     gradients on each benchmark task for a fixed iteration budget
     (at most 100 iterations for F2 and F3, with a plateau stop on F2; 1\,000 for H;
     2\,500 for S) and report convergence curves and final objective value.
-    A run succeeds if its final objective is at most half the initial one
-    (0.7 for drag, which must also lie within 30\% of the peer median).
+    A run succeeds if its final objective is at most half the initial one.
+    For drag, the final value must be at most 0.7 of the initial one and
+    lie within 30\% of the peer median.
 \end{description}
 
 \subsection{Included solver backends}
@@ -435,26 +437,26 @@ subsections below.
 Per-domain physical-accuracy validation, including the F2 cylinder forward
 error and the divergence-RMS, kinetic-energy, and analytic-error sweeps for
 the NS domains, is reported in \cref{app:physical_accuracy}.
-Setup incompatibilities exclude some solvers from specific tasks;
-causes are detailed in \cref{sec:optimization,app:solver-issues}.
+Setup incompatibilities exclude some solvers from specific tasks, for
+reasons detailed in \cref{sec:optimization,app:exclusions}.
 
 Gradient implementation effort varies substantially among differentiable solvers.
 We report bespoke lines of code (LOC) as a coarse proxy for integration
 complexity (an imperfect metric, but one that captures order-of-magnitude
 differences reproducibly).
-Warp-NS carries over 2400 numerical lines because the wrapper implements the
-flow solver itself, and its gradients, recorded on Warp's tape, still take 235
-of them, the most of any solver.
-PhiFlow, JAX-CFD, and Exponax each require at most 20 gradient lines, a single
-VJP covering all differentiable inputs, because autodifferentiation through
+Warp-NS has over 2\,400 numerical lines because the wrapper implements the
+flow solver itself. Even with Warp's tape recording the gradients, 235 of these
+lines are gradient code, the most of any solver.
+PhiFlow, JAX-CFD, and Exponax each need at most 20 gradient lines for a single
+VJP that covers all differentiable inputs, because autodifferentiation through
 their JAX backends provides gradients at no extra implementation cost.
-AD is not always this cheap: INS.jl uses Zygote reverse-mode AD yet
+AD is not always this cheap, though. INS.jl uses Zygote reverse-mode AD yet
 still requires 228 lines of gradient-specific code, PICT (PyTorch) 170, and
-XLB (JAX) 91, half of them to checkpoint its rollout, a reminder that AD
-framework support does not guarantee turnkey gradients.
-The maintained benchmark instead records every departure from a solver's
-default usage (mechanism, whether needed, evidence) alongside each solver in
-the repository.
+XLB (JAX) 91, half of which checkpoint its rollout. AD framework support
+therefore does not guarantee turnkey gradients.
+Because line counts capture only part of the effort, the maintained benchmark
+also records every departure from a solver's default usage (mechanism, whether
+needed, evidence) alongside each solver in the repository.
 
 \input{tables/merged}
 
@@ -488,12 +490,12 @@ and central finite-difference gradients at their optimal perturbation
 size~$\varepsilon$, confirming AD correctness; per-solver minimum FD
 errors are reported in the \textit{Error (FD)} column of
 \cref{tab:merged}. The optimal $\varepsilon$ shifts by orders of
-magnitude across solvers and with rollout length and viscosity; see
-\cref{app:gradient} for the full per-domain U-shape curves and
-discussion.
-On F2, exact Taylor--Green gradients with respect to the initial state and
-the viscosity give larger errors than FD (\cref{tab:gradchecks}) because they
-also include the forward discretization error, which an optimizer sees as well.
+magnitude across solvers and with rollout length and viscosity.
+On F2, comparing with the exact Taylor--Green gradients with respect to the
+initial state and the viscosity gives larger errors than the FD check
+(\cref{tab:gradchecks}), because the comparison also includes the forward
+discretization error, which an optimizer sees as well.
+\Cref{app:gradient} gives the full per-domain U-shape curves and discussion.
 
 While gradient accuracy is uniformly high, \emph{conditioning} is not.
 \Cref{fig:conditioning} reports Jacobian conditioning via normalized SVD
@@ -505,9 +507,8 @@ different spectra.
 The sharp spectral drop-off in projection-based solvers is attributable
 to singular vectors associated with non-solenoidal velocity modes, which
 incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}.
-This distinction may matter for optimization, but conditioning alone does
-not predict stability: the well-conditioned XLB returns non-finite gradients
-at 320 rollout steps (\cref{sec:scaling}).
+This distinction may matter for optimization, although conditioning alone
+does not predict numerical stability over long rollouts (\cref{sec:scaling}).
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_main.pdf}
@@ -528,44 +529,45 @@ at 320 rollout steps (\cref{sec:scaling}).
 
 Absolute solver cost varies by orders of magnitude at the same
 resolution (\cref{tab:merged}; full scaling curves in \cref{app:cost}),
-and speed is not tied to generality: XLB, which also runs the F2 drag
-channel, is the fastest F2 solver at $N=64$, while PICT is 90--190$\times$ slower
-than JAX-CFD across the F2 sweep.
+and speed does not track generality. XLB, which also runs the F2 drag
+channel, is the fastest F2 solver at $N=64$, whereas PICT, which runs the
+channel too, is 90--190$\times$ slower than the periodic-only JAX-CFD across
+the F2 sweep.
 
-Memory follows the differentiation strategy. Reverse-mode AD through a time
-loop stores the trajectory, $O(T\cdot S)$ for $T$ steps of state size~$S$, or
-$O(T\cdot K\cdot S)$ if $K$ inner solver iterations are unrolled.
-Unrolling also multiplies the cost of the reverse sweep by~$K$, whereas a
-solve-level adjoint needs only the converged state and one solve with the
-transposed operator, by the implicit function theorem; this is why several
-solvers combine AD with adjoint solves (AD-S in \cref{tab:solvers}).
-Checkpointing reduces this to
-$O(\sqrt{T}\cdot S)$, and steady adjoints need $O(S)$. The F3 measurements
-match (\cref{fig:memory_rollout}): memory grows linearly with the rollout for
-the solvers that store their trajectory, while XLB's block checkpointing only
-doubles it from 500 to 2000 steps. On 80\,GB, Warp-NS runs out of memory at
-1000 steps and INS.jl, JAX-CFD, and PhiFlow at 2000, while the mesh solvers
-stay below 11\,GB. Memory is not always the first limit, however. Over longer
-F3 horizons (\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite
-gradients at 160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run
-out of memory only beyond 20\,000 steps. Every NS configuration that ran out
-of memory on 16\,GB GPUs completes on the A100 (\cref{tab:app:outcomes}).
+Memory use depends on the differentiation strategy. Reverse-mode AD through a
+time loop stores the trajectory, $O(T\cdot S)$ for $T$ steps of state
+size~$S$. Checkpointing reduces this trajectory memory to
+$O(\sqrt{T}\cdot S)$, and steady adjoints need only $O(S)$.
+Unrolling $K$ inner solver iterations multiplies both the stored trajectory
+and the cost of the reverse sweep by~$K$. By the implicit function theorem, a
+solve-level adjoint instead needs only the converged state and one solve with
+the transposed operator, which is why several solvers combine AD with adjoint
+solves (AD-S in \cref{tab:solvers}). The F3 measurements agree
+(\cref{fig:memory_rollout}). At $N=48$, memory grows linearly with the rollout
+for the solvers that store their trajectory, while XLB's block checkpointing
+only doubles it from 500 to 2\,000 steps. On 80\,GB, Warp-NS runs out of memory
+at 1\,000 steps and INS.jl, JAX-CFD, and PhiFlow at 2\,000. Memory is not always
+the first limit, however. On the longer horizon sweep at $N=20$
+(\cref{fig:horizon_sweep}), PhiFlow and Warp-NS return non-finite gradients at
+160 steps and XLB at 320, whereas INS.jl, JAX-CFD, and PICT run out of memory
+only beyond 20\,000 steps. The mesh solvers stay below 11\,GB, and every NS
+configuration that runs out of memory on a 16\,GB GPU completes on the A100
+(\cref{tab:app:outcomes}).
 
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
-forward passes (\cref{tab:app:ratios}). Development runs measured up to
-$1100\times$ for XLB and 8--10$\times$ for Exponax and JAX-CFD, caused by a
+forward passes (\cref{tab:app:ratios}). Measuring this ratio has pitfalls. A
 JAX fallback to the CPU, a timing that counted two forward solves per VJP, and
-full trajectory storage in XLB. Once fixed, all three stay below $5\times$
-across grid sizes. Ratios above $5\times$ on the grid sweeps
-remain for INS.jl (up to 8.6), whose VJP replaces the library's in-place time
+full trajectory storage in XLB each inflated our early measurements, up to
+$1\,100\times$ for XLB and 8--10$\times$ for Exponax and JAX-CFD
+(\cref{app:ratios}). With these corrected, all three stay below $5\times$ across
+grid sizes. On the grid sweeps, only INS.jl (up to 8.6) and PhiFlow on small F2
+grids (5.3) exceed $5\times$. INS.jl's VJP replaces the library's in-place time
 stepper with a slower non-mutating rollout that Zygote can differentiate, and
-for PhiFlow on small F2 grids (5.3), plausibly a fixed per-call overhead
-(\cref{app:ratios}). Across all timed trials, the median coefficient of
-variation is 2.4\% (\cref{tab:app:variance}).
-All timings are measured on one A100 GPU;
-relative rankings may differ on other hardware, particularly between
-GPU and CPU solvers.
+PhiFlow's ratio falls with grid size, plausibly because of a fixed per-call
+overhead.
+All timings are measured on one A100 GPU, and relative rankings may differ on
+other hardware, particularly between GPU and CPU solvers.
 
 \subsection{Optimization task performance}
 \label{sec:optimization}
@@ -594,9 +596,9 @@ On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
 DFG 2D-1 channel at a fixed flow rate. All five solvers that run the channel
 (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic
 profile by 46--48\% in 44--69 iterations (\cref{fig:app:dragopt}).
-Only Exponax, which represents periodic fields only, and JAX-CFD, whose
+Exponax, a Fourier method restricted to periodic fields, and JAX-CFD, whose
 API cannot express the channel's inflow, outflow, and obstacle, are
-excluded (\cref{app:solver-issues}).
+excluded (\cref{app:exclusions}).
 
 \subsection{Solver-in-the-loop training}
 \label{sec:sil}
@@ -604,25 +606,31 @@ excluded (\cref{app:solver-issues}).
 To test whether the standalone checks predict behavior in a training loop, we
 trained a small periodic CNN to correct each solver's coarse ($64^2$)
 Kolmogorov flow every 0.1 time units against the solver's own $256^2$ run
-(\cref{app:sil}). Three arms share windows, updates and initialization:
+(\cref{app:sil}). Three arms share windows, updates, and initialization:
 supervised one-interval pairs, a 16-interval rollout with the gradient stopped
 at every solver call, and the same rollout differentiated through the solver
-(SIL). Five of the seven differentiable F2 solvers pass the gates of a short
-run, and the four that finish the full study in about an hour (all but PICT)
-completed all 36 trainings without a diverging long rollout. Averaged over three seeds, supervised training
-reached the lowest test error on every solver except Exponax, and SIL never beat
-stopping the gradient, although it did on individual seeds. Earlier work found
-training through the solver to outperform such baselines~\cite{um2020sol}; this
-setup did not reproduce that advantage, and training through the solver did not
-separate the solvers beyond their cost (1.0 to 2.8\,s per update). Nor did the
-gradient metrics predict how well training worked: all four solvers' single-call
-and chained gradient errors are below $2\times10^{-3}$, while their test errors
-follow their forward accuracy, 0.06 to 0.09 across the three arms for Exponax and
-XLB, whose uncorrected error is 0.09, and 0.11 to 0.18 for JAX-CFD and INS.jl,
-whose uncorrected error is 0.24 (\cref{tab:app:sil}). PICT's adjoint
-tolerance, the one defect the study surfaced, is also caught by the chained
-check, which single calls miss (\cref{app:kolmogorov}), so on this setup the
-standalone checks predicted whether a solver can be trained through.
+(SIL). Five of the seven differentiable F2 solvers pass the admission checks of
+a short run. Four of them, all but PICT, finish the full study in about an
+hour, and none of their 36 trainings produced a diverging long rollout.
+
+Averaged over three seeds, supervised training reached the lowest test error
+on every solver except Exponax. SIL's average never beat the stopped-gradient
+arm, although individual SIL seeds did. Earlier work found training through
+the solver to outperform such baselines~\cite{um2020sol}. Our setup, a small
+corrector trained for 256 updates on one flow, did not reproduce that
+advantage, and differentiating through the solver did not separate the solvers
+beyond their cost (1.0 to 2.8\,s per update).
+
+Gradient accuracy did not rank the solvers either. All four have single-call
+and chained gradient errors below $2\times10^{-3}$, and their test errors
+follow their forward accuracy instead. Exponax and XLB start from an
+uncorrected error of about 0.09 and reach 0.06 to 0.09 across the three arms,
+while JAX-CFD and INS.jl start from 0.24 and reach 0.11 to 0.18
+(\cref{tab:app:sil}). The study exposed one gradient defect, PICT's adjoint
+tolerance, which the chained check catches and single calls miss
+(\cref{app:kolmogorov}). On this setup, the standalone checks thus caught the
+defect that mattered for training, while forward accuracy decided how well
+the passing solvers trained.
 
 % ===========================================================================
 \section{Discussion and conclusion}
@@ -641,18 +649,16 @@ converge to equivalent optima despite order-of-magnitude differences in
 accuracy and conditioning. While more complex tasks may reveal cases
 where gradient quality becomes limiting, the pattern on these benchmarks
 suggests that pointwise gradient accuracy rarely limits the optimization
-or training procedure. Nor did conditioning predict stability, as the comparatively
-well-conditioned XLB returns non-finite gradients after 320 steps, while
-the poorly conditioned INS.jl and JAX-CFD run until memory runs out.
+or training procedure.
 
 \paragraph{Rollout length is the critical scaling parameter}
-Jacobian conditioning degrades with rollout length
+On F3, Jacobian conditioning degrades with rollout length
 (\cref{fig:conditioning}), markedly for projection-based solvers and
-barely for LBM or spectral methods. Memory grows with rollout length as
-well, but with 80\,GB of GPU memory, numerical stability binds first for
-three of the seven F3 solvers, which return non-finite gradients after
-160 to 320 steps. Memory limits the others only at longer rollouts, if
-at all.
+barely for LBM or spectral methods. Yet conditioning does not predict which
+solvers fail first. With 80\,GB of GPU memory, three of the seven F3 solvers
+return non-finite gradients after 160 to 320 steps, among them the
+comparatively well-conditioned XLB, while the poorly conditioned INS.jl and
+JAX-CFD keep going until they exhaust memory.
 
 \paragraph{On the steady mesh domains, pick the fastest solver}
 On the steady mesh domains (H, S), all solvers produce equivalent
@@ -668,34 +674,33 @@ additional implementation work. Reverse-mode AD through modern
 frameworks (JAX, PyTorch) produces gradients accurate enough for
 optimization at a fraction of the implementation cost.
 
-\paragraph{Scope of the conclusions}
-Rankings, timings, and memory walls are out-of-the-box results for the
-configurations as run (each solver as published, with departures recorded
-in the repository), our task sizes, and our hardware; the order within a
-solver class need not generalize. Category-level findings should transfer:
-which failure modes matter more than gradient accuracy, how VJP cost and
-memory scale per differentiation strategy, and the protocol.
-\Cref{app:exclusions} lists each exclusion and what would lift it.
-
 \paragraph{Limitations}
-The evaluation rests on three assumptions: that central
+The evaluation rests on three assumptions. First, central
 finite-difference gradients at optimal perturbation size are a reliable
 reference (\cref{fig:app:fdcheck}), which the exact-gradient checks
-support (\cref{sec:quality}), that out-of-the-box solver configurations
-are representative of practitioner experience, and that standalone
+support (\cref{sec:quality}). Second, out-of-the-box solver configurations
+are representative of practitioner experience. Third, standalone
 optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines, which one solver-in-the-loop setup supports (\cref{sec:sil}).
-Tasks are intentionally low-complexity (laminar flow, linear elasticity);
-results should not be extrapolated to turbulent, long-horizon, or
-nonlinear regimes without further validation.
-All timings come from a single A100 machine; rankings may shift on other hardware.
-Expert tuning of resolution, time step, or preconditioner could narrow
-observed performance gaps.
+pipelines, which the solver-in-the-loop study supports for one setup
+(\cref{sec:sil}).
+Rankings, timings, and memory limits therefore hold for the configurations
+as run (each solver as published, with departures recorded in the
+repository), for our task sizes, and for a single A100 machine. The order
+within a solver class may not generalize, and expert tuning of resolution,
+time step, or preconditioner could narrow the observed gaps. We expect the
+category-level findings to transfer more readily, namely which failure modes
+matter more than gradient accuracy and how VJP cost and memory scale with the
+differentiation strategy.
+The tasks are intentionally easy, with small grids, moderate Reynolds numbers,
+short rollouts, and steady linear problems on the mesh domains. Results should
+not be extrapolated to harder problems, such as fully developed 3D turbulence,
+long-horizon optimization, or nonlinear mechanics, without further validation.
 Apart from one solver-in-the-loop study, we benchmark solver gradients
 without learned components, so other hybrid pipelines may introduce
 failure modes not captured here.
-Results are pinned to specific solver versions; upstream updates may
-change gradient behavior.
+Results are pinned to specific solver versions, and upstream updates may
+change gradient behavior. \Cref{app:exclusions} lists each task exclusion and
+what would lift it.
 
 \paragraph{Future work}
 Natural extensions include additional domains (multiphysics, compressible

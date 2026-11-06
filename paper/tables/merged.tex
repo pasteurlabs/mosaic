@@ -2,8 +2,8 @@
   \centering\footnotesize
   \setlength{\tabcolsep}{2.5pt}
   \caption{Benchmark results, gradient support, and integration effort per solver.
-    Wall-clock times are medians of 3 (F2, F3) or 10 (S, H) timed runs after
-    1 warmup ($^\dagger$: the runs vary by more than 15\%,
+    Wall-clock times are medians of 3 (F2, F3) or 10 (S, H) timed trials after
+    1 warmup ($^\dagger$: the trials vary by more than 15\%,
     \cref{tab:app:variance}), at $N=64$ (F2),
     $N=32$ (F3),
     $n_x=128$ (S), and $n_x=256$ (H).
@@ -78,8 +78,8 @@
     $\checkmark$\,=\,passes the checks; $\triangle$\,=\,flagged; $\times$\,=\,failed.
     \textit{Grad.\ support}: $\bullet$\,=\,AD through the solver; $\circ$\,=\,adjoint or
     hand-written VJP for at least part of it; $\times$\,=\,incorrect; $?$\,=\,not obtained;
-    inflow evidenced only by a converged drag optimization.
-    $\bot$\,=\,excluded (\cref{app:solver-issues}); $-$\,=\,not applicable.
+    $\bot$\,=\,excluded (\cref{app:exclusions}); $-$\,=\,not applicable.
+    Inflow support is shown only by a converged drag optimization.
     \textit{Integ.\ effort} (bespoke LOC): IO\,=\,input/output marshalling;
     Num.\,=\,numerics \& gradient code; Conf.\,=\,solver configuration.
   \end{minipage}
