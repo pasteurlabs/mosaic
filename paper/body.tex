@@ -577,14 +577,15 @@ optimizer's path within the iteration budget
 (\cref{fig:app:conductivity_recovery}).
 On F3 (IC recovery), we report the relative $\ell_2$ distance between
 the recovered and true initial states (\textit{IC error})
-alongside the optimization loss. Adam stagnates
-above 40\% IC error across all solvers (\cref{fig:recovery_main}):
+alongside the optimization loss. After its 500 iterations, Adam
+still has 38--49\% IC error across solvers (\cref{fig:recovery_main}):
 the loss decreases, but the recovered IC differs noticeably from the
 target.
-L-BFGS converges to substantially lower loss and below 6\% IC error in
-fewer iterations.
+L-BFGS reaches a loss at least four orders of magnitude lower and 0.01--4\% IC
+error in 58--109 gradient evaluations.
 Spectrally projecting the gradient onto the divergence-free subspace
-before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
+before each L-BFGS update (L-BFGS+proj) lowers the IC error to
+0.01--0.85\%, below 0.5\% on every solver except XLB,
 because the projection prevents non-solenoidal components from
 corrupting the curvature model.
 On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
