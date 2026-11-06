@@ -341,7 +341,7 @@ The VJP timing counted a second forward solve, because a gradient through tesser
 Finally, XLB's checkpointing wrapped single steps rather than blocks of steps, so it stored the full trajectory.
 The reported results have all three corrected, although we did not measure how much each correction contributed.
 XLB stays within the expected range, at 2.2 (F2) and 2.5 (F3) at the \cref{tab:merged} sizes and at most 4.6 across grid sizes. Only on the longest F3 rollouts does it reach 7.0.
-Two other solvers exceed $5\times$.
+Two other solvers exceed $5\times$ beyond TopOpt.jl's noise, explained below.
 INS.jl reaches 6.0--8.6 on F3 at $N\geq48$ and up to 5.6 on F2. Its forward call runs the library's in-place time stepper, but Zygote cannot differentiate array mutation, so its VJP runs a hand-written non-mutating rollout instead. On the CPU, that rollout alone took 2.49\,s against 0.56\,s for the in-place stepper at $N=256$ and 100 steps. The ratio therefore compares two different forward implementations.
 PhiFlow's 5.3 at F2 $N=64$ falls to 3.1 at $N=256$, consistent with a fixed per-call overhead.
 
