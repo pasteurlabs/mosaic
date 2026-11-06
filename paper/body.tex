@@ -541,7 +541,7 @@ Unrolling also multiplies the cost of the reverse sweep by~$K$, whereas a
 solve-level adjoint needs only the converged state and one solve with the
 transposed operator, by the implicit function theorem; this is why several
 solvers combine AD with adjoint solves (AD-S in \cref{tab:solvers}).
-Checkpointing reduces this to
+Checkpointing, used here only by XLB, reduces this to
 $O(\sqrt{T}\cdot S)$, and steady adjoints need $O(S)$. The F3 measurements
 match (\cref{fig:memory_rollout}): memory grows linearly with the rollout for
 the solvers that store their trajectory, while XLB's block checkpointing only
