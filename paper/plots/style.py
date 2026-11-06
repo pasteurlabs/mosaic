@@ -54,8 +54,8 @@ SOLVER_STYLES: dict[str, tuple] = {
     "XLB": ("XLB", "#CCBB44", (0, (4, 1)), "v"),  # Muted yellow
     "Warp-NS": ("Warp-NS", "#EE7733", (0, (1, 1)), "P"),  # Vibrant orange
     "Exponax": ("Exponax", "#009988", (0, (5, 1)), "<"),  # Vibrant teal
-    # Non-differentiable reference — muted tone
-    "OpenFOAM": ("OpenFOAM", "#777777", "--", "h"),  # Grey
+    # Reference / excluded solvers — muted tones
+    "OpenFOAM": ("OpenFOAM", "#DDCC77", "--", "h"),  # Muted sand
     # ── FEM (structural and thermal share names and styles) ─────────────────
     "JAX-FEM": ("JAX-FEM", "#0077BB", "-", "o"),  # blue (JAX family)
     "TopOpt.jl": ("TopOpt.jl", "#009988", "--", "s"),  # Vibrant teal

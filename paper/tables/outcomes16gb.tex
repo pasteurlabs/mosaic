@@ -9,8 +9,7 @@
     memory full; \emph{not in sweep}:
     outside the sweep range of the A100 run. Memory is the largest peak over the successful
     points, VRAM for GPU solvers and host RAM for CPU solvers, with 1\,GB = $2^{30}$ bytes.
-    FEniCS-NS and SU2 are no longer part of the suite. \Cref{tab:app:a100failures} lists
-    the failure points of the A100 run.}
+    FEniCS-NS and SU2 are no longer part of the suite.}
   \label{tab:app:outcomes}
   \begin{tabular}{@{}l l l >{\raggedright\arraybackslash}p{0.33\linewidth} >{\raggedright\arraybackslash}p{0.33\linewidth}@{}}
     \toprule
@@ -68,31 +67,6 @@
       H & VJP, size & Firedrake & V100: 512 error, 1024--4500 no reason & ok 512--1024 (7.7\,GB); not in sweep 2048--4500 \\
       H & VJP, size & JAX-FEM & V100: 2048 error, 4500 no reason & not in sweep 2048--4500 \\
       H & VJP, size & torch-fem & V100: 2048 OOM, 4500 no reason & not in sweep 2048--4500 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\begin{table}[t]
-  \centering\small
-  \caption{Failure points of the A100 run in the fluid cost and horizon sweeps, with the
-    peak VRAM recorded before the failure (an allocation that does not fit is not counted;
-    1\,GB = $2^{30}$ bytes). Larger points of the same sweep were not attempted.}
-  \label{tab:app:a100failures}
-  \begin{tabular}{@{}l l l l l r@{}}
-    \toprule
-    & \textbf{Sweep} & \textbf{Solver} & \textbf{First failure} & \textbf{Outcome} & \textbf{VRAM (GB)} \\
-    \midrule
-      F3 & VJP, size & PICT & $N=128$ & OOM & 79 \\
-      F3 & VJP, steps & INS.jl & 2000 steps & OOM & 79 \\
-      F3 & VJP, steps & JAX-CFD & 2000 steps & OOM & 52 \\
-      F3 & VJP, steps & PhiFlow & 2000 steps & OOM & 65 \\
-      F3 & VJP, steps & Warp-NS & 1000 steps & OOM & 79 \\
-      F3 & horizon & INS.jl & 20480 steps & OOM & 79 \\
-      F3 & horizon & JAX-CFD & 40960 steps & OOM & 64 \\
-      F3 & horizon & PhiFlow & 160 steps & NaN & 1.5 \\
-      F3 & horizon & PICT & 40960 steps & OOM & 79 \\
-      F3 & horizon & Warp-NS & 160 steps & NaN & 2.3 \\
-      F3 & horizon & XLB & 320 steps & NaN & 0.7 \\
     \bottomrule
   \end{tabular}
 \end{table}
