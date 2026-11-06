@@ -167,7 +167,9 @@ Periodic domain $[0,2\pi)^3$, uniform Cartesian grid.
 \textbf{Error (Ref.)}: forward agreement, TGV IC, $16^3$ grid, $\nu=0.01$,
 $\Delta t=0.01$, 50 steps, against an Exponax run at $N=64$ truncated to $N=16$.
 The 3D TGV is not advection-free, so its closed-form decay holds only for the first
-steps and cannot score a 50-step run. The converged reference takes its place, and the
+steps: a converged pseudo-spectral solution differs from it by $2.5\times10^{-3}$
+after one step of $\Delta t=0.01$ and by 0.12 after 50 steps, which floors any
+solver's error against it. The converged reference takes its place, and the
 truncation itself changes the reference by less than $10^{-5}$.
 \textbf{Error (FD)}: finite-difference gradient check, $16^3$ grid, TGV IC,
 $\nu=0.001$, $\Delta t=0.05$, 10 steps, 10 random directions.
