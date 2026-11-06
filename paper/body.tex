@@ -593,7 +593,8 @@ fewer iterations.
 Spectrally projecting the gradient onto the divergence-free subspace
 before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
 because the projection prevents non-solenoidal components from
-corrupting the curvature model.
+corrupting the curvature model. On this task, the choice of optimizer
+matters more than the choice of solver.
 On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
 DFG 2D-1 channel at a fixed flow rate. All five differentiable solvers that run the channel
 (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic
@@ -644,8 +645,7 @@ operating regimes within a single domain. Yet these differences do not
 affect optimization outcomes uniformly. Based on the four benchmark
 tasks evaluated here, we highlight four practitioner-facing observations.
 
-\paragraph{Gradient quality is often good enough; the real bottlenecks
-lie elsewhere}
+\paragraph{Gradient quality is often good enough}
 On every task where they can run, all solvers that produce gradients
 converge to equivalent optima despite order-of-magnitude differences in
 accuracy and conditioning. While more complex tasks may reveal cases
@@ -674,7 +674,8 @@ Hand-derived adjoints can be cheap, as TopOpt.jl's self-adjoint
 compliance gradient costs about one forward solve (\cref{tab:merged}), but each new control variable or objective requires
 additional implementation work. Reverse-mode AD through modern
 frameworks (JAX, PyTorch) produces gradients accurate enough for
-optimization at a fraction of the implementation cost.
+optimization at a fraction of the implementation cost, and at a price that we find to be between 1.4 and 5.3 times that of a forward solve (\cref{tab:app:ratios}), so a solver's forward time is a good predictor for its
+gradient time.
 
 \paragraph{Limitations}
 The evaluation rests on three assumptions. First, central
