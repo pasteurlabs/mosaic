@@ -105,7 +105,7 @@ _K_MIN_RATIO = 1e-3
 # ---------------------------------------------------------------------------
 
 
-def _build_mesh(
+def _build_mesh(  # mosaic:init
     points_np: np.ndarray, cells_np: np.ndarray
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Convert numpy mesh arrays to torch tensors on the chosen device."""
@@ -114,7 +114,7 @@ def _build_mesh(
     return nodes, elements
 
 
-def _build_bc_tensors(
+def _build_bc_tensors(  # mosaic:init
     model: SolidHeat, n_nodes: int, bc_dict: dict
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Build constraint / temperature / Neumann heat-flux tensors (all shape (n_nodes, 1)).
@@ -179,7 +179,7 @@ def _build_bc_tensors(
     return constraints, temperatures, heat_flux
 
 
-def _forward_torchfem(
+def _forward_torchfem(  # mosaic:physics
     points_np: np.ndarray,
     cells_np: np.ndarray,
     bc_dict: dict,
@@ -251,7 +251,7 @@ def _forward_torchfem(
     return u_k, f_k, heat_flux_base
 
 
-def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:
+def _apply_core(inputs_dict: dict, want_grad: bool) -> dict:  # mosaic:physics
     """Shared forward solver used by both ``apply`` and ``vector_jacobian_product``.
 
     Args:
@@ -336,7 +336,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     }
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho,source:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

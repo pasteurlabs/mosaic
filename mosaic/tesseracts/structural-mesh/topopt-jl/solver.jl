@@ -1,3 +1,4 @@
+# mosaic:util
 using TopOpt
 using Zygote
 
@@ -5,6 +6,7 @@ using Zygote
 # INP file generation from raw mesh arrays
 # ---------------------------------------------------------------------------
 
+# mosaic:io
 """
     write_inp_hex(filepath, pts, cells, dirichlet_mask, cload_mask, cload_values, E, nu)
 
@@ -105,6 +107,7 @@ end
 # current setup only
 # ---------------------------------------------------------------------------
 
+# mosaic:init
 # Dict compares keys with isequal after hashing, so a key matches only when every
 # array and constant is equal.
 const _CACHE = Dict{Tuple, Tuple}()
@@ -142,6 +145,7 @@ end
 # Public API (called from Python via juliacall)
 # ---------------------------------------------------------------------------
 
+# mosaic:physics
 """
     topopt_forward(rho_in, pts_in, cells_in, dirichlet_mask_in,
                    cload_mask_in, cload_values_in, E, nu, xmin)
@@ -175,6 +179,7 @@ function topopt_forward(
     return Float64(comp(PseudoDensities(rho)))
 end
 
+# mosaic:grad:rho:adjoint
 """
     topopt_vjp(rho_in, cotangent, pts_in, cells_in, dirichlet_mask_in,
                cload_mask_in, cload_values_in, E, nu, xmin)

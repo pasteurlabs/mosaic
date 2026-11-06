@@ -1,3 +1,4 @@
+// mosaic:io
 // cnpy — NumPy .npy / .npz I/O for C++
 // Original: https://github.com/rogersce/cnpy  (MIT licence)
 // Vendored and trimmed: only npy_save / npy_load used by heat_solver.
@@ -37,6 +38,7 @@ namespace cnpy {
 // ---------------------------------------------------------------------------
 // NpyArray — holds a loaded array
 // ---------------------------------------------------------------------------
+// mosaic:util
 struct NpyArray {
     NpyArray(const std::vector<size_t>& _shape, size_t _word_size,
              bool _fortran_order)
@@ -70,6 +72,7 @@ struct NpyArray {
 // ---------------------------------------------------------------------------
 // Type → numpy dtype string
 // ---------------------------------------------------------------------------
+// mosaic:util
 template <typename T> std::string dtype_str() {
     // little-endian prefix '<' is default for all numeric types
     if (std::is_same<T, float>::value)  return "<f4";
@@ -84,6 +87,7 @@ template <typename T> std::string dtype_str() {
 // ---------------------------------------------------------------------------
 // Build the .npy header string
 // ---------------------------------------------------------------------------
+// mosaic:io
 inline std::string build_npy_header(const std::string& dtype,
                                     const std::vector<size_t>& shape,
                                     bool fortran_order = false) {
