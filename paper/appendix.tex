@@ -195,7 +195,7 @@ volume fraction $0.5$, Adam ($\eta=5\times10^{-2}$), up to 2\,500 iterations.
 Quasi-2D heated slab $[0,2]\times[0,1]$, HEX8 elements (single layer), SIMP
 penalization ($p=3$, $k_\text{max}=1$, $k_\text{min}/k_\text{max}=10^{-3}$).
 \textbf{Fwd/VJP}: $256\times128\times1$ mesh (${\approx}33\text{k}$ elements), uniform
-conductivity $k_0=0.5$, Neumann flux $Q_\text{total}=1$ uniformly over the right face
+SIMP density $\rho_0=0.5$, Neumann flux $Q_\text{total}=1$ uniformly over the right face
 ($T=0$ at $x=0$).
 \textbf{Cost}: $n_x\times n_x/2\times1$ meshes with $n_x\in\{16,\ldots,1024\}$
 (128--524\,k elements).
