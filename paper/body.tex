@@ -593,7 +593,7 @@ before each L-BFGS update (L-BFGS+proj) drops the IC error below 0.5\%,
 because the projection prevents non-solenoidal components from
 corrupting the curvature model.
 On the 2D drag minimization (F2), Adam reshapes the inlet profile of the
-DFG 2D-1 channel at a fixed flow rate. All five solvers that run the channel
+DFG 2D-1 channel at a fixed flow rate. All five differentiable solvers that run the channel
 (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce the drag of the parabolic
 profile by 46--48\% in 44--69 iterations (\cref{fig:app:dragopt}).
 Only Exponax, which represents periodic fields only, and JAX-CFD, whose
