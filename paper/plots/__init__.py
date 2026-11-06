@@ -11,6 +11,7 @@ import functools
 import importlib
 import json
 import os
+import statistics
 from collections.abc import Callable
 from pathlib import Path
 
@@ -69,6 +70,26 @@ def by_solver(result: dict) -> dict[str, dict[str, dict]]:
     for r in result["results"]:
         out.setdefault(r["solver"], {})[str(r["sweep_value"])] = r.get("metrics") or {}
     return out
+
+
+def median_time(metrics: dict) -> float | None:
+    """Median wall time over the timed trials (the mean if trials are missing)."""
+    trials = metrics.get("trials_s")
+    return float(statistics.median(trials)) if trials else metrics.get("mean")
+
+
+def trial_range(metrics: dict) -> tuple[float, float] | None:
+    """Fastest and slowest timed trial, or None if trials are missing."""
+    trials = metrics.get("trials_s")
+    return (min(trials), max(trials)) if trials else None
+
+
+def trial_cv(metrics: dict) -> float | None:
+    """Coefficient of variation of the timed trials (sample standard deviation)."""
+    trials = metrics.get("trials_s")
+    if not trials or len(trials) < 2:
+        return None
+    return statistics.stdev(trials) / statistics.fmean(trials)
 
 
 def is_ok(metrics: dict) -> bool:

@@ -29,9 +29,11 @@ from plots import (
     failure_type,
     is_ok,
     load_result,
+    median_time,
     results_dir,
     solver_metadata,
     solver_wrappers,
+    trial_cv,
 )
 
 PROBLEMS = ["ns-grid", "ns-3d-grid", "structural-mesh", "thermal-mesh"]
@@ -164,13 +166,23 @@ def load_status(path: Path) -> dict[tuple[str, str, str], dict]:
     }
 
 
-def mean_times(problem: str, experiment: str) -> dict[tuple[str, str], float]:
-    """Mean wall time of every successful (solver, sweep value)."""
+def median_times(problem: str, experiment: str) -> dict[tuple[str, str], float]:
+    """Median wall time over the timed trials of every successful (solver, sweep value)."""
     return {
-        (s, v): m["mean"]
+        (s, v): t
         for s, pts in by_solver(load_result(problem, experiment)).items()
         for v, m in pts.items()
-        if is_ok(m) and m.get("mean") is not None
+        if is_ok(m) and (t := median_time(m)) is not None
+    }
+
+
+def noisy(problem: str, experiment: str) -> set[tuple[str, str]]:
+    """(solver, sweep value) whose timed trials vary by more than NOISY_CV."""
+    return {
+        (s, v)
+        for s, pts in by_solver(load_result(problem, experiment)).items()
+        for v, m in pts.items()
+        if is_ok(m) and (cv := trial_cv(m)) is not None and cv > NOISY_CV
     }
 
 
@@ -265,6 +277,8 @@ BLOCKS = [
 ]
 
 LOC_COLUMNS = ("IO", "Num.", "Conf.")
+# Times whose timed trials vary more than this (coefficient of variation) get a dagger.
+NOISY_CV = 0.15
 
 
 def line_counts(problem: str) -> dict[str, tuple[int, int, int]]:
@@ -326,12 +340,12 @@ def merged_table(status: dict) -> tuple[str, dict]:
         solvers = solver_order(p)
         fwd = {
             s: t * b["scale"]
-            for (s, v), t in mean_times(p, "cost/spatial_cost").items()
+            for (s, v), t in median_times(p, "cost/spatial_cost").items()
             if v == size
         }
         vjp = {
             s: t * b["scale"]
-            for (s, v), t in mean_times(p, "cost/vjp_cost/by_N").items()
+            for (s, v), t in median_times(p, "cost/vjp_cost/by_N").items()
             if v == size
         }
         ref = errors_at(p, *b["ref"])
@@ -339,6 +353,10 @@ def merged_table(status: dict) -> tuple[str, dict]:
         fd = fd_errors(p)
         loc = line_counts(p)
         summary[PROBLEM_LABEL[p]] = {"fwd": fwd, "vjp": vjp, "fd": fd}
+        noisy_runs = {
+            "fwd": {s for s, v in noisy(p, "cost/spatial_cost") if v == size},
+            "vjp": {s for s, v in noisy(p, "cost/vjp_cost/by_N") if v == size},
+        }
 
         cols = {}
         for key, vals, fmt in (
@@ -350,6 +368,9 @@ def merged_table(status: dict) -> tuple[str, dict]:
         ):
             cells = {s: (fmt(vals[s]) if s in vals else None) for s in solvers}
             cells = bold_min(cells, vals)
+            for s in noisy_runs.get(key, ()):
+                if cells.get(s) is not None:
+                    cells[s] += "$^\\dagger$"
             missing = "$-$" if key == "an" and not b["an"] else None
             for s in solvers:
                 if cells[s] is None:
@@ -393,8 +414,10 @@ def merged_table(status: dict) -> tuple[str, dict]:
   \centering\footnotesize
   \setlength{{\tabcolsep}}{{2.5pt}}
   \caption{{Benchmark results, gradient support, and integration effort per solver.
-    Wall-clock times are means of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
-    1 warmup, at $N={TABLE_SIZE["ns-grid"]}$ (F2), $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
+    Wall-clock times are medians of {ns_trials} (F2, F3) or {mesh_trials} (S, H) timed runs after
+    1 warmup ($^\dagger$: the runs vary by more than {NOISY_CV * 100:.0f}\%,
+    \cref{{tab:app:variance}}), at $N={TABLE_SIZE["ns-grid"]}$ (F2),
+    $N={TABLE_SIZE["ns-3d-grid"]}$ (F3),
     $n_x={TABLE_SIZE["structural-mesh"]}$ (S), and $n_x={TABLE_SIZE["thermal-mesh"]}$ (H).
     Full specifications in \cref{{app:effort}}; initial conditions in
     \cref{{app:ics}}. Legend below table.}}
@@ -439,7 +462,7 @@ def merged_table(status: dict) -> tuple[str, dict]:
 
 
 def ratios(problem: str, fwd_exp: str, vjp_exp: str) -> dict[str, dict[str, float]]:
-    fwd, vjp = mean_times(problem, fwd_exp), mean_times(problem, vjp_exp)
+    fwd, vjp = median_times(problem, fwd_exp), median_times(problem, vjp_exp)
     out: dict[str, dict[str, float]] = defaultdict(dict)
     for (s, v), t in vjp.items():
         if (s, v) in fwd:
@@ -490,7 +513,7 @@ def ratio_table() -> tuple[str, dict]:
     body = "\n    ".join(rows)
     text = rf"""\begin{{table}}[t]
   \centering\small
-  \caption{{Ratio of VJP to forward wall time per solver, from mean times: at the
+  \caption{{Ratio of VJP to forward wall time per solver, from median times: at the
     \cref{{tab:merged}} size, and the range over the grid-size sweep and, for the fluid
     domains, the rollout-length sweep. The VJP request includes a forward pass, so about~2 is
     the expected floor for a solver whose gradient costs one adjoint solve.}}

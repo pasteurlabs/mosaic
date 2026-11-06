@@ -306,7 +306,7 @@ VJP) and never inspects solver internals.
     hardware target across 4 to 11 problem sizes (grid resolutions or cell counts).
     The VJP time is the cost of one gradient from scratch, a forward plus an
     adjoint pass (\cref{app:effort}).
-    All timings are averaged over 3 trials (10 on the mesh domains) after 1 warmup call
+    All timings are medians of 3 trials (10 on the mesh domains) after 1 warmup call
     (to pre-populate JIT caches and stabilize memory allocation).
   \item[Forward accuracy.] We compare accuracy across resolutions against a reference
     (a cross-solver consensus, or a converged spectral run for F3 and
@@ -529,7 +529,7 @@ at 320 rollout steps (\cref{sec:scaling}).
 Absolute solver cost varies by orders of magnitude at the same
 resolution (\cref{tab:merged}; full scaling curves in \cref{app:cost}),
 and speed is not tied to generality: XLB, which also runs the F2 drag
-channel, is the fastest F2 solver at $N=64$, while PICT is 85--190$\times$ slower
+channel, is the fastest F2 solver at $N=64$, while PICT is 90--190$\times$ slower
 than JAX-CFD across the F2 sweep.
 
 Memory follows the differentiation strategy. Reverse-mode AD through a time
@@ -554,7 +554,7 @@ $1100\times$ for XLB and 8--10$\times$ for Exponax and JAX-CFD, caused by a
 JAX fallback to the CPU, a timing that counted two forward solves per VJP, and
 full trajectory storage in XLB. Once fixed, all three stay below $5\times$
 across grid sizes. Ratios above $5\times$ on the grid sweeps
-remain for INS.jl (up to 7.8), whose VJP replaces the library's in-place time
+remain for INS.jl (up to 8.6), whose VJP replaces the library's in-place time
 stepper with a slower non-mutating rollout that Zygote can differentiate, and
 for PhiFlow on small F2 grids (5.3), plausibly a fixed per-call overhead
 (\cref{app:ratios}). Across all timed trials, the median coefficient of

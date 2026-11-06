@@ -18,7 +18,15 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from . import TEXTWIDTH, by_solver, is_ok, load_result, solver_metadata
+from . import (
+    TEXTWIDTH,
+    by_solver,
+    is_ok,
+    load_result,
+    median_time,
+    solver_metadata,
+    trial_range,
+)
 from .style import (
     NS_ORDER,
     RCPARAMS,
@@ -51,10 +59,12 @@ def _fmt_size(x: float, _pos=None) -> str:
 
 
 def _times(metrics: dict[str, dict], size: Callable[[int], int]):
-    """Split one solver's sweep into ({size: mean time}, [sizes of failed runs])."""
-    ok = {size(int(v)): m["mean"] for v, m in metrics.items() if is_ok(m)}
+    """Split one solver's sweep into ({size: median time}, {size: (fastest, slowest)},
+    [sizes of failed runs])."""
+    ok = {size(int(v)): median_time(m) for v, m in metrics.items() if is_ok(m)}
+    spread = {size(int(v)): trial_range(m) for v, m in metrics.items() if is_ok(m)}
     failed = sorted(size(int(v)) for v, m in metrics.items() if not is_ok(m))
-    return dict(sorted(ok.items())), failed
+    return dict(sorted(ok.items())), spread, failed
 
 
 def _combined_fig(rows: list[Row], order: list[str], xlabel: str) -> plt.Figure:
@@ -83,15 +93,34 @@ def _combined_fig(rows: list[Row], order: list[str], xlabel: str) -> plt.Figure:
                 "markeredgewidth": 0,
                 "linewidth": 1.5,
             }
-            f_ok, f_fail = _times(fwd.get(solver, {}), size)
-            v_ok, v_fail = _times(vjp.get(solver, {}), size)
+            f_ok, f_spread, f_fail = _times(fwd.get(solver, {}), size)
+            v_ok, v_spread, v_fail = _times(vjp.get(solver, {}), size)
             common = [n for n in f_ok if n in v_ok]
-            for ax, xs, ys, failed in (
-                (ax_fwd, list(f_ok), list(f_ok.values()), f_fail),
-                (ax_vjp, list(v_ok), list(v_ok.values()), v_fail),
-                (ax_ratio, common, [v_ok[n] / f_ok[n] for n in common], []),
+            for ax, xs, ys, spread, failed in (
+                (ax_fwd, list(f_ok), list(f_ok.values()), f_spread, f_fail),
+                (ax_vjp, list(v_ok), list(v_ok.values()), v_spread, v_fail),
+                (ax_ratio, common, [v_ok[n] / f_ok[n] for n in common], {}, []),
             ):
                 ax.loglog(xs, ys, **kw)
+                # Error bars: fastest and slowest timed run around the median.
+                bars = [
+                    (x, y, spread[x])
+                    for x, y in zip(xs, ys, strict=True)
+                    if spread.get(x)
+                ]
+                if bars:
+                    ax.errorbar(
+                        [x for x, _, _ in bars],
+                        [y for _, y, _ in bars],
+                        yerr=[
+                            [y - lo for _, y, (lo, _) in bars],
+                            [hi - y for _, y, (_, hi) in bars],
+                        ],
+                        fmt="none",
+                        ecolor=color,
+                        elinewidth=0.8,
+                        capsize=1.5,
+                    )
                 ax.plot(
                     failed,
                     [1.0] * len(failed),
