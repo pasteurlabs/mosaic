@@ -516,7 +516,7 @@ def ratio_table() -> tuple[str, dict]:
   \caption{{Ratio of VJP to forward wall time per solver, from median times: at the
     \cref{{tab:merged}} size, and the range over the grid-size sweep and, for the fluid
     domains, the rollout-length sweep. The VJP request includes a forward pass, so about~2 is
-    the expected floor for a solver whose gradient costs one adjoint solve.}}
+    the typical value for a solver whose gradient costs one adjoint solve.}}
   \label{{tab:app:ratios}}
   \begin{{tabular}}{{@{{}}l c c c@{{}}}}
     \toprule
