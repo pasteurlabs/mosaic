@@ -131,7 +131,7 @@ plus an adjoint pass. TopOpt.jl's compliance gradient is self-adjoint and needs 
 second solve, so its VJP costs about one forward solve.
 The timed window covers host-side serialization, the Tesseract HTTP round-trip, solver
 compute, and response deserialization; container startup is excluded.
-A trial longer than 1\,000\,s ends the sweep for that solver, and every request to a
+A first trial longer than 1\,000\,s ends the sweep for that solver, and every request to a
 solver container times out after 7\,200\,s.
 Peak VRAM is NVML's used memory of the whole device over the warmup and the trials.
 It includes the CUDA context and the allocator pools and excludes the 768\,MiB the
