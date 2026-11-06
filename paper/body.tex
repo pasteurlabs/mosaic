@@ -468,13 +468,15 @@ perturbation size.
 % The gradient-check table and the memory figure share one float; the generated table's
 % float wrapper is disabled locally so that it can sit in a minipage.
 \begin{figure}[t]
-  \begin{minipage}[b]{0.48\linewidth}
+  \begin{minipage}[t]{0.48\linewidth}
+    \vspace{0pt}
     \makeatletter
     \renewenvironment{table}[1][]{\def\@captype{table}}{}
     \makeatother
     \input{tables/gradient_checks}
   \end{minipage}\hfill
-  \begin{minipage}[b]{0.48\linewidth}
+  \begin{minipage}[t]{0.48\linewidth}
+    \vspace{0pt}
     \centering
     \includegraphics[width=0.86\linewidth]{figures/memory_rollout.pdf}
     \caption{Peak GPU memory of one VJP against rollout steps on F3
