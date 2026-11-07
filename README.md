@@ -167,8 +167,8 @@ The paper's results were computed on one NVIDIA A100 80 GB with the code and sol
 ```bash
 git clone --branch v0.3+paper-repro https://github.com/pasteurlabs/mosaic && cd mosaic
 
-# Download the paper's results (~1.2 GB)
-wget -qO- '<archive-url>' | tar xz
+# Download the paper's results from the release (~1.2 GB)
+wget -qO- 'https://github.com/pasteurlabs/mosaic/releases/download/v0.3%2Bpaper-repro/mosaic-paper-a100-results.tar.gz' | tar xz
 export MOSAIC_RESULTS_DIR=$PWD/mosaic-paper-a100-results/results
 
 uv run paper/make_figures.py                                # figures -> paper/figures/
