@@ -17,7 +17,7 @@
 \item {\bf Limitations}
     \item[] Question: Does the paper discuss the limitations of the work performed by the authors?
     \item[] Answer: \answerYes{}
-    \item[] Justification: \Cref{sec:conclusion} includes a dedicated Limitations paragraph discussing the three main assumptions (FD reference reliability, out-of-the-box configurations, standalone tasks as proxy) and their mitigations, and separates category-level findings from benchmark-specific rankings, timings, and memory limits. \Cref{app:exclusions} lists every task exclusion and what would lift it.
+    \item[] Justification: \Cref{sec:conclusion} includes a dedicated Limitations paragraph discussing the three main assumptions (FD reference reliability, solvers run as published with every departure from default usage recorded, standalone tasks as proxy) and their mitigations, and separates category-level findings from benchmark-specific rankings, timings, and memory limits. \Cref{app:exclusions} lists every task exclusion and what would lift it.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper has no limitation while the answer \answerNo{} means that the paper has limitations, but those are not discussed in the paper.
@@ -84,7 +84,7 @@
 \item {\bf Experimental setting/details}
     \item[] Question: Does the paper specify all the training and test details (e.g., data splits, hyperparameters, how they were chosen, type of optimizer) necessary to understand the results?
     \item[] Answer: \answerYes{}
-    \item[] Justification: \Cref{sec:experiments} specifies the hardware, and \cref{app:effort} gives the full instance specification and the total compute time of the reported experiments. Each solver's hardware target (CPU/GPU) is indicated in \cref{tab:solvers}, and wall-clock times are reported per solver. Development work, continuous-integration runs on T4 GPUs, and earlier runs of the suite used more compute than the reported experiments.
+    \item[] Justification: \Cref{app:recovery} gives the optimizer, hyperparameters, iteration budget, and stopping rule of every optimization task, and the pass thresholds of the convergence checks. \Cref{app:sil} gives the solver-in-the-loop study's data split (four training, one validation, and three test states), architecture, optimizer (Adam, learning rate $10^{-3}$, 256 updates, three seeds), and checkpoint selection. These settings are shared by all solvers and training variants and were not tuned per variant.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -112,7 +112,7 @@
 \item {\bf Experiments compute resources}
     \item[] Question: For each experiment, does the paper provide sufficient information on the computer resources (type of compute workers, memory, time of execution) needed to reproduce the experiments?
     \item[] Answer: \answerYes{}
-    \item[] Justification: \Cref{sec:experiments} specifies the hardware: one Azure Standard\_NC24ads\_A100\_v4 instance with one NVIDIA A100 80\,GB PCIe GPU, 24 vCPUs (AMD EPYC 7V13), and 216\,GiB RAM. Each solver's hardware target (CPU/GPU) is indicated in \cref{tab:solvers}, and wall-clock times are reported per solver. The full suite took about 13.5 hours on this instance, and the solver-in-the-loop study about 3 hours. Development work, continuous-integration runs on T4 GPUs, and earlier runs of the suite used more compute than the reported experiments.
+    \item[] Justification: \Cref{sec:experiments} specifies the hardware: one Azure Standard\_NC24ads\_A100\_v4 instance with one NVIDIA A100 80\,GB PCIe GPU, 24 vCPUs (AMD EPYC 7V13), and 216\,GiB RAM. Each solver's hardware target (CPU/GPU) is indicated in \cref{tab:solvers}, and wall-clock times are reported per solver. The default suites took about 13.5 hours on this instance, the extended mesh sweeps about 22 hours, the optimizer comparison about 10 hours, and the solver-in-the-loop study about 3 hours. Development work, continuous-integration runs on T4 GPUs, and earlier runs of the suite used more compute than the reported experiments.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -162,7 +162,7 @@
 \item {\bf Licenses for existing assets}
     \item[] Question: Are the creators or original owners of assets (e.g., code, data, models), used in the paper, properly credited and are the license and terms of use explicitly mentioned and properly respected?
     \item[] Answer: \answerYes{}
-    \item[] Justification: All solver backends are cited in \cref{tab:solvers} and \cref{app:solvers}. Upstream licenses are documented per solver in the repository. The benchmark code is released under Apache~2.0 (\cref{app:software}).
+    \item[] Justification: All solver backends are cited in \cref{tab:solvers} and \cref{app:solvers}. Each solver backend is used under its upstream license, which Mosaic does not change. The benchmark code is released under Apache~2.0 (\cref{app:software}).
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not use existing assets.

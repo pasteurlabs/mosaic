@@ -519,7 +519,7 @@ pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
 forward passes (\cref{tab:app:ratios}). This makes the ratio a cheap
 diagnostic for integration problems. During development, we found ratios of up to
 $1\,100$, which exposed three integration bugs, all fixed in the reported results
-(\cref{app:ratios}). INS.jl's ratio stays high at every grid size because
+(\cref{app:ratios}). INS.jl's ratio stays high at every grid size, likely because
 Zygote cannot differentiate the library's in-place time stepper, so its VJP
 runs a slower non-mutating rollout instead.
 

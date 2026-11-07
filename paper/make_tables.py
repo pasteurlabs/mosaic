@@ -247,6 +247,11 @@ BLOCKS = [
     },
 ]
 
+# Gradients whose strategy differs from the solver's ``ad_strategy``: Warp-NS
+# differentiates the periodic boxes with wp.Tape, but the channel's CG pressure
+# solves have a hand-written adjoint.
+GRAD_STRATEGY_OVERRIDES = {("Warp-NS", "optimization/drag_opt"): "hybrid"}
+
 LOC_COLUMNS = ("IO", "Num.", "Conf.")
 # Times whose timed trials vary more than this (coefficient of variation) get a dagger.
 NOISY_CV = 0.15
@@ -364,7 +369,12 @@ def merged_table(status: dict) -> tuple[str, dict]:
         rows.append(f"\\cmidrule(lr){{{g0}-{g0 + len(b['grads']) - 1}}}")
         for s in solvers:
             ad = meta[s]["ad_strategy"]
-            grads = [grad_symbol(status.get((p, exp, s)), ad) for _, exp in b["grads"]]
+            grads = [
+                grad_symbol(
+                    status.get((p, exp, s)), GRAD_STRATEGY_OVERRIDES.get((s, exp), ad)
+                )
+                for _, exp in b["grads"]
+            ]
             grads += [""] * (n_grad - len(grads))
             cells = [
                 solver_cell(s),
@@ -412,7 +422,8 @@ def merged_table(status: dict) -> tuple[str, dict]:
     $^\dagger$\,=\,the trials vary by more than {NOISY_CV * 100:.0f}\% (\cref{{tab:app:variance}}).
     \textit{{Error}} (relative): Ref.\,=\,vs.\ reference at $\nu=0.01$ (F2: solver consensus,
     multimode IC; F3: Exponax at $N=64$), or the largest over the density sweep vs.\ the solver
-    consensus (S, H); An.\,=\,vs.\ analytical Taylor--Green solution at $\nu=0.01$;
+    consensus (S, H), where the solvers agree to float32 round-off; An.\,=\,vs.\
+    analytical Taylor--Green solution at $\nu=0.01$;
     FD\,=\,vs.\ central finite differences (median over directions, best~$\varepsilon$).
     \textit{{Conv.}}\ (F2 drag, F3 L-BFGS+proj IC recovery, S topology opt., H conductivity recovery):
     $\checkmark$\,=\,passes the checks of \cref{{app:recovery}}; $\triangle$\,=\,flagged; $\times$\,=\,failed.

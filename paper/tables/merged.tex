@@ -27,8 +27,8 @@
       INS.jl~\cite{agdestein2024ins} & 160$^\dagger$ & 740 & 3.7e-3 & 2.4e-3 & 1.6e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 143 & 736 & 111 \\
       JAX-CFD~\cite{kochkov2021machine} & 20 & 40 & 3.7e-3 & 2.4e-3 & 7.1e-6 & $\bot$ & $\bullet$ & $\bullet$ & $\bot$ & 9 & 166 & \textbf{0} \\
       PhiFlow~\cite{holl2024phiflow} & 280 & 1500 & 3.7e-3 & 2.4e-3 & 1.0e-5 & $\checkmark$ & $\circ$ & $\circ$ & $\circ$ & 28 & 368 & \textbf{0} \\
-      PICT~\cite{franz2025pict} & 1700 & 3900 & \textbf{3.3e-3} & 4.6e-3 & 4.6e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 53 & 452 & 400 \\
-      Warp-NS~\cite{macklin2024warp} & 83 & 320 & 3.6e-3 & 6.0e-4 & 3.7e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & \textbf{0} & 2405 & 14 \\
+      PICT~\cite{franz2025pict} & 1700 & 3900 & \textbf{3.3e-3} & 4.6e-3 & 4.6e-5 & $\checkmark$ & $\circ$ & $\circ$ & $\circ$ & 53 & 452 & 400 \\
+      Warp-NS~\cite{macklin2024warp} & 83 & 320 & 3.6e-3 & 6.0e-4 & 3.7e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\circ$ & \textbf{0} & 2405 & 14 \\
       XLB~\cite{ataei2024xlb} & \textbf{7.0} & \textbf{15} & 3.6e-3 & 6.1e-4 & 1.1e-5 & $\checkmark$ & $\bullet$ & $\bullet$ & $\bullet$ & 11 & 481 & 51 \\
       OpenFOAM~\cite{weller1998tensorial} & 1200 & $-$ & 3.6e-3 & 1.9e-3 & $-$ & $-$ & $-$ & $-$ & $-$ & 259 & \textbf{100} & 508 \\
     \midrule
@@ -39,7 +39,7 @@
       INS.jl~\cite{agdestein2024ins} & 140$^\dagger$ & 560 & 4.2e-2 & $-$ & 2.9e-5 & $\checkmark$ & $\bullet$ &  &  & 143 & 736 & 111 \\
       JAX-CFD~\cite{kochkov2021machine} & 19 & 37 & 4.2e-2 & $-$ & 2.0e-5 & $\checkmark$ & $\bullet$ &  &  & 9 & 166 & \textbf{0} \\
       PhiFlow~\cite{holl2024phiflow} & 160 & 370 & 4.0e-2 & $-$ & 1.8e-5 & $\checkmark$ & $\circ$ &  &  & 28 & 368 & \textbf{0} \\
-      PICT~\cite{franz2025pict} & 550 & 1600 & 8.2e-3 & $-$ & 2.8e-5 & $\checkmark$ & $\bullet$ &  &  & 53 & 452 & 400 \\
+      PICT~\cite{franz2025pict} & 550 & 1600 & 8.2e-3 & $-$ & 2.8e-5 & $\checkmark$ & $\circ$ &  &  & 53 & 452 & 400 \\
       Warp-NS~\cite{macklin2024warp} & 100 & 350 & 3.5e-3 & $-$ & 1.4e-5 & $\checkmark$ & $\bullet$ &  &  & \textbf{0} & 2405 & 14 \\
       XLB~\cite{ataei2024xlb} & \textbf{12} & \textbf{30} & 8.5e-3 & $-$ & \textbf{4.1e-6} & $\checkmark$ & $\bullet$ &  &  & 11 & 481 & 51 \\
       OpenFOAM~\cite{weller1998tensorial} & 3600 & $-$ & 2.2e-2 & $-$ & $-$ & $-$ & $-$ &  &  & 259 & \textbf{100} & 508 \\
@@ -71,7 +71,7 @@
     $^\dagger$\,=\,the trials vary by more than 15\% (\cref{tab:app:variance}).
     \textit{Error} (relative): Ref.\,=\,vs.\ reference at $\nu=0.01$ (F2: solver consensus,
     multimode IC; F3: Exponax at $N=64$), or the largest over the density sweep vs.\ the solver
-    consensus (S, H); An.\,=\,vs.\ analytical Taylor--Green solution at $\nu=0.01$;
+    consensus (S, H), where the solvers agree to float32 round-off; An.\,=\,vs.\ analytical Taylor--Green solution at $\nu=0.01$;
     FD\,=\,vs.\ central finite differences (median over directions, best~$\varepsilon$).
     \textit{Conv.}\ (F2 drag, F3 L-BFGS+proj IC recovery, S topology opt., H conductivity recovery):
     $\checkmark$\,=\,passes the checks of \cref{app:recovery}; $\triangle$\,=\,flagged; $\times$\,=\,failed.
