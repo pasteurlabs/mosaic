@@ -103,7 +103,11 @@ SETUPS: dict[str, Setup] = {
             "ns-2d-cylinder",
             "ns-grid",
             "Channel flow past a cylinder",
-            claims=("forward/cylinder", "optimization/drag_opt"),
+            claims=(
+                "forward/cylinder",
+                "optimization/drag_opt",
+                "optimization/drag_opt_bfgs",
+            ),
         ),
         Setup(
             "ns-2d-kolmogorov",

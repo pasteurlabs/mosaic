@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -197,3 +199,34 @@ def test_optimizers_record_iters_to_plateau():
     assert diag["iters_to_plateau"] == _iters_to_plateau(losses)
     _, losses, diag = _run_lbfgs(_bowl, jnp.zeros(4), max_iters=50)
     assert diag["iters_to_plateau"] == _iters_to_plateau(losses) > 0
+
+
+def test_optimizers_count_evaluations():
+    """Adam evaluates once per update; L-BFGS-B also counts line-search trials."""
+    _, losses, diag = _run_optim(lambda x: jnp.sum(x**2), jnp.ones(1), 1e-3, 7, 7)
+    assert diag["n_evals"] == diag["n_iters"] == 7
+    assert diag["n_evals_history"] == list(range(1, 8))
+    calls = []
+
+    def counted_bowl(x):
+        jax.debug.callback(lambda: calls.append(1))
+        return _bowl(x)
+
+    _, losses, diag = _run_lbfgs(counted_bowl, jnp.zeros(4), max_iters=10)
+    assert diag["n_evals"] == len(calls) >= len(losses)
+    history = diag["n_evals_history"]
+    assert len(history) == len(losses)
+    assert history[0] == 1 and history[-1] <= diag["n_evals"]
+    assert all(b > a for a, b in itertools.pairwise(history))
+
+
+def test_adam_applies_the_gradient_projection():
+    """A projection that drops the second component keeps it at its start."""
+    proj = lambda g: g.at[1].set(0.0)
+    x, _, diag = _run_optim(
+        lambda x: jnp.sum(x**2), jnp.ones(2), 0.1, 20, 20, grad_proj_fn=proj
+    )
+    assert float(x[1]) == 1.0
+    assert float(x[0]) < 1.0
+    # The recorded norm is that of the projected gradient, (2, 0) at the start.
+    assert diag["grad_norms"][0] == pytest.approx(2.0)

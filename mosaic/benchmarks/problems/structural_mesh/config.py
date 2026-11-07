@@ -415,6 +415,63 @@ problem.add_experiment(
     plot=plot_topopt,
 )
 
+# The same problem with the other optimizers, for the paper's optimizer
+# comparison. MMA replaces the volume penalty with a hard constraint, and
+# topopt_mma_fine repeats it on a mesh with 8x the elements.
+_TOPOPT_PHYSICS = {
+    "nx": 16,
+    "ny": 2,
+    "nz": 8,
+    "Lx": 2.0,
+    "Ly": 1.0,
+    "Lz": 1.0,
+    "F_total": 1.0,
+    "corner_load": True,
+    "v_frac": 0.5,
+    "compliance_key": "compliance",
+    "x_min": 1e-3,
+    "snap_interval": 5,
+}
+problem.add_experiment(
+    "optimization/topopt_bfgs",
+    topopt,
+    optimizer="bfgs",
+    plot_description=(
+        "SIMP topology optimisation of the topopt cantilever with L-BFGS-B under"
+        " the same 50% volume-fraction penalty."
+    ),
+    ic={"name": "uniform", "seed": 0},
+    physics={**_TOPOPT_PHYSICS, "penalty_weight": 50.0},
+    optim={"max_iters": 100},
+    plot=plot_topopt,
+)
+problem.add_experiment(
+    "optimization/topopt_mma",
+    topopt,
+    optimizer="mma",
+    plot_description=(
+        "SIMP topology optimisation of the topopt cantilever with MMA under a hard"
+        " 50% volume-fraction constraint."
+    ),
+    ic={"name": "uniform", "seed": 0},
+    physics=_TOPOPT_PHYSICS,
+    optim={"max_iters": 200, "patience": 30},
+    plot=plot_topopt,
+)
+problem.add_experiment(
+    "optimization/topopt_mma_fine",
+    topopt,
+    optimizer="mma",
+    plot_description=(
+        "SIMP topology optimisation with MMA as in topopt_mma, on a"
+        " $32\\times4\\times16$ mesh."
+    ),
+    ic={"name": "uniform", "seed": 0},
+    physics={**_TOPOPT_PHYSICS, "nx": 32, "ny": 4, "nz": 16, "snap_interval": 10},
+    optim={"max_iters": 300, "patience": 40},
+    plot=plot_topopt,
+)
+
 
 # ── Exclusions ───────────────────────────────────────────────────────────────
 # Per-solver exclusions live in ``exclusions.py``; the register call here

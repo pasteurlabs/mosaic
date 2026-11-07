@@ -428,6 +428,52 @@ problem.add_experiment(
     plot=plot_recovery,
 )
 
+# The same recovery with the other optimizers, for the paper's optimizer
+# comparison: Adam and L-BFGS-B, each with and without the gradient projection.
+_RECOVERY_ADAM_OPTIM = {
+    "ic_init_type": "zeros",
+    "lr": 1e-3,
+    "max_iters": 500,
+    "patience": 50,
+    "failure_threshold": 2.0,
+    "snap_interval": 20,
+    "ic_seeds": [0, 1, 2],
+    "record_diagnostics": True,
+}
+_RECOVERY_BFGS_OPTIM = {
+    "ic_init_type": "zeros",
+    "max_iters": 100,
+    "patience": 20,
+    "failure_threshold": 2.0,
+    "snap_interval": 5,
+    "ic_seeds": [0, 1, 2],
+    "record_diagnostics": True,
+}
+for _key, _optimizer, _optim, _label in (
+    ("recovery_constant_ic", "adam", _RECOVERY_ADAM_OPTIM, "Adam"),
+    (
+        "recovery_constant_ic_proj",
+        "adam_proj",
+        _RECOVERY_ADAM_OPTIM,
+        "Adam with divergence-free projection",
+    ),
+    ("recovery_constant_ic_bfgs", "bfgs", _RECOVERY_BFGS_OPTIM, "L-BFGS"),
+):
+    problem.add_experiment(
+        f"optimization/{_key}",
+        recovery,
+        optimizer=_optimizer,
+        _exp_key=_key,
+        plot_description=(
+            "Final IC recovery error per solver from zero-initialised"
+            f" {_label} optimisation."
+        ),
+        ic={"name": "rand_div_free", "seed": 0},
+        physics={"N": 16, "nu": 0.01, "dt": 0.02, "steps": [100]},
+        optim=_optim,
+        plot=plot_recovery,
+    )
+
 # Single-IC agreement run gets its own plot entry so re-plot flows targeting
 # ``forward/agreement/tgv3d`` resolve.
 problem.add_extra_plot("forward/agreement/tgv3d", plot_agreement)

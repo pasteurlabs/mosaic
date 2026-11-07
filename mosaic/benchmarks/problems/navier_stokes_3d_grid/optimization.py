@@ -283,10 +283,12 @@ def _aggregate_trial_results(
     """
     all_fice = [r["final_ic_error"] for r in trial_results]
     all_itp = [r["diag"]["iters_to_plateau"] for r in trial_results]
+    all_nev = [r["diag"].get("n_evals") for r in trial_results]
     first = trial_results[0]
     first_diag = first.get("diag") or {}
     return {
         "errors": first["errors"],
+        "n_evals_history": first_diag.get("n_evals_history"),
         "grad_norms": first_diag.get("grad_norms"),
         "grad_divs": first_diag.get("grad_divs"),
         "ic_divs": first_diag.get("ic_divs"),
@@ -297,6 +299,8 @@ def _aggregate_trial_results(
         "final_ic_error_trials": all_fice if is_multi_seed else None,
         "iters_to_plateau": float(np.mean(all_itp)),
         "iters_to_plateau_trials": all_itp if is_multi_seed else None,
+        "n_evals": float(np.mean(all_nev)) if None not in all_nev else None,
+        "n_evals_trials": all_nev if is_multi_seed else None,
         "final_ic_div": float(
             np.nanmean(
                 [
@@ -750,6 +754,8 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
     The ``run["optimizer"]`` key selects the inner optimiser:
 
       * ``"adam"``       — vanilla Adam (default).
+      * ``"adam_proj"``  — Adam with the gradient Helmholtz-projected onto
+        the ∇·g = 0 subspace before every update.
       * ``"bfgs"``       — SciPy's L-BFGS-B.
       * ``"bfgs_proj"``  — L-BFGS-B with the gradient Helmholtz-projected
         onto the ∇·g = 0 subspace at every evaluation (keeps the search
@@ -833,8 +839,10 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
 
     # Optimiser dispatch from run["optimizer"].
     optimizer = run.get("optimizer", "adam")
+    if optimizer not in ("adam", "adam_proj", "bfgs", "bfgs_proj"):
+        raise ValueError(f"unknown optimizer {optimizer!r}")
     optim_fn = _run_lbfgs if optimizer.startswith("bfgs") else _run_optim
-    project_grads = optimizer == "bfgs_proj"
+    project_grads = optimizer.endswith("_proj")
 
     # Gradient projection: Helmholtz-project onto ∇·g = 0 before handing to
     # the optimiser. Only meaningful for velocity fields; ignored otherwise.
