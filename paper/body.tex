@@ -141,7 +141,7 @@ wealth of downstream research by lowering the barrier to entry.
 Mosaic follows the same model for differentiable solvers: solver
 backends are simulators behind a standardized gradient interface, and
 the benchmark ships no ML components itself but provides the
-infrastructure on which solver-in-the-loop ML research can build.
+infrastructure that researchers and practitioners can build on.
 \Cref{sec:sil} reports one such study.
 
 % ===========================================================================
@@ -166,9 +166,9 @@ optimization, topology optimization, inverse problems) that require
 gradients for efficient solution, are supported by multiple backends
 for cross-solver comparison, and contain no learned components so solver
 gradients can be validated in isolation. Tasks are intentionally simpler
-than state-of-the-art challenges, as the complexity in the physics would
-confound the gradient properties we aim to isolate, so any failure can
-be attributed to the solver's gradient mechanism rather than to an
+than state-of-the-art problems, as complexity in the physics could
+confound the gradient properties we aim to isolate. This allows us to
+attribute failures to the solver's gradient computation rather than to an
 ill-posed optimization problem. The heat domain (H) additionally serves
 as a negative control. Its forward problem is smooth and elliptic, so
 any gradient failure on H is attributable to an AD bug rather than to
@@ -311,7 +311,7 @@ VJP) and never inspects solver internals.
     ratio, and peak GPU (device-wide) and host memory on each solver's intended
     hardware target across various problem sizes (grid resolutions or cell counts).
     The VJP time is the cost of one gradient from scratch, a forward plus an
-    adjoint pass (\cref{app:effort}).
+    adjoint pass.
     All timings are medians of 3 trials (10 on the mesh domains) after one
     warmup call to pre-populate JIT caches and stabilize memory allocation.
   \item[Optimization convergence.] We run fixed optimizers with each
@@ -333,8 +333,7 @@ These range from self-contained \emph{applications} (OpenFOAM),
 through \emph{frameworks} that handle discretization and AD (FEniCS,
 PhiFlow, JAX-CFD), to \emph{kernel toolkits} (NVIDIA Warp) where the
 Mosaic wrapper \emph{is} the solver. Abstraction level determines
-available gradient strategies and per-setup effort
-(\cref{app:solvers}).
+available gradient strategies and per-setup effort.
 
 \begin{table}[t]
   \centering\small
@@ -424,7 +423,7 @@ Mosaic's evaluation protocol surfaces practically relevant differences
 between solvers, and they provide an initial empirical characterization
 that practitioners can use to guide solver selection.
 All experiments ran on an Azure \texttt{Standard\_NC24ads\_A100\_v4} instance
-(one NVIDIA A100 80\,GB PCIe, 24 vCPUs of an AMD EPYC 7V13; full spec in \cref{app:effort}).
+(one NVIDIA A100 80\,GB PCIe, 24 vCPUs of an AMD EPYC 7V13).
 Results reflect the solver configurations of the pinned
 release; all configurations are published and community-improvable via
 pull request. Reproduction instructions are in \cref{app:software}.
@@ -447,7 +446,7 @@ complexity (an imperfect metric, but one that captures order-of-magnitude
 differences reproducibly).
 Warp-NS implements the flow solver in its wrapper, hence its over 2\,400
 numerical lines. Of these, 235 are gradient code, the most of any solver, even
-though Warp's tape records the gradients.
+though Warp generates the adjoint of each kernel automatically.
 PhiFlow, JAX-CFD, and Exponax each need at most 20 gradient lines for a single
 VJP that covers all differentiable inputs, because autodifferentiation through
 their JAX backends provides gradients at no extra implementation cost.
@@ -468,25 +467,7 @@ To assess whether AD gradients are correct, we compare each solver's
 gradients against central finite differences at solver-specific optimal
 perturbation size.
 
-% The gradient-check table and the memory figure share one float; the generated table's
-% float wrapper is disabled locally so that it can sit in a minipage.
-\begin{figure}[t]
-  \begin{minipage}[t]{0.48\linewidth}
-    \vspace{0pt}
-    \makeatletter
-    \renewenvironment{table}[1][]{\def\@captype{table}}{}
-    \makeatother
-    \input{tables/gradient_checks}
-  \end{minipage}\hfill
-  \begin{minipage}[t]{0.48\linewidth}
-    \vspace{0pt}
-    \centering
-    \includegraphics[width=0.86\linewidth]{figures/memory_rollout.pdf}
-    \caption{Peak GPU memory of one VJP against rollout steps on F3
-      ($N=48$), by differentiation strategy (line style).}
-    \label{fig:memory_rollout}
-  \end{minipage}
-\end{figure}
+\input{tables/gradient_checks}
 
 All differentiable solvers reach cosine similarity $>0.999$ between AD
 and central finite-difference gradients at their optimal perturbation
@@ -532,18 +513,25 @@ non-finite gradients (\cref{sec:scaling}).
 \subsection{Computational cost and scaling}
 \label{sec:scaling}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.5\linewidth]{figures/memory_rollout.pdf}
+  \caption{Peak GPU memory of one VJP against rollout steps on F3
+    ($N=48$), by differentiation strategy (line style).}
+  \label{fig:memory_rollout}
+\end{figure}
+
 Absolute solver cost varies by orders of magnitude on the same problem
 (\cref{tab:merged}; full scaling curves in \cref{app:cost}). On F2 at
 $N=64$, a forward solve takes 7\,ms with XLB and 1.7\,s with PICT, although
 both run on the GPU and both handle the channel. The spread reflects how
 much work each time step does and how efficiently it runs on the device.
 XLB's lattice Boltzmann updates are explicit and need no linear solve,
-whereas PICT's linear solves are bound by device synchronization
-(\cref{app:exclusions}).
+whereas PICT's linear solves are bound by device synchronization.
 
 Memory use depends on the differentiation strategy. Reverse-mode AD through a
-time loop stores the trajectory, $O(T\cdot S)$ for $T$ steps of state
-size~$S$. Checkpointing, used here only by XLB, reduces this trajectory memory
+time loop stores the full state trajectory, one state of size~$S$ for each of
+its $T$ steps, and hence needs $O(T\cdot S)$ memory. Checkpointing, used here only by XLB, reduces this trajectory memory
 to $O(\sqrt{T}\cdot S)$, and steady adjoints need only $O(S)$.
 Unrolling $K$ inner solver iterations multiplies both the stored trajectory
 and the cost of the reverse sweep by~$K$. By the implicit function theorem, a
@@ -563,7 +551,7 @@ of memory after 20\,000 to 41\,000 steps, and Exponax completes all
 grows with the mesh alone. They fail only at millions of elements, the
 GPU solvers from lack of device memory and the CPU solvers at the
 host-memory cap of their containers or, on the largest S mesh, at the
-32-bit indices of PETSc's sparse matrices (\cref{app:cost}).
+32-bit indices of PETSc's sparse matrices.
 
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
@@ -571,8 +559,7 @@ forward passes (\cref{tab:app:ratios}). This makes the ratio a cheap
 diagnostic for integration problems. During development, ratios of up to
 $1\,100$ exposed JAX solvers silently falling back to the CPU, a timing
 that counted a second forward solve, and checkpointing that stored the
-full trajectory, all of which are fixed in the reported results
-(\cref{app:ratios}). INS.jl is the one solver whose ratio stays high
+full trajectory, all of which are fixed in the reported results. INS.jl is the one solver whose ratio stays high
 across grid sizes, at 4.1 to 8.6, because Zygote cannot differentiate the
 library's in-place time stepper, so its VJP runs a slower non-mutating
 rollout instead.
@@ -593,21 +580,19 @@ a small fraction of their float32 throughput, as on most consumer models.
 \end{figure}
 
 All solvers share the same hyperparameters and iteration budget per
-task (settings in \cref{app:recovery}), so differences in convergence
-are attributable to the solver's gradient alone. On every task, the
-solvers that can run it reach comparable results. On S, all solvers
+task, so differences in convergence are attributable to the solver's
+gradient alone. On every task, the solvers that can run it reach
+comparable results (\cref{app:recovery}). On S, all solvers
 converge to the same optimum. On H, every solver lowers the temperature
 misfit by about eight orders of magnitude, but the poorly conditioned
 inversion leaves the recovered conductivity dependent on the optimizer's
-path, and the four recovered fields differ from each other by 1 to 3.5\%
-(\cref{fig:app:conductivity_recovery}). On F2, Adam reshapes the inlet
+path, and the four recovered fields differ from each other by 1 to 3.5\%.
+On F2, Adam reshapes the inlet
 profile of the channel at a fixed flow rate. All five differentiable
 solvers that run the channel (INS.jl, PhiFlow, PICT, Warp-NS, XLB) reduce
-the drag of the benchmark's parabolic profile by 46 to 48\%
-(\cref{fig:app:dragopt}). Exponax, which uses a Fourier method and
+the drag of the benchmark's parabolic profile by 46 to 48\%. Exponax, which uses a Fourier method and
 therefore represents only periodic fields, and JAX-CFD, whose API cannot
-express the channel's inflow, outflow, and obstacle, cannot run this task
-(\cref{app:exclusions}).
+express the channel's inflow, outflow, and obstacle, cannot run this task.
 
 On F3, the choice of optimizer matters more than the choice of solver
 (\cref{fig:recovery_main}). We measure the relative $\ell_2$ distance
@@ -632,8 +617,7 @@ supervised one-interval pairs, a 16-interval rollout with the gradient
 stopped at every solver call, and the same rollout differentiated through
 the solver (SIL). Four solvers run the full study: JAX-CFD, INS.jl, XLB, and
 Exponax. Warp-NS diverges on this flow, PhiFlow's $256^2$ reference turns
-non-finite from some initial states, and PICT would take most of a day
-(\cref{app:exclusions}).
+non-finite from some initial states, and PICT would take most of a day.
 
 The study exposed one gradient defect, PICT's adjoint tolerance, which
 single-call checks miss and only the chained gradient check catches
@@ -669,15 +653,15 @@ Gradient accuracy, computational cost, memory, stability, and setup
 compatibility vary widely across solvers. Some of these properties
 determine whether a solver can serve a workflow at all, and others only
 how fast it does so. Based on the four benchmark tasks evaluated
-here, we highlight four practitioner-facing observations.
+here, we highlight five practitioner-facing observations.
 
 \paragraph{Gradient quality is often good enough}
 On every task where they can run, all solvers that produce gradients
 reach comparable optima despite order-of-magnitude differences in
 gradient accuracy. While more complex tasks may reveal cases where
 gradient quality becomes limiting, the pattern on these benchmarks
-suggests that pointwise gradient accuracy rarely limits the optimization
-or training procedure. Where solvers failed, it was because they could
+suggests that optimization and training procedures are often remarkably
+robust to gradient accuracy. Where solvers failed, it was because they could
 not express the task, turned unstable over long rollouts, or ran out of
 memory. Gradients should still be checked the way they will be used,
 since only a chained check caught the PICT defect (\cref{sec:sil}).
@@ -705,41 +689,46 @@ Hand-derived adjoints can be cheap, as TopOpt.jl's self-adjoint
 compliance gradient costs about one forward solve (\cref{tab:merged}), but each new control variable or objective requires
 additional implementation work. Reverse-mode AD through modern
 frameworks (JAX, PyTorch) produces gradients accurate enough for
-optimization at a fraction of the implementation cost, and at a price that we find to be between 1.4 and 5.3 times that of a forward solve at the sizes of \cref{tab:merged} (\cref{tab:app:ratios}), so a solver's forward time is a good predictor for its
+optimization at a fraction of the implementation cost, and at a price that we find to be between 1.4 and 5.3 times that of a forward solve at the sizes of \cref{tab:merged}, so a solver's forward time is a good predictor for its
 gradient time.
 
+\paragraph{Measure rather than predict}
+Only some solver properties follow from how a solver works. Memory scales
+with the differentiation strategy, gradient accuracy is bounded by the
+discretization, and Fourier methods are restricted to periodic domains, so
+these can be anticipated before running anything. The properties that
+decided whether a solver was usable here could not. Solvers of the same
+numerical family and AD strategy ended up on both sides of the stability
+limit, their Jacobian spectra did not anticipate it either, and every
+gradient defect and the largest cost outliers came from how a solver was
+built or wrapped. Choosing a solver therefore means measuring it on the
+intended task, and Mosaic's role is to make that measurement cheap and to
+keep it current as solvers change.
+
 \paragraph{Limitations}
-The evaluation rests on three assumptions. First, central
-finite-difference gradients at optimal perturbation size are a reliable
-reference (\cref{fig:app:fdcheck}), which the exact-gradient checks
-support (\cref{sec:quality}). Second, out-of-the-box solver configurations
-are representative of practitioner experience. Third, standalone
-optimization tasks are a meaningful proxy for gradient quality in broader
-pipelines, which the solver-in-the-loop study supports for one setup
-(\cref{sec:sil}).
-Rankings, timings, and memory limits therefore hold for the configurations
-as run (each solver as published, with departures recorded in the
-repository), for our task sizes, and for a single A100 machine. Expert
-tuning of resolution, time step, or preconditioner could narrow the
-observed gaps, and the order within a solver class need not generalize.
-We expect category-level findings to transfer: which failure modes matter
-more than gradient accuracy, the protocol, and the links that follow from
-how solvers work (memory from the differentiation strategy, gradient
-accuracy from the discretization, periodicity from spectral
-discretizations). Within a class, the results depend on implementation
-details, since the largest cost outliers and every defect we found came
-from how a solver was built or wrapped. These properties therefore need to
-be measured, and re-measured as solvers change.
-The tasks are intentionally easy, with small grids, moderate Reynolds numbers,
-short rollouts, and steady linear problems on the mesh domains. Results should
-not be extrapolated to harder problems, such as fully developed 3D turbulence,
-long-horizon optimization, or nonlinear mechanics, without further validation.
-Apart from one solver-in-the-loop study, we benchmark solver gradients
-without learned components, so other hybrid pipelines may introduce
-failure modes not captured here.
-Results are pinned to specific solver versions, and upstream updates may
-change gradient behavior. \Cref{app:exclusions} lists each task exclusion and
-what would lift it.
+Our conclusions rest on three choices. First, the gradient reference is
+central finite differences at the best perturbation size, which the exact
+Taylor--Green gradients corroborate. Second, each solver runs as
+published, with every departure from its default usage recorded in the
+repository, and expert tuning of resolution, time step, or preconditioner
+could narrow the gaps we observe. Third, standalone optimization tasks
+stand in for broader pipelines, which the solver-in-the-loop study
+supports for one setup.
+
+The scope is deliberately narrow. The tasks are easy, with small grids,
+moderate Reynolds numbers, short rollouts, and steady linear problems on
+the mesh domains, all timings come from a single A100 machine, and apart
+from the solver-in-the-loop study no task includes learned components.
+Results should not be extrapolated to harder problems, such as fully
+developed 3D turbulence, long-horizon optimization, or nonlinear mechanics,
+or to other hybrid pipelines without further validation.
+
+The numbers are a snapshot of pinned solver versions, and individual
+rankings will change as solvers improve. Tracking such changes is part of
+the benchmark's purpose, and its continuous re-evaluation keeps the
+published results current. We have therefore stated our conclusions in
+terms of failure modes and solver properties rather than rankings, and
+expect them to hold beyond individual ranking changes.
 
 \paragraph{Future work}
 Natural extensions include additional domains (multiphysics, compressible
