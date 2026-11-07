@@ -2,8 +2,8 @@ Differentiable partial differential equation (PDE) solvers underpin
 solver-in-the-loop ML training, gradient-based optimal control, and
 inverse problems, yet the practical cost of obtaining correct, usable
 gradients from a given solver on a given problem is largely
-undocumented. Integration effort, computational cost, gradient accuracy,
-and numerical conditioning vary widely across solvers and are
+undocumented. Integration effort, computational cost, memory, gradient accuracy,
+and numerical stability vary widely across solvers and are
 discoverable only by trial and error.
 %
 We introduce \textit{Mosaic}, an extensible benchmarking framework for
@@ -16,11 +16,12 @@ researchers to evaluate, compare, and build on non-trivial physical solvers.
 Our evaluation of 14 solvers across fluid dynamics, structural
 mechanics, and heat transfer demonstrates that the benchmark surfaces
 practically relevant differences: order-of-magnitude variation in
-computational cost and Jacobian conditioning, alongside structural
-incompatibilities that eliminate solvers from realistic tasks entirely.
+computational cost and memory, alongside setup
+incompatibilities and instabilities that rule out solvers for specific
+tasks.
 Despite this variation, all solvers that
-produce gradients converge to similar optima, indicating that the
+produce gradients converge to similar optima on our tasks, indicating that the
 practical barriers are memory limits, numerical stability, and setup
 compatibility rather than gradient accuracy alone.
 %
-Mosaic is open-source and available at \url{https://github.com/pasteurlabs/mosaic}.
+Mosaic is open-source and available at \href{https://github.com/pasteurlabs/mosaic}{github.com/pasteurlabs/mosaic}.

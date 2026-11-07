@@ -48,7 +48,7 @@ class OutputSchema(make_differentiable(_CanonicalOutputSchema, ["compliance"])):
 # Define constitutive relationship
 # Adapted from JAX-FEM
 # https://github.com/deepmodeling/jax-fem/blob/1bdbf060bb32951d04ed9848c238c9a470fee1b4/demos/topology_optimization/example.py
-class Elasticity(Problem):
+class Elasticity(Problem):  # mosaic:physics
     """Linear elasticity problem with custom constitutive law."""
 
     def custom_init(self, von_neumann_value_fns: list[Callable]) -> None:
@@ -139,7 +139,7 @@ class Elasticity(Problem):
 # the same solve, compiled once per matrix size and number of nonzeros, and
 # passed to `ad_wrapper` through JAX-FEM's `custom_solver` option.
 @partial(jax.jit, static_argnames=("shape",))
-def _bicgstab(
+def _bicgstab(  # mosaic:physics
     data: jnp.ndarray,
     indices: jnp.ndarray,
     b: jnp.ndarray,
@@ -154,7 +154,9 @@ def _bicgstab(
     return x, jnp.linalg.norm(A @ x - b)
 
 
-def _jitted_jax_solve(A: Any, b: np.ndarray, x0: Any, solver_options: dict) -> Any:
+def _jitted_jax_solve(
+    A: Any, b: np.ndarray, x0: Any, solver_options: dict
+) -> Any:  # mosaic:physics
     """`jax_fem.solver.jax_solve` with the BiCGSTAB iteration compiled once."""
     indptr, indices, data = A.getValuesCSR()
     A_csr = scipy.sparse.csr_array((data, indices, indptr), shape=A.getSize())
@@ -178,7 +180,7 @@ _SOLVER_OPTIONS = {"custom_solver": _jitted_jax_solve}
 _setup_cache: dict = {}
 
 
-def _setup_cache_key(
+def _setup_cache_key(  # mosaic:util
     pts: np.ndarray, cells: np.ndarray, boundary_conditions: dict | None
 ) -> str:
     """Hash the mesh and boundary conditions that `setup` depends on."""
@@ -198,7 +200,7 @@ def _setup_cache_key(
     return h.hexdigest()
 
 
-def setup(
+def setup(  # mosaic:init
     pts: jnp.ndarray = None,
     cells: jnp.ndarray = None,
     boundary_conditions: dict | None = None,
@@ -309,7 +311,7 @@ def setup(
     return result
 
 
-def apply_fn(inputs: dict) -> dict:
+def apply_fn(inputs: dict) -> dict:  # mosaic:physics
     """Compute the compliance of the structure given a density field.
 
     Args:
@@ -345,7 +347,7 @@ def apply(inputs: InputSchema) -> OutputSchema:
     return apply_fn(inputs.model_dump())
 
 
-def jacobian_vector_product(
+def jacobian_vector_product(  # mosaic:grad:rho:autodiff
     inputs: InputSchema,
     jvp_inputs: set[str],
     jvp_outputs: set[str],
@@ -372,7 +374,7 @@ def jacobian_vector_product(
     )[1]
 
 
-def vector_jacobian_product(
+def vector_jacobian_product(  # mosaic:grad:rho:autodiff
     inputs: InputSchema,
     vjp_inputs: set[str],
     vjp_outputs: set[str],

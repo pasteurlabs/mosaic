@@ -17,7 +17,7 @@
 \item {\bf Limitations}
     \item[] Question: Does the paper discuss the limitations of the work performed by the authors?
     \item[] Answer: \answerYes{}
-    \item[] Justification: Section~5 includes a dedicated Limitations paragraph discussing the three main assumptions (FD reference reliability, out-of-the-box configurations, standalone tasks as proxy) and their mitigations.
+    \item[] Justification: \Cref{sec:conclusion} includes a dedicated Limitations paragraph discussing the three main assumptions (FD reference reliability, solvers run as published with every departure from default usage recorded, standalone tasks as proxy) and their mitigations, and separates category-level findings from benchmark-specific rankings, timings, and memory limits. \Cref{app:exclusions} lists every task exclusion and what would lift it.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper has no limitation while the answer \answerNo{} means that the paper has limitations, but those are not discussed in the paper.
@@ -47,7 +47,7 @@
     \item {\bf Experimental result reproducibility}
     \item[] Question: Does the paper fully disclose all the information needed to reproduce the main experimental results of the paper to the extent that it affects the main claims and/or conclusions of the paper (regardless of whether the code and data are provided or not)?
     \item[] Answer: \answerYes{}
-    \item[] Justification: All experiments are tied to a tagged release with pinned dependencies. Solver containers are built on-demand by the harness (see Appendix~A). Hardware, solver configurations, and evaluation parameters are specified in Section~4 and Appendix~B.
+    \item[] Justification: All experiments are tied to a tagged release with pinned dependencies. Solver containers are built on-demand by the harness (see \cref{app:software}). Hardware, solver configurations, and evaluation parameters are specified in \cref{sec:experiments,app:extended}.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -84,7 +84,7 @@
 \item {\bf Experimental setting/details}
     \item[] Question: Does the paper specify all the training and test details (e.g., data splits, hyperparameters, how they were chosen, type of optimizer) necessary to understand the results?
     \item[] Answer: \answerYes{}
-    \item[] Justification: Section~4 specifies the hardware platform and optimizer. Appendix~B provides full setup details (grid sizes, time steps, control dimensions, reference solutions) for each domain.
+    \item[] Justification: \Cref{app:recovery} gives the optimizer, hyperparameters, iteration budget, and stopping rule of every optimization task, and the pass thresholds of the convergence checks. \Cref{app:sil} gives the solver-in-the-loop study's data split (four training, one validation, and three test states), architecture, optimizer (Adam, learning rate $10^{-3}$, 256 updates, three seeds), and checkpoint selection. These settings are shared by all solvers and training variants and were not tuned per variant.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -94,8 +94,8 @@
 
 \item {\bf Experiment statistical significance}
     \item[] Question: Does the paper report error bars suitably and correctly defined or other appropriate information about the statistical significance of the experiments?
-    \item[] Answer: \answerNo{}
-    \item[] Justification: Wall-clock times are means of 3 runs after 1 warmup iteration, measured in containerized environments with deterministic solver execution. Gradient accuracy and convergence metrics are deterministic given the fixed initial conditions and solver configurations. We acknowledge that system-level timing variance is not characterized.
+    \item[] Answer: \answerYes{}
+    \item[] Justification: Wall-clock times are medians over trials after one warmup call (3 trials for the Navier--Stokes domains, 10 for the mesh domains). \Cref{tab:app:variance} reports the coefficient of variation and the sample standard deviation of the trials per configuration, and the error bars of the cost-scaling figures span the fastest and slowest trial. F3 initial-condition recovery and the solver-in-the-loop study are repeated over three seeds, and the solver-in-the-loop results are reported per seed. Gradient checks and the S and H optimizations are deterministic given the fixed initial conditions and solver configurations. These spreads are not confidence intervals, and we report no significance tests.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -112,7 +112,7 @@
 \item {\bf Experiments compute resources}
     \item[] Question: For each experiment, does the paper provide sufficient information on the computer resources (type of compute workers, memory, time of execution) needed to reproduce the experiments?
     \item[] Answer: \answerYes{}
-    \item[] Justification: Section~4 specifies the hardware (Azure Standard\_NC24s\_v3, 24 vCPUs, 448\,GiB RAM, 4$\times$ V100 16\,GiB). Each solver's hardware target (CPU/GPU) is indicated in Table~2. Wall-clock times are reported per solver.
+    \item[] Justification: \Cref{sec:experiments} specifies the hardware: one Azure Standard\_NC24ads\_A100\_v4 instance with one NVIDIA A100 80\,GB PCIe GPU, 24 vCPUs (AMD EPYC 7V13), and 216\,GiB RAM. Each solver's hardware target (CPU/GPU) is indicated in \cref{tab:solvers}, and wall-clock times are reported per solver. The default suites took about 13.5 hours on this instance, the extended mesh sweeps about 22 hours, the optimizer comparison about 10 hours, and the solver-in-the-loop study about 3 hours. Development work, continuous-integration runs on T4 GPUs, and earlier runs of the suite used more compute than the reported experiments.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not include experiments.
@@ -162,7 +162,7 @@
 \item {\bf Licenses for existing assets}
     \item[] Question: Are the creators or original owners of assets (e.g., code, data, models), used in the paper, properly credited and are the license and terms of use explicitly mentioned and properly respected?
     \item[] Answer: \answerYes{}
-    \item[] Justification: All solver backends are cited in Table~2 and Appendix~C. Upstream licenses are documented per solver in the repository. The benchmark code is released under Apache~2.0 (Appendix~A.1).
+    \item[] Justification: All solver backends are cited in \cref{tab:solvers} and \cref{app:solvers}. Each solver backend is used under its upstream license, which Mosaic does not change. The benchmark code is released under Apache~2.0 (\cref{app:software}).
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not use existing assets.
@@ -178,7 +178,7 @@
 \item {\bf New assets}
     \item[] Question: Are new assets introduced in the paper well documented and is the documentation provided alongside the assets?
     \item[] Answer: \answerYes{}
-    \item[] Justification: Mosaic is documented in Appendix~A (contribution guidelines, license, versioning, maintenance plan). The evaluation protocol, Tesseract interface, and all solver configurations are described in the paper and repository.
+    \item[] Justification: Mosaic is documented in \cref{app:software} (contribution guidelines, license, versioning, maintenance plan). The evaluation protocol, Tesseract interface, and all solver configurations are described in the paper and repository.
     \item[] Guidelines:
     \begin{itemize}
         \item The answer \answerNA{} means that the paper does not release new assets.

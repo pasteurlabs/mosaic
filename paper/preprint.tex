@@ -66,6 +66,9 @@
 
 % ===========================================================================
 
+\section*{Acknowledgments and disclosure of funding}
+\input{ack}
+
 % ── REFERENCES ──────────────────────────────────────────────
 \PLrefheading
 \bibliography{refs}
@@ -74,6 +77,9 @@
 
 % ===========================================================================
 \appendix
+% cleveref does not detect the appendix here; name its sections explicitly.
+\crefalias{section}{appendix}
+\crefalias{subsection}{subappendix}
 
 \input{appendix}
 

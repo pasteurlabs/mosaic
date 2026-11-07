@@ -1,0 +1,44 @@
+\begin{table}[t]
+  \centering\small
+  \caption{Ratio of VJP to forward wall time per solver, from median times: at the
+    \cref{tab:merged} size, and the range over the grid-size sweep and, for the fluid
+    domains, the rollout-length sweep. The VJP request includes a forward pass, so about~2 is
+    the typical value for a solver whose gradient costs one adjoint solve.}
+  \label{tab:app:ratios}
+  \begin{tabular}{@{}l c c c@{}}
+    \toprule
+    \textbf{Solver} & \textbf{Table size} & \textbf{Grid sweep} & \textbf{Rollout sweep} \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{F2: table size $N=64$; rollout sweep at $N=128$}} \\
+      Exponax & 1.8 & 1.8--1.8 & 1.5--1.9 \\
+      INS.jl & 4.7 & 4.7--5.6 & 4.1--6.3 \\
+      JAX-CFD & 2.0 & 1.9--2.0 & 1.3--2.3 \\
+      PhiFlow & 5.3 & 3.1--5.3 & 3.4--5.2 \\
+      PICT & 2.2 & 2.1--2.2 & 2.1--2.3 \\
+      Warp-NS & 3.8 & 1.8--3.8 & 2.9--4.5 \\
+      XLB & 2.2 & 2.2--4.1 & 1.6--4.3 \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{F3: table size $N=32$; rollout sweep at $N=48$}} \\
+      Exponax & 1.8 & 1.6--1.8 & 1.5--2.1 \\
+      INS.jl & 4.1 & 4.1--8.6 & 3.8--7.1 \\
+      JAX-CFD & 1.9 & 1.7--2.0 & 1.6--2.5 \\
+      PhiFlow & 2.3 & 2.0--2.6 & 2.1--2.7 \\
+      PICT & 2.9 & 2.8--3.0 & 2.6--2.8 \\
+      Warp-NS & 3.4 & 1.6--3.4 & 1.5--1.7 \\
+      XLB & 2.6 & 1.8--4.6 & 2.3--7.0 \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{S: table size $n_x=128$}} \\
+      FEniCS & 2.1 & 2.1--4.0 & $-$ \\
+      Firedrake & 2.1 & 2.1--2.5 & $-$ \\
+      JAX-FEM & 1.7 & 1.7--2.5 & $-$ \\
+      TopOpt.jl & 1.1 & 0.99--1.2 & $-$ \\
+      torch-fem & 1.6 & 1.3--1.6 & $-$ \\
+    \midrule
+    \multicolumn{4}{@{}l}{\textit{H: table size $n_x=256$}} \\
+      FEniCS & 2.2 & 2.2--3.2 & $-$ \\
+      Firedrake & 2.0 & 1.9--2.1 & $-$ \\
+      JAX-FEM & 2.0 & 1.8--2.6 & $-$ \\
+      torch-fem & 1.4 & 1.3--1.5 & $-$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}

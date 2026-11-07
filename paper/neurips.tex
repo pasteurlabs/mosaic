@@ -58,6 +58,10 @@
 
 \clearpage
 
+\begin{ack}
+\input{ack}
+\end{ack}
+
 {\small
 \bibliographystyle{abbrvnat}
 \bibliography{refs}
@@ -67,6 +71,9 @@
 
 % ===========================================================================
 \appendix
+% cleveref does not detect the appendix here; name its sections explicitly.
+\crefalias{section}{appendix}
+\crefalias{subsection}{subappendix}
 
 \input{appendix}
 

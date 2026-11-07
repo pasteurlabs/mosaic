@@ -1,82 +1,59 @@
-"""Generate Figure: Physical accuracy of the Navier-Stokes solvers.
+"""Generate Figure: Physical accuracy of the 2D Navier-Stokes solvers on the periodic TGV.
 
-Produces:
-  appendix_pa_ns2d.pdf       — 3×3 grid (2D NS)
-  appendix_pa_ns3d.pdf       — 3×3 grid (3D NS)
+Produces appendix_pa_ns2d.pdf, a 3×3 grid for the 2D NS domain.
+
+Rows sweep N, ν and rollout steps (``forward/physical_laws/{vs_N,vs_nu,vs_steps}``);
+columns show the error against the TGV reference, divergence RMS and kinetic energy.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 
-from . import TEXTWIDTH, results_dir
-from .style import (
-    NS_ORDER,
-    RCPARAMS,
-    dedup_handles,
-    make_handle,
-    solver_props,
-)
+from . import TEXTWIDTH, by_solver, is_ok, load_result
+from .style import NS_ORDER, RCPARAMS, make_handle, solver_props
 
-RESULTS = results_dir()
-
-SWEEPS = [
-    ("vs_N", True, True),
-    ("vs_nu", True, False),
-    ("vs_steps", False, False),
-]
+# (run, row label); every sweep is log-spaced, so all x-axes are log.
+SWEEPS = [("vs_N", "vs $N$"), ("vs_nu", r"vs $\nu$"), ("vs_steps", "vs steps")]
+# (metric, log y)
 METRICS = [
-    ("analytic_error", "Analytic error", True),
-    ("divergence_rms", "Divergence RMS", True),
-    ("kinetic_energy", "Kinetic energy", False),
+    ("analytic_error", True),
+    ("divergence_rms", True),
+    ("kinetic_energy", False),
 ]
-SWEEP_XLABELS = {
-    "vs_N": "Elements",
-    "vs_nu": r"$\nu$",
-    "vs_steps": "Steps",
-}
-ROW_LABELS = {
-    "vs_N": "vs N",
-    "vs_nu": r"vs $\nu$",
-    "vs_steps": "vs steps",
-}
-
-KE0 = 0.25
 
 
-def _n_to_elements(N: int, subdir: str) -> int:
-    if subdir == "ns-grid":
-        return N**2
-    if subdir == "ns-3d-grid":
-        return N**3
-    return N
+def _ke_tgv2d(sweep_key: str, xs: list[float], phys: dict) -> list[float]:
+    """Exact 2D TGV kinetic energy, KE(t) = 1/4 exp(-4 nu t), at each sweep value."""
+    nu, steps = phys["nu"], phys["steps"]
+    if sweep_key == "vs_nu":
+        return [0.25 * np.exp(-4.0 * x * steps * phys["dt"]) for x in xs]
+    if sweep_key == "vs_steps":
+        return [0.25 * np.exp(-4.0 * nu * x * phys["dt"]) for x in xs]
+    return [0.25 * np.exp(-4.0 * nu * steps * phys["dt"])] * len(xs)
 
 
-def _set_axis_ticks(
-    ax, vals: list, is_log_x: bool, is_log_y: bool, is_elements: bool = False
-):
-    tick_x = sorted(set(vals))
-    if len(tick_x) > 4:
-        idx = np.round(np.linspace(0, len(tick_x) - 1, 4)).astype(int)
-        tick_x = [tick_x[i] for i in idx]
-    ax.set_xticks(tick_x)
-    if is_elements:
-        ax.xaxis.set_major_formatter(
-            mticker.FuncFormatter(
-                lambda x, _: f"{round(x / 1000):.0f}k" if x >= 1000 else str(int(x))
-            )
-        )
-    else:
-        ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
-        ax.xaxis.get_major_formatter().set_scientific(False)
+def _set_axis_ticks(ax, xs: list[float], log_y: bool) -> None:
+    ticks = sorted(set(xs))
+    if len(ticks) > 4:
+        ticks = [
+            ticks[i] for i in np.round(np.linspace(0, len(ticks) - 1, 4)).astype(int)
+        ]
+    ax.set_xticks(ticks)
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:g}"))
     ax.tick_params(axis="x", labelsize=7.5, rotation=40)
     plt.setp(ax.get_xticklabels(), ha="right")
-    if is_log_y:
+    if log_y and np.log10(ax.get_ylim()[1] / ax.get_ylim()[0]) < 1.5:
+        # under ~one decade, decade ticks alone would leave the axis unlabeled
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10, subs=(1, 2, 5)))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda y, _: f"{y:g}"))
+    elif log_y:
         ax.yaxis.set_major_locator(mticker.LogLocator(base=10, numticks=4))
         ax.yaxis.set_minor_locator(mticker.NullLocator())
         ax.yaxis.set_major_formatter(mticker.LogFormatterMathtext())
@@ -86,114 +63,63 @@ def _set_axis_ticks(
     ax.tick_params(axis="y", labelsize=7.5)
 
 
-def _ke_analytic(sweep_key: str, params: list[str], phys: dict, subdir: str):
-    if subdir != "ns-grid":
-        return None
-    dt = float(phys.get("dt", 0.01))
-    nu_fixed = float(phys.get("nu", 0.05))
-    steps_fixed = int(phys.get("steps", 20))
-    xs, ys = [], []
-    for p in params:
-        raw = float(p)
-        if sweep_key == "vs_nu":
-            t = steps_fixed * dt
-            nu = raw
-        elif sweep_key == "vs_steps":
-            t = raw * dt
-            nu = nu_fixed
-        else:
-            t = steps_fixed * dt
-            nu = nu_fixed
-        ke = KE0 * np.exp(-4.0 * nu * t)
-        x = _n_to_elements(int(p), subdir) if sweep_key == "vs_N" else raw
-        xs.append(x)
-        ys.append(ke)
-    return xs, ys
-
-
-def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
+def _plot_ns_domain(
+    problem: str, title: str, col_titles: list[str], out_path: Path
+) -> None:
     fig, axes = plt.subplots(3, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.85))
-    fig.suptitle(domain_title, fontsize=9, fontweight="bold", y=1.02)
+    fig.suptitle(title, fontsize=9, fontweight="bold", y=1.02)
     fig.subplots_adjust(bottom=0.22, wspace=0.35, hspace=0.55)
 
-    ns_seen: set[str] = set()
+    seen: set[str] = set()
+    for row, (sweep_key, row_label) in enumerate(SWEEPS):
+        result = load_result(problem, f"forward/physical_laws/{sweep_key}")
+        data = by_solver(result)
+        solvers = sorted(data, key=NS_ORDER.index)
+        seen.update(solvers)
 
-    for row, (sweep_key, log_x, use_elements) in enumerate(SWEEPS):
-        path = RESULTS / subdir / "forward/physical_laws" / sweep_key / "result.json"
-        data = json.loads(path.read_text())
-        by_param = data["by_param"]
-        params = sorted(by_param.keys(), key=float)
-        phys = data.get("params", {}).get("physics", {})
-
-        _EXCLUDED = {"fenics_ns", "su2"}
-        all_solvers: list[str] = []
-        for pdata in by_param.values():
-            for s in pdata:
-                if s not in all_solvers and s not in _EXCLUDED:
-                    all_solvers.append(s)
-
-        for col, (metric_key, metric_label, log_y) in enumerate(METRICS):
+        for col, (metric, log_y) in enumerate(METRICS):
             ax = axes[row, col]
+            ax.set_xscale("log")
+            ax.set_yscale("log" if log_y else "linear")
             x_all: list[float] = []
-
-            for solver in all_solvers:
+            for solver in solvers:
                 _label, color, ls, mk = solver_props(solver)
-                kw = {
-                    "color": color,
-                    "linestyle": ls,
-                    "marker": mk,
-                    "markersize": 4,
-                    "markeredgewidth": 0,
-                    "linewidth": 1.6,
-                }
-                xs, ys = [], []
-                for p in params:
-                    entry = by_param[p].get(solver)
-                    val = entry.get(metric_key) if isinstance(entry, dict) else None
-                    if val is not None:
-                        raw_x = float(p)
-                        x = _n_to_elements(int(p), subdir) if use_elements else raw_x
-                        xs.append(x)
-                        ys.append(float(val))
-                if xs:
-                    plot_fn = (
-                        ax.loglog
-                        if (log_x and log_y)
-                        else (
-                            ax.semilogy
-                            if log_y
-                            else (ax.semilogx if log_x else ax.plot)
-                        )
-                    )
-                    plot_fn(xs, ys, **kw)
-                    x_all.extend(xs)
-                    if solver in NS_ORDER:
-                        ns_seen.add(solver)
+                pts = sorted(
+                    (float(v), m[metric]) for v, m in data[solver].items() if is_ok(m)
+                )
+                xs, ys = zip(*pts, strict=True)
+                ax.plot(
+                    xs,
+                    ys,
+                    color=color,
+                    linestyle=ls,
+                    marker=mk,
+                    markersize=4,
+                    markeredgewidth=0,
+                    linewidth=1.6,
+                )
+                x_all.extend(xs)
 
-            if metric_key == "kinetic_energy":
-                ke_ref = _ke_analytic(sweep_key, params, phys, subdir)
-                if ke_ref is not None:
-                    plot_fn = ax.semilogx if log_x else ax.plot
-                    plot_fn(
-                        ke_ref[0],
-                        ke_ref[1],
-                        color="#aaaaaa",
-                        linestyle="--",
-                        linewidth=1.2,
-                        zorder=0,
-                        label="analytic",
-                    )
+            if metric == "kinetic_energy":
+                xs = sorted(set(x_all))
+                ax.plot(
+                    xs,
+                    _ke_tgv2d(sweep_key, xs, result["params"]["physics"]),
+                    color="#aaaaaa",
+                    linestyle="--",
+                    linewidth=1.2,
+                    zorder=0,
+                )
 
             if row == 0:
-                ax.set_title(metric_label)
+                ax.set_title(col_titles[col])
             if col == 0:
-                ax.set_ylabel(ROW_LABELS[sweep_key], fontsize=9)
+                ax.set_ylabel(row_label, fontsize=9)
             if row == len(SWEEPS) - 1:
-                ax.set_xlabel(SWEEP_XLABELS[sweep_key])
+                ax.set_xlabel("Steps")
+            _set_axis_ticks(ax, x_all, log_y)
 
-            _set_axis_ticks(ax, x_all, log_x, log_y, is_elements=use_elements)
-
-    handles = dedup_handles([make_handle(s) for s in NS_ORDER if s in ns_seen])
+    handles = [make_handle(s) for s in sorted(seen, key=NS_ORDER.index)]
     fig.legend(
         handles=handles,
         loc="lower center",
@@ -211,10 +137,9 @@ def _plot_ns_domain(subdir: str, domain_title: str, out_path: Path) -> None:
 
 def generate(out_dir: Path) -> None:
     plt.rcParams.update(RCPARAMS)
-
     _plot_ns_domain(
-        "ns-grid", "2D NS — physical accuracy", out_dir / "appendix_pa_ns2d.pdf"
-    )
-    _plot_ns_domain(
-        "ns-3d-grid", "3D NS — physical accuracy", out_dir / "appendix_pa_ns3d.pdf"
+        "ns-grid",
+        "2D NS (periodic TGV) — physical accuracy",
+        ["Analytic TGV error", "Divergence RMS", "Kinetic energy"],
+        out_dir / "appendix_pa_ns2d.pdf",
     )

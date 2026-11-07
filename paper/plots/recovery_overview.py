@@ -1,98 +1,186 @@
-"""Generate Figures: IC recovery overview — Adam vs L-BFGS vs L-BFGS+proj.
+"""Generate Figures: F3 IC recovery with Adam and L-BFGS (SciPy's L-BFGS-B), with
+and without the divergence-free gradient projection.
 
-Figure 1 (recovery_overview.pdf):
-  Row 0: IC error | IC divergence | Optimization loss — all methods × all solvers
-  Row 1: field panels (L-BFGS+proj / PhiFlow)
+recovery_overview.pdf: IC error, IC divergence and optimization loss against
+gradient evaluations for Adam, L-BFGS and L-BFGS+proj on every solver
+(top), and u_x at the middle z-slice for L-BFGS+proj / PhiFlow: recovered
+and true IC, recovered and true final state (bottom).
+recovery_main.pdf: the top row for PICT, INS.jl and XLB.
 
-Figure 2 (recovery_adam_proj.pdf):
-  Single panel: Adam vs Adam+proj across all solvers — shows projection
-  offers no benefit for first-order optimisation.
+Curves follow the first of the three IC seeds. The x-axis counts the
+value-and-gradient evaluations each optimizer made, including L-BFGS's
+line-search trials.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import gridspec
+from matplotlib import gridspec, ticker
 
-from . import TEXTWIDTH, results_dir
-from .style import (
-    NS_ORDER,
-    RCPARAMS,
-    dedup_handles,
-    make_handle,
-    solver_props,
-)
+from . import TEXTWIDTH, by_solver, is_ok, load_result, results_dir
+from .style import NS_ORDER, RCPARAMS, dedup_handles, make_handle, solver_props
 
-RESULTS = results_dir()
-BASE = RESULTS / "ns-3d-grid" / "optimization"
-
-METHODS: dict[str, tuple] = {
-    "adam": ("Adam", "-.", BASE / "recovery_constant_ic"),
-    "adam_proj": ("Adam+proj", ":", BASE / "recovery_constant_ic_proj"),
-    "bfgs": ("L-BFGS", "--", BASE / "recovery_constant_ic_bfgs"),
-    "bfgs_proj": ("L-BFGS+proj", "-", BASE / "recovery_constant_ic_bfgs_proj"),
+_PROBLEM = "ns-3d-grid"
+# optimizer key -> (label, linestyle, experiment)
+_METHODS: dict[str, tuple[str, object, str]] = {
+    "adam": ("Adam", "-.", "optimization/recovery_constant_ic"),
+    "bfgs": ("L-BFGS", "--", "optimization/recovery_constant_ic_bfgs"),
+    "bfgs_proj": ("L-BFGS+proj", "-", "optimization/recovery_constant_ic_bfgs_proj"),
 }
-
-_FIELD_SOLVER = "phiflow"
-_FIELD_METHOD = "bfgs_proj"
-_STEP_KEY = "100"
-_Z_SLICE = 8
-_VEL = 0
-
-# Approximate gradient evaluations per outer optimizer iteration. Adam runs one
-# value+grad call per step; optax's L-BFGS uses a zoom line search whose probes
-# also evaluate value+grad, which empirically averages ~3× the per-iter cost
-# (consistent with measured wall times across phiflow/ins_jl/pict).
-_GRAD_EVALS_PER_ITER: dict[str, int] = {
-    "adam": 1,
-    "adam_proj": 1,
-    "bfgs": 3,
-    "bfgs_proj": 3,
-}
+_OVERVIEW_METHODS = ("adam", "bfgs", "bfgs_proj")
+_MAIN_SOLVERS = ["PICT", "INS.jl", "XLB"]
+_FIELD_METHOD, _FIELD_SOLVER = "bfgs_proj", "PhiFlow"
 _GRAD_EVAL_LABEL = "Gradient evaluations"
 
 
+class _Run:
+    """One optimizer's recovery result: per-solver metrics and stored fields."""
+
+    def __init__(self, key: str) -> None:
+        _, _, experiment = _METHODS[key]
+        result = load_result(_PROBLEM, experiment)
+        (step,) = result["sweep"]["values"]
+        self.key = key
+        self.experiment = experiment
+        self.snap = int(result["params"]["optim"]["snap_interval"])
+        self.metrics = {
+            s: m[str(step)] for s, m in by_solver(result).items() if is_ok(m[str(step)])
+        }
+        self.fields = np.load(
+            results_dir() / _PROBLEM / experiment / "recovery_fields.npz"
+        )
+        self.field_solvers = [str(s) for s in self.fields["solver_names"]]
+
+    def evals(self, solver: str) -> list[int]:
+        """Evaluations up to and including the one that computed each loss."""
+        history = self.metrics[solver].get("n_evals_history")
+        if history is None:
+            raise ValueError(
+                f"{self.experiment}/{solver} has no n_evals_history; it was run"
+                " before the harness recorded evaluation counts"
+            )
+        return history
+
+    def snapshot_evals(self, solver: str, n: int) -> list[int]:
+        """Evaluations behind each of the first *n* IC snapshots.
+
+        Snapshot j is the iterate after (j + 1) * snap iterations. Adam's last
+        iterate is never evaluated, so its count is one past the last loss.
+        """
+        history = self.evals(solver)
+        iters = [(j + 1) * self.snap for j in range(n)]
+        return [history[i] if i < len(history) else history[-1] + 1 for i in iters]
+
+    def ic_history(self, solver: str) -> np.ndarray:
+        return self.fields[f"ic_history_{self.field_solvers.index(solver)}"]
+
+
 def _div_rms(field: np.ndarray) -> float:
-    div = (
-        np.gradient(field[..., 0], axis=0)
-        + np.gradient(field[..., 1], axis=1)
-        + np.gradient(field[..., 2], axis=2)
-    )
+    """RMS of the central-difference divergence of a (N, N, N, 3) field, in grid units."""
+    div = sum(np.gradient(field[..., c], axis=c) for c in range(3))
     return float(np.sqrt(np.mean(div**2)))
 
 
-def _solver_idx(npz, name: str) -> int | None:
-    names = list(npz["solver_names"])
-    return names.index(name) if name in names else None
+def _plot_rows(
+    axes, runs: dict[str, _Run], keys, solvers, *, linewidth: float
+) -> set[str]:
+    """Draw IC error, IC divergence and loss for *keys* x *solvers*; return the solvers drawn."""
+    ax_err, ax_div, ax_loss = axes
+    seen: set[str] = set()
+    for key in keys:
+        run = runs[key]
+        ls = _METHODS[key][1]
+        for solver in solvers:
+            m = run.metrics.get(solver)
+            if m is None:
+                continue
+            _, color, _, _ = solver_props(solver)
+            kw = {"color": color, "linestyle": ls, "linewidth": linewidth, "alpha": 0.9}
+            hist = m["ic_error_history"]
+            ax_err.loglog(run.snapshot_evals(solver, len(hist)), hist, **kw)
+            ax_loss.loglog(run.evals(solver), m["errors"], **kw)
+            snaps = run.ic_history(solver)
+            divs = [max(_div_rms(u), 1e-9) for u in snaps]
+            ax_div.loglog(run.snapshot_evals(solver, len(snaps)), divs, **kw)
+            seen.add(solver)
+
+    ic_true_div = _div_rms(runs[keys[0]].fields["ic_true"])
+    ax_div.axhline(ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0)
+    # The divergence spans about a decade: label 1-2-5 steps, not just powers of ten.
+    ax_div.yaxis.set_major_locator(ticker.LogLocator(subs=(1.0, 2.0, 5.0)))
+    ax_div.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax_div.yaxis.set_minor_formatter(ticker.NullFormatter())
+    for ax, title in zip(
+        axes, ("IC recovery error", "IC divergence", "Optimization loss"), strict=True
+    ):
+        ax.set_title(title)
+        ax.set_xlabel(_GRAD_EVAL_LABEL)
+    return seen
 
 
-def _snap_xs(n: int) -> list[int]:
-    return list(range(1, n + 1))
+def _legend(fig, keys, solvers, seen, *, anchor_y: float, ncol: int, fontsize: float):
+    method_handles = [
+        mlines.Line2D(
+            [],
+            [],
+            color="0.3",
+            linestyle=_METHODS[k][1],
+            linewidth=1.3,
+            label=_METHODS[k][0],
+        )
+        for k in keys
+    ]
+    solver_handles = dedup_handles([make_handle(s) for s in solvers if s in seen])
+    fig.legend(
+        handles=method_handles + solver_handles,
+        loc="lower center",
+        bbox_to_anchor=(0.5, anchor_y),
+        ncol=ncol,
+        fontsize=fontsize,
+        framealpha=0.8,
+        edgecolor="0.8",
+        handlelength=1.8,
+    )
 
 
-def _snap_interval(result: dict) -> int:
-    return int(result.get("params", {}).get("optim", {}).get("snap_interval") or 1)
+def _field_panels(fig, axes, run: _Run) -> None:
+    """u_x at the middle z-slice: recovered and true IC, recovered and true final state."""
+    i = run.field_solvers.index(_FIELD_SOLVER)
+    f = run.fields
+    z = f["ic_true"].shape[2] // 2
+    panels = [
+        (f[f"ic_rec_{i}"], "IC recovered"),
+        (f["ic_true"], "IC true"),
+        (f[f"final_rec_{i}"], "Final state"),
+        (f[f"final_gt_{i}"], "Final true"),
+    ]
+    slices = [(u[:, :, z, 0], title) for u, title in panels]
+    vlim = float(np.percentile(np.abs([s for s, _ in slices]), 99))
+    for ax, (data, title) in zip(axes, slices, strict=True):
+        im = ax.imshow(
+            data.T,
+            origin="lower",
+            aspect="equal",
+            cmap="RdBu_r",
+            vmin=-vlim,
+            vmax=vlim,
+            interpolation="nearest",
+        )
+        ax.set_title(title, fontsize=7.0)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    cb = fig.colorbar(
+        im, ax=axes, fraction=0.015, pad=0.02, ticks=np.linspace(-vlim, vlim, 5)
+    )
+    cb.ax.tick_params(labelsize=5.5)
+    cb.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.2f}"))
 
 
-def _x_per_iter(key: str, n: int) -> list[float]:
-    f = _GRAD_EVALS_PER_ITER.get(key, 1)
-    return [(i + 1) * f for i in range(n)]
-
-
-def _x_snapshot(key: str, n: int, snap_interval: int) -> list[float]:
-    f = _GRAD_EVALS_PER_ITER.get(key, 1)
-    return [(i + 1) * snap_interval * f for i in range(n)]
-
-
-def _generate_overview(loaded, out_path: Path) -> None:
-    ref_npz = (loaded.get(_FIELD_METHOD) or next(iter(loaded.values())))[1]
-    ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
-
+def _overview(runs: dict[str, _Run], out_path: Path) -> None:
     fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.80))
     outer = gridspec.GridSpec(
         2,
@@ -105,339 +193,33 @@ def _generate_overview(loaded, out_path: Path) -> None:
         bottom=0.13,
         hspace=0.38,
     )
-    top_gs = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=outer[0], wspace=0.30)
-    bot_gs = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=outer[1], wspace=0.22)
-
-    ax_conv = fig.add_subplot(top_gs[0, 0])
-    ax_div = fig.add_subplot(top_gs[0, 1])
-    ax_loss = fig.add_subplot(top_gs[0, 2])
-    field_axes = [fig.add_subplot(bot_gs[0, i]) for i in range(4)]
-
-    seen_solvers: set[str] = set()
-
-    for key, (_m_label, m_ls, _) in METHODS.items():
-        if key == "adam_proj":
-            continue  # shown separately in recovery_adam_proj.pdf
-        if key not in loaded:
-            continue
-        result, npz = loaded[key]
-        by_sweep = result["by_sweep"]
-        snap = _snap_interval(result)
-
-        for solver in NS_ORDER:
-            entry = by_sweep.get(solver, {}).get(_STEP_KEY)
-            if entry is None:
-                continue
-            hist = entry.get("ic_error_history")
-            if not hist:
-                continue
-            _, s_color, _, _ = solver_props(solver)
-            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
-
-            ax_conv.loglog(_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
-
-            errors = entry.get("errors")
-            if errors:
-                ax_loss.loglog(_x_per_iter(key, len(errors)), list(errors), **kw)
-
-            if npz is not None:
-                idx = _solver_idx(npz, solver)
-                if idx is not None:
-                    h = npz[f"ic_history_{idx}"]
-                    dys = [max(_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
-                    ax_div.loglog(_x_snapshot(key, len(dys), snap), dys, **kw)
-
-    ax_conv.set_title("IC recovery error")
-    ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
-
-    if ic_true_div is not None:
-        ax_div.axhline(
-            ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0
-        )
-    ax_div.set_title("IC divergence")
-    ax_div.set_xlabel(_GRAD_EVAL_LABEL)
-
-    ax_loss.set_title("Optimization loss")
-    ax_loss.set_xlabel(_GRAD_EVAL_LABEL)
-
-    method_handles = [
-        mlines.Line2D(
-            [],
-            [],
-            color="0.3",
-            linestyle=METHODS[k][1],
-            linewidth=1.3,
-            label=METHODS[k][0],
-        )
-        for k in METHODS
-        if k != "adam_proj"
-    ]
-    solver_handles = dedup_handles(
-        [make_handle(s) for s in NS_ORDER if s in seen_solvers]
+    top = outer[0].subgridspec(1, 3, wspace=0.30)
+    bottom = outer[1].subgridspec(1, 4, wspace=0.22)
+    axes = [fig.add_subplot(top[0, i]) for i in range(3)]
+    seen = _plot_rows(axes, runs, _OVERVIEW_METHODS, NS_ORDER, linewidth=1.3)
+    _legend(fig, _OVERVIEW_METHODS, NS_ORDER, seen, anchor_y=0.0, ncol=5, fontsize=6.5)
+    _field_panels(
+        fig, [fig.add_subplot(bottom[0, i]) for i in range(4)], runs[_FIELD_METHOD]
     )
-    fig.legend(
-        handles=method_handles + solver_handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=5,
-        fontsize=6.5,
-        framealpha=0.8,
-        edgecolor="0.8",
-        handlelength=1.8,
-    )
-
-    # Field panels
-    fkey = _FIELD_METHOD if _FIELD_METHOD in loaded else list(loaded.keys())[-1]
-    _, npz_f = loaded[fkey]
-    if npz_f is not None:
-        idx_f = _solver_idx(npz_f, _FIELD_SOLVER)
-        if idx_f is not None:
-
-            def _sl(f: np.ndarray) -> np.ndarray:
-                return f[:, :, _Z_SLICE, _VEL]
-
-            ic_rec = _sl(npz_f[f"ic_rec_{idx_f}"])
-            ic_true = _sl(npz_f["ic_true"])
-            fin_rec = _sl(npz_f[f"final_rec_{idx_f}"])
-            fin_gt = _sl(npz_f["final_gt_shared"])
-            vlim = float(np.percentile(np.abs([ic_rec, ic_true, fin_rec, fin_gt]), 99))
-
-            last_im = None
-            for ax, (data, title) in zip(
-                field_axes,
-                [
-                    (ic_rec, "IC recovered"),
-                    (ic_true, "IC true"),
-                    (fin_rec, "Final state"),
-                    (fin_gt, "Final true"),
-                ],
-                strict=False,
-            ):
-                last_im = ax.imshow(
-                    data.T,
-                    origin="lower",
-                    aspect="equal",
-                    cmap="RdBu_r",
-                    vmin=-vlim,
-                    vmax=vlim,
-                    interpolation="nearest",
-                )
-                ax.set_title(title, fontsize=7.0)
-                ax.set_xticks([])
-                ax.set_yticks([])
-
-            cb = fig.colorbar(
-                last_im,
-                ax=field_axes,
-                fraction=0.015,
-                pad=0.02,
-                ticks=np.linspace(-vlim, vlim, 5),
-            )
-            cb.ax.tick_params(labelsize=5.5)
-            cb.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.2f}"))
-
     fig.savefig(out_path)
     plt.close(fig)
     print(f"Saved {out_path}")
 
 
-def _generate_adam_proj(loaded, out_path: Path) -> None:
-    """Focused Adam vs Adam+proj comparison across all solvers."""
-    keys = ("adam", "adam_proj")
-    if not all(k in loaded for k in keys):
-        print(
-            "[recovery_overview] adam or adam_proj not loaded — skipping adam_proj figure"
-        )
-        return
-
-    fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.38))
-    fig.subplots_adjust(bottom=0.42, wspace=0.25, left=0.05, right=0.98)
-    ax_conv, ax_div, ax_loss = axes
-
-    ref_npz = loaded.get("adam_proj", loaded.get("adam"))[1]
-    ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
-
-    seen_solvers: set[str] = set()
-    for key in keys:
-        result, npz = loaded[key]
-        _, m_ls, _ = METHODS[key]
-        by_sweep = result["by_sweep"]
-        snap = _snap_interval(result)
-        for solver in NS_ORDER:
-            entry = by_sweep.get(solver, {}).get(_STEP_KEY)
-            if entry is None:
-                continue
-            hist = entry.get("ic_error_history")
-            if not hist:
-                continue
-            _, s_color, _, _ = solver_props(solver)
-            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.3, "alpha": 0.9}
-
-            ax_conv.plot(_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
-
-            errors = entry.get("errors")
-            if errors:
-                ax_loss.plot(_x_per_iter(key, len(errors)), list(errors), **kw)
-
-            if npz is not None:
-                idx = _solver_idx(npz, solver)
-                if idx is not None:
-                    h = npz[f"ic_history_{idx}"]
-                    dys = [max(_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
-                    ax_div.plot(_x_snapshot(key, len(dys), snap), dys, **kw)
-
-    ax_conv.set_title("IC recovery error")
-    ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
-
-    if ic_true_div is not None:
-        ax_div.axhline(
-            ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0
-        )
-    ax_div.set_title("IC divergence")
-    ax_div.set_xlabel(_GRAD_EVAL_LABEL)
-
-    ax_loss.set_title("Optimization loss")
-    ax_loss.set_xlabel(_GRAD_EVAL_LABEL)
-
-    method_handles = [
-        mlines.Line2D(
-            [],
-            [],
-            color="0.3",
-            linestyle=METHODS[k][1],
-            linewidth=1.3,
-            label=METHODS[k][0],
-        )
-        for k in keys
-    ]
-    solver_handles = dedup_handles(
-        [make_handle(s) for s in NS_ORDER if s in seen_solvers]
-    )
-    fig.legend(
-        handles=method_handles + solver_handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncol=5,
-        fontsize=6.5,
-        framealpha=0.8,
-        edgecolor="0.8",
-        handlelength=1.8,
-    )
-
-    fig.savefig(out_path)
-    plt.close(fig)
-    print(f"Saved {out_path}")
-
-
-_MAIN_SUBSET = ["pict", "ins_jl", "xlb"]
-
-
-def _generate_main_subset(loaded, out_path: Path) -> None:
-    """Slim version for the main paper: only the top row (IC error, IC
-    divergence, optimisation loss) and only the ``_MAIN_SUBSET`` solvers."""
-    ref_npz = (loaded.get(_FIELD_METHOD) or next(iter(loaded.values())))[1]
-    ic_true_div = _div_rms(ref_npz["ic_true"]) if ref_npz is not None else None
-
+def _main(runs: dict[str, _Run], out_path: Path) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.36))
     fig.subplots_adjust(left=0.07, right=0.98, top=0.86, bottom=0.36, wspace=0.30)
-    ax_conv, ax_div, ax_loss = axes
-
-    seen_solvers: set[str] = set()
-
-    for key, (_m_label, m_ls, _) in METHODS.items():
-        if key == "adam_proj":
-            continue  # consistent with recovery_overview.pdf
-        if key not in loaded:
-            continue
-        result, npz = loaded[key]
-        by_sweep = result["by_sweep"]
-        snap = _snap_interval(result)
-
-        for solver in _MAIN_SUBSET:
-            entry = by_sweep.get(solver, {}).get(_STEP_KEY)
-            if entry is None:
-                continue
-            hist = entry.get("ic_error_history")
-            if not hist:
-                continue
-            _, s_color, _, _ = solver_props(solver)
-            kw = {"color": s_color, "linestyle": m_ls, "linewidth": 1.4, "alpha": 0.9}
-
-            ax_conv.loglog(_x_snapshot(key, len(hist), snap), list(hist), **kw)
-            seen_solvers.add(solver)
-
-            errors = entry.get("errors")
-            if errors:
-                ax_loss.loglog(_x_per_iter(key, len(errors)), list(errors), **kw)
-
-            if npz is not None:
-                idx = _solver_idx(npz, solver)
-                if idx is not None:
-                    h = npz[f"ic_history_{idx}"]
-                    dys = [max(_div_rms(h[t]), 1e-9) for t in range(h.shape[0])]
-                    ax_div.loglog(_x_snapshot(key, len(dys), snap), dys, **kw)
-
-    ax_conv.set_title("IC recovery error")
-    ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
-
-    if ic_true_div is not None:
-        ax_div.axhline(
-            ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0
-        )
-    ax_div.set_title("IC divergence")
-    ax_div.set_xlabel(_GRAD_EVAL_LABEL)
-
-    ax_loss.set_title("Optimization loss")
-    ax_loss.set_xlabel(_GRAD_EVAL_LABEL)
-
-    method_handles = [
-        mlines.Line2D(
-            [],
-            [],
-            color="0.3",
-            linestyle=METHODS[k][1],
-            linewidth=1.4,
-            label=METHODS[k][0],
-        )
-        for k in METHODS
-        if k != "adam_proj"
-    ]
-    solver_handles = dedup_handles(
-        [make_handle(s) for s in _MAIN_SUBSET if s in seen_solvers]
+    seen = _plot_rows(axes, runs, _OVERVIEW_METHODS, _MAIN_SOLVERS, linewidth=1.4)
+    _legend(
+        fig, _OVERVIEW_METHODS, _MAIN_SOLVERS, seen, anchor_y=0.0, ncol=6, fontsize=7.0
     )
-    fig.legend(
-        handles=method_handles + solver_handles,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.0),
-        ncol=6,
-        fontsize=7.0,
-        framealpha=0.8,
-        edgecolor="0.8",
-        handlelength=1.8,
-    )
-
     fig.savefig(out_path)
     plt.close(fig)
     print(f"Saved {out_path}")
 
 
 def generate(out_dir: Path) -> None:
-    loaded: dict[str, tuple] = {}
-    for key, (*_, path) in METHODS.items():
-        rp = path / "result.json"
-        fp = path / "recovery_fields.npz"
-        if not rp.exists():
-            print(f"[recovery_overview] {rp} not found — skipping {key}")
-            continue
-        npz = np.load(fp, allow_pickle=True) if fp.exists() else None
-        loaded[key] = (json.loads(rp.read_text()), npz)
-
-    if not loaded:
-        return
-
+    runs = {key: _Run(key) for key in _METHODS}
     with plt.rc_context(RCPARAMS):
-        _generate_overview(loaded, out_dir / "recovery_overview.pdf")
-        _generate_adam_proj(loaded, out_dir / "recovery_adam_proj.pdf")
-        _generate_main_subset(loaded, out_dir / "recovery_main.pdf")
+        _overview(runs, out_dir / "recovery_overview.pdf")
+        _main(runs, out_dir / "recovery_main.pdf")

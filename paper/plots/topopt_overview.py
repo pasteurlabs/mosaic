@@ -1,20 +1,21 @@
 """Generate Figure: Topology optimisation overview — structural domain.
 
 Layout:
-  Left column (split vertically):
-    Top  : 2×2 3-D voxel panels (one per solver)
+  Left column (split vertically), from the fine-mesh MMA run:
+    Top  : 3-D voxel panels, one per solver, in two rows
     Bottom: engineering plan views (front / top / right) with BC symbols
-            + a 4-solver 2-D projection strip
-  Right column:
+  Right column, Adam and MMA on the coarse mesh:
     Top   : compliance convergence  (log x, linear y)
     Bottom: volume-fraction history (log x, linear y, target dashed)
+
+MMA's traces have one point per objective evaluation, Adam's one per
+iteration.
 
 Output: topopt_overview.pdf
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import matplotlib.colors as mcolors
@@ -26,7 +27,7 @@ from matplotlib import gridspec, ticker
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from . import TEXTWIDTH, results_dir
+from . import TEXTWIDTH, by_solver, is_ok, load_result, results_dir
 from .style import (
     RCPARAMS,
     SOLVER_STYLES,
@@ -35,15 +36,14 @@ from .style import (
     make_handle,
 )
 
-RESULTS = results_dir()
-BASE = RESULTS / "structural-mesh" / "optimization" / "topopt"
+_PROBLEM = "structural-mesh"
 # Fine-mesh MMA run used only for the left-column field rendering.
-FIELDS_BASE = RESULTS / "structural-mesh" / "optimization" / "topopt_mma_fine"
+_FIELDS_EXPERIMENT = "optimization/topopt_mma_fine"
 
-# optimizer key -> (linestyle, display label, result path)
+# optimizer key -> (linestyle, display label, experiment)
 OPT_METHODS: dict[str, tuple] = {
-    "adam": ("-", "Adam", BASE.parent / "topopt" / "result.json"),
-    "mma": ("--", "MMA", BASE.parent / "topopt_mma" / "result.json"),
+    "adam": ("-", "Adam", "optimization/topopt"),
+    "mma": ("--", "MMA", "optimization/topopt_mma"),
 }
 
 _THRESH = 0.35
@@ -331,12 +331,12 @@ def _plot_convergence(
     seen_methods: set,
     x_jitter: float = 1.06,
 ) -> None:
-    """Overlay multiple optimizer datasets on ax. datasets = [(m_ls, by_solver), ...]
+    """Overlay multiple optimizer datasets on ax. datasets = [(m_ls, metrics), ...]
     x_jitter: multiplicative x offset per line to separate overlapping curves on log scale."""
     line_n = 0
-    for m_ls, by_solver in datasets:
+    for m_ls, metrics in datasets:
         for solver in STRUCTURAL_ORDER:
-            sdata = by_solver.get(solver)
+            sdata = metrics.get(solver)
             if sdata is None:
                 continue
             vals = sdata.get(key, [])
@@ -359,56 +359,35 @@ def _plot_convergence(
             seen_solvers.add(solver)
             seen_methods.add(m_ls)
             line_n += 1
-    ax.set_xlabel("Iteration")
+    ax.set_xlabel("Iteration (MMA: evaluation)")
     ax.set_ylabel(ylabel)
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 
+def _ok_metrics(experiment: str) -> tuple[dict, dict]:
+    """``({solver: metrics}, physics)`` of *experiment*, without failed solvers."""
+    result = load_result(_PROBLEM, experiment)
+    metrics = {s: m["None"] for s, m in by_solver(result).items() if is_ok(m["None"])}
+    return metrics, result["params"]["physics"]
+
+
 def generate(out_dir: Path) -> None:
-    result_path = BASE / "result.json"
-    if not result_path.exists():
-        print(f"[topopt_overview] {result_path} not found — skipping")
-        return
-
-    data = json.loads(result_path.read_text())
-    by_solver = data["by_solver"]
-
-    # Load additional optimizer results where available
-    opt_datasets: list[tuple[str, dict]] = []
-    for key, (m_ls, _m_label, rp) in OPT_METHODS.items():
-        if rp.exists():
-            opt_datasets.append((m_ls, json.loads(rp.read_text())["by_solver"]))
-        else:
-            print(f"[topopt_overview] {rp} not found — skipping {key}")
-    if not opt_datasets:
-        opt_datasets = [("-", by_solver)]
+    opt_datasets: list[tuple[str, dict]] = [
+        (m_ls, _ok_metrics(experiment)[0])
+        for m_ls, _m_label, experiment in OPT_METHODS.values()
+    ]
+    # Coarse-run physics drives the volume-fraction target on the right column.
+    _, ph_coarse = _ok_metrics(OPT_METHODS["adam"][2])
 
     # Field rendering (left column) uses the finer mesh; convergence plots
     # (right column) stay on the coarser run for a fair Adam-vs-MMA comparison.
-    fields_path = FIELDS_BASE / "topopt_fields.npz"
-    params_path = FIELDS_BASE / "params.json"
-    has_fields = fields_path.exists() and params_path.exists()
-
-    # Coarse-run physics drives the volume-fraction target on the right column.
-    coarse_params_path = BASE / "params.json"
-    ph_coarse = (
-        json.loads(coarse_params_path.read_text())["physics"]
-        if coarse_params_path.exists()
-        else {}
-    )
-
-    if has_fields:
-        npz = np.load(fields_path)
-        ph = json.loads(params_path.read_text())["physics"]
-        nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
-        npz_solvers = list(npz["solver_names"])
-        field_solvers = [s for s in STRUCTURAL_ORDER if s in npz_solvers]
-    else:
-        field_solvers = []
-        ph = {}
-
+    fine_ok, ph = _ok_metrics(_FIELDS_EXPERIMENT)
+    npz = np.load(results_dir() / _PROBLEM / _FIELDS_EXPERIMENT / "topopt_fields.npz")
+    nx, ny, nz = ph["nx"], ph["ny"], ph["nz"]
+    npz_solvers = [str(s) for s in npz["solver_names"]]
+    field_solvers = [s for s in STRUCTURAL_ORDER if s in npz_solvers and s in fine_ok]
     n_field = len(field_solvers)
 
     with plt.rc_context(RCPARAMS):
@@ -434,18 +413,19 @@ def generate(out_dir: Path) -> None:
             hspace=0.08,
         )
 
-        # ── 2×2 3-D voxel panels ──────────────────────────────────────────
+        # ── 3-D voxel panels, two rows ────────────────────────────────────
         seen3d: set[str] = set()
         if n_field > 0:
+            n_cols = -(-n_field // 2)
             top_gs = gridspec.GridSpecFromSubplotSpec(
                 2,
-                2,
+                n_cols,
                 subplot_spec=left_col[0],
                 wspace=0.0,
                 hspace=-0.05,
             )
-            for panel_i, solver in enumerate(field_solvers[:4]):
-                r, c = divmod(panel_i, 2)
+            for panel_i, solver in enumerate(field_solvers):
+                r, c = divmod(panel_i, n_cols)
                 ax3d = fig.add_subplot(top_gs[r, c], projection="3d")
 
                 npz_i = npz_solvers.index(solver)
@@ -541,21 +521,17 @@ def generate(out_dir: Path) -> None:
             seen_methods,
         )
 
-        v_frac_target = ph_coarse.get("v_frac", ph.get("v_frac", 0.5))
+        v_frac_target = ph_coarse["v_frac"]
         ax_volf.axhline(v_frac_target, color="#555555", linestyle=":", linewidth=1.0)
-        ax_volf.yaxis.set_major_locator(ticker.MaxNLocator(4, prune="both"))
-        ax_volf.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+        ax_volf.yaxis.set_major_locator(
+            ticker.MaxNLocator(4, steps=[1, 2, 5, 10], prune="both")
+        )
+        ax_volf.yaxis.set_major_formatter(ticker.ScalarFormatter(useOffset=False))
 
         # Flag the mesh-resolution mismatch between the two columns.
-        if has_fields:
-            fine_tag = f"Final fields, fine mesh ({nx}×{ny}×{nz}, MMA)"
-        else:
-            fine_tag = "Final fields, fine mesh (MMA)"
-        if ph_coarse:
-            cnx, cny, cnz = ph_coarse["nx"], ph_coarse["ny"], ph_coarse["nz"]
-            coarse_tag = f"Convergence, coarse mesh ({cnx}×{cny}×{cnz})"
-        else:
-            coarse_tag = "Convergence, coarse mesh"
+        fine_tag = f"Final fields, fine mesh ({nx}×{ny}×{nz}, MMA)"
+        cnx, cny, cnz = ph_coarse["nx"], ph_coarse["ny"], ph_coarse["nz"]
+        coarse_tag = f"Convergence, coarse mesh ({cnx}×{cny}×{cnz})"
 
         left_pos = outer[0].get_position(fig)
         right_pos = outer[1].get_position(fig)
@@ -580,8 +556,7 @@ def generate(out_dir: Path) -> None:
             mlines.Line2D(
                 [], [], color="0.3", linestyle=m_ls, linewidth=1.5, label=m_label
             )
-            for _, (m_ls, m_label, rp) in OPT_METHODS.items()
-            if rp.exists()
+            for m_ls, m_label, _ in OPT_METHODS.values()
         ]
         solver_handles = dedup_handles(
             [make_handle(s) for s in STRUCTURAL_ORDER if s in seen_conv]

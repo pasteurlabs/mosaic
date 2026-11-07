@@ -1,170 +1,111 @@
-"""Generate Figure: Thermal conductivity recovery overview — Adam vs L-BFGS.
+"""Generate Figure: H thermal-conductivity recovery with L-BFGS-B.
 
-Layout:
-  Row 0: identification error history — loglog, all solvers × both methods
-  Row 1: Adam recovered conductivity profiles, all solvers + truth
-  Row 2: L-BFGS recovered conductivity profiles, all solvers + truth
+Top: temperature misfit and relative error of the recovered conductivity vs
+iteration per solver. Bottom: ground-truth and recovered conductivity fields.
 
 Output: conductivity_recovery_overview.pdf
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
 
-from . import TEXTWIDTH, results_dir
-from .style import (
-    RCPARAMS,
-    THERMAL_ORDER,
-    dedup_handles,
-    make_handle,
-    solver_props,
-)
+from . import TEXTWIDTH, by_solver, is_ok, load_result, results_dir
+from .style import RCPARAMS, THERMAL_ORDER, make_handle, solver_props
 
-RESULTS = results_dir()
-BASE = RESULTS / "thermal-mesh" / "optimization"
+_EXPERIMENT = "optimization/conductivity_recovery_bfgs"
 
-METHODS: dict[str, tuple] = {
-    "adam": ("Adam", "-", BASE / "conductivity_recovery"),
-    "bfgs": ("L-BFGS", "--", BASE / "conductivity_recovery_bfgs"),
-}
 
-# See note in recovery_overview.py: optax L-BFGS averages ~3 grad evaluations
-# per outer iteration (zoom line search), Adam exactly 1.
-_GRAD_EVALS_PER_ITER: dict[str, int] = {"adam": 1, "bfgs": 3}
-_GRAD_EVAL_LABEL = "Gradient evaluations"
+def _rel_err(rho: np.ndarray, truth: np.ndarray) -> np.ndarray:
+    """Relative l2 error of *rho* (..., n_cells) against *truth*."""
+    return np.linalg.norm(rho - truth, axis=-1) / np.linalg.norm(truth)
 
 
 def generate(out_dir: Path) -> None:
-    loaded: dict[str, tuple] = {}
-    for key, (*_, path) in METHODS.items():
-        rp = path / "result.json"
-        fp = path / "rho_fields.npz"
-        if not rp.exists():
-            print(f"[conductivity_overview] {rp} not found — skipping {key}")
-            continue
-        npz = np.load(fp, allow_pickle=True) if fp.exists() else None
-        loaded[key] = (json.loads(rp.read_text()), npz)
-
-    if not loaded:
-        return
+    result = load_result("thermal-mesh", _EXPERIMENT)
+    phys = result["params"]["physics"]
+    runs = {s: m["None"] for s, m in by_solver(result).items()}
+    solvers = [s for s in THERMAL_ORDER if s in runs and is_ok(runs[s])]
+    rho = np.load(results_dir() / "thermal-mesh" / _EXPERIMENT / "rho_fields.npz")
+    truth = rho["rho_truth"]
+    # Cells are stored with x innermost, so (ny, nx) maps rows to y.
+    shape = (phys["ny"], phys["nx"])
+    extent = (0, phys["Lx"], 0, phys["Ly"])
 
     with plt.rc_context(RCPARAMS):
-        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 1.10))
+        fig = plt.figure(figsize=(TEXTWIDTH, TEXTWIDTH * 0.55))
         outer = gridspec.GridSpec(
-            3,
+            2,
             1,
             figure=fig,
-            height_ratios=[1.0, 0.65, 0.65],
-            left=0.10,
-            right=0.98,
-            top=0.96,
-            bottom=0.10,
-            hspace=0.52,
+            height_ratios=[1.6, 1],
+            left=0.09,
+            right=0.99,
+            top=0.94,
+            bottom=0.08,
+            hspace=0.45,
         )
-        ax_conv = fig.add_subplot(outer[0])
-        ax_adam = fig.add_subplot(outer[1])
-        ax_bfgs = fig.add_subplot(outer[2])
+        top = outer[0].subgridspec(1, 2, wspace=0.3)
+        ax_mis = fig.add_subplot(top[0])
+        ax_rho = fig.add_subplot(top[1])
+        maps = outer[1].subgridspec(1, len(solvers) + 1, wspace=0.08)
+        map_axes = [fig.add_subplot(maps[i]) for i in range(len(solvers) + 1)]
 
-        seen_solvers: set[str] = set()
-
-        # ── Convergence — all solvers × both methods ──────────────────────
-        for key, (_m_label, m_ls, *_) in METHODS.items():
-            if key not in loaded:
-                continue
-            result, _ = loaded[key]
-            for solver in THERMAL_ORDER:
-                sdata = result["by_solver"].get(solver)
-                if sdata is None:
-                    continue
-                errors = sdata.get("errors", [])
-                if not errors:
-                    continue
-                _, s_color, _, _ = solver_props(solver)
-                f = _GRAD_EVALS_PER_ITER.get(key, 1)
-                xs = [(i + 1) * f for i in range(len(errors))]
-                ax_conv.loglog(
-                    xs,
-                    errors,
-                    color=s_color,
-                    linestyle=m_ls,
-                    linewidth=1.3,
-                    alpha=0.9,
-                )
-                seen_solvers.add(solver)
-
-        ax_conv.set_title("Thermal conductivity recovery")
-        ax_conv.set_xlabel(_GRAD_EVAL_LABEL)
-        ax_conv.set_ylabel("Identification error")
-
-        # ── Profile panels ────────────────────────────────────────────────
-        for ax, key, title in [
-            (ax_adam, "adam", "Adam — recovered profiles"),
-            (ax_bfgs, "bfgs", "L-BFGS — recovered profiles"),
-        ]:
-            if key not in loaded:
-                ax.text(
-                    0.5,
-                    0.5,
-                    "N/A",
-                    ha="center",
-                    va="center",
-                    transform=ax.transAxes,
-                    fontsize=8,
-                )
-                ax.set_title(title)
-                continue
-
-            _, npz = loaded[key]
-            if npz is None:
-                ax.set_title(title)
-                continue
-
-            xs = np.arange(npz["rho_truth"].shape[0])
-            ax.plot(
-                xs,
-                npz["rho_truth"],
-                color="0.2",
-                linestyle="--",
-                linewidth=1.4,
-                label="Truth",
-                zorder=3,
+        # ── Convergence ──────────────────────────────────────────────────────
+        snap = phys["snap_interval"]
+        for solver in solvers:
+            _, color, ls, _ = solver_props(solver)
+            kw = {"color": color, "linestyle": ls, "linewidth": 1.4}
+            misfit = runs[solver]["errors"]
+            ax_mis.semilogy(np.arange(len(misfit)), misfit, **kw)
+            # History snapshots follow every snap_interval-th iterate.
+            hist = rho[f"rho_history_{solver}"]
+            xs = np.arange(len(hist) + 1) * snap
+            errs = np.concatenate(
+                [[_rel_err(rho["rho_init"], truth)], _rel_err(hist, truth)]
             )
+            ax_rho.semilogy(xs, errs * 100, **kw)
+        for ax in (ax_mis, ax_rho):
+            ax.set_xlabel("L-BFGS-B iteration")
+            ax.set_xlim(0, len(misfit) - 1)
+        ax_mis.set_title("Temperature misfit")
+        ax_rho.set_title(r"Density error $\|\rho - \rho^\ast\| / \|\rho^\ast\|$ (%)")
 
-            for solver in THERMAL_ORDER:
-                rho_key = f"rho_final_{solver}"
-                if rho_key not in npz.files:
-                    continue
-                _, s_color, _, _ = solver_props(solver)
-                ax.plot(xs, npz[rho_key], color=s_color, linewidth=1.1, alpha=0.85)
-                seen_solvers.add(solver)
+        # ── Fields ───────────────────────────────────────────────────────────
+        fields = [("Truth", truth)] + [
+            (
+                f"{solver_props(s)[0]}: {_rel_err(rho[f'rho_final_{s}'], truth):.1%}",
+                rho[f"rho_final_{s}"],
+            )
+            for s in solvers
+        ]
+        vmax = max(float(f.max()) for _, f in fields)
+        for ax, (title, field) in zip(map_axes, fields, strict=True):
+            im = ax.imshow(
+                field.reshape(shape),
+                origin="lower",
+                extent=extent,
+                cmap="viridis",
+                vmin=0,
+                vmax=vmax,
+            )
+            ax.set_title(title, fontsize=7, fontweight="normal")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.grid(False)
+        cbar = fig.colorbar(im, ax=map_axes, fraction=0.015, pad=0.01, shrink=0.6)
+        cbar.set_label(r"$\rho$")
 
-            ax.set_title(title)
-            ax.set_xlabel("Node index")
-            ax.set_ylabel("Conductivity")
-
-        # ── Legend ────────────────────────────────────────────────────────
-        truth_handle = mlines.Line2D(
-            [], [], color="0.2", linestyle="--", linewidth=1.4, label="Truth"
-        )
-        solver_handles = dedup_handles(
-            [make_handle(s) for s in THERMAL_ORDER if s in seen_solvers]
-        )
         fig.legend(
-            handles=[truth_handle] + solver_handles,
+            handles=[make_handle(s) for s in solvers],
             loc="lower center",
             bbox_to_anchor=(0.5, 0.0),
-            ncol=5,
-            fontsize=6.5,
-            framealpha=0.8,
-            edgecolor="0.8",
-            handlelength=1.8,
+            ncol=len(solvers),
+            handlelength=2.0,
         )
 
         out = out_dir / "conductivity_recovery_overview.pdf"

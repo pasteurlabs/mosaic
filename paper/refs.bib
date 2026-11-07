@@ -71,10 +71,12 @@
 % ── Differentiable NS / benchmark ────────────────────────────────────────────
 
 @inproceedings{holl2024phiflow,
-  title     = {{$\Phi$Flow}: Differentiable Simulations for Machine Learning},
-  author    = {Holl, Philipp and Koltun, Vladlen and Thuerey, Nils},
+  title     = {{$\Phi$Flow}: Differentiable Simulations for {PyTorch}, {TensorFlow} and {Jax}},
+  author    = {Holl, Philipp and Thuerey, Nils},
   booktitle = {Proceedings of the 41st International Conference on Machine Learning},
   series    = {Proceedings of Machine Learning Research},
+  volume    = {235},
+  pages     = {18515--18546},
   publisher = {PMLR},
   year      = {2024},
   url       = {https://proceedings.mlr.press/v235/holl24a.html}
@@ -83,9 +85,12 @@
 @inproceedings{koehler2024apebench,
   title     = {{APEBench}: A Benchmark for Autoregressive Neural Emulators of {PDEs}},
   author    = {Koehler, Felix and Niedermayr, Simon and Westermann, R{\"u}diger and Thuerey, Nils},
-  booktitle = {Advances in Neural Information Processing Systems},
+  booktitle = {Advances in Neural Information Processing Systems (Datasets and
+               Benchmarks Track)},
+  volume    = {37},
+  pages     = {120252--120310},
   year      = {2024},
-  url       = {https://arxiv.org/abs/2411.00180}
+  doi       = {10.52202/079017-3822}
 }
 
 @inproceedings{fei2024neuralfluid,
@@ -94,8 +99,10 @@
   author    = {Li, Yifei and Sun, Yuchen and Ma, Pingchuan and Sifakis, Eftychios and
                Du, Tao and Zhu, Bo and Matusik, Wojciech},
   booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  pages     = {84944--84967},
   year      = {2024},
-  url       = {https://arxiv.org/abs/2405.14903}
+  doi       = {10.52202/079017-2697}
 }
 
 @article{list2024differentiability,
@@ -103,19 +110,11 @@
                Simulators on Transient Dynamics},
   author    = {List, Bjoern and Chen, Li-Wei and Bali, Kartik and Thuerey, Nils},
   journal   = {Computer Methods in Applied Mechanics and Engineering},
-  year      = {2024},
+  volume    = {433},
+  pages     = {117441},
+  year      = {2025},
   publisher = {Elsevier},
-  url       = {https://arxiv.org/abs/2402.12971}
-}
-
-@article{newbury2024review,
-  title   = {A Review of Differentiable Simulators},
-  author  = {Newbury, Rhys and Collins, Jack and He, Kerry and Pan, Jing and
-             Haviland, Jesse and Bhatt, Dixit and Bhatt, Dimitar and Corke, Peter
-             and McDonald-Maier, Klaus and Pandey, Alok and others},
-  journal = {IEEE Access},
-  year    = {2024},
-  url     = {https://arxiv.org/abs/2407.05560}
+  doi       = {10.1016/j.cma.2024.117441}
 }
 
 % ── Differentiable Lattice Boltzmann ─────────────────────────────────────────
@@ -125,9 +124,11 @@
                Library in {Python}},
   author    = {Ataei, Mohammadmehdi and Salehipour, Hesam},
   journal   = {Computer Physics Communications},
+  volume    = {300},
+  pages     = {109187},
   year      = {2024},
   publisher = {Elsevier},
-  url       = {https://arxiv.org/abs/2311.16080}
+  doi       = {10.1016/j.cpc.2024.109187}
 }
 
 @inproceedings{bedrunka2021lettuce,
@@ -172,7 +173,28 @@
   number    = {6},
   pages     = {479--484},
   year      = {1992},
-  publisher = {IOP Publishing}
+  publisher = {IOP Publishing},
+  doi       = {10.1209/0295-5075/17/6/001}
+}
+
+@incollection{schafer1996benchmark,
+  title     = {Benchmark computations of laminar flow around a cylinder},
+  author    = {Sch{\"a}fer, Michael and Turek, Stefan and Durst, Franz and Krause, Egon and Rannacher, Rolf},
+  booktitle = {Flow Simulation with High-Performance Computers {II}},
+  series    = {Notes on Numerical Fluid Mechanics},
+  volume    = {52},
+  pages     = {547--566},
+  publisher = {Vieweg+Teubner},
+  year      = {1996},
+  doi       = {10.1007/978-3-322-89849-4_39}
+}
+
+@phdthesis{nabh1998high,
+  title  = {On High Order Methods for the Stationary Incompressible
+            {Navier}--{Stokes} Equations},
+  author = {Nabh, Guido},
+  school = {University of Heidelberg},
+  year   = {1998}
 }
 
 % ── Adjoint methods and differentiable physics foundations ───────────────────
@@ -210,10 +232,11 @@
   doi       = {10.1007/BF01061285}
 }
 
-@software{bradbury2018jax,
+@misc{bradbury2018jax,
   title  = {{JAX}: Composable Transformations of {Python}+{NumPy} Programs},
   author = {Bradbury, James and Frostig, Roy and Hawkins, Peter and
-            Johnson, Matthew James and Leary, Chris and Maclaurin, Dougal and
+            Johnson, Matthew James and Katariya, Yash and Leary, Chris and
+            Maclaurin, Dougal and
             Necula, George and Paszke, Adam and VanderPlas, Jake and
             Wanderman-Milne, Skye and Zhang, Qiao},
   url    = {https://github.com/jax-ml/jax},
@@ -245,10 +268,37 @@
   doi       = {10.1137/120873558}
 }
 
+@article{mitusch2019dolfinadjoint,
+  title     = {dolfin-adjoint 2018.1: Automated Adjoints for {FEniCS} and
+               {Firedrake}},
+  author    = {Mitusch, Sebastian K. and Funke, Simon W. and Dokken, J{\o}rgen S.},
+  journal   = {Journal of Open Source Software},
+  volume    = {4},
+  number    = {38},
+  pages     = {1292},
+  year      = {2019},
+  publisher = {The Open Journal},
+  doi       = {10.21105/joss.01292}
+}
+
+@article{alnaes2015fenics,
+  title     = {The {FEniCS} Project Version 1.5},
+  author    = {Aln{\ae}s, Martin S. and Blechta, Jan and Hake, Johan and
+               Johansson, August and Kehlet, Benjamin and Logg, Anders and
+               Richardson, Chris N. and Ring, Johannes and Rognes, Marie E. and
+               Wells, Garth N.},
+  journal   = {Archive of Numerical Software},
+  volume    = {3},
+  number    = {100},
+  pages     = {9--23},
+  year      = {2015},
+  doi       = {10.11588/ans.2015.100.20553}
+}
+
 @inproceedings{moses2020enzyme,
   title     = {Instead of Rewriting Foreign Code for Machine Learning,
                Automatically Synthesize Fast Gradients},
-  author    = {Moses, William S and Churavy, Valentin},
+  author    = {Moses, William S. and Churavy, Valentin},
   booktitle = {Advances in Neural Information Processing Systems},
   volume    = {33},
   pages     = {12472--12485},
@@ -337,9 +387,11 @@
   author    = {Giles, Michael B and Pierce, Niles A},
   journal   = {Flow, Turbulence and Combustion},
   volume    = {65},
+  number    = {3--4},
   pages     = {393--415},
   year      = {2000},
-  publisher = {Springer}
+  publisher = {Springer},
+  doi       = {10.1023/A:1011430410075}
 }
 
 @article{lemke2019discrete,
@@ -362,7 +414,8 @@
   number    = {44--47},
   pages     = {6011--6045},
   year      = {2006},
-  publisher = {Elsevier}
+  publisher = {Elsevier},
+  doi       = {10.1016/j.cma.2005.10.010}
 }
 
 @article{chorin1968numerical,
@@ -422,7 +475,8 @@
   number    = {8},
   pages     = {1386--1404},
   year      = {2013},
-  publisher = {IEEE}
+  publisher = {IEEE},
+  doi       = {10.1109/TVCG.2012.316}
 }
 
 % ── Data assimilation ─────────────────────────────────────────────────────────
@@ -438,14 +492,13 @@
 
 % ── Benchmark solvers (ins_jl, Warp, OpenFOAM, Exponax, Firedrake, deal.II, TopOpt.jl) ──
 
-@software{agdestein2024ins,
-  title        = {{IncompressibleNavierStokes.jl}: Incompressible {Navier}--{Stokes} Solver
-                  in {Julia}},
+@misc{agdestein2024ins,
+  title        = {{IncompressibleNavierStokes.jl}},
   author       = {Agdestein, Syver D{\o}ving and Ciarella, Simone and
                   Sanderse, Benjamin and Hoekstra, Rik},
-  year         = {2024},
-  doi          = {10.5281/zenodo.14217342},
-  url          = {https://github.com/agdestein/IncompressibleNavierStokes.jl}
+  note         = {Version 5.0.0},
+  year         = {2026},
+  url          = {https://doi.org/10.5281/zenodo.21298672}
 }
 
 @inproceedings{macklin2024warp,
@@ -528,11 +581,13 @@
   url          = {https://github.com/JuliaTopOpt/TopOpt.jl}
 }
 
-@software{meyer2024torchfem,
-  title  = {torch-fem: Differentiable finite elements for {PyTorch}},
+@misc{meyer2024torchfem,
+  title  = {torch-fem: {GPU} accelerated differentiable finite elements for
+            solid mechanics with {PyTorch}},
   author = {Meyer, Nils},
-  url    = {https://github.com/Meyer-Nils/torch-fem},
-  year   = {2024}
+  note   = {Version 0.12.1},
+  year   = {2026},
+  url    = {https://doi.org/10.5281/zenodo.22890235}
 }
 
 % ── Thermal mesh / heat transfer topology optimisation ───────────────────────
@@ -567,7 +622,7 @@
   journal   = {Journal of Computational Physics},
   volume    = {544},
   pages     = {114433},
-  year      = {2025},
+  year      = {2026},
   publisher = {Elsevier},
   doi       = {10.1016/j.jcp.2025.114433}
 }
@@ -607,12 +662,12 @@
   doi       = {10.1017/S0022112001005821}
 }
 
-@article{um2020sol,
+@inproceedings{um2020sol,
   title     = {Solver-in-the-Loop: Learning from Differentiable Physics to
                Interact with Iterative {PDE}-Solvers},
   author    = {Um, Kiwon and Brand, Robert and Fei, Yun (Raymond) and
                Holl, Philipp and Thuerey, Nils},
-  journal   = {Advances in Neural Information Processing Systems},
+  booktitle = {Advances in Neural Information Processing Systems},
   volume    = {33},
   pages     = {6111--6122},
   year      = {2020}
@@ -728,8 +783,8 @@
 }
 
 @article{pathak2022fourcastnet,
-  title   = {{FourCastNet}: A Global Data-Driven High-Resolution Weather
-             Forecasting Model},
+  title   = {{FourCastNet}: A Global Data-driven High-resolution Weather
+             Model using Adaptive {Fourier} Neural Operators},
   author  = {Pathak, Jaideep and Subramanian, Shashank and Harrington, Peter
              and Raja, Sanjeev and Chattopadhyay, Ashesh and Mardani, Morteza
              and Kurth, Thorsten and Hall, David and Li, Zongyi and
@@ -743,7 +798,7 @@
 @article{bodnar2024aurora,
   title     = {A Foundation Model for the {Earth} System},
   author    = {Bodnar, Cristian and Bruinsma, Wessel P and Lucic, Ana and
-               Stanley, Megan and Vaughan, Anna and Brandstetter, Johannes and
+               Stanley, Megan and Allen, Anna and Brandstetter, Johannes and
                Garvan, Patrick and Riechert, Maik and Weyn, Jonathan A and
                Dong, Haiyu and Gupta, Jayesh K and Thambiratnam, Kit and
                Archibald, Alexander T and Wu, Chun-Chieh and Heider, Elizabeth
@@ -758,13 +813,13 @@
 @article{price2024gencast,
   title   = {Probabilistic Weather Forecasting with Machine Learning},
   author  = {Price, Ilan and Sanchez-Gonzalez, Alvaro and Alet, Ferran and
-             Ewalds, Timo and El-Kadi, Andrew and Stott, Jacklynn and
-             Mohamed, Shakir and Battaglia, Peter and Lam, Remi and
-             Willson, Matthew},
+             Andersson, Tom R. and El-Kadi, Andrew and Masters, Dominic and
+             Ewalds, Timo and Stott, Jacklynn and Mohamed, Shakir and
+             Battaglia, Peter and Lam, Remi and Willson, Matthew},
   journal = {Nature},
   volume  = {637},
-  pages   = {1038--1044},
-  year    = {2024},
+  pages   = {84--90},
+  year    = {2025},
   doi     = {10.1038/s41586-024-08252-9}
 }
 
@@ -776,6 +831,8 @@
                Song, Jian and Zhu, Jun},
   booktitle = {Proceedings of the 41st International Conference on Machine Learning},
   series    = {Proceedings of Machine Learning Research},
+  volume    = {235},
+  pages     = {17616--17635},
   publisher = {PMLR},
   year      = {2024},
   url       = {https://proceedings.mlr.press/v235/hao24d.html}
@@ -787,19 +844,23 @@
                K{\"a}ppeli, Roger and Molinaro, Roberto and de B{\'e}zenac, Emmanuel
                and Mishra, Siddhartha},
   booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {37},
+  pages     = {72525--72624},
   year      = {2024},
-  url       = {https://proceedings.neurips.cc/paper_files/paper/2024/hash/84e1b1ec17bb11c57234e96433022a9a-Abstract-Conference.html}
+  doi       = {10.52202/079017-2311}
 }
 
-@article{takamoto2022pdebench,
-  title   = {{PDEBench}: An Extensive Benchmark for Scientific Machine Learning},
-  author  = {Takamoto, Makoto and Praditia, Timothy and Leiteritz, Raphael and
-             MacKinlay, Dan and Alesiani, Francesco and Pfl{\"u}ger, Dirk and
-             Niepert, Mathias},
-  journal = {Advances in Neural Information Processing Systems},
-  volume  = {35},
-  pages   = {1596--1611},
-  year    = {2022}
+@inproceedings{takamoto2022pdebench,
+  title     = {{PDEBench}: An Extensive Benchmark for Scientific Machine Learning},
+  author    = {Takamoto, Makoto and Praditia, Timothy and Leiteritz, Raphael and
+               MacKinlay, Daniel and Alesiani, Francesco and Pfl{\"u}ger, Dirk and
+               Niepert, Mathias},
+  booktitle = {Advances in Neural Information Processing Systems (Datasets and
+               Benchmarks Track)},
+  volume    = {35},
+  pages     = {1596--1611},
+  year      = {2022},
+  doi       = {10.52202/068431-0117}
 }
 
 @misc{brockman2016openai,
@@ -828,11 +889,11 @@
 @article{jaxfluids2022,
   title   = {{JAX-Fluids}: A Fully-Differentiable High-Order Computational
              Fluid Dynamics Solver for Compressible Two-Phase Flows},
-  author  = {Bezgin, Deniz A and Buhendwa, Aaron B and Adams, Nikolaus A},
+  author  = {Bezgin, Deniz A. and Buhendwa, Aaron B. and Adams, Nikolaus A.},
   journal = {Computer Physics Communications},
   volume  = {282},
   pages   = {108527},
-  year    = {2022},
+  year    = {2023},
   doi     = {10.1016/j.cpc.2022.108527}
 }
 
@@ -886,7 +947,18 @@
   author  = {Fu, Yicong and Kennedy, Graeme J.},
   journal = {Structural and Multidisciplinary Optimization},
   volume  = {66},
+  number  = {8},
   pages   = {176},
   year    = {2023},
   doi     = {10.1007/s00158-023-03630-9}
+}
+
+@book{griewank2008evaluating,
+  author    = {Griewank, Andreas and Walther, Andrea},
+  title     = {Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation},
+  edition   = {2nd},
+  publisher = {SIAM},
+  address   = {Philadelphia, PA},
+  year      = {2008},
+  doi       = {10.1137/1.9780898717761}
 }
