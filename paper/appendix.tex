@@ -282,7 +282,7 @@ F2 uses an $N\times N$ uniform Cartesian grid ($N\in\{64,128,192,256\}$, giving 
 F3 uses an $N\times N\times N$ Cartesian grid ($N\in\{16,32,48,64,96,128\}$, giving $4\text{k}$--$2.1\text{M}$ cells);
 S uses an $N\times 2\times\lfloor N/2\rfloor$ hexahedral mesh ($N\in\{4,\ldots,128\}$, giving $16$--$16\text{k}$ elements);
 H uses an $N\times\lfloor N/2\rfloor\times 1$ hex mesh ($N\in\{16,\ldots,1024\}$, giving $128$--$524\text{k}$ elements).
-For the mesh domains, \cref{fig:app:scaling:fem} adds the extended sweeps of \cref{app:outcomes}, which continue S to $N=3\,200$ and H to $N=4\,500$ (10\,M elements each) with three trials per point.
+For the mesh domains, \cref{fig:app:scaling:fem} adds extended sweeps from a separate run on the same machine, which continue S to $N=3\,200$ and H to $N=4\,500$ (10\,M elements each) with three trials per point.
 Table~\ref{tab:merged} wall times are at $N=64$ (F2), $N=32$ (F3), $N=128$ (S), $N=256$ (H).
 The rollout-length sweeps run F2 at $N=128$ for 10--1\,000 steps and F3 at $N=48$ for 10--2\,000 steps.
 
@@ -292,6 +292,11 @@ The underlying Tesseract request times out separately after 7\,200\,s.
 Forward times span several orders of magnitude across solver families at identical resolution, reflecting differences in algorithmic complexity and hardware target (CPU vs.\ GPU).
 OpenFOAM's F3 forward times at $N\geq64$ are 1.5--3$\times$ longer than in an earlier run of the same solver image. Based on back-to-back measurements, we attribute the difference to load on the host.
 PICT's F3 VJP runs out of memory at $N=128$ after two of three trials, its container exiting with the GPU's memory full and no error message.
+
+On the extended mesh sweeps, all H configurations reach $N=4\,500$ except torch-fem, which runs out of GPU memory at that size.
+On S, every solver reaches $N=1\,024$ and none reaches 2\,048, where JAX-FEM and torch-fem run out of GPU memory and the CPU solvers reach the 195\,GB cap of their containers.
+At $N=3\,200$, Firedrake fails below the cap because the stiffness matrix has $2.9\times10^9$ nonzeros, more than PETSc's 32-bit indices allow, and FEniCS fails in PETSc's matrix preallocation, probably for the same reason.
+Where the extended sweeps overlap the main sweeps, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
 
 Since the VJP request includes a forward pass (\cref{app:effort}), a ratio near~2 means that the adjoint pass costs about as much as the forward pass.
 On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises (F2 2.2 to 4.1, F3 1.8 to 4.6) and PhiFlow's falls on F2 (5.3 to 3.1).
@@ -322,9 +327,9 @@ Two memory readings are less informative than the others. INS.jl's peak is domin
   \caption{Gradient overhead scaling for the mesh domains (Structural,
     top; Thermal, bottom). Same layout as \cref{fig:app:scaling}.
     deal.II VJP times are omitted (no native adjoint). Shaded: sizes beyond
-    the main sweep, from the extended sweeps with three trials per point
-    (\cref{app:outcomes}). A cross at the top edge marks a failed size;
-    \cref{tab:app:outcomes} gives the causes.}
+    the main sweep, from the extended sweeps with three trials per point.
+    A cross at the top edge marks a failed size; \cref{app:cost} gives the
+    causes.}
   \label{fig:app:scaling:fem}
 \end{figure}
 
@@ -362,21 +367,6 @@ Of these 40, 26 belong to the two Julia solvers, TopOpt.jl (12) and INS.jl (14),
 Dropping the single slowest trial brings 36 of the 40 below 15\%.
 
 \input{tables/variance}
-
-\subsection{Runs on \texorpdfstring{16\,GB}{16 GB} GPUs}
-\label{app:outcomes}
-
-Many practitioners have smaller GPUs than the A100, so \cref{tab:app:outcomes} lists every configuration that failed on a 16\,GB GPU, in a run on a V100 or on the T4 GPUs of our CI, together with its outcome on the A100.
-Every NS configuration that failed on 16\,GB from lack of memory completes on 80\,GB, apart from two solvers that are no longer part of the suite.
-The non-finite gradients of the F3 horizon sweep recur on the A100, and with more memory the sweeps get further and reach new limits, which the outcome column also lists.
-The V100 run swept the mesh domains to larger sizes than our main sweeps ($n_x$ up to 3\,200 for S and 4\,500 for H), so we extended the size sweeps to these sizes in a separate run on the same A100 machine, with three trials per point.
-Where the two runs overlap, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
-On the A100, every mesh configuration that failed on the V100 gets at least one size further, except TopOpt.jl's S VJP, which timed out at $n_x=2\,048$ on the V100 and reaches the host-memory cap of its container there on the A100.
-All H configurations reach $n_x=4\,500$ except torch-fem, which runs out of GPU memory at that size.
-On S, every solver reaches $n_x=1\,024$ and none reaches 2\,048, where JAX-FEM and torch-fem run out of GPU memory and the CPU solvers reach the 195\,GB cap of their containers.
-At $n_x=3\,200$, Firedrake fails below the cap because the stiffness matrix has $2.9\times10^9$ nonzeros, more than PETSc's 32-bit indices allow, and FEniCS fails in PETSc's matrix preallocation, probably for the same reason.
-
-\input{tables/outcomes16gb}
 
 \subsection{Physical accuracy}
 \label{app:physical_accuracy}
@@ -497,7 +487,10 @@ All solvers pass the checks' thresholds (error at most 0.1 and within $3\times$ 
 \Cref{tab:gradchecks} reports the errors at $\nu=0.01$.
 
 \paragraph{Jacobian singular value spectra}
-\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_1$ of the solver Jacobian for 2D NS across varying viscosity and rollout length; the 3D NS spectra appear in \cref{fig:conditioning} in the main text.
+On F3 (\cref{fig:conditioning}), JAX-CFD, INS.jl, and PhiFlow have 1\,002 of 1\,536 singular values above round-off in every configuration, with the rest between about $10^{-8}$ and $3\times10^{-7}\sigma_1$. Their condition numbers of $5\times10^{10}$ to $4.5\times10^{12}$ are therefore set by round-off and vary without a trend in rollout length or viscosity.
+Between $T=0.5$ and $T=2$, the number of singular values above $10^{-2}\sigma_1$ falls from 1\,412 to 1\,056 for PICT and from 1\,388 to 1\,044 for Warp-NS. XLB keeps at least 1\,492 of them in every configuration, and Exponax all 1\,536.
+
+\Cref{fig:app:svd2d} shows normalized singular value spectra $\sigma_i/\sigma_1$ of the solver Jacobian for 2D NS across varying viscosity and rollout length.
 Faster spectral decay indicates a more ill-conditioned Jacobian.
 In 2D, unlike on F3 (\cref{fig:conditioning}), rollout length and viscosity change individual condition numbers by up to two orders of magnitude without a consistent direction, while the ordering of the solvers stays the same in every configuration: XLB has the smallest condition number (20--48), followed by PICT ($2\times10^5$--$2\times10^6$), with the other solvers between $2\times10^7$ and $10^{11}$.
 Exponax, which solves the 2D problem in vorticity form and thus discards the curl-free part of its input, joins the projection solvers at about $10^{10}$ there, unlike in 3D.
@@ -595,6 +588,14 @@ Per-task settings:
         this measures recovery of arbitrary div-free targets from a cold
         start rather than re-running the same problem three times.
 \end{itemize}
+
+\paragraph{Pass criteria}
+The \textit{Conv.} column of \cref{tab:merged} applies the benchmark's
+automated checks. A run passes if its final objective is at most half the
+initial one. For drag minimization, the final drag must also be at most 0.7
+of the initial drag and lie within 30\% of the peer median. These thresholds
+are loose: they flag broken gradients but do not distinguish working
+solvers. \Cref{sec:optimization} compares the final objectives directly.
 
 \paragraph{Solenoidal gradient projection (F3 variants)}
 The L-BFGS+proj and Adam+proj variants on F3 apply a spectral
@@ -880,7 +881,9 @@ training graph; \emph{stopped}, on a corrected 16-interval rollout with the
 gradient stopped at every solver output; and \emph{SIL}, on the same rollout
 differentiated through the solver. All arms see the same windows and use Adam
 with learning rate $10^{-3}$ and global-norm clipping for 256 updates, for each
-of three network seeds. The loss is the mean over the rollout of
+of three network seeds. These settings are shared by all arms and solvers and
+were not tuned per arm, and the rollout length is fixed at 16 intervals from
+the first update rather than increased over a curriculum. The loss is the mean over the rollout of
 $\|s - t\|^2 / \|t\|^2$, without per-solver normalization. Validation on the
 separate state every 32 updates selects the checkpoint, with update 0, the
 uncorrected solver, as a candidate. Every selected and final corrector is then
