@@ -10,8 +10,11 @@ project:
   # discover them from the pages.
   resources:
     - "_generated/plots/**/*.vl.json"
+    # Videos on the paper page, referenced from raw HTML.
+    - "figures/paper/*.mp4"
   render:
     - index.qmd
+    - paper.qmd
     - results/*.qmd
     - solvers.qmd
     - getting-started.qmd
@@ -62,6 +65,8 @@ website:
           - text: "<span class='domain-id d-H'>H</span>Steady conduction in a slab"
             file: results/heat.qmd
     right:
+      - text: Paper
+        file: paper.qmd
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
   page-footer:
