@@ -20,6 +20,7 @@ dependencies = [
     "altair>=6.3",
     "vl-convert-python>=1.9",
     "jax[cpu]",
+    "nlopt",
     "optax",
     "scipy",
     "tesseract-core[runtime]>=1.10.0",

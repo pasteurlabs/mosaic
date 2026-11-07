@@ -188,6 +188,7 @@ _LOOSENED_BY_DESIGN: frozenset[str] = frozenset(
         "ns-grid/optimization/kolmogorov_sil",
         "ns-grid/optimization/kolmogorov_sil_stability",
         "ns-grid/optimization/drag_opt",
+        "ns-grid/optimization/drag_opt_bfgs",
     }
 )
 

@@ -29,15 +29,33 @@ def entries(dirs: list[str], experiment: str) -> Iterator[dict]:
 
 
 def gates(m: dict) -> str:
-    """Table cells of the gates of one solver's metrics."""
-    ratio = max(a["ratio"] for split in m["audits"].values() for a in split)
-    closure = max(max(v) for v in m["closure"].values())
-    fd = "/".join(
-        f"{m['fd'][k]['relative_error']:.1e}"
-        for k in ("zero_readout", "nonzero_readout")
+    """Table cells of the gates of one solver's metrics.
+
+    The experiment stops at the first gate a solver fails, so the gates after
+    it have no metrics and show "—".
+    """
+    ratios = np.asarray(
+        [a["ratio"] for split in m["audits"].values() for a in split], dtype=float
     )
-    cost = "/".join(f"{c['update_seconds']:.2f}" for c in m["cost"].values())
-    return f"{ratio:.3f} | {closure:.1e} | {fd} | {cost} | {m['eligible']}"
+    ratio = f"{ratios.max():.3f}" if np.isfinite(ratios).all() else "diverged"
+    closure = (
+        f"{max(max(v) for v in m['closure'].values()):.1e}" if "closure" in m else "—"
+    )
+    fd = (
+        "/".join(
+            f"{m['fd'][k]['relative_error']:.1e}"
+            for k in ("zero_readout", "nonzero_readout")
+        )
+        if "fd" in m
+        else "—"
+    )
+    cost = (
+        "/".join(f"{c['update_seconds']:.2f}" for c in m["cost"].values())
+        if "cost" in m
+        else "—"
+    )
+    eligible = m["eligible"] or f"False: {m['reason']}"
+    return f"{ratio} | {closure} | {fd} | {cost} | {eligible}"
 
 
 def mean_test_error(errors: list) -> np.ndarray:

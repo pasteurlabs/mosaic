@@ -170,5 +170,6 @@ def register(problem: Problem) -> None:
     # Optimization — suite-level + per-experiment obstacle gates
     problem.exclude("optimization", {"openfoam": OPENFOAM_NON_DIFFERENTIABLE_OPT})
     problem.exclude("optimization/drag_opt", _OBSTACLE_GATE)
+    problem.exclude("optimization/drag_opt_bfgs", _OBSTACLE_GATE)
     problem.exclude("optimization/kolmogorov_sil", _KOLMOGOROV_DIVERGES)
     problem.exclude("optimization/kolmogorov_sil_stability", _KOLMOGOROV_DIVERGES)

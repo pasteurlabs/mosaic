@@ -37,7 +37,11 @@ from mosaic.benchmarks.core.io import (
     save_npz_merged,
 )
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
-from mosaic.benchmarks.problems.shared.optimization import _iters_to_plateau, _run_optim
+from mosaic.benchmarks.problems.shared.optimization import (
+    _iters_to_plateau,
+    _run_lbfgs,
+    _run_optim,
+)
 
 from . import cylinder
 
@@ -118,6 +122,7 @@ def _drag_build_solver_entry(
     converged: bool,
     in_progress: bool = False,
     error: str | None = None,
+    n_evals: int | None = None,
 ) -> dict:
     """Assemble a single solver's drag-opt result dict (used for partial + final).
 
@@ -136,6 +141,7 @@ def _drag_build_solver_entry(
             else 0.0
         ),
         "n_iters": n_iters_total,
+        "n_evals": n_evals,
         "iters_to_plateau": _iters_to_plateau(drags) if drags else None,
         "converged": converged,
         "grad_norms": grad_norms,
@@ -257,7 +263,74 @@ def _drag_opt_adam_loop(
     grad_norms = list((diag or {}).get("grad_norms") or [])
     n_iters = len(losses)
     entry = _drag_build_solver_entry(
-        drags, grad_norms, n_iters, converged=n_iters < max_iters
+        drags,
+        grad_norms,
+        n_iters,
+        converged=n_iters < max_iters,
+        n_evals=diag["n_evals"],
+    )
+    return profile, profile_history, entry
+
+
+# ── drag_opt_bfgs: L-BFGS-B loop ─────────────────────────────────────────────
+
+
+def _drag_opt_lbfgs_loop(
+    name: str,
+    t: Any,
+    profile_init: Any,
+    phys: dict,
+    *,
+    cd0: float,
+    max_iters: int = 50,
+    snap_interval: int = 0,
+    by_solver: dict,
+    write_partial: Any,
+    make_inputs: Any,
+) -> tuple[jax.Array, list, dict]:
+    """L-BFGS-B loop for drag_opt_bfgs, with the same loss as the Adam loop.
+
+    The loss ``Cd / cd0`` sees the inlet profile through :func:`_project`, as
+    in the Adam loop, and L-BFGS-B's own bounds keep the iterate in
+    ``[0, U_BOUND]``. ``drags`` covers the initial profile and every accepted
+    iterate, ending at the returned profile. A partial result is flushed
+    every 10 iterations.
+
+    Returns ``(profile_final, profile_history, by_solver_entry)``.
+    """
+
+    def loss_fn(p: Any, _t: Any = t) -> Any:
+        cd, _ = _drag_forward(_t, p, phys, name=name, make_inputs=make_inputs)
+        return cd / cd0, {"cd": cd}
+
+    aux_history: dict = {}
+    profile_history: list = []
+
+    def _log_iter(_i: Any, _loss_val: Any) -> None:
+        drag_trace = list(aux_history.get("cd", []))
+        by_solver[name] = _drag_build_solver_entry(
+            drag_trace, [], len(drag_trace) - 1, converged=False, in_progress=True
+        )
+        write_partial()
+
+    profile, _, diag = _run_lbfgs(
+        loss_fn,
+        profile_init,
+        max_iters=max_iters,
+        has_aux=True,
+        aux_history=aux_history,
+        bounds=(0.0, U_BOUND),
+        snap_interval=snap_interval,
+        history=profile_history if snap_interval > 0 else None,
+        log_fn=_log_iter,
+        log_interval=10,
+    )
+    entry = _drag_build_solver_entry(
+        list(aux_history.get("cd", [])),
+        diag["grad_norms"],
+        diag["n_iters"],
+        converged=diag["converged"],
+        n_evals=diag["n_evals"],
     )
     return profile, profile_history, entry
 
@@ -375,8 +448,10 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     Starts from the benchmark's parabolic inlet profile and checks that the
     solver's drag coefficient for it, Cd₀, is within :data:`CD0_TOLERANCE`
     of the reference. Otherwise it stops there and records the failure. Then
-    runs Adam on the loss ``Cd / Cd₀``, captures the initial and final flow
-    fields, and hands the per-solver entry + snapshots back to the framework.
+    minimises ``Cd / Cd₀`` with the optimizer named by ``run["optimizer"]``,
+    ``"adam"`` (default) or ``"bfgs"`` (L-BFGS-B), captures the initial and
+    final flow fields, and hands the per-solver entry + snapshots back to the
+    framework.
 
     Every 10 iterations the kernel merges its current entry into
     ``result_partial.json`` (under a FileLock so peer solvers running on
@@ -386,6 +461,10 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     phys = run.get("physics", {})
     optim_cfg = run.get("optim", {})
     snap_interval = int(optim_cfg.get("snap_interval", 0))
+    optimizer = run.get("optimizer", "adam")
+    if optimizer not in ("adam", "bfgs"):
+        raise ValueError(f"unknown optimizer {optimizer!r}")
+    exp_key = run.get("_exp_key", "drag_opt")
 
     ic_cfg = run.get("ic", {})
     ic_name = ic_cfg.get("name", next(iter(ctx.cfg.make_ic)))
@@ -409,11 +488,12 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
 
     # Forward only the optimizer knobs the config sets, so the loop's own
     # defaults fill in the rest.
-    loop_kwargs = {
-        k: optim_cfg[k]
-        for k in ("lr", "max_iters", "patience", "min_rel_improvement")
-        if k in optim_cfg
-    }
+    knobs = (
+        ("lr", "max_iters", "patience", "min_rel_improvement")
+        if optimizer == "adam"
+        else ("max_iters",)
+    )
+    loop_kwargs = {k: optim_cfg[k] for k in knobs if k in optim_cfg}
 
     # ── Partial-result checkpointing ───────────────────────────────────────
     # Resolve out_dir the same way the framework does so the partial JSON
@@ -422,7 +502,7 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
         results_dir(),
         ctx.cfg.name,
         _SUITE,
-        "drag_opt",
+        exp_key,
         suffix="_debug" if run.get("debug") else "",
     )
 
@@ -444,7 +524,8 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
         partial_writer.write(ctx.name, by_solver_shim.get(ctx.name))
 
     # ── Optimisation loop ──────────────────────────────────────────────────
-    profile, profile_history, entry = _drag_opt_adam_loop(
+    loop = _drag_opt_adam_loop if optimizer == "adam" else _drag_opt_lbfgs_loop
+    profile, profile_history, entry = loop(
         ctx.name,
         t,
         profile_init,
@@ -461,13 +542,15 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     cd_final, vel_final = _drag_capture_flow(
         t, profile, phys, name=ctx.name, make_inputs=ctx.make_inputs
     )
-    if np.isfinite(cd_final):
-        # ``drags[k]`` is Cd after k updates. The final profile adds one more.
+    if optimizer == "adam" and np.isfinite(cd_final):
+        # ``drags[k]`` is Cd after k updates. The final profile adds one more;
+        # L-BFGS-B's trace already ends at it.
         entry = _drag_build_solver_entry(
             [*entry["drags"], cd_final],
             entry["grad_norms"],
             entry["n_iters"],
             converged=entry["converged"],
+            n_evals=entry["n_evals"],
         )
     # Final flush — replace the in-progress entry with the converged one.
     by_solver_shim[ctx.name] = entry

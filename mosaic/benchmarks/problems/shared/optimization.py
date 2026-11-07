@@ -119,6 +119,9 @@ def _run_optim(
 
     ``clip_fn`` (e.g. ``lambda x: jnp.clip(x, x_min, 1.0)``) is applied to
     ``x`` after each Adam update so the iterate stays in the feasible set.
+    ``grad_proj_fn`` is applied to each gradient before Adam sees it, e.g. to
+    project velocity fields onto the divergence-free subspace; the recorded
+    gradient diagnostics are those of the projected gradient.
 
     Returns ``(final_x, losses, diag)`` where ``losses`` is the per-iter
     scalar-loss list and ``diag`` is a dict with optional diagnostic
@@ -129,6 +132,11 @@ def _run_optim(
       * ``ic_divs``:    per-iter ``max|∇·u|`` (only when ``div_fn`` set)
       * ``converged``:  whether the patience-based early stop fired
       * ``n_iters``:    the number of Adam updates, ``len(losses)``
+      * ``n_evals``:    the number of value-and-gradient evaluations, one per
+        update, so equal to ``n_iters``
+      * ``n_evals_history``: per entry of ``losses``, the evaluations made up
+        to and including the one that computed it, so ``k + 1`` for
+        ``losses[k]``
       * ``iters_to_plateau``: :func:`_iters_to_plateau` of ``losses``, which
         is independent of ``min_rel_improvement`` and ``patience``.
         ``losses[k]`` is the loss after ``k`` updates, and the iterate after
@@ -151,6 +159,8 @@ def _run_optim(
             _append_aux(aux_history, aux)
         else:
             loss, g = value_and_grad(x)
+        if grad_proj_fn is not None:
+            g = grad_proj_fn(g)
         diag["grad_norms"].append(float(jnp.linalg.norm(g.ravel())))
         if record_diagnostics and div_fn is not None:
             diag["grad_divs"].append(div_fn(np.asarray(g)))
@@ -177,6 +187,8 @@ def _run_optim(
             break
     diag["converged"] = no_improve >= patience
     diag["n_iters"] = len(losses)
+    diag["n_evals"] = len(losses)
+    diag["n_evals_history"] = list(range(1, len(losses) + 1))
     diag["iters_to_plateau"] = _iters_to_plateau(losses)
     return x, losses, diag
 
@@ -232,9 +244,11 @@ def _run_lbfgs(
     cover ``init_x`` and every iterate, ending at ``final_x``, so
     ``diag["n_iters"]``, the number of iterations, is one less than their
     length. ``diag["converged"]`` is false when the run hit ``max_iters`` or
-    the line search failed. ``diag["iters_to_plateau"]`` is
-    :func:`_iters_to_plateau` of ``losses``. Raises ``FloatingPointError`` when the loss at ``init_x``
-    is not finite.
+    the line search failed. ``diag["n_evals"]`` counts the value-and-gradient
+    evaluations, line-search trials included and cache hits excluded, and
+    ``diag["n_evals_history"]`` the count up to each entry of ``losses``.
+    ``diag["iters_to_plateau"]`` is :func:`_iters_to_plateau` of ``losses``.
+    Raises ``FloatingPointError`` when the loss at ``init_x`` is not finite.
     """
     shape, dtype = init_x.shape, init_x.dtype
     vg = jax.value_and_grad(loss_fn, has_aux=has_aux)
@@ -254,10 +268,13 @@ def _run_lbfgs(
 
     # Evaluations since the last accepted iterate, plus that iterate.
     evals: dict[bytes, tuple] = {}
+    n_evals = 0
 
     def evaluate(z: np.ndarray) -> tuple:
+        nonlocal n_evals
         key = to_x(z).tobytes()
         if key not in evals:
+            n_evals += 1
             value, grad, aux = value_and_grad(jnp.asarray(to_x(z)))
             value = float(value)
             grad = np.asarray(grad, dtype=np.float64).ravel()
@@ -273,6 +290,7 @@ def _run_lbfgs(
 
     losses: list[float] = []
     grad_norms: list[float] = []
+    n_evals_history: list[int] = []
     last_z: list[np.ndarray] = []
 
     def record(z: np.ndarray) -> None:
@@ -286,6 +304,7 @@ def _run_lbfgs(
             _append_aux(aux_history, aux)
         losses.append(value)
         grad_norms.append(float(np.linalg.norm(grad)))
+        n_evals_history.append(n_evals)
         last_z[:] = [z.copy()]
         if i == 0:
             return
@@ -323,6 +342,8 @@ def _run_lbfgs(
         "grad_norms": grad_norms,
         "converged": bool(converged),
         "n_iters": len(losses) - 1,
+        "n_evals": n_evals,
+        "n_evals_history": n_evals_history,
         "iters_to_plateau": _iters_to_plateau(losses),
     }
     return jnp.asarray(to_x(res.x)), losses, diag

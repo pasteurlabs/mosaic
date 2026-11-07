@@ -276,6 +276,7 @@ def conductivity_recovery(t: Any, ctx: KernelContext) -> dict:
             else 0.0
         ),
         "n_iters": diag["n_iters"],
+        "n_evals": diag["n_evals"],
         "iters_to_plateau": diag["iters_to_plateau"],
         "converged": converged,
         "grad_norms": grad_norms,
