@@ -36,9 +36,8 @@ gradient accuracy, and stability over long rollouts have not been
 systematically measured. Solver-specific constraints therefore surface
 only after a practitioner has committed to a particular solver: some
 solvers support only periodic domains or lack the boundary types a task
-needs, some become unstable over long rollouts, and some return gradients
-that exhaust memory or silently lose accuracy in settings their own tests
-do not cover.
+needs, some become unstable or consume excessive resources over long rollouts,
+and some lose accuracy in settings their own tests do not cover.
 
 Learned surrogates and physics foundation models offer an alternative
 path, with limitations of their own (\cref{sec:related}). Meanwhile,
@@ -76,7 +75,7 @@ committing to a particular stack. Our contributions are:
     rollouts, and the memory cost of their gradients.
   \item An \textbf{open-source release} of all solver interfaces, evaluation
     code, and templates, extensible to new solvers and domains, with
-    CI-based re-evaluation infrastructure that keeps published results
+    CI-based re-evaluation infrastructure so that published results stay
     current as solvers improve.
 \end{enumerate}
 
@@ -97,7 +96,7 @@ Zygote~\cite{innes2018don}, LLVM-IR-level AD via
 Enzyme~\cite{moses2020enzyme}, NVIDIA
 Warp kernel-level AD~\cite{macklin2024warp}, and tape-based discrete
 adjoints in dolfin-adjoint and
-firedrake-adjoint~\cite{farrell2013automated}.
+firedrake-adjoint~\cite{farrell2013automated,mitusch2019dolfinadjoint}.
 Hand-derived adjoints are fast but tied to a fixed set of objectives,
 requiring new derivations whenever the control variable or loss function
 changes. Algorithmic AD removes this constraint at the price of higher
@@ -190,7 +189,7 @@ chaotic dynamics.
     H & Heat transfer (slab) & Conductivity inversion
       & 128 & 5 \\
     & \multicolumn{2}{l}{\textit{%
-      Negative control: smooth physics isolates gradient bugs}} & & \\[5pt]
+      Negative control: smooth physics to isolate gradient bugs}} & & \\[5pt]
     S & Structural mech.\ (cantilever) & Compliance minimization (SIMP)
       & 256 & 6 \\
     & \multicolumn{2}{l}{\textit{%
@@ -260,9 +259,9 @@ configuration string.
 Forward-only solvers
 (OpenFOAM, deal.II) implement \texttt{apply} only and serve as forward
 reference baselines.
-Because solver APIs differ too widely for a single generic wrapper, each
-benchmark task defines a \emph{task-specific interface schema} (inputs,
-outputs, shapes, and units) that multiple solvers implement. To add a
+Because solver APIs differ too widely for a single generic wrapper, a
+\emph{task-specific interface schema} (inputs, outputs, shapes, and units) is
+defined for each benchmark task, and multiple solvers implement it. To add a
 backend, a contributor packages the solver as a Tesseract that implements
 the task schema, and the evaluation suite re-runs automatically on every
 proposed change.
@@ -357,12 +356,12 @@ available gradient strategies and per-setup effort.
       & Py/Warp & AD/AD-S & FD & Projection, Euler & $\checkmark$ & F2, F3 \\
     Exponax~\cite{koehler2024apebench}
       & Py/JAX & AD & Spectral & ETDRK2 & $\checkmark$ & F2, F3 \\
-%   FEniCS-NS~\cite{farrell2013automated}
+%   FEniCS-NS~\cite{alnaes2015fenics}
 %     & Py & Sym.+Auto & FE & IPCS, Crank-Nicolson & & F3 \\
     OpenFOAM~\cite{weller1998tensorial}
       & C++ & $-$ & FV & PISO/PIMPLE, Euler & & F2, F3 \\
     \midrule\midrule
-    FEniCS~\cite{farrell2013automated}
+    FEniCS~\cite{alnaes2015fenics}
       & Py & VA & FE & Direct (MUMPS) & & H, S \\
     Firedrake~\cite{rathgeber2016firedrake}
       & Py & VA & FE & Direct (MUMPS) & & H, S \\
@@ -459,16 +458,16 @@ a correct gradient look wrong (\cref{fig:app:fdcheck}).
 For the grid-based solvers, the forward discretization limits gradient
 accuracy on the Taylor--Green checks. Every solver's error is larger against the
 exact gradients than against finite differences, by three orders of magnitude
-for the staggered-grid solvers, because the exact gradient also exposes the
-discretization error that an optimizer sees. For these solvers, a more accurate
-gradient would first require a finer discretization.
+for the staggered-grid solvers, because a solver's computed gradient and its finite-difference
+reference are both impacted by discretization error, while the exact gradient is not.
+Optimization with these gradients therefore converges toward the optimum of the discretized problem
+rather than the continuous one, and a more accurate gradient would first require a finer discretization.
 
 The three shapes of the F3 Jacobian spectra (\cref{fig:conditioning}) mostly
 reflect how each solver treats initial perturbations that are not
-divergence-free, which incompressible flow
-forbids~\citep{guermond2006overview,bhatia2013helmholtz}. Solvers that project
+divergence-free and thus violate incompressibility~\citep{guermond2006overview,bhatia2013helmholtz}. Solvers that project
 them out exactly have singular values at round-off, so their condition numbers
-measure round-off rather than the flow (\cref{app:gradient}). The spectra did
+reflect round-off rather than the flow (\cref{app:gradient}). The spectra did
 not indicate which solvers stay stable over long rollouts, since each shape
 occurs both among solvers that stay stable and among those that return
 non-finite gradients (\cref{sec:scaling}).
@@ -508,18 +507,18 @@ and the cost of the reverse sweep by~$K$. By the implicit function theorem, a
 solve-level adjoint instead needs only the converged state and one solve with
 the transposed operator, which is why several solvers combine AD with adjoint
 solves (AD-S in \cref{tab:solvers}). The F3 measurements follow these
-scalings (\cref{fig:memory_rollout}), and without checkpointing, the stored
-trajectory limits a $48^3$ rollout to a few thousand steps even with 80\,GB. Memory is not always the
+scalings (\cref{fig:memory_rollout}), and without checkpointing, the requirement to store
+the entire trajectory limits a $48^3$ rollout to a few thousand steps even with 80\,GB. Memory is not always the
 first limit, however. On a longer F3 sweep, PhiFlow, Warp-NS, and XLB return
 non-finite gradients after a few hundred steps, long before the other solvers
-run out of memory (\cref{fig:horizon_sweep}). The steady mesh problems store
-no trajectory and fail only at millions of elements (\cref{app:cost}).
+run out of memory (\cref{fig:horizon_sweep}). The steady mesh problems do not require
+storing the trajectory and fail only at millions of elements (\cref{app:cost}).
 
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
 forward passes (\cref{tab:app:ratios}). This makes the ratio a cheap
-diagnostic for integration problems. During development, ratios of up to
-$1\,100$ exposed three integration bugs, all fixed in the reported results
+diagnostic for integration problems. During development, we found ratios of up to
+$1\,100$, which exposed three integration bugs, all fixed in the reported results
 (\cref{app:ratios}). INS.jl's ratio stays high at every grid size because
 Zygote cannot differentiate the library's in-place time stepper, so its VJP
 runs a slower non-mutating rollout instead.
@@ -536,15 +535,14 @@ runs a slower non-mutating rollout instead.
   \label{fig:recovery_main}
 \end{figure}
 
-All solvers share the same hyperparameters and iteration budget per
+Every solver is run with the same hyperparameters and iteration budget per
 task, so differences in convergence are attributable to the solver's
 gradient alone. On every task, the solvers that can run it reach
 comparable results (\cref{app:recovery}). They converge to the same optimum
-on S and reduce drag by 46 to 48\% on F2. On H, every solver lowers the
-misfit by about eight orders of magnitude, but the poorly conditioned
-inversion leaves the recovered conductivity dependent on the optimizer's
-path. Two solvers cannot run the F2 channel: Exponax represents only
-periodic fields, and the JAX-CFD API cannot express the channel's inflow,
+on S, and drag drops by 46 to 48\% on F2. On H, the misfit drops by about eight orders of magnitude with every solver,
+but because the inversion is poorly conditioned,
+the recovered conductivity depends on the optimizer's path. Two solvers cannot run the F2 channel:
+Exponax represents only periodic fields, and the JAX-CFD API cannot express the channel's inflow,
 outflow, and obstacle.
 
 On F3, the choice of optimizer matters more than the choice of solver
@@ -552,39 +550,38 @@ On F3, the choice of optimizer matters more than the choice of solver
 magnitude more accurately than Adam~\cite{kingma2015adam}, in a fraction of the gradient
 evaluations. Projecting the gradient onto divergence-free fields before each
 L-BFGS update (L-BFGS+proj) improves the recovery on every solver, likely because it
-keeps components that incompressible flow forbids out of the optimizer's
+keeps components not compatible with incompressible flow out of the optimizer's
 curvature model.
 
 \subsection{Solver-in-the-loop training}
 \label{sec:sil}
 
 The benchmark checks gradients outside of any training loop. To test
-whether these checks predict how a solver behaves inside one, we trained a
+whether these checks predict how a solver behaves during training, we set up a
 small periodic CNN to correct each solver's coarse ($64^2$) run of forced
-Kolmogorov flow against the solver's own $256^2$ run, in three arms:
+Kolmogorov flow against the solver's own $256^2$ run, in three variants:
 supervised one-interval pairs, a 16-interval rollout with the gradient
 stopped at every solver call, and the same rollout differentiated through
 the solver (SIL). Four solvers run the full study (JAX-CFD, INS.jl, XLB, and
-Exponax), and \cref{app:sil} gives the setup and the reasons for excluding
-the others.
+Exponax), and the setup and reasons for exclusions are outlined in \cref{app:sil}.
 
-The study exposed one gradient defect, PICT's adjoint tolerance, which
-single-call checks miss and only the chained gradient check catches
+During the study, we found one gradient defect, PICT's adjoint tolerance, which
+shows up in the chained gradient check but not in single-call checks
 (\cref{app:kolmogorov}). For the four solvers that run the study, whose
 gradient errors are all below $2\times10^{-3}$, the test errors track forward
-accuracy rather than gradient accuracy (\cref{tab:app:sil}). The two solvers
-with the larger uncorrected error gain the most, and the other two still end
-lower. Because each solver trains against its own reference and starts from
+accuracy rather than gradient accuracy (\cref{tab:app:sil}). The error drops
+most for the two solvers with the larger uncorrected error, and by less for the
+other two. Because each corrector is trained against its own reference and starts from
 a different error, these gains are hard to compare across solvers.
 
 Averaged over three seeds, supervised training reached the lowest test error
-on every solver except Exponax, and SIL's average never beat the
-stopped-gradient arm, although individual SIL seeds did. Earlier work found
+on every solver except Exponax, and SIL's average never fell below the
+stopped-gradient variant's, although individual SIL seeds did. Earlier work found
 training through the solver to outperform supervised
 training~\cite{um2020sol} and, by a smaller margin, the stopped-gradient
 rollout, also on Kolmogorov flow~\cite{list2024differentiability}. Our
-corrector has about 2\,600 parameters and trains for 256 updates without a
-curriculum or per-arm tuning, so this is not a fair test of that advantage.
+corrector has about 2\,600 parameters and is trained for 256 updates without a
+curriculum or per-variant tuning, so this is not a fair test of that advantage.
 Within this setup, the solvers differed under SIL training only in cost.
 
 % ===========================================================================
@@ -627,10 +624,9 @@ optimization at a fraction of the implementation cost. At the sizes of
 \paragraph{Measure rather than predict}
 Some properties can be anticipated from how a solver works: memory scales with the differentiation strategy, gradient
 accuracy is bounded by the discretization, and Fourier methods are
-restricted to periodic domains. Some properties that decided whether a
-solver was usable here could not. Solvers of the same numerical family and
-AD strategy ended up on both sides of the stability limit, their Jacobian
-spectra did not anticipate it (\cref{sec:quality}), and gradient defects
+restricted to periodic domains. Others, including some that determined whether a solver was usable here, could not.
+Solvers of the same numerical family and AD strategy ended up on both sides of the stability limit, their Jacobian
+spectra did not predict stability (\cref{sec:quality}), and gradient defects
 and the largest cost outliers came primarily from how a solver was built or wrapped.
 Practitioners should therefore test candidate solvers on their own task, for
 example by adapting one of Mosaic's task templates (\cref{sec:scope}).
@@ -653,9 +649,9 @@ hybrid pipelines without further validation. All timings come from a
 single A100 machine, and rankings may shift on other hardware, especially for
 float64 solvers such as XLB on consumer GPUs with low float64 throughput.
 
-The numbers are a snapshot of pinned solver versions, and rankings will
+Reported numbers are a snapshot of pinned solver versions, and rankings will
 change as solvers improve. Tracking such changes is part of the benchmark's
-purpose, and its continuous re-evaluation keeps the published results
+purpose, and with continuous re-evaluation, the published results stay
 current. We therefore deliberately state our conclusions in terms of general
 failure modes and solver properties, and expect them to hold beyond individual
 ranking changes.
