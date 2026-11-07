@@ -69,8 +69,7 @@ the benchmark suite on every pull request to
 \texttt{main} that touches a solver or the harness, committing results
 to a dedicated branch with a machine-readable diff against the previous
 baseline. Tagged releases run the full suite and publish a result archive
-as a GitHub release artifact. This keeps published results current as
-solvers evolve and new backends land.
+as a GitHub release artifact.
 
 \section{Extended experimental results}
 \label{app:extended}
@@ -426,15 +425,14 @@ XLB stays between $4\times10^{-4}$ and $3\times10^{-3}$ without a trend in $N$, 
 \paragraph{Finite-difference verification}
 \Cref{fig:app:fdcheck} extends the FD verification from \cref{sec:quality} to all four domains.
 The optimal~$\varepsilon$ shifts noticeably between solver families and between domains: spectral solvers (Exponax) tolerate larger perturbations than projection-based solvers, and structural/thermal solvers operate at a different optimal scale than fluid solvers.
-All differentiable solvers reach cosine similarity $>0.999$ at their optimal~$\varepsilon$, confirming gradient correctness across domains.
+All differentiable solvers reach cosine similarity $>0.999$ at their optimal~$\varepsilon$, consistent with correct gradients in every domain.
 
 \begin{figure}
   \centering
   \includegraphics[width=\linewidth]{figures/appendix_fd_check.pdf}
   \caption{FD gradient verification across all four domains.
     Top row: relative $\ell_2$ error vs.\ perturbation size~$\varepsilon$.
-    Bottom row: $1-{}$subspace cosine similarity vs.~$\varepsilon$.
-    All differentiable solvers achieve cosine similarity $>0.999$ at their optimal~$\varepsilon$.}
+    Bottom row: $1-{}$subspace cosine similarity vs.~$\varepsilon$.}
   \label{fig:app:fdcheck}
 \end{figure}
 

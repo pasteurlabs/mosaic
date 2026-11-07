@@ -28,8 +28,8 @@ properties far less understood.
 % The problem: opaque effort, hidden incompatibilities
 A growing number of physics solvers advertise gradient support,
 spanning multiple languages, AD frameworks, and numerical methods.
-Yet the practical cost of obtaining correct, usable gradients from any
-of these solvers is opaque. Solvers range from turnkey applications to
+Yet it is hard to know in advance what reliable gradients from any of
+them will cost. Solvers range from turnkey applications to
 composable frameworks and low-level kernel toolkits, each demanding
 different expertise and integration effort. Runtime and memory overhead,
 gradient accuracy, and stability over long rollouts have not been
@@ -41,10 +41,8 @@ that exhaust memory or silently lose accuracy in settings their own tests
 do not cover.
 
 Learned surrogates and physics foundation models offer an alternative
-path but require per-domain training data, introduce approximation
-error, and currently cover only a few well-studied PDE
-families~\cite{pathak2022fourcastnet, bodnar2024aurora}.
-Decades of engineering have produced solvers that practitioners
+path, with limitations of their own (\cref{sec:related}). Meanwhile,
+decades of engineering have produced solvers that practitioners
 trust for forward simulation. What is missing is not the solvers
 themselves, which exist in abundance, but a standardized way to
 access, compare, and trust their gradients.
@@ -72,9 +70,8 @@ committing to a particular stack. Our contributions are:
   \item A \textbf{standardized evaluation protocol} measuring gradient
     accuracy, computational cost, Jacobian conditioning, setup
     compatibility, and end-to-end optimization convergence.
-  \item \textbf{Empirical findings} that validate the benchmark by
-    surfacing practically relevant differences. On our tasks, all solvers
-    that produce gradients reach comparable optima, and solvers are ruled
+  \item \textbf{Empirical findings} showing that, on our tasks, all solvers
+    that produce gradients reach comparable optima, and that solvers are ruled
     out instead by setup incompatibilities, instabilities over long
     rollouts, and the memory cost of their gradients.
   \item An \textbf{open-source release} of all solver interfaces, evaluation
@@ -111,9 +108,10 @@ largely anecdotal. Mosaic measures this tradeoff empirically across solver famil
 Neural operator surrogates~\cite{kovachki2023neural,li2021fourier,lu2021learning},
 PINNs~\cite{raissi2019physics}, and physics foundation
 models~\cite{pathak2022fourcastnet,bodnar2024aurora,price2024gencast,hao2024dpot,herde2024poseidon}
-are complementary to differentiable solvers but trade accuracy for speed,
-degrade outside the training distribution, and require solver-generated
-data in the first place. Mosaic benchmarks the solver layer directly.
+are complementary to differentiable solvers but introduce approximation
+error, degrade outside the training distribution, require solver-generated
+training data in the first place, and so far cover only a few well-studied
+PDE families. Mosaic benchmarks the solver layer directly.
 
 \paragraph{Existing benchmarks and evaluation efforts}
 Several benchmarks evaluate PDE solvers or learned surrogates, but none
@@ -250,10 +248,7 @@ Containerization is handled by Tesseract~\cite{haefner2025tesseract},
 an existing open-source runtime for packaging scientific codes. Mosaic
 contributes the evaluation methodology, benchmark tasks, and empirical
 results on top of it. The four domains and 14 solver backends described
-in this paper are its initial instantiation. The lasting contribution is
-the reusable evaluation infrastructure, designed to evolve as the
-community adds solvers, improves configurations, and extends to new
-domains.
+in this paper are its initial instantiation.
 
 \paragraph{Solver interface and extensibility}
 Each solver is wrapped as a containerized component exposing two entrypoints,
@@ -418,15 +413,13 @@ documented in \cref{app:solvers}.
 \section{Experiments}
 \label{sec:experiments}
 
-The following experiments serve a dual purpose: they validate that
-Mosaic's evaluation protocol surfaces practically relevant differences
-between solvers, and they provide an initial empirical characterization
-that practitioners can use to guide solver selection.
+The following experiments check that Mosaic's evaluation protocol
+distinguishes solvers in ways that matter in practice, and they provide an
+initial empirical characterization to guide solver selection.
 All experiments ran on an Azure \texttt{Standard\_NC24ads\_A100\_v4} instance
 (one NVIDIA A100 80\,GB PCIe, 24 vCPUs of an AMD EPYC 7V13).
 Results reflect the solver configurations of the pinned
-release; all configurations are published and community-improvable via
-pull request. Reproduction instructions are in \cref{app:software}.
+release, and reproduction instructions are in \cref{app:software}.
 
 \subsection{Benchmark summary and implementation effort}
 \label{sec:baselines}
@@ -459,16 +452,16 @@ F2 setup, against exact Taylor--Green gradients (\cref{tab:gradchecks}).
 \input{tables/gradient_checks}
 
 All differentiable solvers reach cosine similarity $>0.999$ against finite
-differences, confirming AD correctness. The optimal $\varepsilon$ differs by
+differences, consistent with correct AD. The optimal $\varepsilon$ differs by
 orders of magnitude across solvers and domains, so a fixed step size can make
 a correct gradient look wrong (\cref{fig:app:fdcheck}).
 
-The exact gradients show that the forward discretization, not the AD, limits
-gradient accuracy in practice. Every solver's error is larger against them than
-against finite differences, by three orders of magnitude for the
-staggered-grid solvers, because the exact gradient also exposes the
-discretization error that an optimizer sees as well. For these solvers, a more
-accurate gradient would first and foremost require a finer discretization.
+For the grid-based solvers, the forward discretization limits gradient
+accuracy on the Taylor--Green checks. Every solver's error is larger against the
+exact gradients than against finite differences, by three orders of magnitude
+for the staggered-grid solvers, because the exact gradient also exposes the
+discretization error that an optimizer sees. For these solvers, a more accurate
+gradient would first require a finer discretization.
 
 The three shapes of the F3 Jacobian spectra (\cref{fig:conditioning}) mostly
 reflect how each solver treats initial perturbations that are not
@@ -515,7 +508,7 @@ and the cost of the reverse sweep by~$K$. By the implicit function theorem, a
 solve-level adjoint instead needs only the converged state and one solve with
 the transposed operator, which is why several solvers combine AD with adjoint
 solves (AD-S in \cref{tab:solvers}). The F3 measurements follow these
-scalings (\cref{fig:memory_rollout}): without checkpointing, the stored
+scalings (\cref{fig:memory_rollout}), and without checkpointing, the stored
 trajectory limits a $48^3$ rollout to a few thousand steps even with 80\,GB. Memory is not always the
 first limit, however. On a longer F3 sweep, PhiFlow, Warp-NS, and XLB return
 non-finite gradients after a few hundred steps, long before the other solvers
@@ -525,7 +518,7 @@ no trajectory and fail only at millions of elements (\cref{app:cost}).
 Reverse-mode AD should cost a small constant multiple of the forward
 pass~\cite{griewank2008evaluating}, and most VJPs here cost one to four
 forward passes (\cref{tab:app:ratios}). This makes the ratio a cheap
-diagnostic for integration problems: during development, ratios of up to
+diagnostic for integration problems. During development, ratios of up to
 $1\,100$ exposed three integration bugs, all fixed in the reported results
 (\cref{app:ratios}). INS.jl's ratio stays high at every grid size because
 Zygote cannot differentiate the library's in-place time stepper, so its VJP
@@ -558,7 +551,7 @@ On F3, the choice of optimizer matters more than the choice of solver
 (\cref{fig:recovery_main}). L-BFGS recovers the initial state an order of
 magnitude more accurately than Adam, in a fraction of the gradient
 evaluations. Projecting the gradient onto divergence-free fields before each
-L-BFGS update (L-BFGS+proj) improves the recovery on every solver, because it
+L-BFGS update (L-BFGS+proj) improves the recovery on every solver, likely because it
 keeps components that incompressible flow forbids out of the optimizer's
 curvature model.
 
@@ -581,8 +574,8 @@ single-call checks miss and only the chained gradient check catches
 gradient errors are all below $2\times10^{-3}$, the test errors track forward
 accuracy rather than gradient accuracy (\cref{tab:app:sil}). The two solvers
 with the larger uncorrected error gain the most, and the other two still end
-lower. Since each solver trains against its own reference from a different
-starting error, this also makes the solvers hard to compare fairly.
+lower. Because each solver trains against its own reference and starts from
+a different error, these gains are hard to compare across solvers.
 
 Averaged over three seeds, supervised training reached the lowest test error
 on every solver except Exponax, and SIL's average never beat the
@@ -617,8 +610,7 @@ check caught the PICT defect (\cref{sec:sil}).
 For unrolled training and long-horizon control, two limits on rollout
 length can make a solver unusable. Without checkpointing, memory caps most
 F3 solvers at a few thousand steps on a $48^3$ grid, and three of the seven
-return non-finite gradients after a few hundred, which their Jacobian
-spectra did not predict (\cref{sec:quality,sec:scaling}). Both limits should
+return non-finite gradients after a few hundred (\cref{sec:scaling}). Both limits should
 be tested at the intended rollout length before committing to a solver.
 
 \paragraph{Where gradients are equivalent, pick the fastest (or friendliest) solver}
@@ -631,9 +623,8 @@ Hand-derived adjoints can be cheap, as TopOpt.jl's self-adjoint compliance
 gradient costs about one forward solve (\cref{tab:merged}), but each new
 control variable or objective requires new derivations. Reverse-mode AD
 through modern frameworks produces gradients accurate enough for
-optimization at a fraction of the implementation cost, for 1.4 to 5.3 times
-the forward time at the sizes of \cref{tab:merged}, so forward time predicts
-gradient time well.
+optimization at a fraction of the implementation cost. At the sizes of
+\cref{tab:merged}, such a gradient costs 1.4 to 5.3 times the forward time.
 
 \paragraph{Measure rather than predict}
 Some properties can be anticipated from how a solver works: memory scales with the differentiation strategy, gradient
@@ -641,10 +632,10 @@ accuracy is bounded by the discretization, and Fourier methods are
 restricted to periodic domains. The properties that decided whether a
 solver was usable here could not. Solvers of the same numerical family and
 AD strategy ended up on both sides of the stability limit, their Jacobian
-spectra did not anticipate it, and every gradient defect and the largest
-cost outliers came from how a solver was built or wrapped. Choosing a
-solver therefore means measuring it on the intended task, which Mosaic
-makes cheap and keeps current.
+spectra did not anticipate it (\cref{sec:quality}), and every gradient defect
+and the largest cost outliers came from how a solver was built or wrapped.
+Practitioners should therefore test candidate solvers on their own task, for
+example by adapting one of Mosaic's task templates (\cref{sec:scope}).
 
 \paragraph{Limitations}
 Our conclusions rest on three choices. The gradient reference is central
@@ -661,14 +652,15 @@ the solver-in-the-loop study includes learned components. Results should
 not be extrapolated to harder problems, such as fully developed 3D
 turbulence, long-horizon optimization, or nonlinear mechanics, or to other
 hybrid pipelines without further validation. All timings come from a
-single A100 machine, and rankings may shift on other hardware, most for
+single A100 machine, and rankings may shift on other hardware, especially for
 float64 solvers such as XLB on consumer GPUs with low float64 throughput.
 
 The numbers are a snapshot of pinned solver versions, and rankings will
 change as solvers improve. Tracking such changes is part of the benchmark's
 purpose, and its continuous re-evaluation keeps the published results
 current. We therefore deliberately state our conclusions in terms of general
-failure modes and solver properties rather than rankings.
+failure modes and solver properties, and expect them to hold beyond individual
+ranking changes.
 
 \paragraph{Future work}
 Natural extensions include additional domains (multiphysics, compressible
