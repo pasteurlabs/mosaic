@@ -548,8 +548,8 @@ periodic fields, and the JAX-CFD API cannot express the channel's inflow,
 outflow, and obstacle.
 
 On F3, the choice of optimizer matters more than the choice of solver
-(\cref{fig:recovery_main}). L-BFGS recovers the initial state an order of
-magnitude more accurately than Adam, in a fraction of the gradient
+(\cref{fig:recovery_main}). L-BFGS~\cite{byrd1995limited} recovers the initial state an order of
+magnitude more accurately than Adam~\cite{kingma2015adam}, in a fraction of the gradient
 evaluations. Projecting the gradient onto divergence-free fields before each
 L-BFGS update (L-BFGS+proj) improves the recovery on every solver, likely because it
 keeps components that incompressible flow forbids out of the optimizer's
