@@ -593,7 +593,7 @@ Within this setup, the solvers differed under SIL training only in cost.
 
 Gradient accuracy, computational cost, memory, stability, and setup
 compatibility vary widely across solvers. Some of these properties
-determine whether a solver can serve a workflow at all, and others only how fast it does so. Based on our four
+determine whether a solver can serve a workflow at all, and others only how fast it does so. Based on our
 benchmark tasks, we highlight five practitioner-facing observations.
 
 \paragraph{Gradient quality is often good enough}
@@ -602,19 +602,17 @@ reach comparable optima despite order-of-magnitude differences in
 gradient accuracy. More complex tasks may make gradient quality limiting,
 but these benchmarks suggest that optimization and training are often
 robust to it. Solvers failed instead because they could not express the
-task, turned unstable over long rollouts, or ran out of memory. Gradients
-should still be checked the way they will be used, since only a chained
-check caught the PICT defect (\cref{sec:sil}).
+task, turned unstable over long rollouts, or ran out of memory.
 
 \paragraph{Rollout length is the critical scaling parameter}
 For unrolled training and long-horizon control, two limits on rollout
-length can make a solver unusable. Without checkpointing, memory caps most
-F3 solvers at a few thousand steps on a $48^3$ grid, and three of the seven
-return non-finite gradients after a few hundred (\cref{sec:scaling}). Both limits should
+length can make a solver unusable. Without checkpointing, memory limits most
+F3 solvers at a few thousand steps on a $48^3$ grid, and three of seven solvers
+return non-finite gradients after a few hundred steps (\cref{sec:scaling}). Both aspects should
 be tested at the intended rollout length before committing to a solver.
 
-\paragraph{Where gradients are equivalent, pick the fastest (or friendliest) solver}
-On the steady linear problems of H and S, all solvers produce equivalent
+\paragraph{On steady linear problems, pick the fastest (or friendliest) solver}
+On problems H and S, all solvers produce equivalent
 results regardless of AD strategy or numerical method, so the choice
 reduces to forward speed at the intended size and integration effort.
 
@@ -624,16 +622,16 @@ gradient costs about one forward solve (\cref{tab:merged}), but each new
 control variable or objective requires new derivations. Reverse-mode AD
 through modern frameworks produces gradients accurate enough for
 optimization at a fraction of the implementation cost. At the sizes of
-\cref{tab:merged}, such a gradient costs 1.4 to 5.3 times the forward time.
+\cref{tab:merged}, AD gradients cost 1.4 to 5.3 times the forward time.
 
 \paragraph{Measure rather than predict}
 Some properties can be anticipated from how a solver works: memory scales with the differentiation strategy, gradient
 accuracy is bounded by the discretization, and Fourier methods are
-restricted to periodic domains. The properties that decided whether a
+restricted to periodic domains. Some properties that decided whether a
 solver was usable here could not. Solvers of the same numerical family and
 AD strategy ended up on both sides of the stability limit, their Jacobian
-spectra did not anticipate it (\cref{sec:quality}), and every gradient defect
-and the largest cost outliers came from how a solver was built or wrapped.
+spectra did not anticipate it (\cref{sec:quality}), and gradient defects
+and the largest cost outliers came primarily from how a solver was built or wrapped.
 Practitioners should therefore test candidate solvers on their own task, for
 example by adapting one of Mosaic's task templates (\cref{sec:scope}).
 
