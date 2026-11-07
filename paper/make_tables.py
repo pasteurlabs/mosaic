@@ -593,11 +593,9 @@ def gradient_checks_table() -> tuple[str, dict]:
     ]
     body = "\n    ".join(rows)
     text = rf"""\begin{{table}}[t]
-  \centering\small
-  \caption{{Relative gradient errors on F2 at $\nu=0.01$. FD: initial-condition VJP
-    against central finite differences. Analytic, $\mathrm{{d}}J/\mathrm{{d}}\nu$:
-    initial-condition and viscosity gradients against the exact Taylor--Green gradients.}}
-  \label{{tab:gradchecks}}
+  \small
+  \begin{{minipage}}[c]{{0.5\linewidth}}
+  \centering
   \begin{{tabular}}{{@{{}}l c c c@{{}}}}
     \toprule
     \textbf{{Solver}} & \textbf{{FD}} & \textbf{{Analytic}} & $\mathrm{{d}}J/\mathrm{{d}}\nu$ \\
@@ -605,6 +603,13 @@ def gradient_checks_table() -> tuple[str, dict]:
     {body}
     \bottomrule
   \end{{tabular}}
+  \end{{minipage}}\hfill
+  \begin{{minipage}}[c]{{0.46\linewidth}}
+  \caption{{Relative gradient errors on F2 at $\nu{{=}}0.01$. FD: initial-condition VJP
+    against central finite differences. Analytic, $\mathrm{{d}}J/\mathrm{{d}}\nu$:
+    initial-condition and viscosity gradients against the exact Taylor--Green gradients.}}
+  \label{{tab:gradchecks}}
+  \end{{minipage}}
 \end{{table}}
 """
     return text, {"fd": fd, "analytic": an, "nu": nu}

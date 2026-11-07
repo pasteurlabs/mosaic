@@ -1,9 +1,7 @@
 \begin{table}[t]
-  \centering\small
-  \caption{Relative gradient errors on F2 at $\nu=0.01$. FD: initial-condition VJP
-    against central finite differences. Analytic, $\mathrm{d}J/\mathrm{d}\nu$:
-    initial-condition and viscosity gradients against the exact Taylor--Green gradients.}
-  \label{tab:gradchecks}
+  \small
+  \begin{minipage}[c]{0.5\linewidth}
+  \centering
   \begin{tabular}{@{}l c c c@{}}
     \toprule
     \textbf{Solver} & \textbf{FD} & \textbf{Analytic} & $\mathrm{d}J/\mathrm{d}\nu$ \\
@@ -17,4 +15,11 @@
       XLB & 1.1e-5 & 1.9e-4 & 1.8e-3 \\
     \bottomrule
   \end{tabular}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.46\linewidth}
+  \caption{Relative gradient errors on F2 at $\nu{=}0.01$. FD: initial-condition VJP
+    against central finite differences. Analytic, $\mathrm{d}J/\mathrm{d}\nu$:
+    initial-condition and viscosity gradients against the exact Taylor--Green gradients.}
+  \label{tab:gradchecks}
+  \end{minipage}
 \end{table}

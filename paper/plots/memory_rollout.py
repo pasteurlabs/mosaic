@@ -56,8 +56,8 @@ def generate(out_dir: Path) -> None:
             fail_x[s] = step * _JITTER ** (i - (len(group) - 1) / 2)
 
     with plt.rc_context(RCPARAMS):
-        fig, ax = plt.subplots(figsize=(TEXTWIDTH / 2, TEXTWIDTH * 0.56))
-        fig.subplots_adjust(left=0.17, right=0.97, top=0.98, bottom=0.33)
+        fig, ax = plt.subplots(figsize=(TEXTWIDTH * 0.78, TEXTWIDTH * 0.36))
+        fig.subplots_adjust(left=0.11, right=0.6, top=0.97, bottom=0.17)
 
         for s in solvers:
             label, color, _, mk = solver_props(s)
@@ -134,14 +134,12 @@ def generate(out_dir: Path) -> None:
                 label="out of memory",
             )
         )
-        fig.legend(
+        ax.legend(
             handles=handles,
-            loc="lower center",
-            bbox_to_anchor=(0.5, 0.0),
-            ncol=2,
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
             fontsize=6.5,
             handlelength=2.4,
-            columnspacing=1.0,
             frameon=False,
         )
 

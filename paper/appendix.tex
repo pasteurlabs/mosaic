@@ -89,6 +89,12 @@ to the columns: \texttt{io} to IO, \texttt{init} to Conf., and \texttt{physics},
 \emph{Num.}\ is problem-specific numerical code (assembly, time-stepping, boundary
 conditions, and gradient code), and the gradient lines quoted in \cref{sec:baselines}
 are its \texttt{grad} part.
+PhiFlow, JAX-CFD, and Exponax each need at most 20 gradient lines for a single
+VJP that covers all differentiable inputs. INS.jl (Zygote) needs 228, PICT
+(PyTorch) 170, and XLB (JAX) 91, half of them for checkpointing its rollout.
+Warp-NS implements the flow solver in its wrapper, hence its over 2\,400
+numerical lines. Of these, 235 are gradient code, the most of any solver, even
+though Warp generates the adjoint of each kernel automatically.
 \emph{Conf.}\ covers solver initialization and mesh setup.
 Glue code (Tesseract schema definitions and entry-point boilerplate) is excluded; it
 consistently amounts to 100--400\,LOC across all backends.
@@ -291,6 +297,7 @@ At $N=3\,200$, Firedrake fails below the cap because the stiffness matrix has $2
 Where the extended sweeps overlap the main sweeps, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
 
 \Cref{fig:horizon_sweep} extends the F3 rollout to 81\,920 steps at $N=20$, one VJP per horizon.
+PhiFlow and Warp-NS return non-finite gradients after 160 steps and XLB after 320, while INS.jl, JAX-CFD, and PICT stay stable until they run out of memory after 20\,000 to 41\,000 steps, and Exponax completes all 81\,920.
 Two memory readings are less informative than the others. INS.jl's peak is dominated by the CUDA.jl memory pool, and Warp-NS's peak does not track the horizon, because its memory pools carry over from one horizon to the next.
 
 \begin{figure}
