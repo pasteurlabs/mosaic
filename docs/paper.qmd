@@ -36,8 +36,6 @@ paper rather than with the live results pages, which track the current benchmark
 </div>
 ```
 
-![Mosaic wraps each solver behind a uniform containerized interface, so solvers can be compared on shared benchmark tasks across physical domains.](figures/visual_abstract.png){fig-alt="Overview of Mosaic: solvers in different languages and AD frameworks, each packaged as a Tesseract, evaluated on shared tasks in heat transfer, structural mechanics and 2D and 3D Navier–Stokes."}
-
 ## Abstract {#abstract}
 
 Differentiable partial differential equation (PDE) solvers underpin solver-in-the-loop ML training, gradient-based optimal control, and inverse problems, yet the practical cost of obtaining correct, usable gradients from a given solver on a given problem is largely undocumented. Integration effort, computational cost, memory, gradient accuracy, and numerical stability vary widely across solvers and are discoverable only by trial and error.
@@ -78,7 +76,29 @@ Solvers of the same numerical family and AD strategy ended up on both sides of t
 :::
 :::
 
+## Figures from the paper {#figures}
+
+### The optimizer matters more than the solver {#fig-recovery}
+
+On F3 initial-condition recovery, L-BFGS recovers the initial state an order of magnitude more accurately than Adam, in a fraction of the gradient evaluations. Projecting the gradient onto divergence-free fields before each L-BFGS update improves the recovery on every solver.
+
 ![F3 initial-condition recovery for selected solvers and optimizers. The IC error is the relative ℓ₂ distance between the recovered and true initial states.](figures/paper/recovery_main.png){fig-alt="IC error against gradient evaluations for several 3D Navier–Stokes solvers with Adam, L-BFGS and L-BFGS with gradient projection."}
+
+### Jacobian spectra reflect how a solver treats divergence {#fig-spectra}
+
+The spectra fall into three shapes, which mostly reflect how each solver treats initial perturbations that are not divergence-free. Solvers that project those out exactly have singular values at round-off. No shape predicts which solvers stay stable over long rollouts, since each occurs among stable and unstable solvers alike.
+
+![Normalized Jacobian singular value spectra (σᵢ/σ₁) on F3 (N = 8) after T = 0.5, 1 and 2 time units at ν = 10⁻³, and after T = 0.5 at ν = 10⁻². Exponax and XLB keep a nearly flat spectrum at every rollout length. JAX-CFD, INS.jl and PhiFlow drop to round-off after about two thirds of the modes, and the spectra of PICT and Warp-NS steepen as the rollout grows.](figures/paper/jacobian_svd_comparison.png){fig-alt="Normalized singular value spectra of the F3 solver Jacobians at several rollout lengths and viscosities, one line per solver."}
+
+### Memory follows the differentiation strategy {#fig-memory}
+
+Reverse-mode AD through a time loop stores every state, so memory grows linearly with the number of steps. Checkpointing, used here only by XLB, reduces this to the square root. Without it, the stored trajectory limits a 48³ rollout to a few thousand steps, even with 80 GB.
+
+![Peak GPU memory of one VJP against rollout steps on F3 (N = 48), by differentiation strategy (line style).](figures/paper/memory_rollout.png){fig-alt="Peak GPU memory of one VJP against rollout steps for the 3D Navier–Stokes solvers, with linear and square-root reference slopes."}
+
+### Long rollouts end in memory limits or non-finite gradients {#fig-horizon}
+
+Memory is not always the first limit. Extending the F3 rollout to 81,920 steps, PhiFlow and Warp-NS return non-finite gradients after 160 steps and XLB after 320, while INS.jl, JAX-CFD and PICT stay stable until they run out of memory. Exponax completes every horizon.
 
 ![VJP against rollout length on F3 (N = 20, ν = 10⁻³, Δt = 0.05): peak GPU memory, wall time and gradient norm. Each line ends at the solver's last successful horizon. Out-of-memory failures are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.](figures/paper/horizon_sweep_limits.png){fig-alt="Peak memory, wall time and gradient norm of one VJP against rollout length, one line per 3D Navier–Stokes solver."}
 
