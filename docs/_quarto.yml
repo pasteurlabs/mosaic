@@ -10,11 +10,10 @@ project:
   # discover them from the pages.
   resources:
     - "_generated/plots/**/*.vl.json"
-    # Videos on the paper page, referenced from raw HTML.
-    - "figures/paper/*.mp4"
+    # The paper page is a standalone HTML page with its own layout.
+    - "paper/**"
   render:
     - index.qmd
-    - paper.qmd
     - results/*.qmd
     - solvers.qmd
     - getting-started.qmd
@@ -66,7 +65,7 @@ website:
             file: results/heat.qmd
     right:
       - text: Paper
-        file: paper.qmd
+        href: paper/index.html
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
   page-footer:
