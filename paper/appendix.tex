@@ -64,9 +64,8 @@ and upstream solver maintenance are community-owned. If an upstream solver
 breaks due to a dependency update, we document version pins and accept
 community fixes but do not patch upstream code ourselves.
 
-Each release is tagged with a semantic version and accompanied by a pinned
-dependency lockfile. Continuous integration runs the benchmark suite on
-every push to
+Each release is tagged with a semantic version. Continuous integration runs
+the benchmark suite on every pull request to
 \texttt{main} that touches a solver or the harness, committing results
 to a dedicated branch with a machine-readable diff against the previous
 baseline. Tagged releases run the full suite and publish a result archive
@@ -299,11 +298,9 @@ At $N=3\,200$, Firedrake fails below the cap because the stiffness matrix has $2
 Where the extended sweeps overlap the main sweeps, their mean times agree within 10\% except at three points, which differ by up to 22\% because of single slow trials.
 
 Since the VJP request includes a forward pass (\cref{app:effort}), a ratio near~2 means that the adjoint pass costs about as much as the forward pass.
-On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises (F2 2.2 to 4.1, F3 1.8 to 4.6) and PhiFlow's falls on F2 (5.3 to 3.1).
-Along the rollout sweeps, the ratio grows with the number of steps for most NS solvers, most strongly for INS.jl (to 7.1) and XLB (to 7.0) on F3.
-On the mesh domains, TopOpt.jl's VJP costs about one forward solve and torch-fem's 1.3--1.6.
-Firedrake stays near~2, while FEniCS falls from 4.0 (S) and 3.2 (H) at the smallest sizes to 2.1--2.3, and JAX-FEM from about 2.5 to 1.7--1.8.
-On the larger meshes of the extended sweeps, every ratio except TopOpt.jl's lies between 1.6 and 2.1, with torch-fem's rising to 1.9 on S.
+\Cref{tab:app:ratios} lists the ratios per solver.
+On the NS domains, Exponax, JAX-CFD, and PICT keep a nearly constant ratio across grid sizes, whereas XLB's rises and PhiFlow's falls on F2, and most ratios grow with the number of rollout steps.
+On the mesh domains, the ratios of FEniCS and JAX-FEM fall with mesh size, and on the larger meshes of the extended sweeps, every ratio except TopOpt.jl's lies between 1.6 and 2.1.
 Ratios thus move in both directions within each differentiation strategy.
 
 \Cref{fig:horizon_sweep} extends the F3 rollout to 81\,920 steps at $N=20$, one VJP per horizon.
@@ -494,7 +491,7 @@ Between $T=0.5$ and $T=2$, the number of singular values above $10^{-2}\sigma_1$
 Faster spectral decay indicates a more ill-conditioned Jacobian.
 In 2D, unlike on F3 (\cref{fig:conditioning}), rollout length and viscosity change individual condition numbers by up to two orders of magnitude without a consistent direction, while the ordering of the solvers stays the same in every configuration: XLB has the smallest condition number (20--48), followed by PICT ($2\times10^5$--$2\times10^6$), with the other solvers between $2\times10^7$ and $10^{11}$.
 Exponax, which solves the 2D problem in vorticity form and thus discards the curl-free part of its input, joins the projection solvers at about $10^{10}$ there, unlike in 3D.
-The sharp spectral drop-off in projection-based solvers is attributable to singular vectors associated with non-solenoidal velocity modes, which incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}; these higher modes are mostly attributed to divergence and are correspondingly less relevant for gradient-based optimization.
+The sharp spectral drop-off in projection-based solvers is attributable to singular vectors associated with non-solenoidal velocity modes, which incompressible flow forbids by construction~\citep{guermond2006overview,bhatia2013helmholtz}. These modes are correspondingly less relevant for gradient-based optimization.
 
 \begin{figure}
   \centering
@@ -594,8 +591,8 @@ The \textit{Conv.} column of \cref{tab:merged} applies the benchmark's
 automated checks. A run passes if its final objective is at most half the
 initial one. For drag minimization, the final drag must also be at most 0.7
 of the initial drag and lie within 30\% of the peer median. These thresholds
-are loose: they flag broken gradients but do not distinguish working
-solvers. \Cref{sec:optimization} compares the final objectives directly.
+are loose, so they flag broken gradients but do not distinguish between
+working solvers. \Cref{sec:optimization} compares the final objectives directly.
 
 \paragraph{Solenoidal gradient projection (F3 variants)}
 The L-BFGS+proj and Adam+proj variants on F3 apply a spectral
@@ -641,7 +638,7 @@ After its 500 iterations, Adam still has 38--49\% normalized IC error (Exponax 3
 Projecting each L-BFGS gradient onto divergence-free fields (L-BFGS+proj) lowers the final IC error to 0.01--0.85\% (below 0.5\% on every solver except XLB) and keeps the recovered IC divergence at the level of the true IC throughout.
 The projection benefit is specific to the second-order optimizer, and the asymmetry has a structural cause.
 L-BFGS builds its Hessian approximation from secant pairs $s_k = x_{k+1} - x_k$; without projection these steps carry large irrotational components orthogonal to the solenoidal manifold, corrupting the curvature model, whereas projection confines $s_k$ to the correct tangent space and recovers the superlinear convergence behavior associated with projected Newton-type methods~\citep{bertsekas1982projected}.
-Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the gradient does not repair the miscalibrated scaling; \cref{fig:app:recovery:adamproj} confirms this.
+Adam's per-coordinate second-moment scaling accumulates variance estimates from both solenoidal and irrotational gradient directions and has no cross-coordinate curvature model to exploit the constraint geometry~\citep{kingma2015adam}, so projecting the gradient does not repair the miscalibrated scaling, consistent with \cref{fig:app:recovery:adamproj}.
 The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (L-BFGS+proj/PhiFlow).
 
 \begin{figure}
@@ -664,14 +661,14 @@ The bottom row shows $u_x$ at the middle $z$-slice for a representative solver (
 
 \paragraph{Topology optimization}
 \Cref{fig:app:topopt} summarizes the structural topology optimization task ($[0,2]\times[0,1]\times[0,1]$ cantilever beam, $16\times2\times8$ mesh, SIMP with $p=3$, Adam).
-All solvers converge to the same final compliance (${\approx}0.001$): for smooth, well-conditioned physics, gradient quality does not limit solution quality.
+All solvers converge to the same final compliance (${\approx}0.001$).
 The optimized density fields (bottom row) are visually identical across solvers, recovering the classic cantilever-beam truss topology.
 
 We also evaluated L-BFGS and MMA~\citep{svanberg1987mma} on this task.
 After 100 quasi-Newton steps, L-BFGS final compliance ranged from $0.00108$ (JAX-FEM) to $0.00112$ (FEniCS, Firedrake, TopOpt.jl), 7--12\% above the Adam solution ($0.00100$).
 L-BFGS fails for two reinforcing reasons: the SIMP penalization ($p=3$) makes the objective globally non-convex, so the positive-curvature condition $y_k^\top s_k > 0$ required for valid BFGS updates is frequently violated and updates are skipped~\citep{fu2023quasinewton}; and box constraints $\rho \in [0,1]$ cause rapid active-set changes that invalidate the limited curvature history.
 MMA, by contrast, reaches compliance ${\approx}0.00099$ on every solver within 35--40 objective evaluations, slightly below Adam's solution in under 2\% of its iteration budget, because it builds a strictly convex separable approximation at each step that sidesteps the SIMP non-convexity and handles box constraints and the volume inequality natively.
-MMA is therefore the recommended optimizer for this task class, consistent with standard practice in the topology optimization community.
+MMA is therefore the recommended optimizer for this task, consistent with standard practice in the topology optimization community.
 
 \begin{figure}
   \centering
@@ -1139,8 +1136,9 @@ where neither constraint applies.
 \subsection{Observed solver limitations}
 \label{app:solver-issues}
 
-The following limitations were identified during benchmarking. The first
-results in a task-specific exclusion. Solvers excluded globally are
+The following two limitations were identified during benchmarking. The
+first results in a task-specific exclusion, and the second is handled
+inside the XLB Tesseract. Solvers excluded globally are
 documented in \cref{app:excluded}.
 
 \paragraph{JAX-CFD: no inflow, outflow, or obstacles}

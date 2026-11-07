@@ -74,9 +74,9 @@ committing to a particular stack. Our contributions are:
     compatibility, and end-to-end optimization convergence.
   \item \textbf{Empirical findings} that validate the benchmark by
     surfacing practically relevant differences. On our tasks, all solvers
-    that produce gradients reach comparable optima. Whether a solver can be
-    used is decided instead by whether it can express the task, whether it
-    stays stable over the rollout, and how much memory its gradients need.
+    that produce gradients reach comparable optima, and solvers are ruled
+    out instead by setup incompatibilities, instabilities over long
+    rollouts, and the memory cost of their gradients.
   \item An \textbf{open-source release} of all solver interfaces, evaluation
     code, and templates, extensible to new solvers and domains, with
     CI-based re-evaluation infrastructure that keeps published results
@@ -166,11 +166,11 @@ optimization, topology optimization, inverse problems) that require
 gradients for efficient solution, are supported by multiple backends
 for cross-solver comparison, and contain no learned components so solver
 gradients can be validated in isolation. Tasks are intentionally simpler
-than state-of-the-art challenges: complexity in the physics would
+than state-of-the-art challenges, as the complexity in the physics would
 confound the gradient properties we aim to isolate, so any failure can
 be attributed to the solver's gradient mechanism rather than to an
 ill-posed optimization problem. The heat domain (H) additionally serves
-as a negative control: its forward problem is smooth and elliptic, so
+as a negative control. Its forward problem is smooth and elliptic, so
 any gradient failure on H is attributable to an AD bug rather than to
 chaotic dynamics.
 \Cref{tab:domains,fig:domains} summarize the four domains, and
@@ -272,9 +272,8 @@ backend, a contributor packages the solver as a Tesseract that implements
 the task schema, and the evaluation suite re-runs automatically on every
 proposed change.
 
-Benchmark tasks are starting points rather than fixed problems. Each task
-is a validated template with known-good settings, so users can modify the
-physical setup (geometry, Reynolds number, boundary conditions) while
+Each benchmark task acts as a validated template with known-good settings,
+so users can modify the physical setup (geometry, Reynolds number, boundary conditions) while
 inheriting the evaluation protocol and finite-difference reference.
 \Cref{app:software} describes how to contribute, and \cref{app:cost}
 quantifies the overhead of containerization.
@@ -454,11 +453,11 @@ VJP that covers all differentiable inputs, because autodifferentiation through
 their JAX backends provides gradients at no extra implementation cost.
 AD is not always this cheap, though. INS.jl uses Zygote reverse-mode AD yet
 still requires 228 lines of gradient-specific code, PICT (PyTorch) 170, and
-XLB (JAX) 91, half of which to checkpoint its rollout. AD framework support
+XLB (JAX) 91, half of them for checkpointing its rollout. AD framework support
 therefore does not guarantee turnkey gradients.
-The live version of Mosaic also records, for each solver, every departure
-from its default usage, with the mechanism, whether it is needed, and the
-evidence, as concrete guidance for practitioners integrating that solver.
+The live version of Mosaic also records every departure from each solver's
+default usage, together with how it works, whether it is required, and the
+evidence for it, as guidance for practitioners integrating that solver.
 
 \input{tables/merged}
 
@@ -505,8 +504,7 @@ exact gradient also exposes the forward discretization error, which an
 optimizer sees as well. For the three staggered-grid solvers (JAX-CFD,
 PhiFlow, and INS.jl), this error is about 2\% at $N=32$, three orders of
 magnitude above the $10^{-5}$ error of their AD. For these solvers, a more
-accurate gradient would require a finer discretization, not a better
-differentiation method.
+accurate gradient would first and foremost require a finer discretization.
 
 \Cref{fig:conditioning} shows normalized Jacobian singular value spectra
 on F3. They mostly reflect how each solver treats perturbations of the
@@ -520,7 +518,7 @@ rollout grows: between $T=0.5$ and $T=2$, about a quarter of their
 singular values above $10^{-2}\sigma_1$ drop below it. The spectra of
 Exponax and of the weakly compressible lattice Boltzmann solver XLB stay
 nearly flat (\cref{app:gradient}). The spectra did not indicate which
-solvers stay stable over long rollouts: each of the three spectral shapes
+solvers stay stable over long rollouts, since each of the three spectral shapes
 occurs both among solvers that stay stable and among those that return
 non-finite gradients (\cref{sec:scaling}).
 
@@ -640,17 +638,17 @@ non-finite from some initial states, and PICT would take most of a day
 
 The study exposed one gradient defect, PICT's adjoint tolerance, which
 single-call checks miss and only the chained gradient check catches
-(\cref{app:kolmogorov}). Among the four solvers that run the study,
-gradient accuracy did not rank the outcomes: all four have single-call and
-chained gradient errors below $2\times10^{-3}$. Their test errors follow
+(\cref{app:kolmogorov}). Among the four solvers that run the study, the
+outcomes did not track gradient accuracy, since all four have single-call and
+chained gradient errors below $2\times10^{-3}$. Their test errors track
 their forward accuracy instead, which also makes the solvers hard to
 compare fairly, because each trains against its own reference from a
 different starting error. JAX-CFD and INS.jl start from an uncorrected
 error of 0.24 and gain the most, with supervised training more than halving
 it. Exponax and XLB start from about 0.09 and gain at most a third, yet
 still end lower (\cref{tab:app:sil}). On this setup, the gradient checks
-thus identified the defect that mattered for training, while forward
-accuracy decided how well the remaining solvers trained.
+thus caught the one defect that mattered for training, and forward accuracy
+explained the remaining differences.
 
 Averaged over three seeds, supervised training reached the lowest test error
 on every solver except Exponax, and SIL's average never beat the
@@ -661,18 +659,17 @@ rollout, including on Kolmogorov flow~\cite{list2024differentiability}. Our
 setup is much smaller than theirs: a corrector with about 2\,600 parameters,
 trained for 256 updates with one learning rate shared by all arms, without a
 curriculum and without tuning per arm. It is therefore not a fair test of
-that advantage. Within it, differentiating through the solver separated the
-solvers only by its cost (1.0 to 2.8\,s per update, depending on the
-solver).
+that advantage. Within this setup, the solvers differed under SIL training
+only in cost, at 1.0 to 2.8\,s per update.
 
 % ===========================================================================
 \section{Discussion and conclusion}
 \label{sec:conclusion}
 
 Gradient accuracy, computational cost, memory, stability, and setup
-compatibility vary widely across solvers, but they matter for different
-decisions: some decide whether a solver can serve a workflow at all,
-others only how fast it does. Based on the four benchmark tasks evaluated
+compatibility vary widely across solvers. Some of these properties
+determine whether a solver can serve a workflow at all, and others only
+how fast it does so. Based on the four benchmark tasks evaluated
 here, we highlight four practitioner-facing observations.
 
 \paragraph{Gradient quality is often good enough}
@@ -681,25 +678,22 @@ reach comparable optima despite order-of-magnitude differences in
 gradient accuracy. While more complex tasks may reveal cases where
 gradient quality becomes limiting, the pattern on these benchmarks
 suggests that pointwise gradient accuracy rarely limits the optimization
-or training procedure. What decided whether a solver could be used was
-whether it can express the task, whether it stays stable over the
-rollout, and how much memory its gradients need. Gradients should still be
-checked the way they will be used: before we corrected its adjoint
-tolerance, PICT's gradient passed every single-call check but failed
-through a chain of 16 calls, as in training (\cref{sec:sil}).
+or training procedure. Where solvers failed, it was because they could
+not express the task, turned unstable over long rollouts, or ran out of
+memory. Gradients should still be checked the way they will be used,
+since only a chained check caught the PICT defect (\cref{sec:sil}).
 
 \paragraph{Rollout length is the critical scaling parameter}
-For unrolled training and long-horizon control, rollout length decides
-whether a solver can be used at all, through two limits. Memory grows
-linearly with the rollout unless the solver checkpoints, which caps most
-F3 solvers at a few thousand steps on a $48^3$ grid even with 80\,GB,
-while checkpointing keeps XLB at about 8\,GB. Stability can bind first:
-three of the seven F3 solvers return non-finite gradients after a few
-hundred steps, and their Jacobian spectra did not anticipate which ones
+For unrolled training and long-horizon control, two limits on rollout
+length can make a solver unusable. Without checkpointing, memory grows
+linearly with the rollout and caps most F3 solvers at a few thousand
+steps on a $48^3$ grid. Instability can set in sooner, as three of
+the seven F3 solvers return non-finite gradients after a few hundred
+steps, and we could not tell which ones from their Jacobian spectra
 (\cref{sec:quality,sec:scaling}). Both limits should therefore be tested
 at the intended rollout length before committing to a solver.
 
-\paragraph{Where gradients are equivalent, pick the fastest solver}
+\paragraph{Where gradients are equivalent, pick the fastest (or friendliest) solver}
 On the steady linear problems of the mesh domains (H, S), all solvers
 produce equivalent results regardless of AD strategy or numerical method.
 Where gradient quality does not separate the solvers, as here, the
@@ -733,10 +727,10 @@ We expect category-level findings to transfer: which failure modes matter
 more than gradient accuracy, the protocol, and the links that follow from
 how solvers work (memory from the differentiation strategy, gradient
 accuracy from the discretization, periodicity from spectral
-discretizations). Within a class, implementation decides. The largest cost
-outliers and every defect we found came from how a solver was built or
-wrapped, which is why these properties need measuring, and re-measuring as
-solvers change.
+discretizations). Within a class, the results depend on implementation
+details, since the largest cost outliers and every defect we found came
+from how a solver was built or wrapped. These properties therefore need to
+be measured, and re-measured as solvers change.
 The tasks are intentionally easy, with small grids, moderate Reynolds numbers,
 short rollouts, and steady linear problems on the mesh domains. Results should
 not be extrapolated to harder problems, such as fully developed 3D turbulence,
