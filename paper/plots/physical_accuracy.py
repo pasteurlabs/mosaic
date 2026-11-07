@@ -1,8 +1,6 @@
-"""Generate Figure: Physical accuracy of the Navier-Stokes solvers on the periodic TGV.
+"""Generate Figure: Physical accuracy of the 2D Navier-Stokes solvers on the periodic TGV.
 
-Produces:
-  appendix_pa_ns2d.pdf       — 3×3 grid (2D NS)
-  appendix_pa_ns3d.pdf       — 3×3 grid (3D NS)
+Produces appendix_pa_ns2d.pdf, a 3×3 grid for the 2D NS domain.
 
 Rows sweep N, ν and rollout steps (``forward/physical_laws/{vs_N,vs_nu,vs_steps}``);
 columns show the error against the TGV reference, divergence RMS and kinetic energy.
@@ -21,7 +19,7 @@ from .style import NS_ORDER, RCPARAMS, make_handle, solver_props
 
 # (run, row label); every sweep is log-spaced, so all x-axes are log.
 SWEEPS = [("vs_N", "vs $N$"), ("vs_nu", r"vs $\nu$"), ("vs_steps", "vs steps")]
-# (metric, log y); column titles are per domain because the 3D reference is linearized.
+# (metric, log y)
 METRICS = [
     ("analytic_error", True),
     ("divergence_rms", True),
@@ -102,7 +100,7 @@ def _plot_ns_domain(
                 )
                 x_all.extend(xs)
 
-            if metric == "kinetic_energy" and problem == "ns-grid":
+            if metric == "kinetic_energy":
                 xs = sorted(set(x_all))
                 ax.plot(
                     xs,
@@ -144,10 +142,4 @@ def generate(out_dir: Path) -> None:
         "2D NS (periodic TGV) — physical accuracy",
         ["Analytic TGV error", "Divergence RMS", "Kinetic energy"],
         out_dir / "appendix_pa_ns2d.pdf",
-    )
-    _plot_ns_domain(
-        "ns-3d-grid",
-        "3D NS (periodic TGV) — physical accuracy",
-        ["Linearized TGV error", "Divergence RMS", "Kinetic energy"],
-        out_dir / "appendix_pa_ns3d.pdf",
     )

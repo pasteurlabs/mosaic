@@ -31,7 +31,6 @@ MODULES = [
     "scaling",
     "horizon_sweep",
     "horizon_sweep_limits",
-    "ucurves",
     "drag_opt",
     "recovery_overview",
     "topopt_overview",

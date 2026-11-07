@@ -68,41 +68,6 @@ def _plot_fd_check(ax_err, ax_cos, problem: str, order: list[str]) -> list[str]:
     return solvers
 
 
-def generate_main(out_dir: Path) -> None:
-    """Generate the focused FD check figure (ns-grid only, 1×2 layout)."""
-    plt.rcParams.update(RCPARAMS)
-
-    fig, (ax_err, ax_cos) = plt.subplots(
-        1, 2, figsize=(TEXTWIDTH, TEXTWIDTH * 0.3), dpi=300
-    )
-    fig.subplots_adjust(bottom=0.38, wspace=0.45)
-
-    solvers = _plot_fd_check(ax_err, ax_cos, "ns-grid", NS_ORDER)
-
-    ax_err.set_title("Relative error (2D NS)")
-    ax_err.set_xlabel(r"Perturbation size $\varepsilon$")
-    ax_err.set_ylabel("Rel. FD error")
-
-    ax_cos.set_title("Cosine similarity (2D NS)")
-    ax_cos.set_xlabel(r"Perturbation size $\varepsilon$")
-    ax_cos.set_ylabel(r"$1 - \cos(\nabla_\mathrm{AD},\, \nabla_\mathrm{FD})$")
-
-    fig.legend(
-        handles=[make_handle(s) for s in solvers],
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncol=len(solvers),
-        fontsize=6.0,
-        framealpha=0.7,
-        handlelength=2.0,
-    )
-
-    out = out_dir / "fd_check.pdf"
-    fig.savefig(out)
-    plt.close(fig)
-    print(f"Saved {out}")
-
-
 def generate(out_dir: Path) -> None:
     plt.rcParams.update(RCPARAMS)
 
@@ -135,5 +100,3 @@ def generate(out_dir: Path) -> None:
     fig.savefig(out)
     plt.close(fig)
     print(f"Saved {out}")
-
-    generate_main(out_dir)

@@ -5,7 +5,6 @@ recovery_overview.pdf: IC error, IC divergence and optimization loss against
 gradient evaluations for Adam, L-BFGS and L-BFGS+proj on every solver
 (top), and u_x at the middle z-slice for L-BFGS+proj / PhiFlow: recovered
 and true IC, recovered and true final state (bottom).
-recovery_adam_proj.pdf: the top row for Adam and Adam+proj, on linear axes.
 recovery_main.pdf: the top row for PICT, INS.jl and XLB.
 
 Curves follow the first of the three IC seeds. The x-axis counts the
@@ -29,7 +28,6 @@ _PROBLEM = "ns-3d-grid"
 # optimizer key -> (label, linestyle, experiment)
 _METHODS: dict[str, tuple[str, object, str]] = {
     "adam": ("Adam", "-.", "optimization/recovery_constant_ic"),
-    "adam_proj": ("Adam+proj", ":", "optimization/recovery_constant_ic_proj"),
     "bfgs": ("L-BFGS", "--", "optimization/recovery_constant_ic_bfgs"),
     "bfgs_proj": ("L-BFGS+proj", "-", "optimization/recovery_constant_ic_bfgs_proj"),
 }
@@ -88,11 +86,10 @@ def _div_rms(field: np.ndarray) -> float:
 
 
 def _plot_rows(
-    axes, runs: dict[str, _Run], keys, solvers, *, log: bool, linewidth: float
+    axes, runs: dict[str, _Run], keys, solvers, *, linewidth: float
 ) -> set[str]:
     """Draw IC error, IC divergence and loss for *keys* x *solvers*; return the solvers drawn."""
     ax_err, ax_div, ax_loss = axes
-    plot = "loglog" if log else "plot"
     seen: set[str] = set()
     for key in keys:
         run = runs[key]
@@ -104,20 +101,19 @@ def _plot_rows(
             _, color, _, _ = solver_props(solver)
             kw = {"color": color, "linestyle": ls, "linewidth": linewidth, "alpha": 0.9}
             hist = m["ic_error_history"]
-            getattr(ax_err, plot)(run.snapshot_evals(solver, len(hist)), hist, **kw)
-            getattr(ax_loss, plot)(run.evals(solver), m["errors"], **kw)
+            ax_err.loglog(run.snapshot_evals(solver, len(hist)), hist, **kw)
+            ax_loss.loglog(run.evals(solver), m["errors"], **kw)
             snaps = run.ic_history(solver)
             divs = [max(_div_rms(u), 1e-9) for u in snaps]
-            getattr(ax_div, plot)(run.snapshot_evals(solver, len(snaps)), divs, **kw)
+            ax_div.loglog(run.snapshot_evals(solver, len(snaps)), divs, **kw)
             seen.add(solver)
 
     ic_true_div = _div_rms(runs[keys[0]].fields["ic_true"])
     ax_div.axhline(ic_true_div, color="0.55", linestyle="--", linewidth=1.0, zorder=0)
-    if log:
-        # The divergence spans about a decade: label 1-2-5 steps, not just powers of ten.
-        ax_div.yaxis.set_major_locator(ticker.LogLocator(subs=(1.0, 2.0, 5.0)))
-        ax_div.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax_div.yaxis.set_minor_formatter(ticker.NullFormatter())
+    # The divergence spans about a decade: label 1-2-5 steps, not just powers of ten.
+    ax_div.yaxis.set_major_locator(ticker.LogLocator(subs=(1.0, 2.0, 5.0)))
+    ax_div.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax_div.yaxis.set_minor_formatter(ticker.NullFormatter())
     for ax, title in zip(
         axes, ("IC recovery error", "IC divergence", "Optimization loss"), strict=True
     ):
@@ -200,7 +196,7 @@ def _overview(runs: dict[str, _Run], out_path: Path) -> None:
     top = outer[0].subgridspec(1, 3, wspace=0.30)
     bottom = outer[1].subgridspec(1, 4, wspace=0.22)
     axes = [fig.add_subplot(top[0, i]) for i in range(3)]
-    seen = _plot_rows(axes, runs, _OVERVIEW_METHODS, NS_ORDER, log=True, linewidth=1.3)
+    seen = _plot_rows(axes, runs, _OVERVIEW_METHODS, NS_ORDER, linewidth=1.3)
     _legend(fig, _OVERVIEW_METHODS, NS_ORDER, seen, anchor_y=0.0, ncol=5, fontsize=6.5)
     _field_panels(
         fig, [fig.add_subplot(bottom[0, i]) for i in range(4)], runs[_FIELD_METHOD]
@@ -210,23 +206,10 @@ def _overview(runs: dict[str, _Run], out_path: Path) -> None:
     print(f"Saved {out_path}")
 
 
-def _adam_proj(runs: dict[str, _Run], out_path: Path) -> None:
-    keys = ("adam", "adam_proj")
-    fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.38))
-    fig.subplots_adjust(bottom=0.42, wspace=0.25, left=0.05, right=0.98)
-    seen = _plot_rows(axes, runs, keys, NS_ORDER, log=False, linewidth=1.3)
-    _legend(fig, keys, NS_ORDER, seen, anchor_y=0.01, ncol=5, fontsize=6.5)
-    fig.savefig(out_path)
-    plt.close(fig)
-    print(f"Saved {out_path}")
-
-
 def _main(runs: dict[str, _Run], out_path: Path) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(TEXTWIDTH, TEXTWIDTH * 0.36))
     fig.subplots_adjust(left=0.07, right=0.98, top=0.86, bottom=0.36, wspace=0.30)
-    seen = _plot_rows(
-        axes, runs, _OVERVIEW_METHODS, _MAIN_SOLVERS, log=True, linewidth=1.4
-    )
+    seen = _plot_rows(axes, runs, _OVERVIEW_METHODS, _MAIN_SOLVERS, linewidth=1.4)
     _legend(
         fig, _OVERVIEW_METHODS, _MAIN_SOLVERS, seen, anchor_y=0.0, ncol=6, fontsize=7.0
     )
@@ -239,5 +222,4 @@ def generate(out_dir: Path) -> None:
     runs = {key: _Run(key) for key in _METHODS}
     with plt.rc_context(RCPARAMS):
         _overview(runs, out_dir / "recovery_overview.pdf")
-        _adam_proj(runs, out_dir / "recovery_adam_proj.pdf")
         _main(runs, out_dir / "recovery_main.pdf")

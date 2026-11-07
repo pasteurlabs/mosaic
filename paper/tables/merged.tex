@@ -73,7 +73,7 @@
     multimode IC; F3: Exponax at $N=64$), or the largest over the density sweep vs.\ the solver
     consensus (S, H); An.\,=\,vs.\ analytical Taylor--Green solution at $\nu=0.01$;
     FD\,=\,vs.\ central finite differences (median over directions, best~$\varepsilon$).
-    \textit{Conv.}\ (F2 drag, F3 L-BFGS IC recovery, S topology opt., H conductivity recovery):
+    \textit{Conv.}\ (F2 drag, F3 L-BFGS+proj IC recovery, S topology opt., H conductivity recovery):
     $\checkmark$\,=\,passes the checks of \cref{app:recovery}; $\triangle$\,=\,flagged; $\times$\,=\,failed.
     \textit{Grad.\ support}: $\bullet$\,=\,AD through the solver; $\circ$\,=\,adjoint or
     hand-written VJP for at least part of it; $\times$\,=\,incorrect; $?$\,=\,not obtained;

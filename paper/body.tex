@@ -436,8 +436,8 @@ pull request. Reproduction instructions are in \cref{app:software}.
 effort across all solvers; individual metrics are unpacked in the
 subsections below.
 Per-domain physical-accuracy validation, including the F2 cylinder forward
-error and the divergence-RMS, kinetic-energy, and analytic-error sweeps for
-the NS domains, is reported in \cref{app:physical_accuracy}.
+error and the divergence-RMS, kinetic-energy, and analytic-error sweeps on
+F2, is reported in \cref{app:physical_accuracy}.
 Setup incompatibilities exclude some solvers from specific tasks, for
 reasons detailed in \cref{sec:optimization,app:exclusions}.
 
@@ -492,10 +492,9 @@ All differentiable solvers reach cosine similarity $>0.999$ between AD
 and central finite-difference gradients at their optimal perturbation
 size~$\varepsilon$, confirming AD correctness; per-solver minimum FD
 errors are reported in the \textit{Error (FD)} column of
-\cref{tab:merged}. The optimal $\varepsilon$ shifts by orders of
-magnitude across solvers and with rollout length and viscosity, so a
-fixed step size can make a correct gradient look wrong
-(\cref{app:gradient}).
+\cref{tab:merged}. The optimal $\varepsilon$ differs by orders of
+magnitude across solvers and domains, so a fixed step size can make a
+correct gradient look wrong (\cref{fig:app:fdcheck}).
 
 The exact Taylor--Green gradients show what limits gradient accuracy in
 practice. Against them, every solver's initial-state gradient has a larger
