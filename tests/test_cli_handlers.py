@@ -293,6 +293,35 @@ def test_run_flat_solvers_reverse_direction_passes_validation(stop_before_run):
         )
 
 
+def test_run_single_experiment_reports_ok(monkeypatch):
+    """``-e <suite>/<exp>`` counts against the one experiment asked for, not
+    every experiment in the suite."""
+    from mosaic.benchmarks.cli import run as run_mod
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setattr(
+        run_mod,
+        "run_suite",
+        lambda cfg, tags, exps, to_run=None, **kw: {n: {} for n in to_run or exps},
+    )
+    run_status: dict = {}
+    run_mod._run_suites_for_problem(
+        "ns-grid",
+        ["gradient"],
+        get_config("ns-grid"),
+        {},
+        ["fd_check"],
+        plots_only=False,
+        no_plots=True,
+        traceback=False,
+        debug=False,
+        gpus=None,
+        experiments="gradient/fd_check",
+        run_status=run_status,
+    )
+    assert run_status == {("ns-grid", "gradient"): ("ok", "")}
+
+
 def test_run_genuine_typo_still_fails_fast(stop_before_run):
     """A name on no registered problem is a real typo and must still exit 1 at
     validation — before the per-problem loop (the sentinel) is ever reached."""

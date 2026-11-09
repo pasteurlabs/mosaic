@@ -332,7 +332,7 @@ def _run_suites_for_problem(
                 overrides=_overrides or None,
                 skip_completed=continue_,
             )
-            n_total = len(exps)
+            n_total = len(effective_to_run or exps)
             n_ok = len(results)
             if n_ok == n_total:
                 run_status[(problem, suite)] = ("ok", "")
