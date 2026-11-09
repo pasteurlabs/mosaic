@@ -303,6 +303,7 @@ def _run_suites_for_problem(
                     plot_fns_fn(),
                     suite,
                     verbose_errors=traceback,
+                    debug=debug,
                 )
                 run_status[(problem, suite)] = ("ok", "plots-only")
                 continue
