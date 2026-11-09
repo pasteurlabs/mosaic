@@ -344,6 +344,7 @@ def _plots_only(
     plot_fns: dict | None,
     suite: str,
     verbose_errors: bool = False,
+    debug: bool = False,
 ) -> None:
     if plot_fns is None:
         console.print("No plot functions registered for this suite.")
@@ -380,7 +381,10 @@ def _plots_only(
             print_skip(f"no plot function for '{name}'")
             continue
         try:
-            plot_fns[name](cfg)
+            if debug and not name.startswith("_extra/"):
+                plot_fns[name](cfg, suffix="_debug")
+            else:
+                plot_fns[name](cfg)
             console.print(f"  [green]{name}[/green] ok")
         except FileNotFoundError as exc:
             print_skip(f"{name}: results not found ({exc.filename})")

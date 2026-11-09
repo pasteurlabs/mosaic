@@ -307,6 +307,24 @@ def test_run_genuine_typo_still_fails_fast(stop_before_run):
     assert "TopOpt.jl" in result.output  # "did you mean" suggestion
 
 
+def test_run_plots_only_debug_plots_the_debug_results(monkeypatch):
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    calls = []
+    monkeypatch.setitem(
+        cfg.plot_fns, "forward/baseline", lambda _cfg, **kw: calls.append(kw)
+    )
+
+    result = runner.invoke(
+        app,
+        ["run", "--plots-only", "--debug", "-p", "ns-grid", "-e", "forward/baseline"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"suffix": "_debug"}]
+
+
 # ── status ────────────────────────────────────────────────────────────────────
 
 
