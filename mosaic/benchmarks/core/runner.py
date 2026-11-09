@@ -585,6 +585,26 @@ def _has_cells_to_rerun(exp_key: str) -> bool:
     return bool(active) and any(key == exp_key for key, _ in active)
 
 
+def plot_keys(names: list[str], plot_fns: dict) -> list[str]:
+    """The ``plot_fns`` keys that draw *names*, in order and each once.
+
+    An experiment that fans out (``agreement`` with one run per IC) runs as
+    ``agreement/tgv``, ``agreement/multimode``, …, but its plot is registered
+    under ``agreement``, so a name falls back to its closest registered
+    parent. A name with no plot of its own or of a parent is kept as is.
+    """
+    keys: list[str] = []
+    for name in names:
+        key = name
+        while key not in plot_fns and "/" in key:
+            key = key.rpartition("/")[0]
+        if key not in plot_fns:
+            key = name
+        if key not in keys:
+            keys.append(key)
+    return keys
+
+
 def run_suite(
     cfg: Problem,
     tags: dict[str, str],
@@ -680,8 +700,8 @@ def run_suite(
         except Exception:
             _plot_cfg = cfg
         # Regular per-experiment plots: only fire when the matching experiment ran.
-        for name in to_run:
-            if name in plot_fns and name in results:
+        for name in plot_keys([n for n in to_run if n in results], plot_fns):
+            if name in plot_fns:
                 try:
                     plot_fns[name](_plot_cfg, suffix=suffix)
                 except Exception as exc:
