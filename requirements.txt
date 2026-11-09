@@ -34,7 +34,7 @@ attrs==26.1.0
     #   referencing
 botocore==1.43.117
     # via aiobotocore
-cachetools==7.2.8
+cachetools==7.3.0
     # via mlflow-skinny
 certifi==2026.10.23
     # via
@@ -44,7 +44,7 @@ cffi==2.1.1 ; platform_python_implementation != 'PyPy'
     # via cryptography
 charset-normalizer==3.5.2
     # via requests
-click==8.5.0
+click==8.5.1
     # via
     #   mlflow-skinny
     #   uvicorn
@@ -54,7 +54,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via typer
 cryptography==50.0.2
     # via google-auth
-databricks-sdk==0.158.0
+databricks-sdk==0.162.0
     # via mlflow-skinny
 debugpy==1.8.22
     # via tesseract-core
@@ -64,7 +64,7 @@ fastapi==0.143.0
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==4.2.6
+filelock==4.2.9
     # via mosaic-bench
 frozenlist==1.8.0
     # via
@@ -78,7 +78,7 @@ gitdb==4.0.12
     # via gitpython
 gitpython==3.2.1
     # via mlflow-skinny
-google-auth==2.62.0
+google-auth==2.62.1
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
@@ -186,9 +186,9 @@ packaging==26.3
     #   mlflow-skinny
     #   tesseract-core
     #   tesseract-jax
-pandas==3.1.0
+pandas==3.1.1
     # via mosaic-bench
-pip==26.2.2
+pip==26.3
     # via tesseract-core
 propcache==0.5.4
     # via
@@ -305,7 +305,7 @@ typing-extensions==4.16.0
     #   referencing
     #   starlette
     #   typing-inspection
-typing-inspection==0.4.4
+typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
