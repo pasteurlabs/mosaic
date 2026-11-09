@@ -33,6 +33,12 @@
 \def\fps@table{!htbp}
 \makeatother
 
+% Keep single lines of a paragraph from being stranded at the top or
+% bottom of a page.
+\widowpenalty=10000
+\clubpenalty=10000
+\displaywidowpenalty=10000
+
 % ── TITLE-PAGE METADATA ─────────────────────────────────────
 \title{Mosaic: A Benchmark Suite for Differentiable Physics Solvers}
 
@@ -40,7 +46,7 @@
         Heiko Zimmermann\,\orcidlink{0000-0001-9190-4328},\;
         Dion Häfner\,\orcidlink{0000-0002-4465-7317}}
 
-\date{05-2026}
+\date{11-2026}
 
 \organization{\includegraphics[height=26pt]{figures/pl-labs}}
 
@@ -66,7 +72,7 @@
 
 % ===========================================================================
 
-\section*{Acknowledgments and disclosure of funding}
+\section*{Acknowledgments}
 \input{ack}
 
 % ── REFERENCES ──────────────────────────────────────────────
