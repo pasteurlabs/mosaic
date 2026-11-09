@@ -59,7 +59,7 @@ Two versions are published. You most likely want [stable](https://docs.pasteurla
 - [Paper](https://arxiv.org/abs/2606.27895)
 
 > [!TIP]
-> **Reproducing our paper?** See the [`v0.3+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions, and [its release](https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro) for the paper's results.
+> **Reproducing our paper?** See the [`v0.3+paper-repro`](https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro) release for the code, results, and step-by-step instructions.
 
 ---
 
