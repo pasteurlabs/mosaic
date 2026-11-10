@@ -93,12 +93,16 @@ def plot_horizon_sweep_limits(
     cfg: Problem,
     *,
     save: bool = True,
+    suffix: str = "",
     exp_key: str = "horizon_sweep_limits",
     **_kw: Any,
 ) -> Any:
     """``horizon_sweep_limits.png``: memory, wall time and gradient norm vs T."""
     out = _render(
-        cfg, exp_key, {"horizon_sweep_limits": sweeps.horizon_sweep_limits}, save
+        cfg,
+        f"{exp_key}{suffix}",
+        {"horizon_sweep_limits": sweeps.horizon_sweep_limits},
+        save,
     )
     return out.get("horizon_sweep_limits")
 
