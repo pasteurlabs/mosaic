@@ -354,6 +354,29 @@ def test_run_plots_only_debug_plots_the_debug_results(monkeypatch):
     assert calls == [{"suffix": "_debug"}]
 
 
+def test_run_plots_only_draws_fanned_out_experiments(monkeypatch, tmp_path):
+    """``forward/agreement`` runs as ``agreement/tgv`` and ``agreement/multimode``;
+    its plot is still drawn."""
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    cfg = get_config("ns-grid")
+    drawn = []
+    for key in [k for k in cfg.plot_fns if k.startswith("forward/")]:
+        monkeypatch.setitem(
+            cfg.plot_fns, key, lambda _cfg, _key=key, **kw: drawn.append(_key)
+        )
+
+    result = runner.invoke(
+        app, ["run", "--plots-only", "-p", "ns-grid", "--suites", "forward"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert drawn.count("forward/agreement") == 1
+    assert drawn.count("forward/physical_laws") == 1
+
+
 # ── status ────────────────────────────────────────────────────────────────────
 
 

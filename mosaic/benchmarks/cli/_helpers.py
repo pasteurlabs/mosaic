@@ -19,7 +19,7 @@ from typing import Any
 import typer
 
 from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
-from mosaic.benchmarks.core.runner import build_all, image_tags_no_build
+from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, plot_keys
 from mosaic.benchmarks.problems import PROBLEMS, get_config
 from mosaic.benchmarks.problems.shared import SUITES
 
@@ -362,7 +362,7 @@ def _plots_only(
     except Exception:
         logger.debug("re-loading full config for %s failed", cfg.name, exc_info=True)
     if to_run:
-        names = to_run
+        names = plot_keys(to_run, plot_fns)
     else:
         # Default: only attempt plots for experiments actually configured for
         # this cfg+suite (avoids noisy [SKIP]s for variants that belong to a
@@ -375,7 +375,8 @@ def _plots_only(
             for k, exp in cfg.experiments.items()
             if k.startswith(prefix) and exp.params
         }
-        names = [n for n in plot_fns if n in configured or n.startswith("_extra/")]
+        drawn = set(plot_keys(list(configured), plot_fns))
+        names = [n for n in plot_fns if n in drawn or n.startswith("_extra/")]
     for name in names:
         if name not in plot_fns:
             print_skip(f"no plot function for '{name}'")
