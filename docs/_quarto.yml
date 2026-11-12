@@ -10,8 +10,10 @@ project:
   # discover them from the pages.
   resources:
     - "_generated/plots/**/*.vl.json"
-    # The paper page is a standalone HTML page with its own layout.
+    # The paper pages are standalone HTML pages with their own layout, and
+    # the drafts show the setup schematics.
     - "paper/**"
+    - "figures/setup_*.svg"
   render:
     - index.qmd
     - results/*.qmd
