@@ -388,57 +388,43 @@ def fig_ns_3d_grid() -> str:
 # ── S: cantilever compliance minimization ────────────────────────────────────
 
 
-# Optimized cantilever seen from the front (x to the right, z up), top row first:
-# the density of the 32x4x16 MMA run of the paper (structural-mesh,
-# optimization/topopt_mma_fine), averaged over the beam width y and rounded to
-# one digit per element, 0 = void and 9 = solid.
-_CANTILEVER_DENSITY = (
-    "99999999999999999977542000000000",
-    "99999977777777777777775520000000",
-    "25777777777777777777777755000000",
-    "22555555577775555555557775520000",
-    "00255555555555555555555557552000",
-    "00002555555555555555555555555200",
-    "00000255555555555555555555555520",
-    "00000025555555555555555255555552",
-    "00000025555555555555552525555552",
-    "00000255555555555555525252555555",
-    "00005555555555555555242525255555",
-    "00255555555555555552255252555555",
-    "22555555577755555525555555522255",
-    "25777777775555555555555552222225",
-    "99999997777777777777775555200025",
-    "99999999999999999999777777775555",
-)
-
-
 def fig_structural_mesh() -> str:
     x0, x1, y0, y1 = 170, 510, 100, 270
-    cell = (x1 - x0) / len(_CANTILEVER_DENSITY[0])
-    # The benchmark loads one element at the lower corner of the free end,
-    # pushing up (+z); the layout below is what the solvers converge to.
-    load = (x1, y1 - cell / 2)
-    cells = "".join(
-        f'<rect x="{x0 + i * cell:.2f}" y="{y0 + k * cell:.2f}" width="{cell:.2f}" '
-        f'height="{cell:.2f}" fill-opacity="{int(d) / 9:.2f}"/>'
-        for k, row in enumerate(_CANTILEVER_DENSITY)
-        for i, d in enumerate(row)
-        if d != "0"
-    )
+    # The benchmark loads the lower corner of the free end, pushing up
+    # (corner_load=True), so the chords meet there and not at mid-height.
+    tip = (x1, y1 - 8)
+
+    def chord(x: float, top: bool) -> float:
+        t = ((x - x0) / (x1 - x0)) ** 2.2
+        edge = y0 + 8 if top else y1 - 8
+        return edge + (tip[1] - edge) * t
+
+    struts = []
+    for top in (True, False):
+        pts = [(x, chord(x, top)) for x in _frange(x0, x1, 6)]
+        struts.append(f'<path d="{_path(pts)}" stroke-width="15"/>')
+    xs = [x0 + 6, 250, 325, 395, 455]
+    for i in range(len(xs) - 1):
+        a, b = xs[i], xs[i + 1]
+        w = 11 - i * 2
+        struts.append(
+            f'<path d="M{a},{chord(a, True)} L{b},{chord(b, False)} M{a},{chord(a, False)} '
+            f'L{b},{chord(b, True)}" stroke-width="{w}"/>'
+        )
     grid = "".join(
-        f'<line x1="{x:.2f}" y1="{y0}" x2="{x:.2f}" y2="{y1}"/>'
-        for x in _frange(x0 + 2 * cell, x1 - 1, 2 * cell)
+        f'<line x1="{x}" y1="{y0}" x2="{x}" y2="{y1}"/>'
+        for x in _frange(x0 + 17, x1 - 1, 17)
     ) + "".join(
-        f'<line x1="{x0}" y1="{y:.2f}" x2="{x1}" y2="{y:.2f}"/>'
-        for y in _frange(y0 + 2 * cell, y1 - 1, 2 * cell)
+        f'<line x1="{x0}" y1="{y}" x2="{x1}" y2="{y}"/>'
+        for y in _frange(y0 + 17, y1 - 1, 17)
     )
     blur = '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.2"/></filter>'
     parts = [
         f'<clipPath id="beam"><rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}"/></clipPath>',
         f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" fill="#eef0f4"/>',
         (
-            f'<g clip-path="url(#beam)"><g filter="url(#soft)" fill="{INDIGO}">'
-            f"{cells}</g></g>"
+            f'<g clip-path="url(#beam)"><g filter="url(#soft)" fill="none" stroke="{INDIGO}" '
+            f'stroke-linecap="round" stroke-linejoin="round">{"".join(struts)}</g></g>'
         ),
         f'<g stroke="{INDIGO}" stroke-opacity="0.1" stroke-width="1">{grid}</g>',
         (
@@ -447,10 +433,10 @@ def fig_structural_mesh() -> str:
         ),
         _hatch(x0, y0 - 10, y1 + 10, side=-1),
         f'<text x="{x0 - 14}" y="{y1 + 34}" class="small" text-anchor="middle">clamped</text>',
-        f'<circle cx="{load[0]}" cy="{load[1]:.1f}" r="4" fill="{ACCENT}"/>',
-        _arrow(load[0] + 34, load[1] + 30, load[0] + 34, load[1] - 46, "accent", 2.6),
-        f'<text x="{load[0] + 48}" y="{load[1] - 20}" class="label">{_m("F")}</text>',
-        f'<text x="{load[0] + 48}" y="{load[1] - 2}" class="small">corner load</text>',
+        f'<circle cx="{tip[0]}" cy="{tip[1]}" r="4" fill="{ACCENT}"/>',
+        _arrow(tip[0] + 34, tip[1] + 30, tip[0] + 34, tip[1] - 46, "accent", 2.6),
+        f'<text x="{tip[0] + 48}" y="{tip[1] - 22}" class="label">{_m("F")}</text>',
+        f'<text x="{tip[0] + 48}" y="{tip[1] - 4}" class="small">corner load</text>',
         _label(x0, 48, "Control", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
         f'<text x="{x1}" y="{y1 + 34}" class="small" text-anchor="end">dark = material, light = void</text>',
         _objective(
