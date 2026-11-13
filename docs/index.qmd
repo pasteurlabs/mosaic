@@ -110,7 +110,7 @@ Recover the initial velocity field of a 3D flow from a later snapshot, with one 
 
 ::: {.domain-card}
 ::: {.domain-thumb}
-![](figures/setup_structural.svg){.nolightbox fig-alt="Schematic of the cantilever: a beam clamped on the left with a load at its tip, filled with a truss-like material layout."}
+![](figures/setup_structural.svg){.nolightbox fig-alt="Schematic of the cantilever: a beam clamped on the left with an upward load at the lower corner of its free end, filled with a truss-like material layout."}
 :::
 ::: {.domain-card-body}
 [[S]{.domain-id .d-S} [Linear-elastic cantilever](results/structural.qmd)]{.domain-card-title}
