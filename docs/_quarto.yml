@@ -10,6 +10,10 @@ project:
   # discover them from the pages.
   resources:
     - "_generated/plots/**/*.vl.json"
+    # The paper pages are standalone HTML pages with their own layout, and
+    # the drafts show the setup schematics.
+    - "paper/**"
+    - "figures/setup_*.svg"
   render:
     - index.qmd
     - results/*.qmd
@@ -62,6 +66,8 @@ website:
           - text: "<span class='domain-id d-H'>H</span>Steady conduction in a slab"
             file: results/heat.qmd
     right:
+      - text: Paper
+        href: paper/index.html
       - icon: github
         href: https://github.com/pasteurlabs/mosaic
   page-footer:

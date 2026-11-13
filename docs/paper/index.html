@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!--
+Paper page, served at /paper/. A standalone page, not rendered by Quarto.
+Numbers and wording follow the camera-ready (paper/ on the paper branch, tag
+v0.3+paper-repro). Keep them in sync with the paper, not with the results
+pages, which track the current benchmark.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosaic: A Benchmark Suite for Differentiable Physics Solvers</title>
+<meta name="description" content="Mosaic: A Benchmark Suite for Differentiable Physics Solvers. NeurIPS 2026, Evaluations and Datasets track.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap">
+<style>
+  :root {
+    --ink: #1d1e20;
+    --ink-2: #55585e;
+    --rule: #e3e4e6;
+    --accent: #a8401f;
+    --code-bg: #f4f4f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    font: 400 17px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 64px 20px 80px;
+  }
+  header { text-align: center; margin-bottom: 40px; }
+  h1 {
+    font-size: clamp(1.7rem, 4.5vw, 2.5rem);
+    line-height: 1.2;
+    font-weight: 600;
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
+  }
+  .venue { color: var(--ink-2); font-size: 1.05rem; margin: 0 0 16px; }
+  .authors { margin: 0; font-size: 1.05rem; }
+  .affil { margin: 2px 0 20px; color: var(--ink-2); }
+  .links { margin: 0; font-weight: 500; }
+  .links a { margin: 0 10px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h2 {
+    font-size: 1.45rem;
+    font-weight: 600;
+    margin: 56px 0 12px;
+  }
+  p { margin: 0 0 14px; }
+  figure { margin: 18px 0 0; }
+  figure img, figure video { display: block; width: 100%; height: auto; }
+  figcaption { margin-top: 8px; font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
+  .teaser { margin: 0 auto; max-width: 1000px; }
+  pre {
+    background: var(--code-bg);
+    padding: 14px 16px;
+    overflow-x: auto;
+    font: 0.82rem/1.55 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  footer { margin-top: 64px; color: var(--ink-2); font-size: 0.9rem; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Mosaic: A Benchmark Suite for Differentiable Physics Solvers</h1>
+  <p class="venue">NeurIPS 2026, Evaluations and Datasets track</p>
+  <p class="authors">Andrin Rehmann, Heiko Zimmermann, Dion Häfner</p>
+  <p class="affil">Pasteur Labs</p>
+  <p class="links">
+    <a href="https://arxiv.org/abs/2606.27895">Paper</a>
+    <a href="https://arxiv.org/pdf/2606.27895">PDF</a>
+    <a href="https://github.com/pasteurlabs/mosaic">Code</a>
+    <a href="../results/index.html">Benchmark results</a>
+    <a href="#citation">BibTeX</a>
+  </p>
+</header>
+
+<!-- Animations: add a <figure> per animation here. -->
+<figure class="teaser">
+  <video src="media/inflow_optimization.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Inflow optimization in the DFG 2D-1 channel: five solvers' flow fields, drag and inlet profiles over Adam iterations"></video>
+  <figcaption>Inflow optimization in the DFG 2D-1 channel. Five solvers optimize the inlet profile at fixed flow rate with the same objective, and each lowers the cylinder's drag to 0.52–0.54 of its starting value. A re-run of the drag-optimization task made for this animation, not the paper's data.</figcaption>
+</figure>
+
+<h2 id="abstract">Abstract</h2>
+<p>Differentiable partial differential equation (PDE) solvers underpin solver-in-the-loop ML training, gradient-based optimal control, and inverse problems, yet the practical cost of obtaining correct, usable gradients from a given solver on a given problem is largely undocumented. Integration effort, computational cost, memory, gradient accuracy, and numerical stability vary widely across solvers and are discoverable only by trial and error.</p>
+<p>We introduce <em>Mosaic</em>, an extensible benchmarking framework for differentiable PDE solvers that standardizes access to solver gradients. Each solver is packaged as a containerized component (<em>Tesseract</em>) exposing a uniform gradient API regardless of language or automatic differentiation (AD) strategy, enabling researchers to evaluate, compare, and build on non-trivial physical solvers.</p>
+<p>Our evaluation of 14 solvers across fluid dynamics, structural mechanics, and heat transfer demonstrates that the benchmark surfaces practically relevant differences: order-of-magnitude variation in computational cost and memory, alongside setup incompatibilities and instabilities that rule out solvers for specific tasks. Despite this variation, all solvers that produce gradients converge to similar optima on our tasks, indicating that the practical barriers are memory limits, numerical stability, and setup compatibility rather than gradient accuracy alone.</p>
+
+<h2 id="recovery">The optimizer matters more than the solver</h2>
+<p>On 3D initial-condition recovery, L-BFGS recovers the initial state an order of magnitude more accurately than Adam, in a fraction of the gradient evaluations. Projecting the gradient onto divergence-free fields before each L-BFGS update improves the recovery on every solver.</p>
+<figure>
+  <img src="media/recovery_main.png" alt="IC error against gradient evaluations for several 3D Navier–Stokes solvers with Adam, L-BFGS and L-BFGS with gradient projection.">
+  <figcaption>F3 initial-condition recovery for selected solvers and optimizers. The IC error is the relative ℓ<sub>2</sub> distance between the recovered and true initial states.</figcaption>
+</figure>
+
+<h2 id="spectra">Jacobian spectra reflect how a solver treats divergence</h2>
+<p>The spectra fall into three shapes, which mostly reflect how each solver treats initial perturbations that are not divergence-free. Solvers that project those out exactly have singular values at round-off. No shape predicts which solvers stay stable over long rollouts, since each occurs among stable and unstable solvers alike.</p>
+<figure>
+  <img src="media/jacobian_svd_comparison.png" alt="Normalized singular value spectra of the F3 solver Jacobians at several rollout lengths and viscosities, one line per solver.">
+  <figcaption>Normalized Jacobian singular value spectra (σ<sub>i</sub>/σ<sub>1</sub>) on F3 (N = 8) after T = 0.5, 1 and 2 time units at ν = 10<sup>−3</sup>, and after T = 0.5 at ν = 10<sup>−2</sup>. Exponax and XLB keep a nearly flat spectrum at every rollout length. JAX-CFD, INS.jl and PhiFlow drop to round-off after about two thirds of the modes, and the spectra of PICT and Warp-NS steepen as the rollout grows.</figcaption>
+</figure>
+
+<h2 id="memory">Memory follows the differentiation strategy</h2>
+<p>Reverse-mode AD through a time loop stores every state, so memory grows linearly with the number of steps. Checkpointing, used here only by XLB, reduces this to the square root. Without it, the stored trajectory limits a 48<sup>3</sup> rollout to a few thousand steps, even with 80 GB.</p>
+<figure>
+  <img src="media/memory_rollout.png" alt="Peak GPU memory of one VJP against rollout steps for the 3D Navier–Stokes solvers.">
+  <figcaption>Peak GPU memory of one VJP against rollout steps on F3 (N = 48), by differentiation strategy (line style).</figcaption>
+</figure>
+
+<h2 id="horizon">Long rollouts end in memory limits or non-finite gradients</h2>
+<p>Memory is not always the first limit. Extending the F3 rollout to 81,920 steps, PhiFlow and Warp-NS return non-finite gradients after 160 steps and XLB after 320, while INS.jl, JAX-CFD and PICT stay stable until they run out of memory. Exponax completes every horizon.</p>
+<figure>
+  <img src="media/horizon_sweep_limits.png" alt="Peak memory, wall time and gradient norm of one VJP against rollout length, one line per 3D Navier–Stokes solver.">
+  <figcaption>VJP against rollout length on F3 (N = 20, ν = 10<sup>−3</sup>, Δt = 0.05): peak GPU memory, wall time and gradient norm. Each line ends at the solver's last successful horizon. Out-of-memory failures are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.</figcaption>
+</figure>
+
+<h2 id="reproduce">Reproducing the paper</h2>
+<p>The paper's results were computed on one NVIDIA A100 80 GB with the code and solver environments of the <a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro"><code>v0.3+paper-repro</code></a> tag. The repository <a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">README</a> describes how to regenerate the figures and tables from the published results, or re-run the experiments.</p>
+
+<h2 id="citation">Citation</h2>
+<pre>@inproceedings{rehmann2026mosaic,
+  title     = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
+  author    = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
+  booktitle = {Advances in Neural Information Processing Systems},
+  note      = {Evaluations and Datasets Track},
+  year      = {2026},
+  eprint    = {2606.27895},
+  archivePrefix = {arXiv}
+}</pre>
+
+<footer>
+  <a href="https://github.com/pasteurlabs/mosaic">github.com/pasteurlabs/mosaic</a>
+</footer>
+
+</main>
+</body>
+</html>
