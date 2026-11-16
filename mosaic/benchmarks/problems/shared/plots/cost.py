@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from mosaic.benchmarks.core.config import Problem
@@ -24,7 +25,7 @@ def plot_cost(cfg: Problem, *, save: bool = True, suffix: str = "", **_kw: Any) 
     out = render(
         cfg,
         results_dir() / cfg.name / _SUITE,
-        {f"cost{suffix}": charts.build_cost},
+        {f"cost{suffix}": functools.partial(charts.build_cost, suffix=suffix)},
         suite=_SUITE,
         save=save,
     )

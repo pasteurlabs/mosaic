@@ -238,12 +238,14 @@ _FAILURE_SHAPE = {
 _W, _H = 140, 120
 
 
-def _load(ctx: Ctx) -> tuple[tuple[dict, dict, dict], str] | None:
-    """``_load_cost_inputs`` reading through ``ctx`` instead of ``results_dir()``."""
-    spatial = ctx.legacy("spatial_cost")
-    temporal = ctx.legacy("temporal_cost")
-    vjp_n = ctx.legacy("vjp_cost/by_N")
-    vjp_s = ctx.legacy("vjp_cost/by_steps")
+def _load(ctx: Ctx, suffix: str = "") -> tuple[tuple[dict, dict, dict], str] | None:
+    """``_load_cost_inputs`` reading through ``ctx`` instead of ``results_dir()``.
+
+    ``suffix`` reads the results of a ``--debug`` run (``spatial_cost_debug``, …).
+    """
+    names = ("spatial_cost", "temporal_cost", "vjp_cost/by_N", "vjp_cost/by_steps")
+    subs = [f"{name}{suffix}" for name in names]
+    spatial, temporal, vjp_n, vjp_s = map(ctx.legacy, subs)
     if spatial is None and temporal is None and vjp_n is None and vjp_s is None:
         return None
     spatial = _norm_resolution_sweep(spatial or {})
@@ -255,7 +257,6 @@ def _load(ctx: Ctx) -> tuple[tuple[dict, dict, dict], str] | None:
         vjp["by_N"] = vjp_n["by_N"]
     if vjp_s.get("by_steps"):
         vjp["by_steps"] = vjp_s["by_steps"]
-    subs = ("spatial_cost", "temporal_cost", "vjp_cost/by_N", "vjp_cost/by_steps")
     results = [r for r in map(ctx.result, subs) if r is not None]
     return (spatial, temporal, vjp), _hardware_str(results, ctx.config)
 
@@ -409,9 +410,9 @@ def _panel(
     return chart.properties(title=col) if top else chart
 
 
-def build_cost(ctx: Ctx) -> alt.TopLevelMixin | None:
+def build_cost(ctx: Ctx, suffix: str = "") -> alt.TopLevelMixin | None:
     """2 × n grid (time / memory × Forward·N, Forward·steps, VJP·N, VJP·steps)."""
-    loaded = _load(ctx)
+    loaded = _load(ctx, suffix)
     if loaded is None:
         return None
     (spatial, temporal, vjp), hw = loaded

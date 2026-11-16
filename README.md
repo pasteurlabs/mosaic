@@ -59,7 +59,7 @@ Two versions are published. You most likely want [stable](https://docs.pasteurla
 - [Paper](https://arxiv.org/abs/2606.27895)
 
 > [!TIP]
-> **Reproducing our paper?** See the [`v0.1+paper-repro`](https://github.com/pasteurlabs/mosaic/tree/v0.1+paper-repro) tag for figure-generation code, pinned dependencies, and step-by-step instructions.
+> **Reproducing our paper?** See the [`v0.3+paper-repro`](https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro) release for the code, results, and step-by-step instructions.
 
 ---
 
@@ -143,14 +143,11 @@ docs/                     # Quarto documentation site (_quarto.yml)
 If you use Mosaic in your research, please cite the paper ([arXiv:2606.27895](https://arxiv.org/abs/2606.27895)):
 
 ```bibtex
-@misc{rehmann2026mosaic,
-  title         = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
-  author        = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
-  year          = {2026},
-  eprint        = {2606.27895},
-  archivePrefix = {arXiv},
-  primaryClass  = {physics.comp-ph},
-  url           = {https://arxiv.org/abs/2606.27895}
+@inproceedings{rehmann2026mosaic,
+  title     = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
+  author    = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS), Track on Evaluations and Datasets},
+  year      = {2026}
 }
 ```
 
