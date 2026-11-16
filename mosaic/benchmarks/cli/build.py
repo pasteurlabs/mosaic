@@ -11,7 +11,7 @@ from mosaic.benchmarks import cli as _cli_pkg
 from mosaic.benchmarks.cli import app
 from mosaic.benchmarks.cli._helpers import _apply_solver_filter, _validate_solver_csv
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
-from mosaic.benchmarks.problems import PROBLEMS, get_config
+from mosaic.benchmarks.problems import get_config, problem_names
 
 
 @app.command()
@@ -44,7 +44,7 @@ def build(
     per-problem defaults from `mosaic/benchmarks/problems/*.py`.
     """
     problem_list = (
-        list(PROBLEMS)
+        problem_names()
         if problems == "all"
         else [p.strip() for p in problems.split(",")]
     )

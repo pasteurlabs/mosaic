@@ -20,7 +20,7 @@ from mosaic.benchmarks.cli._status_helpers import (
 )
 from mosaic.benchmarks.core.console import print_warn
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
-from mosaic.benchmarks.problems import PROBLEMS, get_config
+from mosaic.benchmarks.problems import get_config, problem_names
 
 
 @app.command()
@@ -107,7 +107,9 @@ def status(
     )
 
     problem_list = (
-        PROBLEMS if problems == "all" else [p.strip() for p in problems.split(",")]
+        problem_names()
+        if problems == "all"
+        else [p.strip() for p in problems.split(",")]
     )
     suite_list = (
         list(SUITES) if suites == "all" else [s.strip() for s in suites.split(",")]

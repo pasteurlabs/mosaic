@@ -19,8 +19,7 @@ from typing import Any
 import typer
 
 from mosaic.benchmarks.core.console import console, print_rule, print_skip, print_warn
-from mosaic.benchmarks.core.runner import build_all, image_tags_no_build, plot_keys
-from mosaic.benchmarks.problems import PROBLEMS, get_config
+from mosaic.benchmarks.problems import get_config, problem_names
 from mosaic.benchmarks.problems.shared import SUITES
 
 logger = logging.getLogger(__name__)
@@ -318,6 +317,10 @@ def _resolve_cfg_and_tags(
     # filesystem-level (load result.json, re-render PNG/PDF), so a rebuild is
     # pure overhead and can wedge the process behind a multi-minute docker
     # buildx stage.  Treat plots_only as implying no_build.
+    # Imported here rather than at module level: ``core.runner`` pulls in JAX
+    # and tesseract-core, which slows down CLI startup (#58).
+    from mosaic.benchmarks.core.runner import build_all, image_tags_no_build
+
     if no_build or plots_only:
         return cfg, image_tags_no_build(cfg), gpus
     print_rule("build")
@@ -361,6 +364,8 @@ def _plots_only(
         cfg = get_config(cfg.name)
     except Exception:
         logger.debug("re-loading full config for %s failed", cfg.name, exc_info=True)
+    from mosaic.benchmarks.core.runner import plot_keys  # see _resolve_cfg_and_tags
+
     if to_run:
         names = plot_keys(to_run, plot_fns)
     else:
@@ -484,7 +489,7 @@ def _validate_solver_csv(solvers_csv: str | None) -> None:
     if not requested:
         return
     all_names: set[str] = set()
-    for problem in PROBLEMS:
+    for problem in problem_names():
         try:
             all_names |= set(get_config(problem).solver_names)
         except Exception:
