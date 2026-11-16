@@ -1,132 +1,370 @@
 <!DOCTYPE html>
 <!--
-Paper page, served at /paper/. A standalone page, not rendered by Quarto.
-Numbers and wording follow the camera-ready (paper/ on the paper branch, tag
-v0.3+paper-repro). Keep them in sync with the paper, not with the results
-pages, which track the current benchmark.
+The paper page, served at /paper/. A standalone page, not
+rendered by Quarto. Findings and numbers follow the camera-ready (paper/ on the
+paper branch, tag v0.3+paper-repro). Keep them in sync with the paper, not with
+the results pages.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mosaic: A Benchmark Suite for Differentiable Physics Solvers</title>
-<meta name="description" content="Mosaic: A Benchmark Suite for Differentiable Physics Solvers. NeurIPS 2026, Evaluations and Datasets track.">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap">
+<meta name="description" content="Mosaic runs 14 differentiable PDE solvers behind one unified interface and measures their forward and gradient accuracy, cost, and integration effort on shared tasks. NeurIPS 2026, Evaluations and Datasets track.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mosaic: A Benchmark Suite for Differentiable Physics Solvers">
+<meta property="og:description" content="Mosaic runs 14 differentiable PDE solvers behind one unified interface and measures their forward and gradient accuracy, cost, and integration effort on shared tasks. NeurIPS 2026.">
+<meta property="og:url" content="https://docs.pasteurlabs.ai/projects/mosaic/latest/paper/">
+<meta property="og:image" content="https://docs.pasteurlabs.ai/projects/mosaic/latest/paper/media/inflow_optimization.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>
   :root {
-    --ink: #1d1e20;
-    --ink-2: #55585e;
-    --rule: #e3e4e6;
-    --accent: #a8401f;
-    --code-bg: #f4f4f2;
+    --paper: #ffffff;
+    --ink: #1c2127;
+    --ink-2: #57606b;
+    --rule: #dde2e8;
+    --wash: #f2f4f7;
+    --fwd: #2a6fb0;
+    --grad: #c4423a;
+    --slate: #253141;
+    --slate-ink: #d5dde7;
+    --slate-dim: #8d9bad;
+    --fwd-on-slate: #8ec5ee;
+    --grad-on-slate: #f4a493;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    background: #fff;
+    background: var(--paper);
     color: var(--ink);
-    font: 400 17px/1.65 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 400 17px/1.6 var(--sans);
   }
-  main {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 64px 20px 80px;
-  }
-  header { text-align: center; margin-bottom: 40px; }
-  h1 {
-    font-size: clamp(1.7rem, 4.5vw, 2.5rem);
-    line-height: 1.2;
-    font-weight: 600;
-    margin: 0 0 14px;
-    letter-spacing: -0.01em;
-  }
-  .venue { color: var(--ink-2); font-size: 1.05rem; margin: 0 0 16px; }
-  .authors { margin: 0; font-size: 1.05rem; }
-  .affil { margin: 2px 0 20px; color: var(--ink-2); }
-  .links { margin: 0; font-weight: 500; }
-  .links a { margin: 0 10px; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  h2 {
-    font-size: 1.45rem;
-    font-weight: 600;
-    margin: 56px 0 12px;
-  }
+  a { color: inherit; text-decoration: underline; text-decoration-color: #b4bcc6; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { text-decoration-color: currentColor; }
+  :focus-visible { outline: 2px solid var(--fwd); outline-offset: 2px; border-radius: 2px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+  .prose { max-width: 68ch; }
   p { margin: 0 0 14px; }
-  figure { margin: 18px 0 0; }
-  figure img, figure video { display: block; width: 100%; height: auto; }
-  figcaption { margin-top: 8px; font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
-  .teaser { margin: 0 auto; max-width: 1000px; }
-  pre {
-    background: var(--code-bg);
-    padding: 14px 16px;
-    overflow-x: auto;
-    font: 0.82rem/1.55 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  code, pre { font-family: var(--mono); }
+  code { font-size: 0.88em; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Hero */
+  .hero { padding: 72px 0 0; }
+  h1 { margin: 0; font-weight: 600; }
+  h1 .name { display: block; font-size: clamp(3.4rem, 9vw, 6.2rem); line-height: 0.95; letter-spacing: -0.035em; }
+  h1 .sub { display: block; margin-top: 14px; font-size: clamp(1.35rem, 2.8vw, 2rem); line-height: 1.2; font-weight: 400; letter-spacing: -0.01em; color: var(--ink-2); }
+  .byline { margin: 22px 0 0; font-size: 1rem; line-height: 1.5; }
+  .byline .venue { display: block; color: var(--ink-2); }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 5.2fr) minmax(0, 6.8fr); gap: 48px; margin-top: 44px; align-items: start; }
+  .lede { font-size: 1.22rem; line-height: 1.55; margin: 0 0 26px; }
+  .lede .q { font-weight: 600; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .btn {
+    display: inline-block; padding: 10px 20px; border-radius: 6px;
+    background: var(--ink); color: #fff; font-weight: 500; text-decoration: none;
   }
-  footer { margin-top: 64px; color: var(--ink-2); font-size: 0.9rem; text-align: center; }
+  .btn:hover { background: #000; }
+  .actions a:not(.btn) { font-weight: 500; }
+
+  /* Hero code panel */
+  .panel { background: var(--slate); color: var(--slate-ink); border-radius: 10px; overflow: hidden; }
+  .panel pre { margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: 13px; line-height: 1.65; }
+  .panel .k { color: var(--slate-dim); }
+  .panel .f { color: var(--fwd-on-slate); }
+  .panel .g { color: var(--grad-on-slate); }
+  .panel .img {
+    color: #fff; background: rgba(255, 255, 255, 0.09); border-radius: 3px; padding: 1px 2px;
+    transition: background-color 0.5s ease;
+  }
+  .panel .stack { color: #f0cf8c; transition: background-color 0.5s ease; border-radius: 3px; }
+  .panel .img.flash, .panel .stack.flash { background: rgba(142, 197, 238, 0.32); transition: none; }
+  .switch { border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 14px 24px 16px; }
+  .solvers { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .solvers button {
+    font: 500 0.88rem/1 var(--sans); color: var(--slate-ink); cursor: pointer;
+    background: none; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 7px 12px;
+  }
+  .solvers button:hover { border-color: rgba(255, 255, 255, 0.45); }
+  .solvers button[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--slate); }
+  .solvers button:focus-visible { outline-color: var(--fwd-on-slate); }
+  .solvers .more { display: inline-block; padding: 7px 6px; font: 500 0.88rem/1 var(--sans); color: var(--slate-dim); text-decoration: none; }
+  .solvers .more:hover { color: var(--slate-ink); }
+
+  /* Optimization video */
+  .teaser { margin: 40px 0 0; max-width: 760px; }
+  .teaser video { display: block; width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--rule); }
+  figcaption { margin-top: 10px; font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); max-width: 80ch; }
+
+  /* Sections */
+  section { padding: 88px 0 0; }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 18px; }
+  h3 { font-size: 1.08rem; line-height: 1.35; font-weight: 600; margin: 0 0 6px; }
+
+  /* Findings */
+  .intro { margin-bottom: 40px; }
+  .findings {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px 72px;
+    max-width: 1040px; margin: 0; padding: 0; list-style: none; counter-reset: finding;
+  }
+  .findings li { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); align-content: start; counter-increment: finding; }
+  .findings li::before {
+    content: counter(finding); grid-row: 1 / span 2;
+    font-size: 2.6rem; line-height: 1; font-weight: 500; color: var(--fwd);
+  }
+  .findings li > * { grid-column: 2; }
+  .findings h3 { font-size: 1.15rem; margin-bottom: 8px; }
+  .findings p { color: var(--ink-2); margin: 0; }
+  .pinned { margin: 0 0 56px; padding: 14px 18px; background: var(--wash); border-radius: 6px; font-size: 0.95rem; max-width: 80ch; }
+  .wide { margin: 56px 0 0; max-width: 640px; }
+  .wide img { display: block; width: 100%; height: auto; }
+
+  /* Tasks */
+  .tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 44px 48px; margin-top: 36px; }
+  .tasks img { display: block; width: 100%; aspect-ratio: 600 / 317; object-fit: contain; margin-bottom: 14px; }
+  .tasks p { margin: 0 0 6px; }
+  .tasks .domain { margin-left: 0.4em; font-weight: 400; color: var(--ink-2); }
+  .tasks .who { color: var(--ink-2); font-size: 0.93rem; }
+  .fwd-only { font-style: italic; }
+
+  /* Protocol */
+  .measures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; margin-top: 28px; }
+  .measure { border-top: 1px solid var(--rule); padding: 18px 0 22px; }
+  .measure p { color: var(--ink-2); font-size: 0.96rem; margin: 0 0 8px; }
+  .measure p:last-child { margin-bottom: 0; }
+  .measure b { color: var(--ink); font-weight: 500; }
+
+  /* Use, explore, cite */
+  pre.shell { max-width: 900px; background: var(--wash); border-radius: 6px; padding: 16px 18px; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; margin: 0 0 16px; }
+  pre.shell .c { color: var(--ink-2); }
+  dl.rows { display: grid; grid-template-columns: 13rem minmax(0, 1fr); margin: 28px 0 0; max-width: 900px; }
+  dl.rows dt, dl.rows dd { margin: 0; padding: 13px 0; border-top: 1px solid var(--rule); }
+  dl.rows dt { font-weight: 500; padding-right: 20px; }
+  dl.rows dd { color: var(--ink-2); }
+  .cite { position: relative; max-width: 900px; }
+  .cite pre { background: var(--wash); border-radius: 6px; padding: 18px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0; }
+  .copy {
+    position: absolute; top: 10px; right: 10px; cursor: pointer;
+    font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 5px; padding: 7px 11px;
+  }
+  .copy:hover { border-color: #b4bcc6; }
+
+  footer { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 0.93rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+  @media (max-width: 900px) {
+    .hero { padding-top: 48px; }
+    .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 18px; }
+    .findings, .tasks, .measures { grid-template-columns: minmax(0, 1fr); }
+    .panel pre { font-size: 12px; padding: 18px; }
+    .switch { padding: 14px 18px 16px; }
+    .findings { gap: 40px; }
+    .findings li { grid-template-columns: 2.6rem minmax(0, 1fr); }
+    .findings li::before { font-size: 2rem; }
+    dl.rows { grid-template-columns: minmax(0, 1fr); }
+    dl.rows dd { border-top: none; padding-top: 0; }
+    section { padding-top: 64px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panel .img, .panel .stack { transition: none; }
+  }
 </style>
 </head>
 <body>
-<main>
 
-<header>
-  <h1>Mosaic: A Benchmark Suite for Differentiable Physics Solvers</h1>
-  <p class="venue">NeurIPS 2026, Evaluations and Datasets track</p>
-  <p class="authors">Andrin Rehmann, Heiko Zimmermann, Dion Häfner</p>
-  <p class="affil">Pasteur Labs</p>
-  <p class="links">
-    <a href="https://arxiv.org/abs/2606.27895">Paper</a>
-    <a href="https://arxiv.org/pdf/2606.27895">PDF</a>
-    <a href="https://github.com/pasteurlabs/mosaic">Code</a>
-    <a href="../results/index.html">Benchmark results</a>
-    <a href="#citation">BibTeX</a>
-  </p>
+<header class="hero">
+  <div class="wrap">
+    <h1><span class="name">Mosaic<span class="vh">:</span></span><span class="sub">A Benchmark Suite for Differentiable Physics Solvers</span></h1>
+    <p class="byline">Andrin Rehmann, Heiko Zimmermann, and Dion Häfner, <a href="https://simulation.science/">Pasteur Labs</a><span class="venue">NeurIPS 2026, Evaluations and Datasets track</span></p>
+
+    <div class="hero-grid">
+      <div>
+        <p class="lede"><span class="q">What does it take to get usable gradients out of a differentiable PDE solver?</span> Practitioners usually find out by trial and error. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients, and measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so that you can compare them before committing to one.</p>
+        <div class="actions">
+          <a class="btn" href="https://arxiv.org/abs/2606.27895">Read the paper</a>
+          <a href="https://arxiv.org/pdf/2606.27895">PDF</a>
+          <a href="https://github.com/pasteurlabs/mosaic">Code</a>
+          <a href="#citation">Cite</a>
+        </div>
+      </div>
+
+      <div class="panel">
+<pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> jax
+<span class="k">from</span> tesseract_core <span class="k">import</span> Tesseract
+<span class="k">from</span> tesseract_jax <span class="k">import</span> apply_tesseract
+<span class="k">from</span> mosaic_shared.problems.navier_stokes_grid <span class="k">import</span> make_vortex_ic
+
+v0 = make_vortex_ic(N=64, seed=42)
+image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span class="stack" id="stack"># JAX, reverse-mode AD</span>
+
+<span class="k">with</span> Tesseract.from_image(image) <span class="k">as</span> solver:
+    <span class="k">def</span> loss(v0):
+        out = <span class="f">apply_tesseract</span>(solver, {"v0": v0, "steps": 50})
+        <span class="k">return</span> jax.numpy.mean(out["result"] ** 2)
+
+    grad_v0 = <span class="g">jax.grad</span>(loss)(v0)</pre>
+        <div class="switch">
+          <ul class="solvers" aria-label="Solver">
+            <li><button type="button" data-image="exponax_navier_stokes_grid" data-stack="JAX, reverse-mode AD" aria-pressed="true">Exponax</button></li>
+            <li><button type="button" data-image="ins_navier_stokes_grid" data-stack="Julia, Zygote AD" aria-pressed="false">INS.jl</button></li>
+            <li><button type="button" data-image="jax_cfd_navier_stokes_grid" data-stack="JAX, reverse-mode AD" aria-pressed="false">JAX-CFD</button></li>
+            <li><button type="button" data-image="phiflow_navier_stokes_grid" data-stack="JAX, AD + adjoint solves" aria-pressed="false">PhiFlow</button></li>
+            <li><button type="button" data-image="pict_navier_stokes_grid" data-stack="PyTorch, AD + adjoint solves" aria-pressed="false">PICT</button></li>
+            <li><button type="button" data-image="warp_ns_navier_stokes_grid" data-stack="NVIDIA Warp, kernel AD" aria-pressed="false">Warp-NS</button></li>
+            <li><button type="button" data-image="xlb_navier_stokes_grid" data-stack="JAX, checkpointed AD" aria-pressed="false">XLB</button></li>
+            <li><a class="more" href="#tasks" aria-label="All 14 solvers">…</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </header>
 
-<!-- Animations: add a <figure> per animation here. -->
-<figure class="teaser">
-  <video src="media/inflow_optimization.mp4" autoplay muted loop playsinline preload="metadata" aria-label="Inflow optimization in the DFG 2D-1 channel: five solvers' flow fields, drag and inlet profiles over Adam iterations"></video>
-  <figcaption>Inflow optimization in the DFG 2D-1 channel. Five solvers optimize the inlet profile at fixed flow rate with the same objective, and each lowers the cylinder's drag to 0.52–0.54 of its starting value. A re-run of the drag-optimization task made for this animation, not the paper's data.</figcaption>
-</figure>
+<main>
 
-<h2 id="abstract">Abstract</h2>
-<p>Differentiable partial differential equation (PDE) solvers underpin solver-in-the-loop ML training, gradient-based optimal control, and inverse problems, yet the practical cost of obtaining correct, usable gradients from a given solver on a given problem is largely undocumented. Integration effort, computational cost, memory, gradient accuracy, and numerical stability vary widely across solvers and are discoverable only by trial and error.</p>
-<p>We introduce <em>Mosaic</em>, an extensible benchmarking framework for differentiable PDE solvers that standardizes access to solver gradients. Each solver is packaged as a containerized component (<em>Tesseract</em>) exposing a uniform gradient API regardless of language or automatic differentiation (AD) strategy, enabling researchers to evaluate, compare, and build on non-trivial physical solvers.</p>
-<p>Our evaluation of 14 solvers across fluid dynamics, structural mechanics, and heat transfer demonstrates that the benchmark surfaces practically relevant differences: order-of-magnitude variation in computational cost and memory, alongside setup incompatibilities and instabilities that rule out solvers for specific tasks. Despite this variation, all solvers that produce gradients converge to similar optima on our tasks, indicating that the practical barriers are memory limits, numerical stability, and setup compatibility rather than gradient accuracy alone.</p>
+<section id="findings">
+  <div class="wrap">
+    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
+    <h2>What we found</h2>
+    <p class="prose intro">On every task, the solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they differ:</p>
 
-<h2 id="recovery">The optimizer matters more than the solver</h2>
-<p>On 3D initial-condition recovery, L-BFGS recovers the initial state an order of magnitude more accurately than Adam, in a fraction of the gradient evaluations. Projecting the gradient onto divergence-free fields before each L-BFGS update improves the recovery on every solver.</p>
-<figure>
-  <img src="media/recovery_main.png" alt="IC error against gradient evaluations for several 3D Navier–Stokes solvers with Adam, L-BFGS and L-BFGS with gradient projection.">
-  <figcaption>F3 initial-condition recovery for selected solvers and optimizers. The IC error is the relative ℓ<sub>2</sub> distance between the recovered and true initial states.</figcaption>
-</figure>
+    <ol class="findings">
+      <li>
+        <h3>Integration effort varies widely</h3>
+        <p>Even among solvers built on AD frameworks, the gradient code needed to wrap them ranges from 20 lines or fewer to more than 200. Beyond the paper, the <a href="../solvers.html#effort-levels">solver reference</a> records each departure from a solver's default usage and why it was needed.</p>
+      </li>
+      <li>
+        <h3>On benign problems, choose the fastest (or friendliest) solver</h3>
+        <p>Where all solvers reach equivalent results, as on Mosaic's conductivity inversion and compliance minimization tasks, the choice comes down to speed and integration effort.</p>
+      </li>
+      <li>
+        <h3>Solvers fail because of missing features, instability, and memory constraints</h3>
+        <p>Some solvers lack features a task needs, such as non-periodic boundary conditions. On long rollouts, solvers run out of GPU memory at very different problem scales, and some return non-finite gradients well before that.</p>
+      </li>
+      <li>
+        <h3>Many differences only show up in a benchmark</h3>
+        <p>Solvers using the same framework, discretization, or time stepper can still differ wildly in their properties, and nothing in their design predicts how they fail. Testing candidates on the task at hand is what Mosaic is built for.</p>
+      </li>
+    </ol>
 
-<h2 id="spectra">Jacobian spectra reflect how a solver treats divergence</h2>
-<p>The spectra fall into three shapes, which mostly reflect how each solver treats initial perturbations that are not divergence-free. Solvers that project those out exactly have singular values at round-off. No shape predicts which solvers stay stable over long rollouts, since each occurs among stable and unstable solvers alike.</p>
-<figure>
-  <img src="media/jacobian_svd_comparison.png" alt="Normalized singular value spectra of the F3 solver Jacobians at several rollout lengths and viscosities, one line per solver.">
-  <figcaption>Normalized Jacobian singular value spectra (σ<sub>i</sub>/σ<sub>1</sub>) on F3 (N = 8) after T = 0.5, 1 and 2 time units at ν = 10<sup>−3</sup>, and after T = 0.5 at ν = 10<sup>−2</sup>. Exponax and XLB keep a nearly flat spectrum at every rollout length. JAX-CFD, INS.jl and PhiFlow drop to round-off after about two thirds of the modes, and the spectra of PICT and Warp-NS steepen as the rollout grows.</figcaption>
-</figure>
+    <figure class="wide">
+      <img src="media/horizon_sweep_limits.png" alt="Peak GPU memory, wall time, and gradient norm of one VJP against rollout length for seven 3D Navier–Stokes solvers. Three lines end in out-of-memory markers after ten to twenty thousand steps, three end in non-finite gradients after a few hundred steps, and Exponax runs to the end.">
+      <figcaption>One gradient call against rollout length on initial condition recovery. Each line ends at the solver's last successful rollout, either because it ran out of memory or because its gradient stopped being finite. For the JAX solvers, every point after the first includes JIT compilation for its rollout length, so their wall time never drops below the compilation time.</figcaption>
+    </figure>
 
-<h2 id="memory">Memory follows the differentiation strategy</h2>
-<p>Reverse-mode AD through a time loop stores every state, so memory grows linearly with the number of steps. Checkpointing, used here only by XLB, reduces this to the square root. Without it, the stored trajectory limits a 48<sup>3</sup> rollout to a few thousand steps, even with 80 GB.</p>
-<figure>
-  <img src="media/memory_rollout.png" alt="Peak GPU memory of one VJP against rollout steps for the 3D Navier–Stokes solvers.">
-  <figcaption>Peak GPU memory of one VJP against rollout steps on F3 (N = 48), by differentiation strategy (line style).</figcaption>
-</figure>
+  </div>
+</section>
 
-<h2 id="horizon">Long rollouts end in memory limits or non-finite gradients</h2>
-<p>Memory is not always the first limit. Extending the F3 rollout to 81,920 steps, PhiFlow and Warp-NS return non-finite gradients after 160 steps and XLB after 320, while INS.jl, JAX-CFD and PICT stay stable until they run out of memory. Exponax completes every horizon.</p>
-<figure>
-  <img src="media/horizon_sweep_limits.png" alt="Peak memory, wall time and gradient norm of one VJP against rollout length, one line per 3D Navier–Stokes solver.">
-  <figcaption>VJP against rollout length on F3 (N = 20, ν = 10<sup>−3</sup>, Δt = 0.05): peak GPU memory, wall time and gradient norm. Each line ends at the solver's last successful horizon. Out-of-memory failures are marked at the device limit, and non-finite gradients at the top of the gradient-norm panel.</figcaption>
-</figure>
+<section id="tasks">
+  <div class="wrap">
+    <h2>Tasks and solvers</h2>
+    <p class="prose">Each task is an optimization problem with no learned components, so differences in the results come from the solvers alone. Forward-only solvers serve as references.</p>
+    <div class="tasks">
+      <div>
+        <img src="../figures/setup_heat.svg" alt="Schematic of the heat task: a conductivity field, a steady-state solve to a temperature field, and the inverse problem of finding the conductivity from the temperatures.">
+        <h3><a href="../results/heat.html">Conductivity inversion</a> <span class="domain">Heat transfer</span></h3>
+        <p>Recover the conductivity of a slab from its steady-state temperatures.</p>
+        <p class="who"><a href="../solvers.html#thermal-mesh-fenics-heat">FEniCS</a>, <a href="../solvers.html#thermal-mesh-firedrake-heat">Firedrake</a>, <a href="../solvers.html#thermal-mesh-jax-fem">JAX-FEM</a>, <a href="../solvers.html#thermal-mesh-torch-fem-thermal">torch-fem</a>, and <a class="fwd-only" href="../solvers.html#thermal-mesh-dealii-heat">deal.II</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_structural.svg" alt="Schematic of the structural task: a cantilever clamped on the left with a tip load, filled with a truss-like material layout.">
+        <h3><a href="../results/structural.html">Compliance minimization</a> <span class="domain">Structural mechanics</span></h3>
+        <p>Make a cantilever as stiff as possible with a fixed amount of material.</p>
+        <p class="who"><a href="../solvers.html#structural-mesh-fenics-structural">FEniCS</a>, <a href="../solvers.html#structural-mesh-firedrake-structural">Firedrake</a>, <a href="../solvers.html#structural-mesh-jax-fem">JAX-FEM</a>, <a href="../solvers.html#structural-mesh-topopt-jl">TopOpt.jl</a>, <a href="../solvers.html#structural-mesh-torch-fem-structural">torch-fem</a>, and <a class="fwd-only" href="../solvers.html#structural-mesh-dealii-structural">deal.II</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_ns_2d_cylinder.svg" alt="Schematic of the channel: an inflow profile on the left, a cylinder with a drag arrow, and a vortex street downstream between two walls.">
+        <h3><a href="../results/ns-2d-cylinder.html">Inflow optimization</a> <span class="domain">Incompressible fluids</span></h3>
+        <p>Shape the inflow to lower the drag on a cylinder in a 2D channel, and check gradients on <a href="../results/ns-2d-periodic.html">periodic flows</a>.</p>
+        <p class="who"><a href="../solvers.html#navier-stokes-grid-exponax">Exponax</a>, <a href="../solvers.html#navier-stokes-grid-ins-jl">INS.jl</a>, <a href="../solvers.html#navier-stokes-grid-jax-cfd">JAX-CFD</a>, <a href="../solvers.html#navier-stokes-grid-phiflow">PhiFlow</a>, <a href="../solvers.html#navier-stokes-grid-pict">PICT</a>, <a href="../solvers.html#navier-stokes-grid-warp-ns">Warp-NS</a>, <a href="../solvers.html#navier-stokes-grid-xlb">XLB</a>, and <a class="fwd-only" href="../solvers.html#navier-stokes-grid-openfoam">OpenFOAM</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_ns_3d.svg" alt="Schematic of the 3D task: an initial velocity field in a cube evolves into a later snapshot, and the optimizer recovers the initial field from that snapshot.">
+        <h3><a href="../results/ns-3d.html">Initial condition recovery</a> <span class="domain">3D Navier–Stokes</span></h3>
+        <p>Recover the initial velocity field of a 3D periodic flow from a later snapshot.</p>
+        <p class="who"><a href="../solvers.html#navier-stokes-grid-exponax">Exponax</a>, <a href="../solvers.html#navier-stokes-grid-ins-jl">INS.jl</a>, <a href="../solvers.html#navier-stokes-grid-jax-cfd">JAX-CFD</a>, <a href="../solvers.html#navier-stokes-grid-phiflow">PhiFlow</a>, <a href="../solvers.html#navier-stokes-grid-pict">PICT</a>, <a href="../solvers.html#navier-stokes-grid-warp-ns">Warp-NS</a>, <a href="../solvers.html#navier-stokes-grid-xlb">XLB</a>, and <a class="fwd-only" href="../solvers.html#navier-stokes-grid-openfoam">OpenFOAM</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+    </div>
+  </div>
+</section>
 
-<h2 id="reproduce">Reproducing the paper</h2>
-<p>The paper's results were computed on one NVIDIA A100 80 GB with the code and solver environments of the <a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro"><code>v0.3+paper-repro</code></a> tag. The repository <a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">README</a> describes how to regenerate the figures and tables from the published results, or re-run the experiments.</p>
+<section id="protocol">
+  <div class="wrap">
+    <h2>How Mosaic works</h2>
+    <p class="prose">Mosaic treats every solver as a black box with a forward and a gradient call, so the same checks apply to all of them.</p>
+    <div class="measures">
+      <div class="measure">
+        <h3>Forward accuracy</h3>
+        <p><b>Reference agreement.</b> Error against analytic solutions, literature values or converged high-resolution runs, within a tolerance.</p>
+        <p><b>Convergence.</b> How the error shrinks as the resolution increases.</p>
+      </div>
+      <div class="measure">
+        <h3>Gradient quality</h3>
+        <p><b>Gradient accuracy.</b> Agreement with finite differences over a range of step sizes, with exact gradients where they exist, and through chains of calls.</p>
+        <p><b>Optimization.</b> Convergence with the same optimizer and budget for every solver on a task.</p>
+      </div>
+      <div class="measure">
+        <h3>Compute cost</h3>
+        <p><b>Scaling.</b> Wall time and peak memory of the forward and gradient calls across problem sizes.</p>
+        <p><b>Rollout length.</b> The longest rollout a solver can differentiate through in one call before it runs out of memory or its gradient turns non-finite.</p>
+      </div>
+      <div class="measure">
+        <h3>Development cost</h3>
+        <p><b>Setup compatibility.</b> Whether the solver can express the task, and why not if it can't.</p>
+        <p><b>Integration effort.</b> Every departure from a solver's default usage, with its reason and evidence, rated from L0 (a documented option) to L3 (a change to the solver itself). These records are not part of the paper, which counts lines of wrapper code instead.</p>
+      </div>
+    </div>
 
-<h2 id="citation">Citation</h2>
-<pre>@inproceedings{rehmann2026mosaic,
+    <figure class="teaser">
+      <video src="media/inflow_optimization.mp4" poster="media/inflow_optimization.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the inflow profile of a channel past a cylinder. Their flow fields, drag curves, and inlet profiles evolve over Adam iterations and end at similar drag."></video>
+      <figcaption>Inflow optimization with five solvers. All of them end at about half the starting drag.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <h2>Use a solver in your own code</h2>
+    <p class="prose">Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
+    <p class="prose">The code at the top of this page calls a solver from JAX, without the benchmark around it. It runs as-is once you have built the solver's image, which requires <a href="https://docs.docker.com/get-started/get-docker/">Docker</a>:</p>
+<pre class="shell">$ git clone https://github.com/pasteurlabs/mosaic &amp;&amp; cd mosaic
+$ pip install tesseract-core tesseract-jax  <span class="c"># needs Python 3.12+, includes the tesseract command</span>
+$ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+$ pip install -e mosaic/mosaic_shared       <span class="c"># required for make_vortex_ic in the code above</span></pre>
+    <p class="prose">The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
+  </div>
+</section>
+
+<section id="explore">
+  <div class="wrap">
+    <h2>Dive in</h2>
+    <dl class="rows">
+      <dt><a href="../getting-started.html">Run the benchmark</a></dt><dd>Install Mosaic, run the benchmark on your own hardware, and read its output.</dd>
+      <dt><a href="../results/index.html">Current results</a></dt><dd>Every result and plot per task, for the latest version of the benchmark.</dd>
+      <dt><a href="../solvers.html">Solver reference</a></dt><dd>Each solver's checks, usage, and departure from its default usage.</dd>
+      <dt><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
+      <dt><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="citation">
+  <div class="wrap">
+    <h2>Cite Mosaic</h2>
+    <div class="cite">
+<pre id="bibtex">@inproceedings{rehmann2026mosaic,
   title     = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
   author    = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
   booktitle = {Advances in Neural Information Processing Systems},
@@ -135,11 +373,78 @@ pages, which track the current benchmark.
   eprint    = {2606.27895},
   archivePrefix = {arXiv}
 }</pre>
-
-<footer>
-  <a href="https://github.com/pasteurlabs/mosaic">github.com/pasteurlabs/mosaic</a>
-</footer>
+      <button type="button" class="copy" id="copy">Copy</button>
+    </div>
+  </div>
+</section>
 
 </main>
+
+<footer>
+  <div class="wrap">
+    <span>Mosaic is developed at <a href="https://simulation.science/">Pasteur Labs</a>.</span>
+    <nav aria-label="Project links">
+      <a href="https://arxiv.org/abs/2606.27895">Paper</a>
+      <a href="https://github.com/pasteurlabs/mosaic">Code</a>
+      <a href="../index.html">Documentation</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var image = document.getElementById("image");
+    var stack = document.getElementById("stack");
+    var buttons = Array.prototype.slice.call(document.querySelectorAll(".solvers button"));
+    var timer = null;
+
+    function select(button) {
+      buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
+      image.textContent = '"' + button.dataset.image + '"';
+      stack.textContent = "# " + button.dataset.stack;
+      [image, stack].forEach(function (el) { el.classList.add("flash"); });
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          [image, stack].forEach(function (el) { el.classList.remove("flash"); });
+        });
+      });
+    }
+
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        stop();
+        select(button);
+      });
+    });
+
+    // Step through the solvers once on load to show that only the image name
+    // changes. Any interaction with the panel stops it.
+    var panel = document.querySelector(".panel");
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduce) {
+      var i = 0;
+      timer = setInterval(function () {
+        i += 1;
+        if (i >= buttons.length) { stop(); select(buttons[0]); return; }
+        select(buttons[i]);
+      }, 2200);
+      ["pointerenter", "focusin", "touchstart"].forEach(function (type) {
+        panel.addEventListener(type, stop, { passive: true });
+      });
+    }
+
+    var copy = document.getElementById("copy");
+    copy.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById("bibtex").textContent).then(function () {
+        copy.textContent = "Copied";
+        setTimeout(function () { copy.textContent = "Copy"; }, 1600);
+      });
+    });
+  })();
+</script>
 </body>
 </html>
