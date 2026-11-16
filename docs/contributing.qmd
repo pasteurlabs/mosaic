@@ -73,7 +73,7 @@ Every pull request runs these checks:
 
 | Workflow | Check |
 |:--|:--|
-| `ci.yml` | Lint with the pre-commit hooks, tests on Python 3.12 and 3.14 (including the format check of every intervention record and a validation of every problem config), and a validation of every `tesseract_config.yaml`. The merge gate is "All checks passed". |
+| `ci.yml` | Lint with the pre-commit hooks, tests (including the format check of every intervention record and a validation of every problem config), and a validation of every `tesseract_config.yaml`. The merge gate is "All checks passed". |
 | `conventional-pr-linter.yml` | The pull request title follows the [conventions](#conventions). |
 | `cla.yml` | Every contributor has signed the CLA. |
 | `benchmark.yml` | Runs benchmarks according to the label and renders a docs preview. The merge gate is "Benchmark checks passed". |
