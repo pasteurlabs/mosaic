@@ -17,7 +17,7 @@ aiosignal==1.4.0
     # via aiohttp
 altair==6.3.0
     # via mosaic-bench
-annotated-doc==0.0.5
+annotated-doc==0.0.6
     # via
     #   fastapi
     #   typer
@@ -34,7 +34,7 @@ attrs==26.1.0
     #   referencing
 botocore==1.43.117
     # via aiobotocore
-cachetools==7.3.0
+cachetools==7.3.2
     # via mlflow-skinny
 certifi==2026.10.23
     # via
@@ -54,7 +54,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via typer
 cryptography==50.0.2
     # via google-auth
-databricks-sdk==0.162.0
+databricks-sdk==0.166.0
     # via mlflow-skinny
 debugpy==1.8.22
     # via tesseract-core
@@ -64,7 +64,7 @@ fastapi==0.143.0
     # via
     #   mlflow-skinny
     #   tesseract-core
-filelock==4.2.9
+filelock==4.2.10
     # via mosaic-bench
 frozenlist==1.8.0
     # via
@@ -78,7 +78,7 @@ gitdb==4.0.12
     # via gitpython
 gitpython==3.2.1
     # via mlflow-skinny
-google-auth==2.62.1
+google-auth==2.62.2
     # via databricks-sdk
 h11==0.16.0
     # via uvicorn
@@ -121,7 +121,7 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 lz4==4.4.5
     # via tesseract-core
-markdown-it-py==4.2.0
+markdown-it-py==4.3.0
     # via rich
 markupsafe==3.0.4
     # via jinja2
@@ -176,7 +176,7 @@ opentelemetry-semantic-conventions==0.66b2
     # via opentelemetry-sdk
 opt-einsum==3.4.0
     # via jax
-optax==0.2.8
+optax==0.2.9
     # via mosaic-bench
 orjson==3.13.0
     # via tesseract-core
