@@ -946,6 +946,94 @@ def test_continue_keeps_solvers_finished_before_a_crash(
     }
 
 
+def test_only_leaves_the_experiments_it_does_not_rerun_stale(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """An ``--only`` run that selects no cell of an experiment leaves its
+    result alone, so cells that went stale stay marked as stale.
+    """
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import cell_filter
+    from mosaic.benchmarks.core.status import collect_status
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", {})
+    monkeypatch.setattr(cfg, "plot_fns", {})
+    for key in ("forward/dummy_kept", "forward/dummy_rerun"):
+        cfg.add_experiment(
+            key,
+            forward.physical_laws,
+            ic={"name": "multimode", "seed": 0},
+            physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+            diagnostics={"mean": lambda out, **_: float(jnp.mean(out))},
+        )
+    run = cfg.experiments["forward/dummy_kept"].fn
+    run(cfg, tags)
+    # The harness changed since the run: the stored hash no longer matches.
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_kept" / "result.json"
+    data = json.loads(json_path.read_text())
+    data["provenance"]["harness_hash"] = "0" * 16
+    json_path.write_text(json.dumps(data))
+
+    def stale() -> set[bool]:
+        rows = collect_status(cfg, ["forward"]).rows
+        row = next(r for r in rows if r.experiment == "dummy_kept")
+        return {c.stale for c in row.cells.values() if c.status != "not_run"}
+
+    assert stale() == {True}
+    cell_filter.set_active({("forward/dummy_rerun", cfg.solver_names[0]): True})
+    try:
+        run(cfg, tags)
+    finally:
+        cell_filter.set_active(None)
+    assert stale() == {True}
+
+
+def test_continue_saves_an_experiment_whose_solvers_all_finished(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """A crash after every solver's checkpoint but before the save leaves no
+    solver to run; --continue still saves the checkpointed results.
+    """
+    from mosaic.benchmarks.core import experiment
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_unsaved",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_unsaved"].fn
+    real_loop = experiment.per_solver_loop
+    ran: list[str] = []
+
+    def crash(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    def record_solvers(cfg, tags, names, *args, **kwargs):
+        ran.extend(names)
+        return real_loop(cfg, tags, names, *args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(experiment, "save_harness_result", crash)
+        with pytest.raises(KeyboardInterrupt):
+            run(cfg, tags)
+    monkeypatch.setattr(experiment, "per_solver_loop", record_solvers)
+    run(cfg, tags, resume=True)
+    assert ran == []
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_unsaved" / "result.json"
+    saved = {e["solver"] for e in json.loads(json_path.read_text())["results"]}
+    assert saved == set(cfg.solver_names)
+
+
 # ── Partial reruns against a full run ────────────────────────────────────────
 #
 # A partial run (``--only`` on one solver's cells, ``-s`` one solver, or

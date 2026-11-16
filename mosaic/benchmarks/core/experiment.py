@@ -467,6 +467,10 @@ def run_experiment(
         by_solver, snapshots = load_partial_solvers(
             out_dir, [n for n in resumable if n not in selected]
         )
+        if not selected and not by_solver:
+            # No solver to run and none to resume (e.g. --only selected no
+            # cell here): saving would stamp the result on disk as current.
+            continue
         if sweep_key is not None:
             by_value = {str(v): v for v in sweep_values}
             for n, entry in by_solver.items():
