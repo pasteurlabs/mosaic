@@ -556,6 +556,27 @@ def test_add_experiment_sweep_mode_default_still_auto_sweeps(tmp_path):
     assert run["sweep"] == {"key": "nu", "values": [0.05, 0.01, 0.005, 0.001]}
 
 
+def test_run_suite_draws_the_plot_of_a_fanned_out_experiment(monkeypatch, tmp_path):
+    """A plot registered on ``agreement`` is drawn once its per-IC runs finish."""
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = _make_dummy_cfg(["x"])
+    cfg.name = "test_problem"
+    drawn = []
+
+    runner.run_suite(
+        cfg,
+        {},
+        {
+            "agreement/tgv": lambda *a, **kw: {},
+            "agreement/multimode": lambda *a, **kw: {},
+        },
+        plot_fns={"agreement": lambda _cfg, **kw: drawn.append(kw)},
+        suite_name="forward",
+    )
+
+    assert drawn == [{"suffix": ""}]
+
+
 # ── Docker setup diagnostics ──────────────────────────────────────────────────
 #
 # The three failure modes a first-time user hits, plus the two ways the hint

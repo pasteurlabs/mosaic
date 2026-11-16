@@ -97,10 +97,8 @@ jobs:
       - uses: actions/checkout@v6
         if: steps.find.outputs.should_publish == 'true'
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         if: steps.find.outputs.should_publish == 'true'
-        with:
-          enable-cache: true
 
       - name: Install Mosaic
         if: steps.find.outputs.should_publish == 'true'
