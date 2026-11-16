@@ -946,6 +946,43 @@ def test_continue_keeps_solvers_finished_before_a_crash(
     }
 
 
+@pytest.mark.parametrize(
+    "problem, exp_key",
+    [
+        ("ns-grid", "optimization/drag_opt"),
+        ("ns-3d-grid", "optimization/recovery_constant_ic_bfgs_proj"),
+    ],
+)
+def test_debug_checkpoints_stay_out_of_the_full_size_continue(
+    problem, exp_key, tmp_path, monkeypatch
+):
+    """A --debug run checkpoints into its ``_debug`` directory, so a full-size
+    --continue afterwards runs every solver instead of reusing the debug results.
+    """
+    from mosaic.benchmarks.core import experiment
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg = get_config(problem)
+    tags = dict.fromkeys(cfg.solver_names, f"inprocess:{_DUMMY_FOR[problem]}")
+    run = cfg.experiments[exp_key].fn
+    real_loop = experiment.per_solver_loop
+    ran: dict[str, list[str]] = {"debug": [], "full": []}
+
+    for how, kwargs in (("debug", {"debug": True}), ("full", {"resume": True})):
+
+        def record_solvers(cfg, tags, names, *args, _ran=ran[how], **kw):
+            _ran.extend(names)
+            return real_loop(cfg, tags, names, *args, **kw)
+
+        with monkeypatch.context() as m:
+            m.setattr(experiment, "per_solver_loop", record_solvers)
+            run(cfg, tags, **kwargs)
+
+    assert ran["debug"]
+    assert ran["full"] == ran["debug"]
+
+
 # ── Partial reruns against a full run ────────────────────────────────────────
 #
 # A partial run (``--only`` on one solver's cells, ``-s`` one solver, or
