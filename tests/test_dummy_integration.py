@@ -946,6 +946,152 @@ def test_continue_keeps_solvers_finished_before_a_crash(
     }
 
 
+def test_only_continue_reruns_a_failed_cell_of_a_finished_experiment(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """``--only failed --continue`` reruns the failed cell of an experiment
+    whose earlier run finished, and so checkpointed that cell as done.
+    """
+    import jax.numpy as jnp
+
+    from mosaic.benchmarks.core import cell_filter, runner
+    from mosaic.benchmarks.core.status import FAILED, OK, _classify_result
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    bad = cfg.solver_names[0]
+    tags[bad] = f"inprocess:{DUMMY_NS_GRID.parent}/./{DUMMY_NS_GRID.name}"
+    real_apply = runner._apply_tesseract_with_deadline
+    broken = True
+
+    def apply_nan_while_broken(t, inputs):
+        out = real_apply(t, inputs)
+        if broken and runner.current_worker_context().image_tag == tags[bad]:
+            out = {**out, "result": jnp.full_like(out["result"], jnp.nan)}
+        return out
+
+    monkeypatch.setattr(
+        runner, "_apply_tesseract_with_deadline", apply_nan_while_broken
+    )
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_retry",
+        forward.physical_laws,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+        diagnostics={"mean": lambda out, **_: float(jnp.mean(out))},
+    )
+    run = cfg.experiments["forward/dummy_retry"].fn
+    json_path = tmp_path / "ns-grid" / "forward" / "dummy_retry" / "result.json"
+
+    run(cfg, tags)
+    cells = _classify_result(json.loads(json_path.read_text()), cfg.solver_names, [])
+    assert cells[bad].status == FAILED
+
+    broken = False
+    cell_filter.set_active({("forward/dummy_retry", bad): True})
+    try:
+        run(cfg, tags, resume=True)
+    finally:
+        cell_filter.set_active(None)
+    cells = _classify_result(json.loads(json_path.read_text()), cfg.solver_names, [])
+    assert cells[bad].status == OK
+
+
+def test_a_run_without_its_solvers_keeps_an_interrupted_checkpoint(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """A run that selects none of an interrupted experiment's solvers (an
+    ``--only`` whose cells are elsewhere) keeps its checkpoint, so the next
+    --continue reruns only the solver that never finished.
+    """
+    from mosaic.benchmarks.core import cell_filter, experiment
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_interrupted",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_interrupted"].fn
+    real_loop = experiment.per_solver_loop
+    victim: list[str] = []
+    ran: list[str] = []
+
+    def crash_on_last(cfg, tags, names, work, **kwargs):
+        victim.append(names[-1])
+
+        def work_or_crash(name, t):
+            if name == victim[0]:
+                raise KeyboardInterrupt
+            work(name, t)
+
+        return real_loop(cfg, tags, names, work_or_crash, **kwargs)
+
+    def record_solvers(cfg, tags, names, *args, **kwargs):
+        ran.extend(names)
+        return real_loop(cfg, tags, names, *args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(experiment, "per_solver_loop", crash_on_last)
+        with pytest.raises(KeyboardInterrupt):
+            run(cfg, tags)
+    cell_filter.set_active({("forward/elsewhere", cfg.solver_names[0]): True})
+    try:
+        run(cfg, tags, resume=True)
+    finally:
+        cell_filter.set_active(None)
+    monkeypatch.setattr(experiment, "per_solver_loop", record_solvers)
+    run(cfg, tags, resume=True)
+    assert ran == victim
+
+
+def test_a_solver_that_checkpoints_then_fails_leaves_no_checkpoint(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """A kernel that checkpoints part of its work and then fails has its
+    failure saved in result.json, so the finished experiment keeps no
+    checkpoint that would make --continue skip the failed solver.
+    """
+    from mosaic.benchmarks.core import experiment
+    from mosaic.benchmarks.core.io import PartialResultWriter
+    from mosaic.benchmarks.core.partial import done_solvers_in_partial
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_half_done",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    out_dir = tmp_path / "ns-grid" / "forward" / "dummy_half_done"
+    real_loop = experiment.per_solver_loop
+
+    def checkpoint_then_fail_last(cfg, tags, names, work, **kwargs):
+        def work_or_fail(name, t):
+            if name == names[-1]:
+                PartialResultWriter(out_dir).write(name, {"0.01": {"valid": True}})
+                raise RuntimeError("failed at nu=0.05")
+            work(name, t)
+
+        return real_loop(cfg, tags, names, work_or_fail, **kwargs)
+
+    monkeypatch.setattr(experiment, "per_solver_loop", checkpoint_then_fail_last)
+    cfg.experiments["forward/dummy_half_done"].fn(cfg, tags)
+    assert done_solvers_in_partial(out_dir / "result_partial.json") == set()
+
+
 # ── Partial reruns against a full run ────────────────────────────────────────
 #
 # A partial run (``--only`` on one solver's cells, ``-s`` one solver, or

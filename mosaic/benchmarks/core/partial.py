@@ -22,10 +22,11 @@ Schema conventions interpreted by ``done_solvers_in_partial``:
   only if it appears in **every** sweep bucket. A solver in some but not
   all buckets is treated as mid-flight and will re-run.
 
-The file is read-only after the experiment completes (``save_experiment``
-writes the canonical ``result.json`` separately and merges any prior
-per-solver data via its existing flock). It's only consumed by the
-``--continue`` codepath in each harness — never by plots or external tools.
+``run_experiment`` removes the file once the ``result.json`` it saves
+(``save_experiment`` writes it separately and merges any prior per-solver
+data via its existing flock) holds every solver the file lists. It's only
+consumed by the ``--continue`` codepath in each harness — never by plots or
+external tools.
 """
 
 from __future__ import annotations
