@@ -1092,6 +1092,54 @@ def test_a_solver_that_checkpoints_then_fails_leaves_no_checkpoint(
     assert done_solvers_in_partial(out_dir / "result_partial.json") == set()
 
 
+def test_a_failed_rerun_of_one_solver_keeps_the_others_checkpoint(
+    ns_grid_tags, tmp_path, monkeypatch
+):
+    """``-s <solver> --continue`` for the solver an interrupted run never
+    finished, failing again, saves a result.json without the solvers that
+    run checkpointed, so their checkpoint is kept.
+    """
+    import dataclasses
+
+    from mosaic.benchmarks.core import experiment
+    from mosaic.benchmarks.core.partial import done_solvers_in_partial
+    from mosaic.benchmarks.problems.shared import forward
+
+    monkeypatch.setenv("MOSAIC_RESULTS_DIR", str(tmp_path))
+    cfg, tags = ns_grid_tags
+    monkeypatch.setattr(cfg, "experiments", dict(cfg.experiments))
+    monkeypatch.setattr(cfg, "plot_fns", dict(cfg.plot_fns))
+    cfg.add_experiment(
+        "forward/dummy_rerun_one",
+        forward.agreement,
+        ic={"name": "multimode", "seed": 0},
+        physics={"N": 4, "nu": [0.01, 0.05], "dt": 0.01, "steps": 1},
+    )
+    run = cfg.experiments["forward/dummy_rerun_one"].fn
+    out_dir = tmp_path / "ns-grid" / "forward" / "dummy_rerun_one"
+    *done, last = cfg.solver_names
+    real_loop = experiment.per_solver_loop
+
+    def last_raises(exc):
+        def loop(cfg, tags, names, work, **kwargs):
+            def work_or_raise(name, t):
+                if name == last:
+                    raise exc
+                work(name, t)
+
+            return real_loop(cfg, tags, names, work_or_raise, **kwargs)
+
+        return loop
+
+    monkeypatch.setattr(experiment, "per_solver_loop", last_raises(KeyboardInterrupt))
+    with pytest.raises(KeyboardInterrupt):
+        run(cfg, tags)
+    monkeypatch.setattr(experiment, "per_solver_loop", last_raises(RuntimeError()))
+    run(dataclasses.replace(cfg, solvers=[cfg.solver(last)]), tags, resume=True)
+    assert (out_dir / "result.json").exists()
+    assert done_solvers_in_partial(out_dir / "result_partial.json") == set(done)
+
+
 def test_only_leaves_the_experiments_it_does_not_rerun_stale(
     ns_grid_tags, tmp_path, monkeypatch
 ):
