@@ -86,6 +86,8 @@ the results pages.
   .panel { background: var(--slate); color: var(--slate-ink); border-radius: 10px; overflow: hidden; }
   .panel pre { margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.65; }
   .panel .k { color: var(--slate-dim); }
+  .panel pre a { color: inherit; text-decoration: underline; text-decoration-color: var(--slate-dim); text-underline-offset: 3px; }
+  .panel pre a:hover { text-decoration-color: currentColor; }
   .panel .f { color: var(--fwd-on-slate); }
   .panel .g { color: var(--grad-on-slate); }
   .panel .img {
@@ -228,10 +230,10 @@ the results pages.
       </div>
 
       <div class="panel">
-<pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> jax
-<span class="k">from</span> tesseract_core <span class="k">import</span> Tesseract
-<span class="k">from</span> tesseract_jax <span class="k">import</span> apply_tesseract
-<span class="k">from</span> mosaic_shared.problems.navier_stokes_grid <span class="k">import</span> make_vortex_ic
+<pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
+<span class="k">from</span> <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">tesseract_core</a> <span class="k">import</span> Tesseract
+<span class="k">from</span> <a href="https://github.com/pasteurlabs/tesseract-jax">tesseract_jax</a> <span class="k">import</span> apply_tesseract
+<span class="k">from</span> <a href="https://github.com/pasteurlabs/mosaic/tree/main/mosaic/mosaic_shared">mosaic_shared</a>.problems.navier_stokes_grid <span class="k">import</span> make_vortex_ic
 
 v0 = make_vortex_ic(N=64, seed=42)
 image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span class="stack" id="stack"># JAX, reverse-mode AD</span>
