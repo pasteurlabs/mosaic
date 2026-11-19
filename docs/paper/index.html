@@ -128,7 +128,9 @@ the results pages.
   main .wrap > figure figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
   .hero-grid figure { margin: 0; }
   /* a static plot keeps the size it was drawn for: nine columns, so its labels match the body text */
-  main .wrap > figure img { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); }
+  main .wrap > figure img { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); margin: 0 auto; }
+  /* and is centred, with its caption centred under it */
+  main .wrap > figure img + figcaption { margin-left: auto; margin-right: auto; }
 
   /* Sections */
   section { padding: 96px 0 0; }
