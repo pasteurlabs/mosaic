@@ -82,7 +82,8 @@ the results pages.
   /* text beside a visual, split at the midline: the hero, and the code example further down */
   .hero-grid, .use-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); align-items: start; }
   .hero-grid { margin-top: 48px; }
-  .use-grid { margin: 8px 0 24px; }
+  .use-grid { margin: 8px 0 0; }
+  .use-grid p:last-child { margin-bottom: 0; }
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
@@ -127,10 +128,9 @@ the results pages.
   /* under a full-width figure the caption ends on the text guide */
   main .wrap > figure figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
   .hero-grid figure { margin: 0; }
-  /* a static plot keeps the size it was drawn for: nine columns, so its labels match the body text */
-  main .wrap > figure img { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); margin: 0 auto; }
-  /* and is centred, with its caption centred under it */
-  main .wrap > figure img + figcaption { margin-left: auto; margin-right: auto; }
+  /* figures in the text are nine columns wide and centred, with the caption centred under them */
+  main .wrap > figure img, main .wrap > figure video { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); margin: 0 auto; }
+  main .wrap > figure figcaption { margin-left: auto; margin-right: auto; text-align: center; }
 
   /* Sections */
   section { padding: 96px 0 0; }
@@ -176,7 +176,7 @@ the results pages.
   .measure b { color: var(--ink); font-weight: 500; }
 
   /* Use, explore, cite */
-  pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 8px 0 24px; }
+  pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
   pre.shell .c { color: var(--ink-2); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
@@ -213,7 +213,7 @@ the results pages.
     .hero-grid > *, .use-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
     main .wrap > figure figcaption { max-width: none; }
-    main .wrap > figure img { width: 100%; }
+    main .wrap > figure img, main .wrap > figure video { width: 100%; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
@@ -370,6 +370,13 @@ the results pages.
       <div>
         <p>Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
         <p>This code calls a solver from JAX, without the benchmark around it. It runs as-is once you have built the solver's image, which requires <a href="https://docs.docker.com/get-started/get-docker/">Docker</a>:</p>
+<pre class="shell">$ git clone https://github.com/pasteurlabs/mosaic &amp;&amp; cd mosaic
+<span class="c"># needs Python 3.12+, includes the tesseract command</span>
+$ pip install tesseract-core tesseract-jax
+$ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
+<span class="c"># provides make_vortex_ic</span>
+$ pip install -e mosaic/mosaic_shared</pre>
+        <p>The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
       </div>
       <div class="panel">
 <pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
@@ -400,11 +407,6 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
         </div>
       </div>
     </div>
-<pre class="shell">$ git clone https://github.com/pasteurlabs/mosaic &amp;&amp; cd mosaic
-$ pip install tesseract-core tesseract-jax  <span class="c"># needs Python 3.12+, includes the tesseract command</span>
-$ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
-$ pip install -e mosaic/mosaic_shared       <span class="c"># required for make_vortex_ic in the code above</span></pre>
-    <p class="prose">The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
   </div>
 </section>
 
