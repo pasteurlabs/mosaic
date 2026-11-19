@@ -111,7 +111,6 @@ the results pages.
   figcaption { margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); }
   /* captions end on the text guide: 7 of the figure's 12 or 9 columns */
   .teaser figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
-  .wide figcaption { max-width: calc((100% + var(--gutter)) * 7 / 9 - var(--gutter)); }
 
   /* Sections */
   section { padding: 96px 0 0; }
@@ -138,8 +137,10 @@ the results pages.
   .findings h3 { font-size: 1.15rem; margin-bottom: 8px; }
   .findings p { color: var(--ink-2); margin: 0; }
   .pinned { margin: 16px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--ink-2); }
-  .wide { margin: 56px 0 0; }
-  .wide img { display: block; width: 100%; height: auto; }
+  /* plot on the block guide, its caption in the three columns beside it */
+  main .wrap > figure.wide { grid-column: 1 / -1; display: grid; grid-template-columns: var(--cols); column-gap: var(--gutter); align-items: start; margin: 56px 0 0; }
+  .wide img { grid-column: 1 / span 9; display: block; width: 100%; height: auto; }
+  .wide figcaption { grid-column: 10 / span 3; margin-top: 0; padding-top: 12px; border-top: 1px solid var(--rule); }
 
   /* Tasks */
   .tasks { display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter); margin-top: 24px; }
@@ -183,7 +184,9 @@ the results pages.
     .hero-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
     main .wrap > .wide, main .wrap > pre.shell, main .wrap > dl.rows, main .wrap > .cite { grid-column: 1 / -1; }
-    .teaser figcaption, .wide figcaption { max-width: none; }
+    .teaser figcaption { max-width: none; }
+    .wide img, .wide figcaption { grid-column: 1 / -1; }
+    .wide figcaption { margin-top: 12px; padding-top: 0; border-top: none; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
