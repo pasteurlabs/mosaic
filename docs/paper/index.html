@@ -37,9 +37,20 @@ the results pages.
     --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     /* Layout: one 12-column grid. Blocks start on its left edge or its midline
-       and end on one of three guides: text (7 columns), block (9), full (12). */
+       and end on the text guide (7 columns) or the full width (12). */
     --gutter: 24px;
     --cols: repeat(12, minmax(0, 1fr));
+    /* Type: five sizes below the page title, each with one job.
+       title  section headings and the subtitle
+       large  the lede and item headings
+       body   running text
+       small  captions, notes, credits and controls
+       code   every code block, and the solver buttons under the first one */
+    --t-title: clamp(1.7rem, 3.4vw, 2.1rem);
+    --t-large: 1.25rem;
+    --t-body: 1.0625rem;
+    --t-small: 0.9375rem;
+    --t-code: 12.5px;
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -47,7 +58,7 @@ the results pages.
     margin: 0;
     background: var(--paper);
     color: var(--ink);
-    font: 400 17px/1.6 var(--sans);
+    font: 400 var(--t-body)/1.6 var(--sans);
   }
   a { color: inherit; text-decoration: underline; text-decoration-color: #b4bcc6; text-underline-offset: 3px; text-decoration-thickness: 1px; }
   a:hover { text-decoration-color: currentColor; }
@@ -60,19 +71,19 @@ the results pages.
   #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: span 6; }
   p { margin: 0 0 16px; }
   code, pre { font-family: var(--mono); }
-  code { font-size: 0.88em; }
+  code { font-size: 0.9em; }
   .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   /* Hero */
   .hero { padding: 80px 0 0; }
   h1 { margin: 0; font-weight: 600; }
   h1 .name { display: block; font-size: clamp(3.4rem, 9vw, 6.2rem); line-height: 0.95; letter-spacing: -0.035em; }
-  h1 .sub { display: block; margin-top: 16px; font-size: clamp(1.35rem, 2.8vw, 2rem); line-height: 1.2; font-weight: 400; letter-spacing: -0.01em; color: var(--ink-2); }
-  .byline { margin: 24px 0 0; font-size: 1rem; line-height: 1.5; }
-  .byline .venue { display: block; color: var(--ink-2); }
+  h1 .sub { display: block; margin-top: 16px; font-size: var(--t-title); line-height: 1.2; font-weight: 400; letter-spacing: -0.02em; color: var(--ink-2); }
+  .byline { margin: 24px 0 0; font-size: var(--t-body); line-height: 1.5; }
+  .byline .venue { display: block; color: var(--ink-2); font-size: var(--t-small); }
   .hero-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); margin-top: 48px; align-items: start; }
   .hero-grid > * { grid-column: span 6; }
-  .lede { font-size: 1.22rem; line-height: 1.55; margin: 0 0 24px; }
+  .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
   .btn {
@@ -83,8 +94,8 @@ the results pages.
   .actions a:not(.btn) { font-weight: 500; }
 
   /* Hero code panel */
-  .panel { background: var(--slate); color: var(--slate-ink); border-radius: 10px; overflow: hidden; }
-  .panel pre { margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.65; }
+  .panel { background: var(--slate); color: var(--slate-ink); border-radius: 6px; overflow: hidden; }
+  .panel pre { margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; }
   .panel .k { color: var(--slate-dim); }
   .panel pre a { color: inherit; text-decoration: underline; text-decoration-color: var(--slate-dim); text-underline-offset: 3px; }
   .panel pre a:hover { text-decoration-color: currentColor; }
@@ -99,26 +110,28 @@ the results pages.
   .switch { border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 14px 24px 16px; }
   .solvers { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
   .solvers button {
-    font: 500 0.82rem/1 var(--sans); color: var(--slate-ink); cursor: pointer;
+    font: 500 var(--t-code)/1 var(--sans); color: var(--slate-ink); cursor: pointer;
     background: none; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 7px 10px;
   }
   .solvers button:hover { border-color: rgba(255, 255, 255, 0.45); }
   .solvers button[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--slate); }
   .solvers button:focus-visible { outline-color: var(--fwd-on-slate); }
-  .solvers .more { display: inline-block; padding: 7px 4px; font: 500 0.82rem/1 var(--sans); color: var(--slate-dim); text-decoration: none; }
+  .solvers .more { display: inline-block; padding: 7px 4px; font: 500 var(--t-code)/1 var(--sans); color: var(--slate-dim); text-decoration: none; }
   .solvers .more:hover { color: var(--slate-ink); }
 
   /* Optimization video */
   .teaser { margin: 56px 0 0; }
   .teaser video { display: block; width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--rule); }
-  figcaption { margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); }
+  figcaption { margin-top: 12px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
   /* captions end on the text guide: 7 of the figure's 12 or 9 columns */
   .teaser figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
 
   /* Sections */
   section { padding: 96px 0 0; }
-  h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; }
-  h3 { font-size: 1.08rem; line-height: 1.35; font-weight: 600; margin: 0 0 8px; }
+  h2 { font-size: var(--t-title); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; }
+  h3 { font-size: var(--t-large); line-height: 1.35; font-weight: 600; margin: 0 0 8px; }
+  /* text under an item heading is secondary; section introductions stay in ink */
+  .findings p, .tasks p, .measure p, dl.rows dd { color: var(--ink-2); }
 
   /* Findings */
   .intro { margin-bottom: 40px; }
@@ -134,12 +147,11 @@ the results pages.
   }
   .findings li::before {
     content: counter(finding); grid-row: 1 / span 2;
-    font-size: 2.6rem; line-height: 1; font-weight: 500; color: var(--fwd);
+    font-size: var(--t-title); line-height: 1.15; font-weight: 600; color: var(--fwd);
   }
   .findings li > * { grid-column: 2; }
-  .findings h3 { font-size: 1.15rem; margin-bottom: 8px; }
-  .findings p { color: var(--ink-2); margin: 0; }
-  .pinned { margin: 16px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--ink-2); }
+  .findings p { margin: 0; }
+  .pinned { margin: 16px 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
   /* plot on the block guide, its caption in the three columns beside it */
   main .wrap > figure.wide { grid-column: 1 / -1; display: grid; grid-template-columns: var(--cols); column-gap: var(--gutter); align-items: start; margin: 56px 0 0; }
   .wide img { grid-column: 1 / span 9; display: block; width: 100%; height: auto; }
@@ -150,35 +162,34 @@ the results pages.
   .tasks > div { grid-column: span 6; }
   .tasks img { display: block; width: 100%; aspect-ratio: 600 / 317; object-fit: contain; margin-bottom: 16px; }
   .tasks p { margin: 0 0 8px; }
-  .tasks .domain { margin-left: 0.4em; font-weight: 400; color: var(--ink-2); }
-  .tasks .who { color: var(--ink-2); font-size: 0.93rem; }
+  .tasks .domain { margin-left: 0.4em; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
+  .tasks .who { font-size: var(--t-small); }
   .fwd-only { font-style: italic; }
 
   /* Protocol */
-  .measures { display: grid; grid-template-columns: var(--cols); gap: 0 var(--gutter); margin-top: 24px; }
-  .measure { grid-column: span 6; border-top: 1px solid var(--rule); padding: 16px 0 24px; }
-  .measure p { color: var(--ink-2); font-size: 0.96rem; margin: 0 0 8px; }
+  .measures { display: grid; grid-template-columns: var(--cols); gap: 40px var(--gutter); margin-top: 24px; }
+  .measure { grid-column: span 6; }
+  .measure p { margin: 0 0 8px; }
   .measure p:last-child { margin-bottom: 0; }
   .measure b { color: var(--ink); font-weight: 500; }
 
   /* Use, explore, cite */
-  pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 18px; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; margin: 8px 0 24px; }
+  pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 8px 0 24px; }
   pre.shell .c { color: var(--ink-2); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
   dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
-  dl.rows dd { color: var(--ink-2); }
   .cite { position: relative; margin-top: 8px; }
-  .cite pre { background: var(--wash); border-radius: 6px; padding: 18px 20px; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0; }
+  .cite pre { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
   .copy {
     position: absolute; top: 10px; right: 10px; cursor: pointer;
-    font: 500 0.85rem/1 var(--sans); color: var(--ink); background: var(--paper);
-    border: 1px solid var(--rule); border-radius: 5px; padding: 7px 11px;
+    font: 500 var(--t-small)/1 var(--sans); color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 6px; padding: 7px 11px;
   }
   .copy:hover { border-color: #b4bcc6; }
 
-  footer { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 0.93rem; }
+  footer { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: var(--t-small); }
   footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; }
   footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 
@@ -197,11 +208,11 @@ the results pages.
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / -1; }
     #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: 1 / -1; }
     .findings li, .tasks > div, .measure { grid-column: 1 / -1; }
-    .panel pre { font-size: 12px; padding: 18px; }
+    :root { --t-code: 12px; }
+    .panel pre { padding: 18px; }
     .switch { padding: 14px 18px 16px; }
     .findings { row-gap: 40px; }
     .findings li { grid-template-columns: 2.6rem minmax(0, 1fr); column-gap: 0; }
-    .findings li::before { font-size: 2rem; }
     dl.rows { grid-template-columns: minmax(0, 1fr); }
     dl.rows dd { border-top: none; padding-top: 0; }
     section { padding-top: 64px; }
