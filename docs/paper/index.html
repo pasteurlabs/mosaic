@@ -176,14 +176,15 @@ the results pages.
   .measure b { color: var(--ink); font-weight: 500; }
 
   /* Use, explore, cite */
-  pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
-  pre.shell .c { color: var(--ink-2); }
+  /* every code block shares the panel's dark style */
+  pre.shell { background: var(--slate); color: var(--slate-ink); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
+  pre.shell .c { color: var(--slate-dim); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
   dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
   .cite { position: relative; margin-top: 8px; }
-  .cite pre { background: var(--wash); border-radius: 6px; padding: 16px 20px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
+  .cite pre { background: var(--slate); color: var(--slate-ink); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
   .copy {
     position: absolute; top: 10px; right: 10px; cursor: pointer;
     font: 500 var(--t-small)/1 var(--sans); color: var(--ink); background: var(--paper);
