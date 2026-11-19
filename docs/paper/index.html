@@ -56,7 +56,8 @@ the results pages.
   .hero .wrap, main .wrap { display: grid; grid-template-columns: var(--cols); column-gap: var(--gutter); }
   .hero .wrap > *, main .wrap > * { grid-column: 1 / -1; }
   main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 7; }
-  main .wrap > .wide, main .wrap > pre.shell, main .wrap > dl.rows, main .wrap > .cite { grid-column: 1 / span 9; }
+  /* the two paragraphs that lead into the shell snippet share a row, split at the midline */
+  #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: span 6; }
   p { margin: 0 0 16px; }
   code, pre { font-family: var(--mono); }
   code { font-size: 0.88em; }
@@ -162,7 +163,7 @@ the results pages.
   pre.shell { background: var(--wash); border-radius: 6px; padding: 16px 18px; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; margin: 8px 0 24px; }
   pre.shell .c { color: var(--ink-2); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
-  dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 3) minmax(0, 1fr); margin: 8px 0 0; }
+  dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
   dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
   dl.rows dd { color: var(--ink-2); }
@@ -183,7 +184,7 @@ the results pages.
     .hero { padding-top: 48px; }
     .hero-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
-    main .wrap > .wide, main .wrap > pre.shell, main .wrap > dl.rows, main .wrap > .cite { grid-column: 1 / -1; }
+    #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: 1 / span 9; }
     .teaser figcaption { max-width: none; }
     .wide img, .wide figcaption { grid-column: 1 / -1; }
     .wide figcaption { margin-top: 12px; padding-top: 0; border-top: none; }
@@ -192,6 +193,7 @@ the results pages.
     :root { --gutter: 16px; }
     .wrap { padding: 0 18px; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / -1; }
+    #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: 1 / -1; }
     .findings li, .tasks > div, .measure { grid-column: 1 / -1; }
     .panel pre { font-size: 12px; padding: 18px; }
     .switch { padding: 14px 18px 16px; }
