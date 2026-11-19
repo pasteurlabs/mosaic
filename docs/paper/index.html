@@ -189,6 +189,19 @@ the results pages.
   }
   .copy:hover { border-color: #b4bcc6; }
 
+  /* Link preview: one card, shown on hover or keyboard focus */
+  .preview {
+    position: absolute; z-index: 10; top: 0; left: 0; width: 320px; max-width: calc(100vw - 32px);
+    padding: 12px 16px; background: var(--paper); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 24px rgba(28, 33, 39, 0.12);
+    font-size: var(--t-small); line-height: 1.5; pointer-events: none;
+    opacity: 0; visibility: hidden; transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+  }
+  .preview.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+  .preview b { display: block; font-weight: 600; }
+  .preview span { display: block; color: var(--ink-2); }
+  .preview .where { margin-top: 4px; font: 400 var(--t-code)/1.5 var(--mono); overflow-wrap: anywhere; }
+
   footer { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: var(--t-small); }
   footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; }
   footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
@@ -219,6 +232,7 @@ the results pages.
   }
   @media (prefers-reduced-motion: reduce) {
     .panel .img, .panel .stack { transition: none; }
+    .preview { transition: none; }
   }
 </style>
 </head>
@@ -485,6 +499,127 @@ $ pip install -e mosaic/mosaic_shared       <span class="c"># required for make_
         setTimeout(function () { copy.textContent = "Copy"; }, 1600);
       });
     });
+  })();
+</script>
+<script>
+  // Link previews. Links into the Mosaic documentation show the heading and
+  // first paragraph of the page or section they point to, fetched on first
+  // hover. Links to other sites show a fixed description.
+  (function () {
+    if (!window.matchMedia("(hover: hover)").matches) return;
+
+    var external = {
+      "https://arxiv.org/abs/2606.27895": ["Mosaic on arXiv", "Abstract, versions and downloads of the paper."],
+      "https://arxiv.org/pdf/2606.27895": ["Mosaic paper (PDF)", "The full paper as a PDF from arXiv."],
+      "https://simulation.science/": ["Pasteur Labs", "The company that develops Mosaic and Tesseract."],
+      "https://github.com/pasteurlabs/mosaic": ["pasteurlabs/mosaic", "Source of the benchmark, the solver wrappers and the published results."],
+      "https://github.com/pasteurlabs/mosaic/issues": ["Issues in pasteurlabs/mosaic", "Report a problem with a solver's setup or propose a change."],
+      "https://github.com/pasteurlabs/mosaic/tree/main/mosaic/mosaic_shared": ["mosaic_shared", "The Python package with Mosaic's problem definitions and shared helpers."],
+      "https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro": ["Release v0.3+paper-repro", "The version of Mosaic that the paper's results were produced with."],
+      "https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper": ["Reproduce the paper", "Instructions in the README at the v0.3+paper-repro tag."],
+      "https://docs.pasteurlabs.ai/projects/tesseract-core/latest/": ["Tesseract Core", "Documentation for building and calling Tesseracts."],
+      "https://github.com/pasteurlabs/tesseract-jax": ["pasteurlabs/tesseract-jax", "Calls Tesseracts from JAX so that they take part in jax.grad and jax.jit."],
+      "https://docs.jax.dev/": ["JAX", "Documentation of the JAX array and automatic differentiation library."],
+      "https://docs.docker.com/get-started/get-docker/": ["Get Docker", "Docker's installation instructions."]
+    };
+
+    var card = document.createElement("div");
+    card.className = "preview";
+    card.id = "link-preview";
+    card.setAttribute("role", "tooltip");
+    document.body.appendChild(card);
+
+    var pages = {};   // documentation page URL -> promise of its parsed document
+    var current = null;
+    var timer = null;
+
+    function text(node) { return node ? node.textContent.replace(/\s+/g, " ").trim() : ""; }
+
+    function page(url) {
+      if (!pages[url]) {
+        pages[url] = fetch(url).then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.text();
+        }).then(function (html) { return new DOMParser().parseFromString(html, "text/html"); });
+      }
+      return pages[url];
+    }
+
+    function describe(link) {
+      var url = new URL(link.href);
+      var where = url.host.replace(/^www\./, "") + url.pathname.replace(/\/$/, "");
+      if (external[link.href]) {
+        return Promise.resolve({ title: external[link.href][0], body: external[link.href][1], where: where });
+      }
+      if (url.origin !== location.origin) {
+        return Promise.resolve({ title: text(link), body: "", where: where });
+      }
+      return page(url.origin + url.pathname).then(function (doc) {
+        var root = url.hash && doc.getElementById(decodeURIComponent(url.hash.slice(1)));
+        var scope = root || doc.querySelector("main") || doc.body;
+        // a section is named by its own heading, a whole page by its title
+        var title = root ? text(root.querySelector("h1, h2, h3, h4")) : "";
+        title = title || text(doc.querySelector("h1")) || text(doc.querySelector("title")).replace(/\s+[–-]\s+Mosaic$/, "");
+        // the first paragraph long enough to be a sentence, which skips badges and labels
+        var body = "";
+        Array.prototype.some.call(scope.querySelectorAll("p"), function (p) {
+          if (text(p).length < 60) return false;
+          body = text(p);
+          return true;
+        });
+        if (body.length > 220) body = body.slice(0, 220).replace(/\s+\S*$/, "") + "…";
+        return { title: title, body: body, where: "Mosaic documentation" };
+      }).catch(function () {
+        return { title: text(link), body: "", where: "Mosaic documentation" };
+      });
+    }
+
+    function place(link) {
+      var box = link.getBoundingClientRect();
+      var w = card.offsetWidth, h = card.offsetHeight, gap = 8;
+      var left = Math.min(Math.max(16, box.left), document.documentElement.clientWidth - w - 16);
+      var below = box.bottom + gap + h <= window.innerHeight || box.top - gap - h < 0;
+      card.style.left = (left + window.scrollX) + "px";
+      card.style.top = ((below ? box.bottom + gap : box.top - gap - h) + window.scrollY) + "px";
+    }
+
+    function show(link) {
+      current = link;
+      describe(link).then(function (d) {
+        if (current !== link) return;
+        card.textContent = "";
+        [["b", d.title], ["span", d.body], ["span", d.where]].forEach(function (part, i) {
+          if (!part[1]) return;
+          var el = document.createElement(part[0]);
+          el.textContent = part[1];
+          if (i === 2) el.className = "where";
+          card.appendChild(el);
+        });
+        place(link);
+        link.setAttribute("aria-describedby", card.id);
+        card.classList.add("on");
+      });
+    }
+
+    function hide() {
+      clearTimeout(timer);
+      if (current) current.removeAttribute("aria-describedby");
+      current = null;
+      card.classList.remove("on");
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll("a[href]"), function (link) {
+      if (link.getAttribute("href").charAt(0) === "#") return;   // jumps within this page
+      link.addEventListener("pointerenter", function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () { show(link); }, 250);
+      });
+      link.addEventListener("pointerleave", hide);
+      link.addEventListener("focus", function () { if (link.matches(":focus-visible")) show(link); });
+      link.addEventListener("blur", hide);
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
+    window.addEventListener("scroll", hide, { passive: true });
   })();
 </script>
 </body>
