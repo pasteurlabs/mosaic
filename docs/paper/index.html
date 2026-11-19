@@ -143,7 +143,7 @@ the results pages.
   /* plot on the block guide, its caption in the three columns beside it */
   main .wrap > figure.wide { grid-column: 1 / -1; display: grid; grid-template-columns: var(--cols); column-gap: var(--gutter); align-items: start; margin: 56px 0 0; }
   .wide img { grid-column: 1 / span 9; display: block; width: 100%; height: auto; }
-  .wide figcaption { grid-column: 10 / span 3; margin-top: 0; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .wide figcaption { grid-column: 10 / span 3; margin-top: 0; }
 
   /* Tasks */
   .tasks { display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter); margin-top: 24px; }
@@ -189,7 +189,7 @@ the results pages.
     #use .wrap > h2 + .prose, #use .wrap > h2 + .prose + .prose { grid-column: 1 / span 9; }
     .teaser figcaption { max-width: none; }
     .wide img, .wide figcaption { grid-column: 1 / -1; }
-    .wide figcaption { margin-top: 12px; padding-top: 0; border-top: none; }
+    .wide figcaption { margin-top: 12px; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
