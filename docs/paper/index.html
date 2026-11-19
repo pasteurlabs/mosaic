@@ -85,13 +85,17 @@ the results pages.
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
-  .btn {
-    display: inline-block; padding: 10px 20px; border-radius: 6px;
-    background: var(--ink); color: #fff; font-weight: 500; text-decoration: none;
+  /* Paper links as symbols; each one's name is its tooltip and its accessible label */
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .icon {
+    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+    border: 1px solid var(--rule); border-radius: 6px; color: var(--ink);
   }
-  .btn:hover { background: #000; }
-  .actions a:not(.btn) { font-weight: 500; }
+  .icon:hover { border-color: #b4bcc6; }
+  .icon.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .icon.primary:hover { background: #000; border-color: #000; }
+  .icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  #explore .actions { margin: 8px 0 24px; }
 
   /* Code panel. Every code block on the page shares this light style. */
   .panel { background: var(--wash); color: var(--ink); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
@@ -240,11 +244,11 @@ the results pages.
     <div class="hero-grid">
       <div>
         <p class="lede"><span class="q">What does it take to get usable gradients out of a differentiable PDE solver?</span> Practitioners usually find out by trial and error. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients. It then measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so you can compare them before committing to one.</p>
-        <div class="actions">
-          <a class="btn" href="https://arxiv.org/abs/2606.27895">Read the paper</a>
-          <a href="https://arxiv.org/pdf/2606.27895">PDF</a>
-          <a href="https://github.com/pasteurlabs/mosaic">Code</a>
-          <a href="#citation">Cite</a>
+        <div class="actions" role="group" aria-label="Paper links">
+          <a class="icon primary" href="https://arxiv.org/abs/2606.27895" aria-label="Read the paper on arXiv" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg></a>
+          <a class="icon" href="https://arxiv.org/pdf/2606.27895" aria-label="Download the paper as a PDF" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg></a>
+          <a class="icon" href="https://github.com/pasteurlabs/mosaic" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg></a>
+          <a class="icon" href="#citation" aria-label="Cite Mosaic" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg></a>
         </div>
       </div>
 
@@ -408,6 +412,12 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
 <section id="explore">
   <div class="wrap">
     <h2>Dive in</h2>
+    <div class="actions" role="group" aria-label="Paper links">
+      <a class="icon primary" href="https://arxiv.org/abs/2606.27895" aria-label="Read the paper on arXiv" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg></a>
+      <a class="icon" href="https://arxiv.org/pdf/2606.27895" aria-label="Download the paper as a PDF" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg></a>
+      <a class="icon" href="https://github.com/pasteurlabs/mosaic" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg></a>
+      <a class="icon" href="#citation" aria-label="Cite Mosaic" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg></a>
+    </div>
     <dl class="rows">
       <dt><a href="../getting-started.html">Run the benchmark</a></dt><dd>Install Mosaic, run the benchmark on your own hardware, and read its output.</dd>
       <dt><a href="../results/index.html">Current results</a></dt><dd>Every result and plot per task, for the latest version of the benchmark.</dd>
@@ -619,6 +629,7 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
 
     Array.prototype.forEach.call(document.querySelectorAll("a[href]"), function (link) {
       if (link.getAttribute("href").charAt(0) === "#") return;   // jumps within this page
+      link.removeAttribute("title");                             // the card replaces the native tooltip
       link.addEventListener("pointerenter", function () {
         clearTimeout(timer);
         timer = setTimeout(function () { show(link); }, 250);
