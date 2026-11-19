@@ -130,6 +130,8 @@ the results pages.
   /* under a full-width figure the caption ends on the text guide */
   main .wrap > figure figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
   .hero-grid figure { margin: 16px 0 0; }
+  /* a static plot keeps the size it was drawn for: nine columns, so its labels match the body text */
+  main .wrap > figure img { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); }
   .hero-grid figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
 
   /* Sections */
@@ -213,6 +215,7 @@ the results pages.
     .hero-grid > *, .hero-grid > div, .use-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
     main .wrap > figure figcaption, .hero-grid figcaption { max-width: none; }
+    main .wrap > figure img { width: 100%; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
@@ -253,8 +256,8 @@ the results pages.
       </div>
 
       <figure>
-        <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="2712" height="456" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures sit side by side and each fills in as its solver iterates."></video>
-        <figcaption>Five solvers optimize the same 3D cantilever, each at its own pace. A demonstration run, not a result from the paper.</figcaption>
+        <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="2752" height="584" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures sit side by side and fill in as their solvers iterate. A time axis below marks when each solver finishes: 31 seconds, 6, 10, 26 and 41 minutes."></video>
+        <figcaption>Five solvers optimize the same 3D cantilever. The axis marks when each one finishes. A demonstration run, not a result from the paper.</figcaption>
       </figure>
     </div>
 
