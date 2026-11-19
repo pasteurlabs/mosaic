@@ -84,6 +84,9 @@ the results pages.
   .hero-grid { margin-top: 48px; }
   .use-grid { margin: 8px 0 24px; }
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
+  /* the hero's text keeps the text guide and its animation runs the full width below */
+  .hero-grid > div { grid-column: 1 / span 7; }
+  .hero-grid > figure { grid-column: 1 / -1; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
@@ -123,11 +126,11 @@ the results pages.
   /* Figures: the plot or video fills its width and the caption sits below it */
   figure { margin: 56px 0 0; }
   figure img, figure video { display: block; width: 100%; height: auto; }
-  figure video { border-radius: 6px; border: 1px solid var(--rule); }
   figcaption { margin-top: 12px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
   /* under a full-width figure the caption ends on the text guide */
   main .wrap > figure figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
-  .hero-grid figure { margin: 0; }
+  .hero-grid figure { margin: 16px 0 0; }
+  .hero-grid figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
 
   /* Sections */
   section { padding: 96px 0 0; }
@@ -207,9 +210,9 @@ the results pages.
 
   @media (max-width: 900px) {
     .hero { padding-top: 48px; }
-    .hero-grid > *, .use-grid > * { grid-column: 1 / -1; }
+    .hero-grid > *, .hero-grid > div, .use-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
-    main .wrap > figure figcaption { max-width: none; }
+    main .wrap > figure figcaption, .hero-grid figcaption { max-width: none; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
@@ -250,8 +253,8 @@ the results pages.
       </div>
 
       <figure>
-        <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="1608" height="968" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. Each tile fills in as its solver iterates, and a clock shows the elapsed wall time."></video>
-        <figcaption>Five solvers optimize the same 3D cantilever and finish at different wall times. A demonstration run, not a result from the paper.</figcaption>
+        <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="2712" height="456" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures sit side by side and each fills in as its solver iterates."></video>
+        <figcaption>Five solvers optimize the same 3D cantilever, each at its own pace. A demonstration run, not a result from the paper.</figcaption>
       </figure>
     </div>
 
