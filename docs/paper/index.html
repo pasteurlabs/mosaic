@@ -137,7 +137,7 @@ the results pages.
   .findings li > * { grid-column: 2; }
   .findings h3 { font-size: 1.15rem; margin-bottom: 8px; }
   .findings p { color: var(--ink-2); margin: 0; }
-  .pinned { margin: 0 0 40px; font-size: 0.82rem; line-height: 1.5; color: var(--ink-2); }
+  .pinned { margin: 16px 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--ink-2); }
   .wide { margin: 56px 0 0; }
   .wide img { display: block; width: 100%; height: auto; }
 
@@ -259,7 +259,6 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
 
 <section id="findings">
   <div class="wrap">
-    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
     <h2>What we found</h2>
     <p class="prose intro">On every task, the solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they differ:</p>
 
@@ -380,6 +379,7 @@ $ pip install -e mosaic/mosaic_shared       <span class="c"># required for make_
       <dt><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
       <dt><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
     </dl>
+    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
   </div>
 </section>
 
