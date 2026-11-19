@@ -29,11 +29,6 @@ the results pages.
     --wash: #f2f4f7;
     --fwd: #2a6fb0;
     --grad: #c4423a;
-    --slate: #253141;
-    --slate-ink: #d5dde7;
-    --slate-dim: #8d9bad;
-    --fwd-on-slate: #8ec5ee;
-    --grad-on-slate: #f4a493;
     --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     /* Layout: one 12-column grid. Blocks start on its left edge or its midline
@@ -82,8 +77,11 @@ the results pages.
   /* text beside a visual, split at the midline: the hero, and the code example further down */
   .hero-grid, .use-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); align-items: start; }
   .hero-grid { margin-top: 48px; }
-  .use-grid { margin: 8px 0 0; }
-  .use-grid p:last-child { margin-bottom: 0; }
+  /* both columns share a height: the shell snippet ends on the code window's lower edge */
+  .use-grid { margin: 8px 0 0; align-items: stretch; }
+  .use-grid > div:first-child { display: flex; flex-direction: column; }
+  .use-grid pre.shell { margin: auto 0 0; }
+  .use-grid + .prose { margin: 24px 0 0; }
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
@@ -95,31 +93,28 @@ the results pages.
   .btn:hover { background: #000; }
   .actions a:not(.btn) { font-weight: 500; }
 
-  /* Code panel */
-  .panel { background: var(--slate); color: var(--slate-ink); border-radius: 6px; overflow: hidden; }
-  .panel pre { margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; }
-  .panel .k { color: var(--slate-dim); }
-  .panel pre a { color: inherit; text-decoration: underline; text-decoration-color: var(--slate-dim); text-underline-offset: 3px; }
-  .panel pre a:hover { text-decoration-color: currentColor; }
-  .panel .f { color: var(--fwd-on-slate); }
-  .panel .g { color: var(--grad-on-slate); }
+  /* Code panel. Every code block on the page shares this light style. */
+  .panel { background: var(--wash); color: var(--ink); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+  .panel pre { flex: 1; margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; }
+  .panel .k { color: var(--ink-2); }
+  .panel .f { color: var(--fwd); }
+  .panel .g { color: var(--grad); }
   .panel .img {
-    color: #fff; background: rgba(255, 255, 255, 0.09); border-radius: 3px; padding: 1px 2px;
+    font-weight: 500; background: rgba(28, 33, 39, 0.07); border-radius: 3px; padding: 1px 2px;
     transition: background-color 0.5s ease;
   }
-  .panel .stack { color: #f0cf8c; transition: background-color 0.5s ease; border-radius: 3px; }
-  .panel .img.flash, .panel .stack.flash { background: rgba(142, 197, 238, 0.32); transition: none; }
-  .switch { border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 14px 24px 16px; }
+  .panel .stack { color: #8a5a00; transition: background-color 0.5s ease; border-radius: 3px; }
+  .panel .img.flash, .panel .stack.flash { background: rgba(42, 111, 176, 0.25); transition: none; }
+  .switch { border-top: 1px solid var(--rule); padding: 14px 24px 16px; }
   .solvers { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
   .solvers button {
-    font: 500 var(--t-code)/1 var(--sans); color: var(--slate-ink); cursor: pointer;
-    background: none; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 7px 10px;
+    font: 500 var(--t-code)/1 var(--sans); color: var(--ink); cursor: pointer;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; padding: 7px 10px;
   }
-  .solvers button:hover { border-color: rgba(255, 255, 255, 0.45); }
-  .solvers button[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--slate); }
-  .solvers button:focus-visible { outline-color: var(--fwd-on-slate); }
-  .solvers .more { display: inline-block; padding: 7px 4px; font: 500 var(--t-code)/1 var(--sans); color: var(--slate-dim); text-decoration: none; }
-  .solvers .more:hover { color: var(--slate-ink); }
+  .solvers button:hover { border-color: #b4bcc6; }
+  .solvers button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .solvers .more { display: inline-block; padding: 7px 4px; font: 500 var(--t-code)/1 var(--sans); color: var(--ink-2); text-decoration: none; }
+  .solvers .more:hover { color: var(--ink); }
 
   /* Figures: the plot or video fills its width and the caption sits below it */
   figure { margin: 56px 0 0; }
@@ -176,15 +171,14 @@ the results pages.
   .measure b { color: var(--ink); font-weight: 500; }
 
   /* Use, explore, cite */
-  /* every code block shares the panel's dark style */
-  pre.shell { background: var(--slate); color: var(--slate-ink); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
-  pre.shell .c { color: var(--slate-dim); }
+  pre.shell { background: var(--wash); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
+  pre.shell .c { color: var(--ink-2); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
   dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
   .cite { position: relative; margin-top: 8px; }
-  .cite pre { background: var(--slate); color: var(--slate-ink); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
+  .cite pre { background: var(--wash); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
   .copy {
     position: absolute; top: 10px; right: 10px; cursor: pointer;
     font: 500 var(--t-small)/1 var(--sans); color: var(--ink); background: var(--paper);
@@ -377,7 +371,6 @@ $ pip install tesseract-core tesseract-jax
 $ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
 <span class="c"># provides make_vortex_ic</span>
 $ pip install -e mosaic/mosaic_shared</pre>
-        <p>The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
       </div>
       <div class="panel">
 <pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
@@ -408,6 +401,7 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
         </div>
       </div>
     </div>
+    <p class="prose">The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
   </div>
 </section>
 
