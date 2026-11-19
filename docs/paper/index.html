@@ -95,7 +95,6 @@ the results pages.
   .icon.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
   .icon.primary:hover { background: #000; border-color: #000; }
   .icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  #explore .actions { margin: 8px 0 24px; }
 
   /* Code panel. Every code block on the page shares this light style. */
   .panel { background: var(--wash); color: var(--ink); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
@@ -181,6 +180,9 @@ the results pages.
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
   dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
+  /* each destination carries a symbol in the same drawing style as the paper links */
+  dl.rows dt { display: flex; align-items: flex-start; gap: 12px; }
+  dl.rows dt svg { flex: none; width: 22px; height: 22px; margin-top: 2px; fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
   .cite { position: relative; margin-top: 8px; }
   .cite pre { background: var(--wash); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
   .copy {
@@ -412,18 +414,12 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
 <section id="explore">
   <div class="wrap">
     <h2>Dive in</h2>
-    <div class="actions" role="group" aria-label="Paper links">
-      <a class="icon primary" href="https://arxiv.org/abs/2606.27895" aria-label="Read the paper on arXiv" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg></a>
-      <a class="icon" href="https://arxiv.org/pdf/2606.27895" aria-label="Download the paper as a PDF" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg></a>
-      <a class="icon" href="https://github.com/pasteurlabs/mosaic" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg></a>
-      <a class="icon" href="#citation" aria-label="Cite Mosaic" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg></a>
-    </div>
     <dl class="rows">
-      <dt><a href="../getting-started.html">Run the benchmark</a></dt><dd>Install Mosaic, run the benchmark on your own hardware, and read its output.</dd>
-      <dt><a href="../results/index.html">Current results</a></dt><dd>Every result and plot per task, for the latest version of the benchmark.</dd>
-      <dt><a href="../solvers.html">Solver reference</a></dt><dd>Each solver's checks, usage, and departure from its default usage.</dd>
-      <dt><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
-      <dt><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg><a href="../getting-started.html">Run the benchmark</a></dt><dd>Install Mosaic, run the benchmark on your own hardware, and read its output.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7 20v-7M12 20V6M17 20v-10"/></svg><a href="../results/index.html">Current results</a></dt><dd>Every result and plot per task, for the latest version of the benchmark.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><a href="../solvers.html">Solver reference</a></dt><dd>Each solver's checks, usage, and departure from its default usage.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.2-5.1"/><path d="M19 4v4h-4"/></svg><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></svg><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
     </dl>
     <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
   </div>
