@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.0] - 2026-11-05
+## [0.3.0] - 2026-11-20
 
 ### Features
 
@@ -91,6 +91,15 @@ All notable changes to this project will be documented in this file.
 - *(harness)* Add the IC helpers that mosaic ics imports (#351)
 - *(harness)* Reject an unknown mosaic status --suites (#349)
 - *(harness)* Refuse to overwrite an existing domain in new-domain (#350)
+- *(solver)* Run the deal.II solvers on Python 3.12 (#377)
+- *(solver)* Run the FEniCS solvers on Python 3.12 (#378)
+- *(harness)* Pass --debug to plots in run --plots-only (#381)
+- *(harness)* Count only the selected experiments in the run summary (#382)
+- *(harness)* Read the --debug results in the cost and horizon_sweep_limits plots (#387)
+- *(harness)* Draw the plots of fanned-out experiments (#386)
+- *(harness)* Leave the saved result alone when an experiment runs no solver (#394)
+- *(harness)* Rerun the --only cells of a finished experiment under --continue (#395)
+- *(harness)* Keep the --debug checkpoints of drag_opt and recovery in the _debug directory (#393)
 
 ### Refactor
 
@@ -121,6 +130,11 @@ All notable changes to this project will be documented in this file.
 - Explain OpenFOAM's TGV error at low viscosity (#357)
 - *(harness)* Stop claiming that CI cost rankings carry over to other GPUs (#363)
 - Restructure the docs around one positioning, with one results page per setup (#343)
+- Style code blocks without a language in both themes (#379)
+- Cite the NeurIPS paper and point to the v0.3+paper-repro release (#385)
+- Draw the cantilever schematic with the load at the corner (#389)
+- Drop the Python versions from the CI checks table (#392)
+- Add a paper page at /paper/ (#380)
 
 ### Performance
 
