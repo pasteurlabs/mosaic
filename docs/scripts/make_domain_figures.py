@@ -390,10 +390,12 @@ def fig_ns_3d_grid() -> str:
 
 def fig_structural_mesh() -> str:
     x0, x1, y0, y1 = 170, 510, 100, 270
-    tip = (x1, (y0 + y1) / 2)
+    # The benchmark loads the lower corner of the free end, pushing up
+    # (corner_load=True), so the chords meet there and not at mid-height.
+    tip = (x1, y1 - 8)
 
     def chord(x: float, top: bool) -> float:
-        t = ((x - x0) / (x1 - x0)) ** 1.5
+        t = ((x - x0) / (x1 - x0)) ** 2.2
         edge = y0 + 8 if top else y1 - 8
         return edge + (tip[1] - edge) * t
 
@@ -432,9 +434,9 @@ def fig_structural_mesh() -> str:
         _hatch(x0, y0 - 10, y1 + 10, side=-1),
         f'<text x="{x0 - 14}" y="{y1 + 34}" class="small" text-anchor="middle">clamped</text>',
         f'<circle cx="{tip[0]}" cy="{tip[1]}" r="4" fill="{ACCENT}"/>',
-        _arrow(tip[0] + 34, tip[1] - 46, tip[0] + 34, tip[1] + 30, "accent", 2.6),
-        f'<text x="{tip[0] + 48}" y="{tip[1] - 2}" class="label">{_m("F")}</text>',
-        f'<text x="{tip[0] + 48}" y="{tip[1] + 16}" class="small">tip load</text>',
+        _arrow(tip[0] + 34, tip[1] + 30, tip[0] + 34, tip[1] - 46, "accent", 2.6),
+        f'<text x="{tip[0] + 48}" y="{tip[1] - 22}" class="label">{_m("F")}</text>',
+        f'<text x="{tip[0] + 48}" y="{tip[1] - 4}" class="small">corner load</text>',
         _label(x0, 48, "Control", f"element densities {_m('ρ')}{_sub(_m('e'))}"),
         f'<text x="{x1}" y="{y1 + 34}" class="small" text-anchor="end">dark = material, light = void</text>',
         _objective(

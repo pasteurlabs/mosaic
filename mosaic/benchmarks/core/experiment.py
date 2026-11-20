@@ -47,6 +47,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import jax
@@ -65,6 +66,7 @@ from mosaic.benchmarks.core.io import (
 )
 from mosaic.benchmarks.core.memory import MemoryPoller, container_id_from_tesseract
 from mosaic.benchmarks.core.partial import (
+    done_solvers_in_partial,
     filter_resumable_solvers,
     load_partial_solvers,
     write_partial,
@@ -293,6 +295,9 @@ class KernelContext:
         default_factory=dict
     )  # full per-run payload for kernel-specific config
     seed: int = 0
+    # The experiment's results directory, with the ``_debug`` suffix in
+    # --debug runs. Kernels that checkpoint their own progress write there.
+    out_dir: Path | None = None
 
 
 Kernel = Callable[[Any, KernelContext], dict]
@@ -467,6 +472,10 @@ def run_experiment(
         by_solver, snapshots = load_partial_solvers(
             out_dir, [n for n in resumable if n not in selected]
         )
+        if not selected and not by_solver:
+            # No solver to run and none to resume (e.g. --only selected no
+            # cell here): saving would stamp the result on disk as current.
+            continue
         if sweep_key is not None:
             by_value = {str(v): v for v in sweep_values}
             for n, entry in by_solver.items():
@@ -496,6 +505,7 @@ def run_experiment(
             _run_output_key: str = run_output_key,
             _run: dict = run,
             _seed: int = seed,
+            _out_dir: Path = out_dir,
         ) -> KernelContext:
             _ic = _ic_per_val[val] if _ic_per_val is not None else _base_ic
             phys = {**_base_phys, "domain_extent": domain_extent}
@@ -514,6 +524,7 @@ def run_experiment(
                 domain_extent=domain_extent,
                 run=_run,
                 seed=_seed,
+                out_dir=_out_dir,
             )
 
         def _absorb(
@@ -855,6 +866,14 @@ def run_experiment(
             wall_time_s=wall_times,
             debug=bool(overrides.get("debug")),
         )
+        # Once result.json holds every solver the checkpoint lists (its result
+        # or its failure), it is no longer a point to resume from. Left behind,
+        # it would make a later --continue skip those solvers, including the
+        # cells --only reruns.
+        saved = set(by_solver) | set(solver_failures)
+        if done_solvers_in_partial(out_dir / "result_partial.json") <= saved:
+            for partial in ("result_partial.json", "result_partial.npz"):
+                (out_dir / partial).unlink(missing_ok=True)
         all_results = result
 
     return all_results

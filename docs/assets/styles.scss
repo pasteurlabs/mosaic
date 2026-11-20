@@ -182,6 +182,20 @@ div.sourceCode pre {
   border-radius: 0.3rem;
 }
 
+// Fences without a language render as a bare <pre>, outside div.sourceCode.
+// Bootstrap colours those with $pre-color, which is dark in both themes.
+:not(div.sourceCode) > pre:not(.sourceCode) {
+  background: var(--m-surface-2);
+  border: 1px solid var(--m-border);
+  border-radius: 0.4rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--m-ink);
+}
+
+
 // ── Tables ───────────────────────────────────────────────────────────────────
 // Tabular figures where numbers line up (not in body text: Inter's tabular
 // forms widen hyphens).

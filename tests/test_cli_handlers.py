@@ -293,6 +293,35 @@ def test_run_flat_solvers_reverse_direction_passes_validation(stop_before_run):
         )
 
 
+def test_run_single_experiment_reports_ok(monkeypatch):
+    """``-e <suite>/<exp>`` counts against the one experiment asked for, not
+    every experiment in the suite."""
+    from mosaic.benchmarks.cli import run as run_mod
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setattr(
+        run_mod,
+        "run_suite",
+        lambda cfg, tags, exps, to_run=None, **kw: {n: {} for n in to_run or exps},
+    )
+    run_status: dict = {}
+    run_mod._run_suites_for_problem(
+        "ns-grid",
+        ["gradient"],
+        get_config("ns-grid"),
+        {},
+        ["fd_check"],
+        plots_only=False,
+        no_plots=True,
+        traceback=False,
+        debug=False,
+        gpus=None,
+        experiments="gradient/fd_check",
+        run_status=run_status,
+    )
+    assert run_status == {("ns-grid", "gradient"): ("ok", "")}
+
+
 def test_run_genuine_typo_still_fails_fast(stop_before_run):
     """A name on no registered problem is a real typo and must still exit 1 at
     validation — before the per-problem loop (the sentinel) is ever reached."""
@@ -305,6 +334,47 @@ def test_run_genuine_typo_still_fails_fast(stop_before_run):
     assert not isinstance(result.exception, _StopBeforeRun)
     assert "Unknown solver 'TopOptt.jl'" in result.output
     assert "TopOpt.jl" in result.output  # "did you mean" suggestion
+
+
+def test_run_plots_only_debug_plots_the_debug_results(monkeypatch):
+    from mosaic.benchmarks.problems import get_config
+
+    cfg = get_config("ns-grid")
+    calls = []
+    monkeypatch.setitem(
+        cfg.plot_fns, "forward/baseline", lambda _cfg, **kw: calls.append(kw)
+    )
+
+    result = runner.invoke(
+        app,
+        ["run", "--plots-only", "--debug", "-p", "ns-grid", "-e", "forward/baseline"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"suffix": "_debug"}]
+
+
+def test_run_plots_only_draws_fanned_out_experiments(monkeypatch, tmp_path):
+    """``forward/agreement`` runs as ``agreement/tgv`` and ``agreement/multimode``;
+    its plot is still drawn."""
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+    from mosaic.benchmarks.problems import get_config
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    cfg = get_config("ns-grid")
+    drawn = []
+    for key in [k for k in cfg.plot_fns if k.startswith("forward/")]:
+        monkeypatch.setitem(
+            cfg.plot_fns, key, lambda _cfg, _key=key, **kw: drawn.append(_key)
+        )
+
+    result = runner.invoke(
+        app, ["run", "--plots-only", "-p", "ns-grid", "--suites", "forward"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert drawn.count("forward/agreement") == 1
+    assert drawn.count("forward/physical_laws") == 1
 
 
 # ── status ────────────────────────────────────────────────────────────────────

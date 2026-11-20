@@ -134,6 +134,75 @@ def test_cost_subtitle_names_each_solvers_device():
     assert _hardware_str([split], cfg) == "GPU Tesla T4 · CPU INTEL XEON PLATINUM 8573C"
 
 
+def _write_result(path, problem, suite, exp_key, sweep_key, by_solver):
+    from mosaic.benchmarks.core.experiment import (
+        _build_result_envelope,
+        _flatten_by_solver,
+    )
+    from mosaic.benchmarks.problems import get_config
+
+    result = _build_result_envelope(
+        cfg=get_config(problem),
+        suite=suite,
+        exp_key=exp_key,
+        run={},
+        sweep_key=sweep_key,
+        sweep_values=sorted(next(iter(by_solver.values()))),
+        results=_flatten_by_solver(by_solver, sweep_key),
+    )
+    path.mkdir(parents=True)
+    (path / "result.json").write_text(json.dumps(result))
+
+
+def test_debug_cost_chart_plots_the_debug_run(tmp_path, monkeypatch):
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.shared.plots.charts.cost import ROW_TIME
+    from mosaic.benchmarks.problems.shared.plots.cost import plot_cost
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    cost_dir = tmp_path / "ns-grid" / "cost"
+    for suffix, mean in (("", 7.0), ("_debug", 0.5)):
+        _write_result(
+            cost_dir / f"spatial_cost{suffix}",
+            "ns-grid",
+            "cost",
+            "spatial_cost",
+            "N",
+            {"PhiFlow": {64: {"mean": mean}}},
+        )
+
+    chart = plot_cost(get_config("ns-grid"), suffix="_debug", save=False)
+
+    rows = [r for ds in chart.to_dict()["datasets"].values() for r in ds]
+    assert {r["y"] for r in rows if r.get("row") == ROW_TIME} == {0.5}
+
+
+def test_debug_horizon_sweep_limits_plots_the_debug_run(tmp_path, monkeypatch):
+    from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
+    from mosaic.benchmarks.problems import get_config
+    from mosaic.benchmarks.problems.shared.plots.gradient import (
+        plot_horizon_sweep_limits,
+    )
+
+    monkeypatch.setenv(RESULTS_DIR_ENV, str(tmp_path))
+    ok = {"status": "ok", "grad_norm": 1.0, "wall_time_s": 1.0, "vram_peak_mib": 900.0}
+    _write_result(
+        tmp_path / "ns-3d-grid" / "gradient" / "horizon_sweep_limits_debug",
+        "ns-3d-grid",
+        "gradient",
+        "horizon_sweep_limits",
+        "steps",
+        {"PhiFlow": {40: ok, 80: ok}},
+    )
+
+    chart = plot_horizon_sweep_limits(
+        get_config("ns-3d-grid"), suffix="_debug", save=False
+    )
+
+    assert chart is not None
+
+
 def test_fd_check_skips_non_finite_entries(tmp_path):
     """A perturbed run that diverged leaves nulls in the stored ε sweep."""
     from mosaic.benchmarks.problems import get_config
