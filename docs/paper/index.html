@@ -77,19 +77,16 @@ the results pages.
   /* text beside a visual, split at the midline: the hero, and the code example further down */
   .hero-grid, .use-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); align-items: start; }
   .hero-grid { margin-top: 48px; }
-  /* both columns share a height: the shell snippet ends on the code window's lower edge */
-  .use-grid { margin: 8px 0 0; align-items: stretch; }
-  .use-grid > div:first-child { display: flex; flex-direction: column; }
-  .use-grid pre.shell { margin: auto 0 0; }
-  .use-grid + .prose { margin: 24px 0 0; }
+  .use-grid { margin: 8px 0 0; align-items: center; }
+  .use-grid p:last-child { margin-bottom: 0; }
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
   .lede .q { font-weight: 600; }
-  /* Paper links as symbols; each one's name is its tooltip and its accessible label */
+  /* Paper links: a symbol and a word each */
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .icon {
-    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
-    border: 1px solid var(--rule); border-radius: 6px; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 12px;
+    border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); font-weight: 500; text-decoration: none;
   }
   .icon:hover { border-color: #b4bcc6; }
   .icon.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
@@ -120,7 +117,7 @@ the results pages.
   .solvers .more:hover { color: var(--ink); }
 
   /* Figures: the plot or video fills its width and the caption sits below it */
-  figure { margin: 56px 0 0; }
+  figure { margin: 80px 0 0; }
   figure img, figure video { display: block; width: 100%; height: auto; }
   figcaption { margin-top: 12px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
   /* under a full-width figure the caption ends on the text guide */
@@ -143,10 +140,10 @@ the results pages.
     display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter);
     margin: 0; padding: 0; list-style: none; counter-reset: finding;
   }
-  /* each finding spans 6 columns: the number sits in the first, the text in the other five */
+  /* each finding spans 6 columns, with its number close beside the text */
   .findings li {
-    grid-column: span 6; display: grid; column-gap: var(--gutter);
-    grid-template-columns: calc((100% - 5 * var(--gutter)) / 6) minmax(0, 1fr);
+    grid-column: span 6; display: grid; column-gap: 0;
+    grid-template-columns: 3rem minmax(0, 1fr); padding-right: var(--gutter);
     align-content: start; counter-increment: finding;
   }
   .findings li::before {
@@ -174,8 +171,6 @@ the results pages.
   .measure b { color: var(--ink); font-weight: 500; }
 
   /* Use, explore, cite */
-  pre.shell { background: var(--wash); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0 0 16px; }
-  pre.shell .c { color: var(--ink-2); }
   /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
   dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
   dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
@@ -225,7 +220,7 @@ the results pages.
     .panel pre { padding: 18px; }
     .switch { padding: 14px 18px 16px; }
     .findings { row-gap: 40px; }
-    .findings li { grid-template-columns: 2.6rem minmax(0, 1fr); column-gap: 0; }
+    .findings li { grid-template-columns: 2.6rem minmax(0, 1fr); padding-right: 0; }
     dl.rows { grid-template-columns: minmax(0, 1fr); }
     dl.rows dd { border-top: none; padding-top: 0; }
     section { padding-top: 64px; }
@@ -247,16 +242,16 @@ the results pages.
       <div>
         <p class="lede"><span class="q">Which differentiable solver should you use, and how well does it perform?</span> Each solver is evaluated in its own paper, on its own problems. There is no central benchmark to compare them on. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients. It then measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so you can compare them before committing to one.</p>
         <div class="actions" role="group" aria-label="Paper links">
-          <a class="icon primary" href="https://arxiv.org/abs/2606.27895" aria-label="Read the paper on arXiv" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg></a>
-          <a class="icon" href="https://arxiv.org/pdf/2606.27895" aria-label="Download the paper as a PDF" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg></a>
-          <a class="icon" href="https://github.com/pasteurlabs/mosaic" aria-label="Source code on GitHub" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg></a>
-          <a class="icon" href="#citation" aria-label="Cite Mosaic" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg></a>
+          <a class="icon primary" href="https://arxiv.org/abs/2606.27895" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg>Paper</a>
+          <a class="icon" href="https://arxiv.org/pdf/2606.27895" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>PDF</a>
+          <a class="icon" href="https://github.com/pasteurlabs/mosaic" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg>Code</a>
+          <a class="icon" href="#citation" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg>Cite</a>
         </div>
       </div>
 
       <figure>
         <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="1600" height="1036" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures fill in as their solvers iterate. A time axis below marks when each solver finishes: 31 seconds, 6, 10, 26 and 41 minutes."></video>
-        <figcaption>Five solvers optimize the same 3D cantilever. The axis marks when each one finishes. A demonstration run, not a result from the paper.</figcaption>
+        <figcaption>Five solvers minimize the compliance of the same 3D cantilever, on 48×24×24 cells. The axis marks when each one finishes: torch-fem and JAX-FEM on one GPU, the others on 16 CPU cores. This is a 3D version of the paper's 2D compliance task, run for this page.</figcaption>
       </figure>
     </div>
 
@@ -268,7 +263,7 @@ the results pages.
 <section id="findings">
   <div class="wrap">
     <h2>What we found</h2>
-    <p class="prose intro">Surprisingly, the solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they actually differ:</p>
+    <p class="prose intro">The solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they actually differ:</p>
 
     <ol class="findings">
       <li>
@@ -276,7 +271,7 @@ the results pages.
         <p>The code needed to wrap a solver ranges from under 200 lines to more than 2,000. Beyond the paper, the <a href="../solvers.html#effort-levels">solver reference</a> records each departure from a solver's default usage and why it was needed.</p>
       </li>
       <li>
-        <h3>On benign problems, choose the fastest solver</h3>
+        <h3>On benign problems, choose the fastest (or friendliest) solver</h3>
         <p>Where all solvers reach equivalent results, as on Mosaic's conductivity inversion and compliance minimization tasks, the choice comes down to speed and integration effort.</p>
       </li>
       <li>
@@ -300,7 +295,7 @@ the results pages.
 <section id="tasks">
   <div class="wrap">
     <h2>Tasks and solvers</h2>
-    <p class="prose">Mosaic covers four physical domains. Each has one optimization task, shown below, next to the checks of accuracy, gradients and cost that every solver in the domain goes through. The tasks contain no learned components, so differences in the results come from the solvers alone. Forward-only solvers serve as references.</p>
+    <p class="prose">Mosaic covers four physical domains, each with one optimization task. Forward-only solvers serve as references.</p>
     <div class="tasks">
       <div>
         <img src="../figures/setup_heat.svg" alt="Schematic of the heat task: a conductivity field, a steady-state solve to a temperature field, and the inverse problem of finding the conductivity from the temperatures.">
@@ -359,7 +354,7 @@ the results pages.
 
     <figure>
       <video src="media/inflow_optimization.mp4" poster="media/inflow_optimization.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the inflow profile of a channel past a cylinder. Their flow fields, drag curves, and inlet profiles evolve over Adam iterations and end at similar drag."></video>
-      <figcaption>Inflow optimization with five solvers. All of them end at about half the starting drag.</figcaption>
+      <figcaption>Example optimization run on the inflow optimization task, with five solvers. All of them end at about half the starting drag.</figcaption>
     </figure>
   </div>
 </section>
@@ -370,13 +365,7 @@ the results pages.
     <div class="use-grid">
       <div>
         <p>Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
-        <p>This code calls a solver from JAX, without the benchmark around it. It runs as-is once you have built the solver's image, which requires <a href="https://docs.docker.com/get-started/get-docker/">Docker</a>:</p>
-<pre class="shell">$ git clone https://github.com/pasteurlabs/mosaic &amp;&amp; cd mosaic
-<span class="c"># needs Python 3.12+, includes the tesseract command</span>
-$ pip install tesseract-core tesseract-jax
-$ tesseract build mosaic/tesseracts/navier-stokes-grid/exponax
-<span class="c"># provides make_vortex_ic</span>
-$ pip install -e mosaic/mosaic_shared</pre>
+        <p>This code calls a solver from JAX, without the benchmark around it. The <a href="../standalone.html">standalone guide</a> covers the installation, PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
       </div>
       <div class="panel">
 <pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
@@ -407,7 +396,6 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
         </div>
       </div>
     </div>
-    <p class="prose">The <a href="../standalone.html">standalone guide</a> covers PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
   </div>
 </section>
 
@@ -486,25 +474,25 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
       });
     });
 
-    // Step through the solvers once, when the panel scrolls into view, to show that only the image name
-    // changes. Any interaction with the panel stops it.
+    // Step through the solvers for as long as the panel is on screen, to show that only the
+    // image name changes. Choosing a solver stops it.
     var panel = document.querySelector(".panel");
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var chosen = false;
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () { chosen = true; });
+    });
     if (!reduce) {
       var i = 0;
-      var seen = new IntersectionObserver(function (entries) {
-        if (!entries[0].isIntersecting) return;
-        seen.disconnect();
+      new IntersectionObserver(function (entries) {
+        stop();
+        if (chosen || !entries[0].isIntersecting) return;
         timer = setInterval(function () {
-          i += 1;
-          if (i >= buttons.length) { stop(); select(buttons[0]); return; }
+          if (chosen) { stop(); return; }
+          i = (i + 1) % buttons.length;
           select(buttons[i]);
         }, 2200);
-      }, { threshold: 0.6 });
-      seen.observe(panel);
-      ["pointerenter", "focusin", "touchstart"].forEach(function (type) {
-        panel.addEventListener(type, stop, { passive: true });
-      });
+      }, { threshold: 0.6 }).observe(panel);
     }
 
     var copy = document.getElementById("copy");
@@ -534,8 +522,7 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
       "https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper": ["Reproduce the paper", "Instructions in the README at the v0.3+paper-repro tag."],
       "https://docs.pasteurlabs.ai/projects/tesseract-core/latest/": ["Tesseract Core", "Documentation for building and calling Tesseracts."],
       "https://github.com/pasteurlabs/tesseract-jax": ["pasteurlabs/tesseract-jax", "Calls Tesseracts from JAX so that they take part in jax.grad and jax.jit."],
-      "https://docs.jax.dev/": ["JAX", "Documentation of the JAX array and automatic differentiation library."],
-      "https://docs.docker.com/get-started/get-docker/": ["Get Docker", "Docker's installation instructions."]
+      "https://docs.jax.dev/": ["JAX", "Documentation of the JAX array and automatic differentiation library."]
     };
 
     var card = document.createElement("div");
