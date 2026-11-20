@@ -43,8 +43,6 @@ from tesseract_jax import apply_tesseract
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import (
     PartialResultWriter,
-    experiment_dir,
-    results_dir,
     save_field_snapshots_npz,
     try_load_json,
 )
@@ -853,18 +851,8 @@ def recovery(t: Any, ctx: KernelContext) -> dict:
         else None
     )
 
-    # Resolve out_dir from the framework's standard layout so partial-result
-    # writes land alongside the final ``result.json``. We re-derive rather
-    # than reading off ``ctx`` because :class:`KernelContext` doesn't (yet)
-    # surface the experiment key; the run dict carries ``_exp_key`` from the
-    # add_experiment registration.
-    suite = "optimization"
-    out_dir = experiment_dir(
-        results_dir(),
-        cfg.name,
-        suite,
-        exp_key,
-    )
+    # Partial-result writes land alongside the final ``result.json``.
+    out_dir = ctx.out_dir
     partial_writer = PartialResultWriter(
         out_dir, base_payload={"sweep_key": sweep_key, "params": run}
     )

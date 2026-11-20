@@ -33,8 +33,6 @@ from tesseract_jax import apply_tesseract
 from mosaic.benchmarks.core.experiment import KernelContext, kernel
 from mosaic.benchmarks.core.io import (
     PartialResultWriter,
-    experiment_dir,
-    results_dir,
     save_npz_merged,
 )
 from mosaic.benchmarks.core.utils import active_differentiable_solvers
@@ -47,8 +45,6 @@ from mosaic.benchmarks.problems.shared.optimization import (
 from . import cylinder
 
 logger = logging.getLogger(__name__)
-
-_SUITE = "optimization"
 
 
 # Largest initial Cd error, relative to the reference, for which the drag
@@ -434,15 +430,8 @@ def drag_opt(t: Any, ctx: KernelContext) -> dict:
     }
 
     # ── Partial-result checkpointing ───────────────────────────────────────
-    # Resolve out_dir the same way the framework does so the partial JSON
-    # lands next to the final ``result.json``.
-    partial_out_dir = experiment_dir(
-        results_dir(),
-        ctx.cfg.name,
-        _SUITE,
-        "drag_opt",
-        suffix="_debug" if run.get("debug") else "",
-    )
+    # The partial JSON lands next to the final ``result.json``.
+    partial_out_dir = ctx.out_dir
 
     # The Adam inner loop mutates a tiny ``by_solver`` dict in place and
     # invokes ``write_partial()`` every 10 iters. We keep that contract
