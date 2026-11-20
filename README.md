@@ -146,8 +146,12 @@ If you use Mosaic in your research, please cite the paper ([arXiv:2606.27895](ht
 @inproceedings{rehmann2026mosaic,
   title     = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
   author    = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS), Track on Evaluations and Datasets},
-  year      = {2026}
+  booktitle = {Advances in Neural Information Processing Systems},
+  note      = {Evaluations and Datasets Track},
+  year      = {2026},
+  eprint    = {2606.27895},
+  archivePrefix = {arXiv},
+  primaryClass  = {physics.comp-ph}
 }
 ```
 

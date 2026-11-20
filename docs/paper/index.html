@@ -152,7 +152,8 @@ the results pages.
   }
   .findings li > * { grid-column: 2; }
   .findings p { margin: 0; }
-  .pinned { margin: 16px 0 0; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+  /* which version this page describes: compact, but the first thing in the body */
+  .pinned { margin: 0 0 48px; padding: 10px 14px; background: var(--wash); border-radius: 6px; font-size: var(--t-small); line-height: 1.5; }
 
   /* Tasks */
   .tasks { display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter); margin-top: 24px; }
@@ -262,6 +263,7 @@ the results pages.
 
 <section id="findings">
   <div class="wrap">
+    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
     <h2>What we found</h2>
     <p class="prose intro">The solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they actually differ:</p>
 
@@ -409,7 +411,6 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
       <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.2-5.1"/><path d="M19 4v4h-4"/></svg><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
       <dt><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></svg><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
     </dl>
-    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
   </div>
 </section>
 
@@ -424,7 +425,8 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
   note      = {Evaluations and Datasets Track},
   year      = {2026},
   eprint    = {2606.27895},
-  archivePrefix = {arXiv}
+  archivePrefix = {arXiv},
+  primaryClass  = {physics.comp-ph}
 }</pre>
       <button type="button" class="copy" id="copy">Copy</button>
     </div>
