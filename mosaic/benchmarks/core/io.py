@@ -42,11 +42,11 @@ import inspect
 import json
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
-import jax
 import numpy as np
 from filelock import FileLock
 
@@ -192,6 +192,16 @@ def harness_fn_hash(fn: object) -> str:
 # :func:`experiment_dir` or an explicit ``mkdir(parents=True)`` first).
 
 
+def _is_jax_array(obj: object) -> bool:
+    """Return True if *obj* is a ``jax.Array``, without importing JAX.
+
+    If JAX has not been imported, no JAX array can exist yet. Checking
+    ``sys.modules`` keeps JAX out of the CLI's startup imports (#58).
+    """
+    jax = sys.modules.get("jax")
+    return jax is not None and isinstance(obj, jax.Array)
+
+
 class _NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy / JAX scalars and arrays.
 
@@ -214,7 +224,7 @@ class _NumpyEncoder(json.JSONEncoder):
         super().__init__(*args, **kwargs)
 
     def default(self, obj: object) -> object:
-        if isinstance(obj, np.ndarray | jax.Array):
+        if isinstance(obj, np.ndarray) or _is_jax_array(obj):
             # ``.tolist()`` produces native Python floats; the C-level
             # encoder handles those inline (never calls ``default``), so
             # walk the converted list and replace non-finite values now.

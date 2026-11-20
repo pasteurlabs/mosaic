@@ -12,11 +12,16 @@ type :class:`Problem` is registered automatically.
 
 from __future__ import annotations
 
+import functools
 import importlib
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from mosaic.benchmarks.core.config import Problem
+
+if TYPE_CHECKING:
+    PROBLEMS: list[str]
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +55,7 @@ def _candidate_module_paths() -> list[str]:
     return paths
 
 
+@functools.cache
 def _registry() -> dict[str, Problem]:
     registry: dict[str, Problem] = {}
     for module_name in _candidate_module_paths():
@@ -72,4 +78,15 @@ def get_config(name: str) -> Problem:
     return reg[name]
 
 
-PROBLEMS: list[str] = list(_registry().keys())
+def problem_names() -> list[str]:
+    """Return the CLI names of all registered problems."""
+    return list(_registry())
+
+
+def __getattr__(name: str) -> list[str]:
+    # ``PROBLEMS`` is built on first access rather than at import time, because
+    # building the registry imports every problem config and with it JAX and
+    # the plotting stack, which made every CLI invocation slow (#58).
+    if name == "PROBLEMS":
+        return problem_names()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

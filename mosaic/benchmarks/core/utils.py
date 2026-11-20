@@ -18,11 +18,15 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator
-
-import jax
-import jax.numpy as jnp
+from typing import TYPE_CHECKING
 
 from .config import Problem
+
+if TYPE_CHECKING:
+    import jax
+
+# JAX is imported inside the array helpers below rather than at module level,
+# because ``core.status`` imports this module and runs at CLI startup (#58).
 
 # ── Array statistics ──────────────────────────────────────────────────────────
 
@@ -43,6 +47,8 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
     solver's error against that reference becomes NaN with it. A position where
     no solver is finite stays NaN, which is the honest answer there.
     """
+    import jax.numpy as jnp
+
     stacked = jnp.stack(arrays, axis=0)  # (n, ...)
     finite = jnp.isfinite(stacked)
     n_finite = finite.sum(axis=0)
@@ -67,6 +73,8 @@ def trimmed_mean(arrays: list, q_lo: float = 0.05, q_hi: float = 0.95) -> jax.Ar
 
 def l2_error_rel(pred: object, ref: object) -> float:
     """Relative L2 error ||pred-ref|| / ||ref||."""
+    import jax.numpy as jnp
+
     return float(
         jnp.sqrt(jnp.mean((pred - ref) ** 2)) / (jnp.sqrt(jnp.mean(ref**2)) + 1e-30)
     )
@@ -74,7 +82,11 @@ def l2_error_rel(pred: object, ref: object) -> float:
 
 def is_valid(arr: object) -> bool:
     """Return True iff *arr* is not None and contains only finite values."""
-    return arr is not None and bool(jnp.all(jnp.isfinite(arr)))
+    if arr is None:
+        return False
+    import jax.numpy as jnp
+
+    return bool(jnp.all(jnp.isfinite(arr)))
 
 
 def fixed_cfl_dt_steps(
