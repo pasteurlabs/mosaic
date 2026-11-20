@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<!--
+The paper page, served at /paper/. A standalone page, not
+rendered by Quarto. Findings and numbers follow the camera-ready (paper/ on the
+paper branch, tag v0.3+paper-repro). Keep them in sync with the paper, not with
+the results pages.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosaic: A Benchmark Suite for Differentiable Physics Solvers</title>
+<meta name="description" content="Mosaic runs 14 differentiable PDE solvers behind one unified interface and measures their forward and gradient accuracy, cost, and integration effort on shared tasks. NeurIPS 2026, Evaluations and Datasets track.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mosaic: A Benchmark Suite for Differentiable Physics Solvers">
+<meta property="og:description" content="Mosaic runs 14 differentiable PDE solvers behind one unified interface and measures their forward and gradient accuracy, cost, and integration effort on shared tasks. NeurIPS 2026.">
+<meta property="og:url" content="https://docs.pasteurlabs.ai/projects/mosaic/latest/paper/">
+<meta property="og:image" content="https://docs.pasteurlabs.ai/projects/mosaic/latest/paper/media/inflow_optimization.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #1c2127;
+    --ink-2: #57606b;
+    --rule: #dde2e8;
+    --wash: #f2f4f7;
+    --fwd: #2a6fb0;
+    --grad: #c4423a;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Layout: one 12-column grid. Blocks start on its left edge or its midline
+       and end on the text guide (7 columns) or the full width (12). */
+    --gutter: 24px;
+    --cols: repeat(12, minmax(0, 1fr));
+    /* Type: five sizes below the page title, each with one job.
+       title  section headings and the subtitle
+       large  the lede and item headings
+       body   running text
+       small  captions, notes, credits and controls
+       code   every code block, and the solver buttons under the first one */
+    --t-title: clamp(1.7rem, 3.4vw, 2.1rem);
+    --t-large: 1.25rem;
+    --t-body: 1.0625rem;
+    --t-small: 0.9375rem;
+    --t-code: 12.5px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 var(--t-body)/1.6 var(--sans);
+  }
+  a { color: inherit; text-decoration: underline; text-decoration-color: #b4bcc6; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { text-decoration-color: currentColor; }
+  :focus-visible { outline: 2px solid var(--fwd); outline-offset: 2px; border-radius: 2px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+  .hero .wrap, main .wrap { display: grid; grid-template-columns: var(--cols); column-gap: var(--gutter); }
+  .hero .wrap > *, main .wrap > * { grid-column: 1 / -1; }
+  main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 7; }
+  p { margin: 0 0 16px; }
+  code, pre { font-family: var(--mono); }
+  code { font-size: 0.9em; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Hero */
+  .hero { padding: 80px 0 0; }
+  h1 { margin: 0; font-weight: 600; }
+  h1 .name { display: block; font-size: clamp(3.4rem, 9vw, 6.2rem); line-height: 0.95; letter-spacing: -0.035em; }
+  h1 .sub { display: block; margin-top: 16px; font-size: var(--t-title); line-height: 1.2; font-weight: 400; letter-spacing: -0.02em; color: var(--ink-2); }
+  .byline { margin: 24px 0 0; font-size: var(--t-body); line-height: 1.5; }
+  .byline .venue { display: block; color: var(--ink-2); font-size: var(--t-small); }
+  /* text beside a visual, split at the midline: the hero, and the code example further down */
+  .hero-grid, .use-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); align-items: start; }
+  .hero-grid { margin-top: 48px; }
+  .use-grid { margin: 8px 0 0; }
+  .use-grid p:last-child { margin-bottom: 0; }
+  .hero-grid > *, .use-grid > * { grid-column: span 6; }
+  .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
+  .lede .q { font-weight: 600; }
+  /* Paper links: a symbol and a word each */
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .icon {
+    display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 12px;
+    border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); font-weight: 500; text-decoration: none;
+  }
+  .icon:hover { border-color: #b4bcc6; }
+  .icon.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .icon.primary:hover { background: #000; border-color: #000; }
+  .icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Code panel. Every code block on the page shares this light style. */
+  .panel { background: var(--wash); color: var(--ink); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+  .panel pre { flex: 1; margin: 0; padding: 20px 24px 16px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; }
+  .panel .k { color: var(--ink-2); }
+  .panel .f { color: var(--fwd); }
+  .panel .g { color: var(--grad); }
+  .panel .img {
+    font-weight: 500; background: rgba(28, 33, 39, 0.07); border-radius: 3px; padding: 1px 2px;
+    transition: background-color 0.5s ease;
+  }
+  .panel .stack { color: #8a5a00; transition: background-color 0.5s ease; border-radius: 3px; }
+  .panel .img.flash, .panel .stack.flash { background: rgba(42, 111, 176, 0.25); transition: none; }
+  .switch { border-top: 1px solid var(--rule); padding: 14px 24px 16px; }
+  .solvers { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+  .solvers button {
+    font: 500 var(--t-code)/1 var(--sans); color: var(--ink); cursor: pointer;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 999px; padding: 7px 10px;
+  }
+  .solvers button:hover { border-color: #b4bcc6; }
+  .solvers button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .solvers .more { display: inline-block; padding: 7px 4px; font: 500 var(--t-code)/1 var(--sans); color: var(--ink-2); text-decoration: none; }
+  .solvers .more:hover { color: var(--ink); }
+
+  /* Figures: the plot or video fills its width and the caption sits below it */
+  figure { margin: 80px 0 0; }
+  figure img, figure video { display: block; width: 100%; height: auto; }
+  figcaption { margin-top: 12px; font-size: var(--t-small); line-height: 1.5; color: var(--ink-2); }
+  /* under a full-width figure the caption ends on the text guide */
+  main .wrap > figure figcaption { max-width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
+  .hero-grid figure { margin: 0; }
+  /* figures in the text are nine columns wide and centred, with the caption centred under them */
+  main .wrap > figure img, main .wrap > figure video { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); margin: 0 auto; }
+  main .wrap > figure figcaption { margin-left: auto; margin-right: auto; text-align: center; }
+  /* a figure with large type of its own is set on the text guide, so its labels match the other figures */
+  main .wrap > figure.narrow img { width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
+
+  /* Sections */
+  section { padding: 96px 0 0; }
+  h2 { font-size: var(--t-title); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; }
+  h3 { font-size: var(--t-large); line-height: 1.35; font-weight: 600; margin: 0 0 8px; }
+  /* text under an item heading is secondary; section introductions stay in ink */
+  .findings p, .tasks p, .measure p, dl.rows dd { color: var(--ink-2); }
+
+  /* Findings */
+  .intro { margin-bottom: 40px; }
+  .findings {
+    display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter);
+    margin: 0; padding: 0; list-style: none; counter-reset: finding;
+  }
+  /* each finding spans 6 columns, with its number close beside the text */
+  .findings li {
+    grid-column: span 6; display: grid; column-gap: 0;
+    grid-template-columns: 3rem minmax(0, 1fr); padding-right: var(--gutter);
+    align-content: start; counter-increment: finding;
+  }
+  .findings li::before {
+    content: counter(finding); grid-row: 1 / span 2;
+    font-size: var(--t-title); line-height: 1.15; font-weight: 600; color: var(--fwd);
+  }
+  .findings li > * { grid-column: 2; }
+  .findings p { margin: 0; }
+  /* which version this page describes: compact, but the first thing in the body */
+  .pinned { margin: 0 0 48px; padding: 10px 14px; background: var(--wash); border-radius: 6px; font-size: var(--t-small); line-height: 1.5; }
+
+  /* Tasks */
+  .tasks { display: grid; grid-template-columns: var(--cols); gap: 48px var(--gutter); margin-top: 24px; }
+  .tasks > div { grid-column: span 6; }
+  .tasks img { display: block; width: 100%; aspect-ratio: 600 / 317; object-fit: contain; margin-bottom: 16px; }
+  .tasks p { margin: 0 0 8px; }
+  .tasks .domain { margin-left: 0.4em; font-size: var(--t-small); font-weight: 400; color: var(--ink-2); }
+  .tasks .who { font-size: var(--t-small); }
+  .fwd-only { font-style: italic; }
+
+  /* Protocol */
+  .measures { display: grid; grid-template-columns: var(--cols); gap: 40px var(--gutter); margin-top: 24px; }
+  .measure { grid-column: span 6; }
+  .measure p { margin: 0 0 8px; }
+  .measure p:last-child { margin-bottom: 0; }
+  .measure b { color: var(--ink); font-weight: 500; }
+
+  /* Use, explore, cite */
+  /* the terms take 3 of the list's 9 columns, so the descriptions start on a column line */
+  dl.rows { display: grid; grid-template-columns: calc((100% + var(--gutter)) / 4) minmax(0, 1fr); margin: 8px 0 0; }
+  dl.rows dt, dl.rows dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--rule); }
+  dl.rows dt { font-weight: 500; padding-right: var(--gutter); }
+  /* each destination carries a symbol in the same drawing style as the paper links */
+  dl.rows dt { display: flex; align-items: flex-start; gap: 12px; }
+  dl.rows dt svg { flex: none; width: 22px; height: 22px; margin-top: 2px; fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .cite { position: relative; margin-top: 8px; }
+  .cite pre { background: var(--wash); border-radius: 6px; padding: 20px 24px; overflow-x: auto; font-size: var(--t-code); line-height: 1.6; margin: 0; }
+  .copy {
+    position: absolute; top: 10px; right: 10px; cursor: pointer;
+    font: 500 var(--t-small)/1 var(--sans); color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 6px; padding: 7px 11px;
+  }
+  .copy:hover { border-color: #b4bcc6; }
+
+  /* Link preview: one card, shown on hover or keyboard focus */
+  .preview {
+    position: absolute; z-index: 10; top: 0; left: 0; width: 320px; max-width: calc(100vw - 32px);
+    padding: 12px 16px; background: var(--paper); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 24px rgba(28, 33, 39, 0.12);
+    font-size: var(--t-small); line-height: 1.5; pointer-events: none;
+    opacity: 0; visibility: hidden; transition: opacity 0.12s ease, visibility 0s linear 0.12s;
+  }
+  .preview.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+  .preview b { display: block; font-weight: 600; }
+  .preview span { display: block; color: var(--ink-2); }
+  .preview .where { margin-top: 4px; font: 400 var(--t-code)/1.5 var(--mono); overflow-wrap: anywhere; }
+
+  footer { margin-top: 96px; padding: 24px 0 48px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: var(--t-small); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+  @media (max-width: 900px) {
+    .hero { padding-top: 48px; }
+    .hero-grid > *, .use-grid > * { grid-column: 1 / -1; }
+    main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
+    main .wrap > figure figcaption { max-width: none; }
+    main .wrap > figure img, main .wrap > figure.narrow img, main .wrap > figure video { width: 100%; }
+    .use-grid > .panel { order: 2; }
+  }
+  @media (max-width: 640px) {
+    :root { --gutter: 16px; }
+    .wrap { padding: 0 18px; }
+    main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / -1; }
+    .findings li, .tasks > div, .measure { grid-column: 1 / -1; }
+    :root { --t-code: 12px; }
+    .panel pre { padding: 18px; }
+    .switch { padding: 14px 18px 16px; }
+    .findings { row-gap: 40px; }
+    .findings li { grid-template-columns: 2.6rem minmax(0, 1fr); padding-right: 0; }
+    dl.rows { grid-template-columns: minmax(0, 1fr); }
+    dl.rows dd { border-top: none; padding-top: 0; }
+    section { padding-top: 64px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .panel .img, .panel .stack { transition: none; }
+    .preview { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1><span class="name">Mosaic<span class="vh">:</span></span><span class="sub">A Benchmark Suite for Differentiable Physics Solvers</span></h1>
+    <p class="byline">Andrin Rehmann, Heiko Zimmermann, and Dion Häfner, <a href="https://simulation.science/">Pasteur Labs</a><span class="venue">NeurIPS 2026, Evaluations and Datasets track</span></p>
+
+    <div class="hero-grid">
+      <div>
+        <p class="lede"><span class="q">Which differentiable solver should you use for a given optimization task, and how much does the choice matter?</span> Typically, each solver is evaluated on its own problems in isolation, which makes comparisons difficult. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients. It then measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so you can compare before committing to one.</p>
+        <div class="actions" role="group" aria-label="Paper links">
+          <a class="icon primary" href="https://arxiv.org/abs/2606.27895" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg>Paper</a>
+          <a class="icon" href="https://arxiv.org/pdf/2606.27895" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>PDF</a>
+          <a class="icon" href="https://github.com/pasteurlabs/mosaic" title="Source code on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 5l-3 14"/></svg>Code</a>
+          <a class="icon" href="#citation" title="Cite Mosaic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 7H6v5h4v2a3 3 0 0 1-3 3"/><path d="M19 7h-4v5h4v2a3 3 0 0 1-3 3"/></svg>Cite</a>
+        </div>
+      </div>
+
+      <figure>
+        <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="1600" height="1036" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures fill in as their solvers iterate. A time axis below marks when each solver finishes: 31 seconds, 6, 10, 20 and 26 minutes."></video>
+        <figcaption>Five solvers minimize the compliance of the same cantilever on 48×24×24 cells: torch-fem and JAX-FEM on a GPU, the others on up to 16 CPU cores (Firedrake with multithreading enabled). A variant of the paper's compliance task, made for this page.</figcaption>
+      </figure>
+    </div>
+
+  </div>
+</header>
+
+<main>
+
+<section id="findings">
+  <div class="wrap">
+    <p class="pinned">This page describes the benchmark as pinned for the paper, at the tag <a href="https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro"><code>v0.3+paper-repro</code></a>. The <a href="../index.html">Mosaic documentation</a> tracks the latest benchmark problems, solver versions, and numerical results.</p>
+    <h2>What we found</h2>
+    <p class="prose intro">The solvers that manage to return finite gradients agree with finite differences and reach comparable optima. Here's where they actually differ:</p>
+
+    <ol class="findings">
+      <li>
+        <h3>Integration effort varies widely</h3>
+        <p>The code needed to wrap a solver ranges from under 200 lines to more than 2,000. Beyond the paper, the <a href="../solvers.html#effort-levels">solver reference</a> records each departure from a solver's default usage and why it was needed.</p>
+      </li>
+      <li>
+        <h3>On benign problems, choose the fastest (or friendliest) solver</h3>
+        <p>Where all solvers reach equivalent results, as on Mosaic's conductivity inversion and compliance minimization tasks, the choice comes down to speed and integration effort.</p>
+      </li>
+      <li>
+        <h3>Solvers fail because of missing features, instability, and memory constraints</h3>
+        <p>Some solvers lack features a task needs, such as non-periodic boundary conditions. On long rollouts, solvers run out of GPU memory at very different problem scales, and some return non-finite gradients well before that.</p>
+      </li>
+      <li>
+        <h3>Many differences only show up in a benchmark</h3>
+        <p>Solvers using the same framework, discretization, or time stepper can still differ wildly in their properties, and it is hard to predict how they will fail. Testing candidates on the task at hand is what Mosaic is built for.</p>
+      </li>
+    </ol>
+
+    <figure class="narrow">
+      <img src="media/horizon_sweep_limits.png" alt="Peak GPU memory, wall time, and gradient norm of one VJP against rollout length for seven 3D Navier–Stokes solvers. Three lines end in out-of-memory markers after ten to twenty thousand steps, three end in non-finite gradients after a few hundred steps, and Exponax runs to the end.">
+      <figcaption>One gradient call against rollout length on initial condition recovery. Each line ends at the solver's last successful rollout, either because it ran out of memory or because its gradient stopped being finite. For the JAX solvers, every point after the first includes JIT compilation for its rollout length, so their wall time never drops below the compilation time.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<section id="tasks">
+  <div class="wrap">
+    <h2>Tasks and solvers</h2>
+    <p class="prose">Mosaic covers four physical domains, each with one optimization task. Forward-only solvers serve as references.</p>
+    <div class="tasks">
+      <div>
+        <img src="../figures/setup_heat.svg" alt="Schematic of the heat task: a conductivity field, a steady-state solve to a temperature field, and the inverse problem of finding the conductivity from the temperatures.">
+        <h3><a href="../results/heat.html">Conductivity inversion</a> <span class="domain">Heat transfer</span></h3>
+        <p>Recover the conductivity of a slab from its steady-state temperatures.</p>
+        <p class="who"><a href="../solvers.html#thermal-mesh-fenics-heat">FEniCS</a>, <a href="../solvers.html#thermal-mesh-firedrake-heat">Firedrake</a>, <a href="../solvers.html#thermal-mesh-jax-fem">JAX-FEM</a>, <a href="../solvers.html#thermal-mesh-torch-fem-thermal">torch-fem</a>, and <a class="fwd-only" href="../solvers.html#thermal-mesh-dealii-heat">deal.II</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_structural.svg" alt="Schematic of the structural task: a cantilever clamped on the left with a tip load, filled with a truss-like material layout.">
+        <h3><a href="../results/structural.html">Compliance minimization</a> <span class="domain">Structural mechanics</span></h3>
+        <p>Make a cantilever as stiff as possible with a fixed amount of material.</p>
+        <p class="who"><a href="../solvers.html#structural-mesh-fenics-structural">FEniCS</a>, <a href="../solvers.html#structural-mesh-firedrake-structural">Firedrake</a>, <a href="../solvers.html#structural-mesh-jax-fem">JAX-FEM</a>, <a href="../solvers.html#structural-mesh-topopt-jl">TopOpt.jl</a>, <a href="../solvers.html#structural-mesh-torch-fem-structural">torch-fem</a>, and <a class="fwd-only" href="../solvers.html#structural-mesh-dealii-structural">deal.II</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_ns_2d_cylinder.svg" alt="Schematic of the channel: an inflow profile on the left, a cylinder with a drag arrow, and a vortex street downstream between two walls.">
+        <h3><a href="../results/ns-2d-cylinder.html">Inflow optimization</a> <span class="domain">Incompressible fluids</span></h3>
+        <p>Shape the inflow to lower the drag on a cylinder in a 2D channel, and check gradients on <a href="../results/ns-2d-periodic.html">periodic flows</a>.</p>
+        <p class="who"><a href="../solvers.html#navier-stokes-grid-exponax">Exponax</a>, <a href="../solvers.html#navier-stokes-grid-ins-jl">INS.jl</a>, <a href="../solvers.html#navier-stokes-grid-jax-cfd">JAX-CFD</a>, <a href="../solvers.html#navier-stokes-grid-phiflow">PhiFlow</a>, <a href="../solvers.html#navier-stokes-grid-pict">PICT</a>, <a href="../solvers.html#navier-stokes-grid-warp-ns">Warp-NS</a>, <a href="../solvers.html#navier-stokes-grid-xlb">XLB</a>, and <a class="fwd-only" href="../solvers.html#navier-stokes-grid-openfoam">OpenFOAM</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+      <div>
+        <img src="../figures/setup_ns_3d.svg" alt="Schematic of the 3D task: an initial velocity field in a cube evolves into a later snapshot, and the optimizer recovers the initial field from that snapshot.">
+        <h3><a href="../results/ns-3d.html">Initial condition recovery</a> <span class="domain">3D Navier–Stokes</span></h3>
+        <p>Recover the initial velocity field of a 3D periodic flow from a later snapshot.</p>
+        <p class="who"><a href="../solvers.html#navier-stokes-grid-exponax">Exponax</a>, <a href="../solvers.html#navier-stokes-grid-ins-jl">INS.jl</a>, <a href="../solvers.html#navier-stokes-grid-jax-cfd">JAX-CFD</a>, <a href="../solvers.html#navier-stokes-grid-phiflow">PhiFlow</a>, <a href="../solvers.html#navier-stokes-grid-pict">PICT</a>, <a href="../solvers.html#navier-stokes-grid-warp-ns">Warp-NS</a>, <a href="../solvers.html#navier-stokes-grid-xlb">XLB</a>, and <a class="fwd-only" href="../solvers.html#navier-stokes-grid-openfoam">OpenFOAM</a> <span class="fwd-only">(forward only)</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="protocol">
+  <div class="wrap">
+    <h2>How Mosaic works</h2>
+    <p class="prose">Mosaic treats every solver as a black box with a forward and a gradient call, so the same checks apply to all of them.</p>
+    <div class="measures">
+      <div class="measure">
+        <h3>Forward accuracy</h3>
+        <p><b>Reference agreement.</b> Error against analytic solutions, literature values or converged high-resolution runs, within a tolerance.</p>
+        <p><b>Convergence.</b> How the error shrinks as the resolution increases.</p>
+      </div>
+      <div class="measure">
+        <h3>Gradient quality</h3>
+        <p><b>Gradient accuracy.</b> Agreement with finite differences over a range of step sizes, with exact gradients where they exist, and through chains of calls.</p>
+        <p><b>Optimization.</b> Convergence with the same optimizer and budget for every solver on a task.</p>
+      </div>
+      <div class="measure">
+        <h3>Compute cost</h3>
+        <p><b>Scaling.</b> Wall time and peak memory of the forward and gradient calls across problem sizes.</p>
+        <p><b>Rollout length.</b> The longest rollout a solver can differentiate through in one call before it runs out of memory or its gradient turns non-finite.</p>
+      </div>
+      <div class="measure">
+        <h3>Development cost</h3>
+        <p><b>Setup compatibility.</b> Whether the solver can express the task, and why not if it can't.</p>
+        <p><b>Integration effort.</b> Every departure from a solver's default usage, with its reason and evidence, rated from L0 (a documented option) to L3 (a change to the solver itself). These records are not part of the paper, which counts lines of wrapper code instead.</p>
+      </div>
+    </div>
+
+    <figure>
+      <video src="media/inflow_optimization.mp4" poster="media/inflow_optimization.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the inflow profile of a channel past a cylinder. Their flow fields, drag curves, and inlet profiles evolve over Adam iterations and end at similar drag."></video>
+      <figcaption>Example optimization run on the inflow optimization task, with five solvers. All of them end at about half the starting drag.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <h2>Use a solver in your own code</h2>
+    <div class="use-grid">
+      <div class="panel">
+<pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
+<span class="k">from</span> <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">tesseract_core</a> <span class="k">import</span> Tesseract
+<span class="k">from</span> <a href="https://github.com/pasteurlabs/tesseract-jax">tesseract_jax</a> <span class="k">import</span> apply_tesseract
+<span class="k">from</span> <a href="https://github.com/pasteurlabs/mosaic/tree/main/mosaic/mosaic_shared">mosaic_shared</a>.problems.navier_stokes_grid <span class="k">import</span> make_vortex_ic
+
+v0 = make_vortex_ic(N=64, seed=42)
+image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span class="stack" id="stack"># JAX, reverse-mode AD</span>
+
+<span class="k">with</span> Tesseract.from_image(image) <span class="k">as</span> solver:
+    <span class="k">def</span> loss(v0):
+        out = <span class="f">apply_tesseract</span>(solver, {"v0": v0, "steps": 50})
+        <span class="k">return</span> jax.numpy.mean(out["result"] ** 2)
+
+    grad_v0 = <span class="g">jax.grad</span>(loss)(v0)</pre>
+        <div class="switch">
+          <ul class="solvers" aria-label="Solver">
+            <li><button type="button" data-image="exponax_navier_stokes_grid" data-stack="JAX, reverse-mode AD" aria-pressed="true">Exponax</button></li>
+            <li><button type="button" data-image="ins_navier_stokes_grid" data-stack="Julia, Zygote AD" aria-pressed="false">INS.jl</button></li>
+            <li><button type="button" data-image="jax_cfd_navier_stokes_grid" data-stack="JAX, reverse-mode AD" aria-pressed="false">JAX-CFD</button></li>
+            <li><button type="button" data-image="phiflow_navier_stokes_grid" data-stack="JAX, AD + adjoint solves" aria-pressed="false">PhiFlow</button></li>
+            <li><button type="button" data-image="pict_navier_stokes_grid" data-stack="PyTorch, AD + adjoint solves" aria-pressed="false">PICT</button></li>
+            <li><button type="button" data-image="warp_ns_navier_stokes_grid" data-stack="NVIDIA Warp, kernel AD" aria-pressed="false">Warp-NS</button></li>
+            <li><button type="button" data-image="xlb_navier_stokes_grid" data-stack="JAX, checkpointed AD" aria-pressed="false">XLB</button></li>
+            <li><a class="more" href="#tasks" aria-label="All 14 solvers">…</a></li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <p>Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
+        <p>This code calls a solver from JAX, without the benchmark around it. The <a href="../standalone.html">standalone guide</a> covers the installation, PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="explore">
+  <div class="wrap">
+    <h2>Dive in</h2>
+    <dl class="rows">
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg><a href="../getting-started.html">Run the benchmark</a></dt><dd>Install Mosaic, run the benchmark on your own hardware, and read its output.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7 20v-7M12 20V6M17 20v-10"/></svg><a href="../results/index.html">Current results</a></dt><dd>Every result and plot per task, for the latest version of the benchmark.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><a href="../solvers.html">Solver reference</a></dt><dd>Each solver's checks, usage, and departure from its default usage.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.2-5.1"/><path d="M19 4v4h-4"/></svg><a href="https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper">Reproduce the paper</a></dt><dd>Regenerate the paper's figures and tables from the published results at the <code>v0.3+paper-repro</code> tag, or re-run the experiments.</dd>
+      <dt><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8.5v7M8.5 12h7"/></svg><a href="../contributing.html">Contribute</a></dt><dd>Mosaic thrives on community contributions, for example ones that <a href="../add-solver.html">add a solver</a>, <a href="../add-problem.html">add a task</a> or <a href="https://github.com/pasteurlabs/mosaic/issues">improve how a solver is set up</a>.</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="citation">
+  <div class="wrap">
+    <h2>Cite Mosaic</h2>
+    <div class="cite">
+<pre id="bibtex">@inproceedings{rehmann2026mosaic,
+  title     = {Mosaic: A Benchmark Suite for Differentiable Physics Solvers},
+  author    = {Rehmann, Andrin and Zimmermann, Heiko and H{\"a}fner, Dion},
+  booktitle = {Advances in Neural Information Processing Systems},
+  note      = {Evaluations and Datasets Track},
+  year      = {2026},
+  eprint    = {2606.27895},
+  archivePrefix = {arXiv},
+  primaryClass  = {physics.comp-ph}
+}</pre>
+      <button type="button" class="copy" id="copy">Copy</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Mosaic is developed at <a href="https://simulation.science/">Pasteur Labs</a>.</span>
+    <nav aria-label="Project links">
+      <a href="https://arxiv.org/abs/2606.27895">Paper</a>
+      <a href="https://github.com/pasteurlabs/mosaic">Code</a>
+      <a href="../index.html">Documentation</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var image = document.getElementById("image");
+    var stack = document.getElementById("stack");
+    var buttons = Array.prototype.slice.call(document.querySelectorAll(".solvers button"));
+    var timer = null;
+
+    function select(button) {
+      buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
+      image.textContent = '"' + button.dataset.image + '"';
+      stack.textContent = "# " + button.dataset.stack;
+      [image, stack].forEach(function (el) { el.classList.add("flash"); });
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          [image, stack].forEach(function (el) { el.classList.remove("flash"); });
+        });
+      });
+    }
+
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        stop();
+        select(button);
+      });
+    });
+
+    // Step through the solvers for as long as the panel is on screen, to show that only the
+    // image name changes. Choosing a solver stops it.
+    var panel = document.querySelector(".panel");
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var chosen = false;
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () { chosen = true; });
+    });
+    if (!reduce) {
+      var i = 0;
+      new IntersectionObserver(function (entries) {
+        stop();
+        if (chosen || !entries[0].isIntersecting) return;
+        timer = setInterval(function () {
+          if (chosen) { stop(); return; }
+          i = (i + 1) % buttons.length;
+          select(buttons[i]);
+        }, 2200);
+      }, { threshold: 0.6 }).observe(panel);
+    }
+
+    var copy = document.getElementById("copy");
+    copy.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById("bibtex").textContent).then(function () {
+        copy.textContent = "Copied";
+        setTimeout(function () { copy.textContent = "Copy"; }, 1600);
+      });
+    });
+  })();
+</script>
+<script>
+  // Link previews. Links into the Mosaic documentation show the heading and
+  // first paragraph of the page or section they point to, fetched on first
+  // hover. Links to other sites show a fixed description.
+  (function () {
+    if (!window.matchMedia("(hover: hover)").matches) return;
+
+    var external = {
+      "https://arxiv.org/abs/2606.27895": ["Mosaic on arXiv", "Abstract, versions and downloads of the paper."],
+      "https://arxiv.org/pdf/2606.27895": ["Mosaic paper (PDF)", "The full paper as a PDF from arXiv."],
+      "https://simulation.science/": ["Pasteur Labs", "The company that develops Mosaic and Tesseract."],
+      "https://github.com/pasteurlabs/mosaic": ["pasteurlabs/mosaic", "Source of the benchmark, the solver wrappers and the published results."],
+      "https://github.com/pasteurlabs/mosaic/issues": ["Issues in pasteurlabs/mosaic", "Report a problem with a solver's setup or propose a change."],
+      "https://github.com/pasteurlabs/mosaic/tree/main/mosaic/mosaic_shared": ["mosaic_shared", "The Python package with Mosaic's problem definitions and shared helpers."],
+      "https://github.com/pasteurlabs/mosaic/releases/tag/v0.3%2Bpaper-repro": ["Release v0.3+paper-repro", "The version of Mosaic that the paper's results were produced with."],
+      "https://github.com/pasteurlabs/mosaic/tree/v0.3+paper-repro#reproduce-the-paper": ["Reproduce the paper", "Instructions in the README at the v0.3+paper-repro tag."],
+      "https://docs.pasteurlabs.ai/projects/tesseract-core/latest/": ["Tesseract Core", "Documentation for building and calling Tesseracts."],
+      "https://github.com/pasteurlabs/tesseract-jax": ["pasteurlabs/tesseract-jax", "Calls Tesseracts from JAX so that they take part in jax.grad and jax.jit."],
+      "https://docs.jax.dev/": ["JAX", "Documentation of the JAX array and automatic differentiation library."]
+    };
+
+    var card = document.createElement("div");
+    card.className = "preview";
+    card.id = "link-preview";
+    card.setAttribute("role", "tooltip");
+    document.body.appendChild(card);
+
+    var pages = {};   // documentation page URL -> promise of its parsed document
+    var current = null;
+    var timer = null;
+
+    function text(node) { return node ? node.textContent.replace(/\s+/g, " ").trim() : ""; }
+
+    function page(url) {
+      if (!pages[url]) {
+        pages[url] = fetch(url).then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.text();
+        }).then(function (html) { return new DOMParser().parseFromString(html, "text/html"); });
+      }
+      return pages[url];
+    }
+
+    function describe(link) {
+      var url = new URL(link.href);
+      var where = url.host.replace(/^www\./, "") + url.pathname.replace(/\/$/, "");
+      if (external[link.href]) {
+        return Promise.resolve({ title: external[link.href][0], body: external[link.href][1], where: where });
+      }
+      if (url.origin !== location.origin) {
+        return Promise.resolve({ title: text(link), body: "", where: where });
+      }
+      return page(url.origin + url.pathname).then(function (doc) {
+        var root = url.hash && doc.getElementById(decodeURIComponent(url.hash.slice(1)));
+        var scope = root || doc.querySelector("main") || doc.body;
+        // a section is named by its own heading, a whole page by its title
+        var title = root ? text(root.querySelector("h1, h2, h3, h4")) : "";
+        title = title || text(doc.querySelector("h1")) || text(doc.querySelector("title")).replace(/\s+[–-]\s+Mosaic$/, "");
+        // the first paragraph long enough to be a sentence, which skips badges and labels
+        var body = "";
+        Array.prototype.some.call(scope.querySelectorAll("p"), function (p) {
+          if (text(p).length < 60) return false;
+          body = text(p);
+          return true;
+        });
+        if (body.length > 220) body = body.slice(0, 220).replace(/\s+\S*$/, "") + "…";
+        return { title: title, body: body, where: "Mosaic documentation" };
+      }).catch(function () {
+        return { title: text(link), body: "", where: "Mosaic documentation" };
+      });
+    }
+
+    function place(link) {
+      var box = link.getBoundingClientRect();
+      var w = card.offsetWidth, h = card.offsetHeight, gap = 8;
+      var left = Math.min(Math.max(16, box.left), document.documentElement.clientWidth - w - 16);
+      var below = box.bottom + gap + h <= window.innerHeight || box.top - gap - h < 0;
+      card.style.left = (left + window.scrollX) + "px";
+      card.style.top = ((below ? box.bottom + gap : box.top - gap - h) + window.scrollY) + "px";
+    }
+
+    function show(link) {
+      current = link;
+      describe(link).then(function (d) {
+        if (current !== link) return;
+        card.textContent = "";
+        [["b", d.title], ["span", d.body], ["span", d.where]].forEach(function (part, i) {
+          if (!part[1]) return;
+          var el = document.createElement(part[0]);
+          el.textContent = part[1];
+          if (i === 2) el.className = "where";
+          card.appendChild(el);
+        });
+        place(link);
+        link.setAttribute("aria-describedby", card.id);
+        card.classList.add("on");
+      });
+    }
+
+    function hide() {
+      clearTimeout(timer);
+      if (current) current.removeAttribute("aria-describedby");
+      current = null;
+      card.classList.remove("on");
+    }
+
+    Array.prototype.forEach.call(document.querySelectorAll("a[href]"), function (link) {
+      if (link.getAttribute("href").charAt(0) === "#") return;   // jumps within this page
+      link.removeAttribute("title");                             // the card replaces the native tooltip
+      link.addEventListener("pointerenter", function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () { show(link); }, 250);
+      });
+      link.addEventListener("pointerleave", hide);
+      link.addEventListener("focus", function () { if (link.matches(":focus-visible")) show(link); });
+      link.addEventListener("blur", hide);
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
+    window.addEventListener("scroll", hide, { passive: true });
+  })();
+</script>
+</body>
+</html>
