@@ -77,7 +77,7 @@ the results pages.
   /* text beside a visual, split at the midline: the hero, and the code example further down */
   .hero-grid, .use-grid { display: grid; grid-template-columns: var(--cols); gap: 32px var(--gutter); align-items: start; }
   .hero-grid { margin-top: 48px; }
-  .use-grid { margin: 8px 0 0; align-items: center; }
+  .use-grid { margin: 8px 0 0; }
   .use-grid p:last-child { margin-bottom: 0; }
   .hero-grid > *, .use-grid > * { grid-column: span 6; }
   .lede { font-size: var(--t-large); line-height: 1.55; margin: 0 0 24px; }
@@ -126,6 +126,8 @@ the results pages.
   /* figures in the text are nine columns wide and centred, with the caption centred under them */
   main .wrap > figure img, main .wrap > figure video { width: calc((100% + var(--gutter)) * 9 / 12 - var(--gutter)); margin: 0 auto; }
   main .wrap > figure figcaption { margin-left: auto; margin-right: auto; text-align: center; }
+  /* a figure with large type of its own is set on the text guide, so its labels match the other figures */
+  main .wrap > figure.narrow img { width: calc((100% + var(--gutter)) * 7 / 12 - var(--gutter)); }
 
   /* Sections */
   section { padding: 96px 0 0; }
@@ -210,7 +212,8 @@ the results pages.
     .hero-grid > *, .use-grid > * { grid-column: 1 / -1; }
     main .wrap > .prose, main .wrap > .pinned { grid-column: 1 / span 9; }
     main .wrap > figure figcaption { max-width: none; }
-    main .wrap > figure img, main .wrap > figure video { width: 100%; }
+    main .wrap > figure img, main .wrap > figure.narrow img, main .wrap > figure video { width: 100%; }
+    .use-grid > .panel { order: 2; }
   }
   @media (max-width: 640px) {
     :root { --gutter: 16px; }
@@ -241,7 +244,7 @@ the results pages.
 
     <div class="hero-grid">
       <div>
-        <p class="lede"><span class="q">Which differentiable solver should you use, and how well does it perform?</span> Each solver is evaluated in its own paper, on its own problems. There is no central benchmark to compare them on. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients. It then measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so you can compare them before committing to one.</p>
+        <p class="lede"><span class="q">Which differentiable solver should you use for a given optimization task, and how much does the choice matter?</span> Typically, each solver is evaluated on its own problems in isolation, which makes comparisons difficult. Mosaic puts 14 solvers behind one unified interface, whatever their language or way of computing gradients. It then measures their forward and gradient accuracy, cost, and integration effort on shared tasks, so you can compare before committing to one.</p>
         <div class="actions" role="group" aria-label="Paper links">
           <a class="icon primary" href="https://arxiv.org/abs/2606.27895" title="Read the paper on arXiv"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15h6M9 18h4"/></svg>Paper</a>
           <a class="icon" href="https://arxiv.org/pdf/2606.27895" title="Download the paper as a PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>PDF</a>
@@ -252,7 +255,7 @@ the results pages.
 
       <figure>
         <video src="media/topology_optimization.mp4" poster="media/topology_optimization.jpg" width="1600" height="1036" autoplay muted loop playsinline preload="metadata" aria-label="Five solvers optimize the material layout of the same 3D cantilever. The five structures fill in as their solvers iterate. A time axis below marks when each solver finishes: 31 seconds, 6, 10, 26 and 41 minutes."></video>
-        <figcaption>Five solvers minimize the compliance of the same cantilever on 48×24×24 cells. The axis marks when each one finishes: torch-fem and JAX-FEM on one GPU, the others on 16 CPU cores. The paper's compliance task uses the same beam on a 16×2×8 mesh; this finer run was made for this page.</figcaption>
+        <figcaption>Five solvers minimize the compliance of the same cantilever on 48×24×24 cells (torch-fem and JAX-FEM on one GPU, the others on 16 CPU cores). Finer re-run of the paper's compliance optimization task.</figcaption>
       </figure>
     </div>
 
@@ -286,7 +289,7 @@ the results pages.
       </li>
     </ol>
 
-    <figure>
+    <figure class="narrow">
       <img src="media/horizon_sweep_limits.png" alt="Peak GPU memory, wall time, and gradient norm of one VJP against rollout length for seven 3D Navier–Stokes solvers. Three lines end in out-of-memory markers after ten to twenty thousand steps, three end in non-finite gradients after a few hundred steps, and Exponax runs to the end.">
       <figcaption>One gradient call against rollout length on initial condition recovery. Each line ends at the solver's last successful rollout, either because it ran out of memory or because its gradient stopped being finite. For the JAX solvers, every point after the first includes JIT compilation for its rollout length, so their wall time never drops below the compilation time.</figcaption>
     </figure>
@@ -365,10 +368,6 @@ the results pages.
   <div class="wrap">
     <h2>Use a solver in your own code</h2>
     <div class="use-grid">
-      <div>
-        <p>Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
-        <p>This code calls a solver from JAX, without the benchmark around it. The <a href="../standalone.html">standalone guide</a> covers the installation, PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
-      </div>
       <div class="panel">
 <pre aria-label="Python code that computes a JAX gradient through a Mosaic solver"><span class="k">import</span> <a href="https://docs.jax.dev/">jax</a>
 <span class="k">from</span> <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">tesseract_core</a> <span class="k">import</span> Tesseract
@@ -396,6 +395,10 @@ image = <span class="img" id="image">"exponax_navier_stokes_grid"</span>  <span 
             <li><a class="more" href="#tasks" aria-label="All 14 solvers">…</a></li>
           </ul>
         </div>
+      </div>
+      <div>
+        <p>Every solver in Mosaic is packaged as a <a href="https://docs.pasteurlabs.ai/projects/tesseract-core/latest/">Tesseract</a>, a container that exposes a forward pass and a vector–Jacobian product, whatever the solver's language or way of computing gradients. The benchmark calls solvers through this interface, and your own code can too.</p>
+        <p>This code calls a solver from JAX, without the benchmark around it. The <a href="../standalone.html">standalone guide</a> covers the installation, PyTorch, the mesh solvers, GPUs, and loading a solver without Docker.</p>
       </div>
     </div>
   </div>
