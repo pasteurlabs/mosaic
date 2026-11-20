@@ -47,6 +47,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import jax
@@ -294,6 +295,9 @@ class KernelContext:
         default_factory=dict
     )  # full per-run payload for kernel-specific config
     seed: int = 0
+    # The experiment's results directory, with the ``_debug`` suffix in
+    # --debug runs. Kernels that checkpoint their own progress write there.
+    out_dir: Path | None = None
 
 
 Kernel = Callable[[Any, KernelContext], dict]
@@ -501,6 +505,7 @@ def run_experiment(
             _run_output_key: str = run_output_key,
             _run: dict = run,
             _seed: int = seed,
+            _out_dir: Path = out_dir,
         ) -> KernelContext:
             _ic = _ic_per_val[val] if _ic_per_val is not None else _base_ic
             phys = {**_base_phys, "domain_extent": domain_extent}
@@ -519,6 +524,7 @@ def run_experiment(
                 domain_extent=domain_extent,
                 run=_run,
                 seed=_seed,
+                out_dir=_out_dir,
             )
 
         def _absorb(
