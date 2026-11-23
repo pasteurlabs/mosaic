@@ -83,12 +83,10 @@ jobs:
           sudo docker image prune --all --force
           df -h /
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
+      - uses: astral-sh/setup-uv@v10.3.3
 
-      - name: Install tesseract-core
-        run: pip install tesseract-core
+      - name: Install Mosaic (for the locked tesseract-core)
+        run: cp production.uv.lock uv.lock && uv sync --frozen
 
       - name: Log in to GHCR
         # Only the publish (push-to-main / dispatch) path pushes to GHCR, so
@@ -119,7 +117,7 @@ jobs:
         id: image
         run: |
           CONFIG="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}/tesseract_config.yaml"
-          IMAGE_NAME=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG'))['name'])")
+          IMAGE_NAME=$(uv run python -c "import yaml; print(yaml.safe_load(open('$CONFIG'))['name'])")
           GHCR_BASE="ghcr.io/${{ github.repository_owner }}/mosaic/${IMAGE_NAME}"
           echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "ghcr_base=${GHCR_BASE}" >> "$GITHUB_OUTPUT"
@@ -134,7 +132,7 @@ jobs:
             --cache-to type=inline
         run: |
           SOLVER_DIR="mosaic/tesseracts/${{ matrix.domain }}/${{ matrix.solver }}"
-          tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
+          uv run tesseract --loglevel debug build --tag latest "${SOLVER_DIR}"
 
       # ── main-push path: publish to GHCR ──────────────────────────────
       # Push-to-main (and manual dispatch) publish the baseline images that PR
