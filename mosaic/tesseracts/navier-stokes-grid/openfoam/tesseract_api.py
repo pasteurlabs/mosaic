@@ -225,8 +225,25 @@ boundary
     (system_dir / "blockMeshDict").write_text(content)
 
 
-def _write_control_dict(system_dir: Path, dt: float, end_time: float) -> None:
+def _write_control_dict(
+    system_dir: Path,
+    dt: float,
+    end_time: float,
+    *,
+    foam_run: bool = False,
+    write_every: int | None = None,
+) -> None:
+    """Write the periodic-mode controlDict.
+
+    By default only the final time is written. With ``write_every``, a time
+    directory is kept every ``write_every`` steps, for the snapshots.
+    """
     n_steps = max(1, round(end_time / dt))
+    write_interval = n_steps if write_every is None else write_every
+    purge_write = 1 if write_every is None else 0
+    application = (
+        "foamRun;\nsolver          incompressibleFluid;" if foam_run else "icoFoam;"
+    )
     content = f"""\
 FoamFile
 {{
@@ -235,15 +252,15 @@ FoamFile
     class       dictionary;
     object      controlDict;
 }}
-application     icoFoam;
+application     {application}
 startFrom       startTime;
 startTime       0;
 stopAt          endTime;
 endTime         {end_time:.10g};
 deltaT          {dt:.10g};
 writeControl    timeStep;
-writeInterval   {n_steps};
-purgeWrite      1;
+writeInterval   {write_interval};
+purgeWrite      {purge_write};
 writeFormat     ascii;
 writePrecision  10;
 writeCompression off;
@@ -448,6 +465,150 @@ boundaryField
 }}
 """
     (case_dir / "0" / "p").write_text(content)
+
+
+# ---------------------------------------------------------------------------
+# Periodic mode with forcing or linear drag: foamRun incompressibleFluid
+# ---------------------------------------------------------------------------
+# icoFoam has no momentum source, so a run with ``forcing`` or ``linear_drag``
+# uses foamRun's incompressibleFluid solver with a coded fvModel instead. PIMPLE
+# with one outer corrector and two pressure correctors is the PISO scheme icoFoam
+# runs. Runs without a source keep icoFoam, so their results do not change.
+
+
+def _write_source_numerics(system_dir: Path, constant_dir: Path) -> None:
+    """fvSchemes, fvSolution and momentumTransport for the source-term case."""
+    (system_dir / "fvSchemes").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvSchemes")
+        + """\
+ddtSchemes      { default Euler; }
+gradSchemes     { default Gauss linear; }
+divSchemes
+{
+    default         none;
+    div(phi,U)      Gauss linear;
+    div((nuEff*dev2(T(grad(U))))) Gauss linear;
+}
+laplacianSchemes { default Gauss linear corrected; }
+interpolationSchemes { default linear; }
+snGradSchemes   { default corrected; }
+"""
+    )
+    (system_dir / "fvSolution").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvSolution")
+        + """\
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        smoother        DICGaussSeidel;
+        tolerance       1e-06;
+        relTol          0.05;
+    }
+    pFinal { $p; relTol 0; }
+    U
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-08;
+        relTol          0;
+    }
+    UFinal { $U; }
+}
+PIMPLE
+{
+    momentumPredictor        yes;
+    nOuterCorrectors         1;
+    nCorrectors              2;
+    nNonOrthogonalCorrectors 0;
+    pRefCell                 0;
+    pRefValue                0;
+}
+"""
+    )
+    (constant_dir / "momentumTransport").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="momentumTransport")
+        + "simulationType  laminar;\n"
+    )
+
+
+def _write_forcing(case_dir: Path, forcing: np.ndarray) -> None:
+    """Write 0/F, the body force at the cell centers, in 0/U's layout.
+
+    It sits in the start time directory, not constant/, so decomposePar splits it
+    over the processors along with U and p.
+    """
+    _write_initial_u(case_dir, forcing)
+    text = (case_dir / "0" / "U").read_text()
+    (case_dir / "0" / "U").unlink()
+    text = text.replace("object      U;", "object      F;").replace(
+        "dimensions      [0 1 -1 0 0 0 0];", "dimensions      [0 1 -2 0 0 0 0];"
+    )
+    (case_dir / "0" / "F").write_text(text)
+
+
+def _write_fv_models(constant_dir: Path, has_forcing: bool, linear_drag: float) -> None:
+    """A coded fvModel adding ``F - linear_drag * U`` to the momentum equation.
+
+    The force is explicit, read once from 0/F. The drag is implicit.
+    """
+    code = []
+    if has_forcing:
+        code.append(
+            """\
+        static autoPtr<volVectorField> F;
+        if (!F.valid())
+        {
+            F.reset
+            (
+                new volVectorField
+                (
+                    IOobject
+                    (
+                        "F",
+                        "0",
+                        mesh(),
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE
+                    ),
+                    mesh()
+                )
+            );
+        }
+        eqn += F();"""
+        )
+    if linear_drag != 0.0:
+        code.append(
+            f"""\
+        eqn += fvm::Sp
+        (
+            dimensionedScalar(dimless/dimTime, {-linear_drag:.17g}),
+            eqn.psi()
+        );"""
+        )
+    body = "\n".join(code)
+    (constant_dir / "fvModels").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvModels")
+        + f"""\
+forcingAndDrag
+{{
+    type            coded;
+    select          all;
+    field           U;
+
+    codeInclude
+    #{{
+        #include "fvmSup.H"
+    #}};
+
+    codeAddSup
+    #{{
+{body}
+    #}};
+}}
+"""
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -949,12 +1110,8 @@ def _run_channel(inputs: InputSchema) -> dict:
     }
 
 
-def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
-    """Read the latest time directory and return velocity as v0-shaped float32.
-
-    2-D cell ordering: cell = ix + iy*N  → flat[k]: ix = k%N, iy = k//N
-    3-D cell ordering: cell = ix + iy*N + iz*N² → flat[k]: ix=k%N, iy=(k//N)%N, iz=k//(N²)
-    """
+def _output_time_dirs(workdir: Path) -> list[Path]:
+    """Time directories after the start, in time order."""
     time_dirs = []
     for d in workdir.iterdir():
         if d.is_dir():
@@ -966,8 +1123,20 @@ def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
                 pass
     if not time_dirs:
         raise RuntimeError(f"No output time directories found in {workdir}")
+    return [d for _, d in sorted(time_dirs, key=lambda x: x[0])]
 
-    latest_dir = max(time_dirs, key=lambda x: x[0])[1]
+
+def _read_final_velocity(workdir: Path, N: int, ndim: int) -> np.ndarray:
+    """Read the latest time directory and return velocity as v0-shaped float32."""
+    return _read_velocity(_output_time_dirs(workdir)[-1], N, ndim)
+
+
+def _read_velocity(latest_dir: Path, N: int, ndim: int) -> np.ndarray:
+    """Read U from one time directory and return it as v0-shaped float32.
+
+    2-D cell ordering: cell = ix + iy*N  → flat[k]: ix = k%N, iy = k//N
+    3-D cell ordering: cell = ix + iy*N + iz*N² → flat[k]: ix=k%N, iy=(k//N)%N, iz=k//(N²)
+    """
     text = (latest_dir / "U").read_text()
 
     m = re.search(
@@ -1007,16 +1176,14 @@ def apply(inputs: InputSchema) -> OutputSchema:
 
     With an obstacle, also return the final pressure and the force history.
     """
-    if inputs.forcing is not None or inputs.linear_drag is not None:
-        # Supporting a source term needs the foamRun incompressibleFluid
-        # solver with a coded fvModel in place of icoFoam.
-        raise NotImplementedError(
-            "openfoam runs icoFoam, which has no momentum source term, so it "
-            "cannot apply forcing or linear_drag"
-        )
-    if inputs.snapshot_every is not None:
-        raise NotImplementedError("openfoam does not return snapshots")
+    # A zero force and a zero drag are no source: they keep icoFoam, as without them.
+    forcing = None if inputs.forcing is None else np.asarray(inputs.forcing, np.float32)
+    if forcing is not None and not forcing.any():
+        forcing = None
+    drag = 0.0 if inputs.linear_drag is None else float(np.ravel(inputs.linear_drag)[0])
+    has_source = forcing is not None or drag != 0.0
     if inputs.obstacle is not None:
+        # The schema allows forcing and linear_drag only without an obstacle.
         return _run_channel(inputs)
 
     nu = float(inputs.viscosity[0])
@@ -1034,23 +1201,42 @@ def apply(inputs: InputSchema) -> OutputSchema:
         (workdir / "system").mkdir()
 
         _write_block_mesh_dict(workdir / "system", N, L, ndim)
-        _write_control_dict(workdir / "system", dt, end_time)
-        _write_fv_schemes(workdir / "system")
-        _write_fv_solution(workdir / "system")
+        _write_control_dict(
+            workdir / "system",
+            dt,
+            end_time,
+            foam_run=has_source,
+            write_every=inputs.snapshot_every,
+        )
         _write_transport_properties(workdir / "constant", nu)
-        _write_turbulence_properties(workdir / "constant")
+        if has_source:
+            _write_source_numerics(workdir / "system", workdir / "constant")
+            _write_fv_models(workdir / "constant", forcing is not None, drag)
+        else:
+            _write_fv_schemes(workdir / "system")
+            _write_fv_solution(workdir / "system")
+            _write_turbulence_properties(workdir / "constant")
+        if forcing is not None:
+            # before 0/U, which _write_forcing borrows as a template
+            _write_forcing(workdir, forcing)
         _write_initial_u(workdir, v0)
         _write_initial_p(workdir, ndim)
 
         _run_of("blockMesh", workdir)
         n_procs = _decompose(workdir, N**ndim)
-        _run_of(_parallel("icoFoam", n_procs), workdir)
+        solver = "foamRun" if has_source else "icoFoam"
+        _run_of(_parallel(solver, n_procs), workdir)
+        if inputs.snapshot_every is None:
+            if n_procs > 1:
+                _run_of("reconstructPar -latestTime", workdir)
+            return {"result": _read_final_velocity(workdir, N, ndim)}
+
         if n_procs > 1:
-            _run_of("reconstructPar -latestTime", workdir)
-
-        result = _read_final_velocity(workdir, N, ndim)
-
-    return {"result": result}
+            _run_of("reconstructPar", workdir)
+        frames = np.stack(
+            [_read_velocity(d, N, ndim) for d in _output_time_dirs(workdir)]
+        )
+    return {"result": frames[-1], "snapshots": frames}
 
 
 def abstract_eval(abstract_inputs: InputSchema) -> dict:
@@ -1061,4 +1247,7 @@ def abstract_eval(abstract_inputs: InputSchema) -> dict:
     if abstract_inputs.obstacle is not None:
         out["pressure"] = {"shape": shape[:3], "dtype": "float32"}
         out["body_force"] = {"shape": (abstract_inputs.steps, 2), "dtype": "float32"}
+    if abstract_inputs.snapshot_every is not None:
+        frames = abstract_inputs.steps // abstract_inputs.snapshot_every
+        out["snapshots"] = {"shape": (frames, *shape), "dtype": "float32"}
     return out
