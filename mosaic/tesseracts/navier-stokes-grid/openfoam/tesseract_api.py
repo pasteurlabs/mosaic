@@ -44,6 +44,20 @@ from pydantic import model_validator
 # OpenFOAM Foundation v12 environment (installed from openfoam.org)
 _OF_BASHRC = "/opt/openfoam12/etc/bashrc"
 
+# OpenFOAM case files, with @@NAME@@ placeholders filled in by _render.
+_TEMPLATES = Path(__file__).parent / "case_templates"
+
+
+def _render(template: str, dest: Path, **values: object) -> None:
+    """Write case_templates/``template`` to ``dest`` with its placeholders filled."""
+    text = (_TEMPLATES / template).read_text()
+    for key, value in values.items():
+        text = text.replace(f"@@{key}@@", str(value))
+    unfilled = re.findall(r"@@\w+@@", text)
+    if unfilled:
+        raise RuntimeError(f"{template}: placeholders not filled: {unfilled}")
+    dest.write_text(text)
+
 
 class InputSchema(_CanonicalInputSchema):
     """Input schema for the OpenFOAM Navier-Stokes tesseract."""
@@ -85,145 +99,14 @@ def _run_of(cmd: str, cwd: Path) -> None:
 
 
 def _write_block_mesh_dict(system_dir: Path, N: int, L: float, ndim: int) -> None:
-    """blockMeshDict: N×N (2-D) or N×N×N (3-D) Cartesian periodic grid."""
-    if ndim == 2:
-        # Quasi-2-D: one cell thick in z, empty patches front/back.
-        dz = L / N
-        content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      blockMeshDict;
-}}
-scale   1;
-
-vertices
-(
-    (0 0 0)      // 0
-    ({L} 0 0)    // 1
-    ({L} {L} 0)  // 2
-    (0 {L} 0)    // 3
-    (0 0 {dz})   // 4
-    ({L} 0 {dz}) // 5
-    ({L} {L} {dz}) // 6
-    (0 {L} {dz}) // 7
-);
-
-blocks
-(
-    hex (0 1 2 3 4 5 6 7) ({N} {N} 1) simpleGrading (1 1 1)
-);
-
-boundary
-(
-    x_lo
-    {{
-        type cyclic;
-        neighbourPatch x_hi;
-        faces ((0 4 7 3));
-    }}
-    x_hi
-    {{
-        type cyclic;
-        neighbourPatch x_lo;
-        faces ((1 2 6 5));
-    }}
-    y_lo
-    {{
-        type cyclic;
-        neighbourPatch y_hi;
-        faces ((0 1 5 4));
-    }}
-    y_hi
-    {{
-        type cyclic;
-        neighbourPatch y_lo;
-        faces ((3 7 6 2));
-    }}
-    front
-    {{
-        type empty;
-        faces ((0 3 2 1));
-    }}
-    back
-    {{
-        type empty;
-        faces ((4 5 6 7));
-    }}
-);
-"""
-    else:
-        # Full 3-D cube: N×N×N cells, all six faces cyclic.
-        content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      blockMeshDict;
-}}
-scale   1;
-
-vertices
-(
-    (0 0 0)      // 0
-    ({L} 0 0)    // 1
-    ({L} {L} 0)  // 2
-    (0 {L} 0)    // 3
-    (0 0 {L})    // 4
-    ({L} 0 {L})  // 5
-    ({L} {L} {L}) // 6
-    (0 {L} {L})  // 7
-);
-
-blocks
-(
-    hex (0 1 2 3 4 5 6 7) ({N} {N} {N}) simpleGrading (1 1 1)
-);
-
-boundary
-(
-    x_lo
-    {{
-        type cyclic;
-        neighbourPatch x_hi;
-        faces ((0 4 7 3));
-    }}
-    x_hi
-    {{
-        type cyclic;
-        neighbourPatch x_lo;
-        faces ((1 2 6 5));
-    }}
-    y_lo
-    {{
-        type cyclic;
-        neighbourPatch y_hi;
-        faces ((0 1 5 4));
-    }}
-    y_hi
-    {{
-        type cyclic;
-        neighbourPatch y_lo;
-        faces ((3 7 6 2));
-    }}
-    z_lo
-    {{
-        type cyclic;
-        neighbourPatch z_hi;
-        faces ((0 3 2 1));
-    }}
-    z_hi
-    {{
-        type cyclic;
-        neighbourPatch z_lo;
-        faces ((4 5 6 7));
-    }}
-);
-"""
-    (system_dir / "blockMeshDict").write_text(content)
+    """blockMeshDict: N×N (2-D, one cell thick in z) or N×N×N (3-D) periodic grid."""
+    _render(
+        f"periodic/system/blockMeshDict.{ndim}d",
+        system_dir / "blockMeshDict",
+        N=N,
+        L=L,
+        DZ=L / N,
+    )
 
 
 def _write_control_dict(
@@ -240,55 +123,21 @@ def _write_control_dict(
     directory is kept every ``write_every`` steps, for the snapshots.
     """
     n_steps = max(1, round(end_time / dt))
-    write_interval = n_steps if write_every is None else write_every
-    purge_write = 1 if write_every is None else 0
-    application = (
-        "foamRun;\nsolver          incompressibleFluid;" if foam_run else "icoFoam;"
+    _render(
+        "periodic/system/controlDict",
+        system_dir / "controlDict",
+        APPLICATION=(
+            "foamRun;\nsolver          incompressibleFluid;" if foam_run else "icoFoam;"
+        ),
+        END_TIME=f"{end_time:.10g}",
+        DELTA_T=f"{dt:.10g}",
+        WRITE_INTERVAL=n_steps if write_every is None else write_every,
+        PURGE_WRITE=1 if write_every is None else 0,
     )
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      controlDict;
-}}
-application     {application}
-startFrom       startTime;
-startTime       0;
-stopAt          endTime;
-endTime         {end_time:.10g};
-deltaT          {dt:.10g};
-writeControl    timeStep;
-writeInterval   {write_interval};
-purgeWrite      {purge_write};
-writeFormat     ascii;
-writePrecision  10;
-writeCompression off;
-timeFormat      general;
-timePrecision   10;
-runTimeModifiable false;
-"""
-    (system_dir / "controlDict").write_text(content)
 
 
 def _write_fv_schemes(system_dir: Path) -> None:
-    content = """\
-FoamFile
-{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      fvSchemes;
-}
-ddtSchemes      { default Euler; }
-gradSchemes     { default Gauss linear; }
-divSchemes      { default none; div(phi,U) Gauss linear; }
-laplacianSchemes { default Gauss linear corrected; }
-interpolationSchemes { default linear; }
-snGradSchemes   { default corrected; }
-"""
-    (system_dir / "fvSchemes").write_text(content)
+    _render("periodic/system/fvSchemes", system_dir / "fvSchemes")
 
 
 def _write_fv_solution(system_dir: Path) -> None:
@@ -298,174 +147,66 @@ def _write_fv_solution(system_dir: Path) -> None:
     # The momentum predictor starts from the previous step's U, and a loose
     # tolerance leaves part of each step's update unsolved. On fine grids,
     # where steps are small and many, that becomes an error floor.
-    content = """\
-FoamFile
-{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      fvSolution;
-}
-solvers
-{
-    p
-    {
-        solver          GAMG;
-        smoother        DICGaussSeidel;
-        tolerance       1e-06;
-        relTol          0.05;
-    }
-    pFinal { $p; relTol 0; }
-    U
-    {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
-        tolerance       1e-08;
-        relTol          0;
-    }
-}
-PISO
-{
-    nCorrectors              2;
-    nNonOrthogonalCorrectors 0;
-    pRefCell                 0;
-    pRefValue                0;
-}
-"""
-    (system_dir / "fvSolution").write_text(content)
+    _render("periodic/system/fvSolution", system_dir / "fvSolution")
 
 
 def _write_transport_properties(constant_dir: Path, nu: float) -> None:
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      physicalProperties;
-}}
-viscosityModel  constant;
-nu              {nu:.10g};
-"""
-    (constant_dir / "physicalProperties").write_text(content)
+    _render(
+        "common/constant/physicalProperties",
+        constant_dir / "physicalProperties",
+        NU=f"{nu:.10g}",
+    )
 
 
 def _write_turbulence_properties(constant_dir: Path) -> None:
-    content = """\
-FoamFile
-{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      turbulenceProperties;
-}
-simulationType  laminar;
-"""
-    (constant_dir / "turbulenceProperties").write_text(content)
+    _render(
+        "periodic/constant/turbulenceProperties", constant_dir / "turbulenceProperties"
+    )
 
 
-def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:
-    """Write 0/U from v0 as a nonuniform OpenFOAM internalField.
+def _write_vector_field(
+    case_dir: Path, name: str, dimensions: str, field: np.ndarray
+) -> None:
+    """Write 0/``name`` from a v0-shaped field as a nonuniform internalField.
 
-    2-D: v0 shape (N, N, 1, 2) — cell ordering ix + iy*N (x fastest).
-    3-D: v0 shape (N, N, N, 3) — cell ordering ix + iy*N + iz*N*N (x fastest).
+    2-D: shape (N, N, 1, 2) — cell ordering ix + iy*N (x fastest).
+    3-D: shape (N, N, N, 3) — cell ordering ix + iy*N + iz*N*N (x fastest).
     """
-    ndim = v0.shape[-1]
-    N = v0.shape[0]
-
+    ndim = field.shape[-1]
+    N = field.shape[0]
     if ndim == 2:
         n_cells = N * N
-        vel = v0[:, :, 0, :]  # (N, N, 2)
+        vel = field[:, :, 0, :]  # (N, N, 2)
         # Transpose so iy is outer (C-order ravel → ix + iy*N)
         vx = vel[:, :, 0].T.ravel()
         vy = vel[:, :, 1].T.ravel()
         lines = "\n".join(f"({vx[k]:.8g} {vy[k]:.8g} 0)" for k in range(n_cells))
-        boundary = """\
-    x_lo  { type cyclic; value $internalField; }
-    x_hi  { type cyclic; value $internalField; }
-    y_lo  { type cyclic; value $internalField; }
-    y_hi  { type cyclic; value $internalField; }
-    front { type empty; }
-    back  { type empty; }"""
     else:
         n_cells = N * N * N
-        vel = v0  # (N, N, N, 3)
         # Cell ordering: ix + iy*N + iz*N²  (x fastest → transpose to (nz,ny,nx) for C-ravel)
-        vx = vel[:, :, :, 0].transpose(2, 1, 0).ravel()
-        vy = vel[:, :, :, 1].transpose(2, 1, 0).ravel()
-        vz = vel[:, :, :, 2].transpose(2, 1, 0).ravel()
+        vx = field[:, :, :, 0].transpose(2, 1, 0).ravel()
+        vy = field[:, :, :, 1].transpose(2, 1, 0).ravel()
+        vz = field[:, :, :, 2].transpose(2, 1, 0).ravel()
         lines = "\n".join(
             f"({vx[k]:.8g} {vy[k]:.8g} {vz[k]:.8g})" for k in range(n_cells)
         )
-        boundary = """\
-    x_lo  { type cyclic; value $internalField; }
-    x_hi  { type cyclic; value $internalField; }
-    y_lo  { type cyclic; value $internalField; }
-    y_hi  { type cyclic; value $internalField; }
-    z_lo  { type cyclic; value $internalField; }
-    z_hi  { type cyclic; value $internalField; }"""
+    _render(
+        f"periodic/0/vector.{ndim}d",
+        case_dir / "0" / name,
+        OBJECT=name,
+        DIMENSIONS=dimensions,
+        N_CELLS=n_cells,
+        VALUES=lines,
+    )
 
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volVectorField;
-    object      U;
-}}
-dimensions      [0 1 -1 0 0 0 0];
 
-internalField   nonuniform List<vector>
-{n_cells}
-(
-{lines}
-)
-;
-
-boundaryField
-{{
-{boundary}
-}}
-"""
-    (case_dir / "0" / "U").write_text(content)
+def _write_initial_u(case_dir: Path, v0: np.ndarray) -> None:
+    """Write 0/U from v0."""
+    _write_vector_field(case_dir, "U", "[0 1 -1 0 0 0 0]", v0)
 
 
 def _write_initial_p(case_dir: Path, ndim: int) -> None:
-    if ndim == 2:
-        boundary = """\
-    x_lo  { type cyclic; }
-    x_hi  { type cyclic; }
-    y_lo  { type cyclic; }
-    y_hi  { type cyclic; }
-    front { type empty; }
-    back  { type empty; }"""
-    else:
-        boundary = """\
-    x_lo  { type cyclic; }
-    x_hi  { type cyclic; }
-    y_lo  { type cyclic; }
-    y_hi  { type cyclic; }
-    z_lo  { type cyclic; }
-    z_hi  { type cyclic; }"""
-
-    content = f"""\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      p;
-}}
-dimensions      [0 2 -2 0 0 0 0];
-
-internalField   uniform 0;
-
-boundaryField
-{{
-{boundary}
-}}
-"""
-    (case_dir / "0" / "p").write_text(content)
+    _render(f"periodic/0/p.{ndim}d", case_dir / "0" / "p")
 
 
 # ---------------------------------------------------------------------------
@@ -479,59 +220,9 @@ boundaryField
 
 def _write_source_numerics(system_dir: Path, constant_dir: Path) -> None:
     """fvSchemes, fvSolution and momentumTransport for the source-term case."""
-    (system_dir / "fvSchemes").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvSchemes")
-        + """\
-ddtSchemes      { default Euler; }
-gradSchemes     { default Gauss linear; }
-divSchemes
-{
-    default         none;
-    div(phi,U)      Gauss linear;
-    div((nuEff*dev2(T(grad(U))))) Gauss linear;
-}
-laplacianSchemes { default Gauss linear corrected; }
-interpolationSchemes { default linear; }
-snGradSchemes   { default corrected; }
-"""
-    )
-    (system_dir / "fvSolution").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvSolution")
-        + """\
-solvers
-{
-    p
-    {
-        solver          GAMG;
-        smoother        DICGaussSeidel;
-        tolerance       1e-06;
-        relTol          0.05;
-    }
-    pFinal { $p; relTol 0; }
-    U
-    {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
-        tolerance       1e-08;
-        relTol          0;
-    }
-    UFinal { $U; }
-}
-PIMPLE
-{
-    momentumPredictor        yes;
-    nOuterCorrectors         1;
-    nCorrectors              2;
-    nNonOrthogonalCorrectors 0;
-    pRefCell                 0;
-    pRefValue                0;
-}
-"""
-    )
-    (constant_dir / "momentumTransport").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="momentumTransport")
-        + "simulationType  laminar;\n"
-    )
+    _render("common/system/fvSchemes.incompressibleFluid", system_dir / "fvSchemes")
+    _render("source/system/fvSolution", system_dir / "fvSolution")
+    _render("common/constant/momentumTransport", constant_dir / "momentumTransport")
 
 
 def _write_forcing(case_dir: Path, forcing: np.ndarray) -> None:
@@ -540,13 +231,7 @@ def _write_forcing(case_dir: Path, forcing: np.ndarray) -> None:
     It sits in the start time directory, not constant/, so decomposePar splits it
     over the processors along with U and p.
     """
-    _write_initial_u(case_dir, forcing)
-    text = (case_dir / "0" / "U").read_text()
-    (case_dir / "0" / "U").unlink()
-    text = text.replace("object      U;", "object      F;").replace(
-        "dimensions      [0 1 -1 0 0 0 0];", "dimensions      [0 1 -2 0 0 0 0];"
-    )
-    (case_dir / "0" / "F").write_text(text)
+    _write_vector_field(case_dir, "F", "[0 1 -2 0 0 0 0]", forcing)
 
 
 def _write_fv_models(constant_dir: Path, has_forcing: bool, linear_drag: float) -> None:
@@ -559,64 +244,17 @@ def _write_fv_models(constant_dir: Path, has_forcing: bool, linear_drag: float) 
     """
     models = []
     if linear_drag != 0.0:
-        models.append(
-            f"""\
-linearDrag
-{{
-    type            semiImplicitSource;
-    select          all;
-    volumeMode      specific;
-    sources
-    {{
-        U
-        {{
-            explicit    (0 0 0);
-            implicit    {-linear_drag:.17g};
-        }}
-    }}
-}}
-"""
-        )
+        drag = (_TEMPLATES / "source/fvModels/linearDrag").read_text()
+        models.append(drag.replace("@@IMPLICIT@@", f"{-linear_drag:.17g}"))
     if has_forcing:
         # mosaic-intervention: coded-body-force
-        models.append(
-            """\
-bodyForce
-{
-    type            coded;
-    select          all;
-    field           U;
-
-    codeAddSup
-    #{
-        // The force at the cell centres, read once from 0/F.
-        static autoPtr<volVectorField> F;
-        if (!F.valid())
-        {
-            F.reset
-            (
-                new volVectorField
-                (
-                    IOobject
-                    (
-                        "F",
-                        "0",
-                        mesh(),
-                        IOobject::MUST_READ,
-                        IOobject::NO_WRITE
-                    ),
-                    mesh()
-                )
-            );
-        }
-        eqn += F();
-    #};
-}
-"""
-        )
+        models.append((_TEMPLATES / "source/fvModels/bodyForce").read_text())
         # mosaic-intervention-end: coded-body-force
-    (constant_dir / "fvModels").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvModels") + "\n".join(models)
+    # The template ends in a newline after @@MODELS@@, and so does each model.
+    _render(
+        "source/constant/fvModels",
+        constant_dir / "fvModels",
+        MODELS="\n".join(models).removesuffix("\n"),
     )
 
 
@@ -629,16 +267,6 @@ _RADIAL_GRADING = 0.5
 # Cell growth along the wake block, outlet cell size over the cell size next
 # to the cylinder.
 _WAKE_GRADING = 10.0
-
-_FOAM_HEADER = """\
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       {cls};
-    object      {obj};
-}}
-"""
 
 
 def _write_channel_block_mesh_dict(
@@ -749,82 +377,29 @@ def _write_channel_block_mesh_dict(
         for name, (kind, faces) in patches.items()
     )
     nl = "\n    "
-    content = (
-        _FOAM_HEADER.format(cls="dictionary", obj="blockMeshDict")
-        + f"""\
-scale   1;
-
-vertices
-(
-    {nl.join(vertices)}
-);
-
-blocks
-(
-    {nl.join(blocks)}
-);
-
-edges
-(
-    {nl.join(edges)}
-);
-
-boundary
-(
-{boundary}
-);
-
-defaultPatch
-{{
-    name    frontAndBack;
-    type    empty;
-}}
-"""
+    _render(
+        "channel/system/blockMeshDict",
+        system_dir / "blockMeshDict",
+        VERTICES=nl.join(vertices),
+        BLOCKS=nl.join(blocks),
+        EDGES=nl.join(edges),
+        BOUNDARY=boundary,
     )
-    (system_dir / "blockMeshDict").write_text(content)
 
 
 def _write_channel_control_dict(
     system_dir: Path, dt: float, n_steps: int, center: tuple[float, float]
 ) -> None:
     """Write the foamRun controlDict, recording the force on the cylinder at every step."""
-    content = (
-        _FOAM_HEADER.format(cls="dictionary", obj="controlDict")
-        + f"""\
-application     foamRun;
-solver          incompressibleFluid;
-startFrom       startTime;
-startTime       0;
-stopAt          endTime;
-endTime         {n_steps * dt:.15g};
-deltaT          {dt:.15g};
-writeControl    timeStep;
-writeInterval   {n_steps};
-writeFormat     ascii;
-writePrecision  12;
-writeCompression off;
-timeFormat      general;
-timePrecision   12;
-runTimeModifiable false;
-
-functions
-{{
-    forces
-    {{
-        type            forces;
-        libs            ("libforces.so");
-        writeControl    timeStep;
-        writeInterval   1;
-        executeAtStart  no;
-        patches         (cylinder);
-        rho             rhoInf;
-        rhoInf          1;
-        CofR            ({center[0]:.10g} {center[1]:.10g} 0);
-    }}
-}}
-"""
+    _render(
+        "channel/system/controlDict",
+        system_dir / "controlDict",
+        END_TIME=f"{n_steps * dt:.15g}",
+        DELTA_T=f"{dt:.15g}",
+        WRITE_INTERVAL=n_steps,
+        CX=f"{center[0]:.10g}",
+        CY=f"{center[1]:.10g}",
     )
-    (system_dir / "controlDict").write_text(content)
 
 
 def _write_channel_numerics(system_dir: Path, constant_dir: Path, nu: float) -> None:
@@ -833,58 +408,10 @@ def _write_channel_numerics(system_dir: Path, constant_dir: Path, nu: float) -> 
     Second-order in space and implicit Euler in time, which damps the start-up
     transient on the way to the steady state.
     """
-    (system_dir / "fvSchemes").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvSchemes")
-        + """\
-ddtSchemes      { default Euler; }
-gradSchemes     { default Gauss linear; }
-divSchemes
-{
-    default         none;
-    div(phi,U)      Gauss linear;
-    div((nuEff*dev2(T(grad(U))))) Gauss linear;
-}
-laplacianSchemes { default Gauss linear corrected; }
-interpolationSchemes { default linear; }
-snGradSchemes   { default corrected; }
-"""
-    )
-    (system_dir / "fvSolution").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvSolution")
-        + """\
-solvers
-{
-    p
-    {
-        solver          GAMG;
-        smoother        DICGaussSeidel;
-        tolerance       1e-06;
-        relTol          0.1;
-    }
-    pFinal { $p; relTol 0; }
-    U
-    {
-        solver          smoothSolver;
-        smoother        symGaussSeidel;
-        tolerance       1e-08;
-        relTol          0;
-    }
-    UFinal { $U; }
-}
-PIMPLE
-{
-    momentumPredictor        yes;
-    nOuterCorrectors         1;
-    nCorrectors              2;
-    nNonOrthogonalCorrectors 1;
-}
-"""
-    )
+    _render("common/system/fvSchemes.incompressibleFluid", system_dir / "fvSchemes")
+    _render("channel/system/fvSolution", system_dir / "fvSolution")
     _write_transport_properties(constant_dir, nu)
-    (constant_dir / "momentumTransport").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="momentumTransport")
-        + "simulationType  laminar;\n"
-    )
+    _render("common/constant/momentumTransport", constant_dir / "momentumTransport")
 
 
 def _parse_vectors(text: str) -> np.ndarray:
@@ -938,36 +465,13 @@ def _write_channel_fields(
     case_dir: Path, u_cells: np.ndarray, u_inlet: np.ndarray
 ) -> None:
     """Write 0/U and 0/p with the inlet profile, zero-gradient outlet at p = 0 and no-slip walls."""
-    (case_dir / "0" / "U").write_text(
-        _FOAM_HEADER.format(cls="volVectorField", obj="U")
-        + f"""\
-dimensions      [0 1 -1 0 0 0 0];
-internalField   {_vector_list(u_cells)};
-boundaryField
-{{
-    inlet        {{ type fixedValue; value {_vector_list(u_inlet)}; }}
-    outlet       {{ type zeroGradient; }}
-    walls        {{ type noSlip; }}
-    cylinder     {{ type noSlip; }}
-    frontAndBack {{ type empty; }}
-}}
-"""
+    _render(
+        "channel/0/U",
+        case_dir / "0" / "U",
+        INTERNAL_FIELD=_vector_list(u_cells),
+        INLET_VALUE=_vector_list(u_inlet),
     )
-    (case_dir / "0" / "p").write_text(
-        _FOAM_HEADER.format(cls="volScalarField", obj="p")
-        + """\
-dimensions      [0 2 -2 0 0 0 0];
-internalField   uniform 0;
-boundaryField
-{
-    inlet        { type zeroGradient; }
-    outlet       { type fixedValue; value uniform 0; }
-    walls        { type zeroGradient; }
-    cylinder     { type zeroGradient; }
-    frontAndBack { type empty; }
-}
-"""
-    )
+    _render("channel/0/p", case_dir / "0" / "p")
 
 
 def _sample(workdir: Path, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -977,22 +481,7 @@ def _sample(workdir: Path, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     is exact at cell centers and honors the boundary values on the walls.
     """
     locations = "\n".join(f"({x:.12g} {y:.12g} {z:.12g})" for x, y, z in points)
-    (workdir / "system" / "sample").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="sample")
-        + f"""\
-probes
-{{
-    type                probes;
-    libs                ("libsampling.so");
-    fields              (U p);
-    interpolationScheme cellPoint;
-    probeLocations
-    (
-{locations}
-    );
-}}
-"""
-    )
+    _render("channel/system/sample", workdir / "system" / "sample", LOCATIONS=locations)
     _run_of("foamPostProcess -dict system/sample -latestTime", workdir)
     (out_dir,) = (workdir / "postProcessing" / "probes").iterdir()
 
@@ -1052,9 +541,10 @@ def _decompose(workdir: Path, n_cells: int) -> int:
     n_procs = min(_physical_cores(), n_cells // _CELLS_PER_PROCESS)
     if n_procs < 2:
         return 1
-    (workdir / "system" / "decomposeParDict").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="decomposeParDict")
-        + f"numberOfSubdomains {n_procs};\nmethod          scotch;\n"
+    _render(
+        "common/system/decomposeParDict",
+        workdir / "system" / "decomposeParDict",
+        N_PROCS=n_procs,
     )
     _run_of("decomposePar", workdir)
     return n_procs

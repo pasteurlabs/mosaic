@@ -1,0 +1,25 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      @@OBJECT@@;
+}
+dimensions      @@DIMENSIONS@@;
+
+internalField   nonuniform List<vector>
+@@N_CELLS@@
+(
+@@VALUES@@
+)
+;
+
+boundaryField
+{
+    x_lo  { type cyclic; value $internalField; }
+    x_hi  { type cyclic; value $internalField; }
+    y_lo  { type cyclic; value $internalField; }
+    y_hi  { type cyclic; value $internalField; }
+    z_lo  { type cyclic; value $internalField; }
+    z_hi  { type cyclic; value $internalField; }
+}

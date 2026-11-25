@@ -5,7 +5,8 @@ description: >
   run as a forward-only reference baseline (C++ subprocess). No
   reverse-mode AD; used to anchor cross-solver comparisons.
 build_config:
-  package_data: []
+  package_data:
+    - ["./case_templates", "/tesseract/case_templates"]
 
   extra_packages:
     - wget
