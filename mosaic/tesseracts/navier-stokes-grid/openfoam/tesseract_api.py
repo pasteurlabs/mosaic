@@ -472,7 +472,7 @@ boundaryField
 # Periodic mode with forcing or linear drag: foamRun incompressibleFluid
 # ---------------------------------------------------------------------------
 # icoFoam has no momentum source, so a run with ``forcing`` or ``linear_drag``
-# uses foamRun's incompressibleFluid solver with a coded fvModel instead. PIMPLE
+# uses foamRun's incompressibleFluid solver with fvModels instead. PIMPLE
 # with one outer corrector and two pressure correctors is the PISO scheme icoFoam
 # runs. Runs without a source keep icoFoam, so their results do not change.
 
@@ -550,14 +550,46 @@ def _write_forcing(case_dir: Path, forcing: np.ndarray) -> None:
 
 
 def _write_fv_models(constant_dir: Path, has_forcing: bool, linear_drag: float) -> None:
-    """A coded fvModel adding ``F - linear_drag * U`` to the momentum equation.
+    """FvModels adding ``F - linear_drag * U`` to the momentum equation.
 
-    The force is explicit, read once from 0/F. The drag is implicit.
+    The drag is a ``semiImplicitSource`` with an implicit coefficient, written
+    as the incompressibleFluid/planarPoiseuille tutorial writes its momentum
+    source. The force varies in space, which ``semiImplicitSource`` cannot
+    express, so a coded fvModel adds it from 0/F.
     """
-    code = []
+    models = []
+    if linear_drag != 0.0:
+        models.append(
+            f"""\
+linearDrag
+{{
+    type            semiImplicitSource;
+    select          all;
+    volumeMode      specific;
+    sources
+    {{
+        U
+        {{
+            explicit    (0 0 0);
+            implicit    {-linear_drag:.17g};
+        }}
+    }}
+}}
+"""
+        )
     if has_forcing:
-        code.append(
+        # mosaic-intervention: coded-body-force
+        models.append(
             """\
+bodyForce
+{
+    type            coded;
+    select          all;
+    field           U;
+
+    codeAddSup
+    #{
+        // The force at the cell centres, read once from 0/F.
         static autoPtr<volVectorField> F;
         if (!F.valid())
         {
@@ -577,38 +609,14 @@ def _write_fv_models(constant_dir: Path, has_forcing: bool, linear_drag: float) 
                 )
             );
         }
-        eqn += F();"""
-        )
-    if linear_drag != 0.0:
-        code.append(
-            f"""\
-        eqn += fvm::Sp
-        (
-            dimensionedScalar(dimless/dimTime, {-linear_drag:.17g}),
-            eqn.psi()
-        );"""
-        )
-    body = "\n".join(code)
-    (constant_dir / "fvModels").write_text(
-        _FOAM_HEADER.format(cls="dictionary", obj="fvModels")
-        + f"""\
-forcingAndDrag
-{{
-    type            coded;
-    select          all;
-    field           U;
-
-    codeInclude
-    #{{
-        #include "fvmSup.H"
-    #}};
-
-    codeAddSup
-    #{{
-{body}
-    #}};
-}}
+        eqn += F();
+    #};
+}
 """
+        )
+        # mosaic-intervention-end: coded-body-force
+    (constant_dir / "fvModels").write_text(
+        _FOAM_HEADER.format(cls="dictionary", obj="fvModels") + "\n".join(models)
     )
 
 

@@ -185,4 +185,31 @@ metadata:
               reference 5.5795.
             evidence: "#269, before/after table; smallest cell from #263."
         provenance: mosaic-team
+      - id: coded-body-force
+        title: Adds the body force through a coded fvModel
+        level: L2
+        necessity: required
+        what: >
+          Runs with a body force use foamRun's incompressibleFluid solver with a
+          coded fvModel that adds the force field, read from 0/F, to the momentum
+          equation. The linear drag is an ordinary semiImplicitSource, written as
+          in the incompressibleFluid/planarPoiseuille tutorial. Runs without a
+          force or drag keep icoFoam.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [cannot-express]
+            symptom: >
+              icoFoam has no momentum source, and semiImplicitSource, which the
+              tutorials use for a body force, takes a uniform force only. The
+              Kolmogorov force varies across the box, so neither applies it.
+            notes: >
+              codedFvModel ships with OpenFOAM 12 (src/fvModels/general) with a
+              usage example in its header, but no OpenFOAM 12 tutorial uses it.
+              The periodic-box forcing closest to tutorial practice is
+              incompressibleFluid/boxTurb16, whose OUForce fvModel drives a
+              spectral random force. With the coded force, forward/kolmogorov_laminar
+              errors are 2.9e-2, 7.0e-3 and 1.5e-3 at N = 32, 64 and 128, and
+              forward/kolmogorov reaches observed order 1.52 from 64² to 256².
+            evidence: "#276; OpenFOAM 12 tutorials incompressibleFluid/planarPoiseuille and boxTurb16."
+        provenance: contributor
     deviations: []
