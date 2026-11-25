@@ -191,4 +191,3 @@ def test_openfoam_forward():
         test_laminar_kolmogorov_transient(("openfoam", t, {}))
         test_zero_force_and_drag_change_nothing(("openfoam", t, {}))
         test_snapshots_match_runs_that_stop_there(("openfoam", t, {}))
-

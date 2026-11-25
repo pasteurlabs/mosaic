@@ -1,7 +1,8 @@
 name: openfoam_navier_stokes_grid
 version: "0.1.0"
 description: >
-  OpenFOAM icoFoam PISO solver run as a forward-only reference baseline (C++ subprocess). No
+  OpenFOAM icoFoam PISO solver (foamRun incompressibleFluid when a body force or drag is set)
+  run as a forward-only reference baseline (C++ subprocess). No
   reverse-mode AD; used to anchor cross-solver comparisons.
 build_config:
   package_data: []
@@ -27,7 +28,7 @@ metadata:
     name: "OpenFOAM"
     backend: cpp
     family: projection
-    scheme: "icoFoam PISO"
+    scheme: "icoFoam PISO; foamRun PIMPLE with a source"
     discretization: FV
     numerics: "PISO/PIMPLE, Euler"
     ad_strategy: null
@@ -50,7 +51,7 @@ metadata:
         necessity: required
         tuned: true
         what: >
-          The periodic icoFoam case solves the momentum predictor to an
+          The periodic case (icoFoam, or foamRun with a source) solves the momentum predictor to an
           absolute tolerance of 1e-8 instead of the cavity tutorial's 1e-5.
           The 3-D periodic case uses the same file.
         why:

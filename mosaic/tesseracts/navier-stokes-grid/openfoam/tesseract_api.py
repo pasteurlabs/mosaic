@@ -3,7 +3,8 @@
 
 """OpenFOAM tesseract for incompressible Navier-Stokes on Cartesian grids.
 
-Periodic mode (fully periodic boundary conditions), solved with icoFoam (PISO):
+Periodic mode (fully periodic boundary conditions), solved with icoFoam (PISO), or
+with ``foamRun -solver incompressibleFluid`` when ``forcing`` or ``linear_drag`` is set:
   - 2-D: N×N Cartesian grid, cyclic x/y, empty z patches  (v0 shape (N,N,1,2))
   - 3-D: N×N×N Cartesian grid, cyclic x/y/z patches       (v0 shape (N,N,N,3))
   - IC written from v0 as nonuniform OpenFOAM volVectorField
