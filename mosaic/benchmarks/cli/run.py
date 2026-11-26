@@ -27,8 +27,19 @@ from mosaic.benchmarks.cli._helpers import (
 from mosaic.benchmarks.core.cell_filter import build_filter, set_active
 from mosaic.benchmarks.core.console import console, print_rule, print_warn
 from mosaic.benchmarks.core.io import RESULTS_DIR_ENV
-from mosaic.benchmarks.core.runner import run_suite
-from mosaic.benchmarks.problems import PROBLEMS
+from mosaic.benchmarks.problems import problem_names
+
+
+def run_suite(*args: Any, **kwargs: Any) -> dict:
+    """Call :func:`mosaic.benchmarks.core.runner.run_suite`.
+
+    ``core.runner`` pulls in JAX and tesseract-core, so it is imported on the
+    first call rather than at CLI startup (#58). A module-level function, not a
+    local import, so that tests can still monkeypatch ``run.run_suite``.
+    """
+    from mosaic.benchmarks.core.runner import run_suite as _run_suite
+
+    return _run_suite(*args, **kwargs)
 
 
 @app.command()
@@ -152,7 +163,9 @@ def run(
         _warn_platform_compatibility()
 
     problem_list = (
-        PROBLEMS if problems == "all" else [p.strip() for p in problems.split(",")]
+        problem_names()
+        if problems == "all"
+        else [p.strip() for p in problems.split(",")]
     )
 
     # Parse the unified --experiments selector. When suite/exp segments are

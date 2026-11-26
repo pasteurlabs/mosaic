@@ -74,3 +74,44 @@ def test_run_help_exposes_continue_flag():
     assert "--continue" in result.stdout, (
         f"--continue flag missing from `mosaic run --help`:\n{result.stdout}"
     )
+
+
+# Imported by the harness, but only needed once a command does real work.
+# Loading them at startup made every invocation, including ``--help``, take
+# seconds (#58).
+_HEAVY_MODULES = ("jax", "pandas", "altair", "scipy", "optax", "tesseract_core")
+
+
+def test_cli_startup_does_not_import_heavy_modules():
+    """Importing the CLI must not import JAX, pandas, altair and friends."""
+    code = (
+        "import sys, mosaic.benchmarks.cli; "
+        f"print(' '.join(m for m in {_HEAVY_MODULES!r} if m in sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "", (
+        f"imported at CLI startup: {result.stdout.strip()}"
+    )
+
+
+def test_lazy_exports_still_resolve():
+    """The names that are now loaded on first access keep working."""
+    import mosaic
+    from mosaic.benchmarks import cli, problems
+    from mosaic.benchmarks.core import runner
+    from mosaic.benchmarks.problems.shared import cost
+
+    assert mosaic.cost is cost
+    assert mosaic.PROBLEMS == problems.PROBLEMS == problems.problem_names()
+    assert len(problems.PROBLEMS) >= 4
+    assert cli.build_all is runner.build_all
+    assert cli.run_suite is runner.run_suite
+    with pytest.raises(AttributeError):
+        _ = mosaic.not_an_attribute

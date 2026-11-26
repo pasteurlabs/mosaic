@@ -24,9 +24,15 @@ Experiments are written as small *kernels* decorated with
 ``run_agreement``, …) live under ``mosaic.benchmarks.problems.shared``.
 """
 
+import importlib
+from typing import TYPE_CHECKING
+
 from mosaic.benchmarks.core.config import IcSpec, Problem, SolverSpec
-from mosaic.benchmarks.problems import PROBLEMS, get_config
-from mosaic.benchmarks.problems.shared import cost, forward, gradient, optimization
+from mosaic.benchmarks.problems import get_config
+
+if TYPE_CHECKING:
+    from mosaic.benchmarks.problems import PROBLEMS
+    from mosaic.benchmarks.problems.shared import cost, forward, gradient, optimization
 
 __all__ = [
     # Problem registry
@@ -42,3 +48,17 @@ __all__ = [
     "gradient",
     "optimization",
 ]
+
+# The suite modules import JAX, and ``PROBLEMS`` imports every problem config,
+# so they load on first access instead of with the package (#58).
+_SUITE_MODULES = ("cost", "forward", "gradient", "optimization")
+
+
+def __getattr__(name: str) -> object:
+    if name in _SUITE_MODULES:
+        return importlib.import_module(f"mosaic.benchmarks.problems.shared.{name}")
+    if name == "PROBLEMS":
+        from mosaic.benchmarks.problems import problem_names
+
+        return problem_names()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
