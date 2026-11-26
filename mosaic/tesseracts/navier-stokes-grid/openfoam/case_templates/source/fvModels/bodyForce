@@ -6,26 +6,24 @@ bodyForce
 
     codeAddSup
     #{
-        // The force at the cell centres, read once from 0/F.
-        static autoPtr<volVectorField> F;
-        if (!F.valid())
+        // The force at the cell centres, read once from 0/F and stored in
+        // the mesh's registry, which owns it and frees it with the mesh.
+        if (!mesh().foundObject<volVectorField>("F"))
         {
-            F.reset
+            volVectorField* F = new volVectorField
             (
-                new volVectorField
+                IOobject
                 (
-                    IOobject
-                    (
-                        "F",
-                        "0",
-                        mesh(),
-                        IOobject::MUST_READ,
-                        IOobject::NO_WRITE
-                    ),
-                    mesh()
-                )
+                    "F",
+                    "0",
+                    mesh(),
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh()
             );
+            F->store();
         }
-        eqn += F();
+        eqn += mesh().lookupObject<volVectorField>("F")();
     #};
 }
