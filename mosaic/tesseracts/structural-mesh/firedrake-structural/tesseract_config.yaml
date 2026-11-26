@@ -1,9 +1,9 @@
 name: firedrake_structural_mesh
 version: "0.1.0"
 description: >
-  Firedrake CG1 FEM linear-elasticity solver with SIMP penalisation. Gradient ∂C/∂ρ via
-  firedrake-adjoint (pyadjoint ReducedFunctional) — an independent tape-based discrete
-  adjoint complement to FEniCS.
+  Firedrake CG1 linear elasticity with SIMP penalisation. For homogeneous
+  supports, the compliance adjoint is the displacement. Nonzero prescribed
+  displacements use the general pyadjoint derivative.
 build_config:
   base_image: "firedrakeproject/firedrake:2026.4.0"
   skip_checks: true
@@ -30,5 +30,19 @@ metadata:
     # What it took to run Firedrake here, beyond expressing the setup in UFL.
     # Format: mosaic/benchmarks/core/interventions.py.
     abstraction: framework
-    interventions: []
+    interventions:
+      - id: self-adjoint-compliance
+        title: Reuses the displacement as the compliance adjoint
+        level: L2
+        necessity: choice
+        what: >
+          Assemble the DG0 compliance sensitivity from the displacement when
+          all prescribed displacements are zero. Each VJP solves the forward
+          problem at its own input density.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: The general adjoint solves for the same displacement a second time.
+            evidence: PETSc KSPSolve counts in the structural Firedrake regression test.
+        provenance: contributor
     deviations: []
