@@ -1,0 +1,29 @@
+bodyForce
+{
+    type            coded;
+    select          all;
+    field           U;
+
+    codeAddSup
+    #{
+        // The force at the cell centres, read once from 0/F and stored in
+        // the mesh's registry, which owns it and frees it with the mesh.
+        if (!mesh().foundObject<volVectorField>("F"))
+        {
+            volVectorField* F = new volVectorField
+            (
+                IOobject
+                (
+                    "F",
+                    "0",
+                    mesh(),
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh()
+            );
+            F->store();
+        }
+        eqn += mesh().lookupObject<volVectorField>("F")();
+    #};
+}

@@ -1,0 +1,34 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+scale   1;
+
+vertices
+(
+    @@VERTICES@@
+);
+
+blocks
+(
+    @@BLOCKS@@
+);
+
+edges
+(
+    @@EDGES@@
+);
+
+boundary
+(
+@@BOUNDARY@@
+);
+
+defaultPatch
+{
+    name    frontAndBack;
+    type    empty;
+}

@@ -1,0 +1,20 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      p;
+}
+dimensions      [0 2 -2 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    x_lo  { type cyclic; }
+    x_hi  { type cyclic; }
+    y_lo  { type cyclic; }
+    y_hi  { type cyclic; }
+    front { type empty; }
+    back  { type empty; }
+}

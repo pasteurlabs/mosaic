@@ -1,0 +1,18 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      sample;
+}
+probes
+{
+    type                probes;
+    libs                ("libsampling.so");
+    fields              (U p);
+    interpolationScheme cellPoint;
+    probeLocations
+    (
+@@LOCATIONS@@
+    );
+}

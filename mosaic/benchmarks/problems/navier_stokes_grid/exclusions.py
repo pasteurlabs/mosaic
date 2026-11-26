@@ -59,13 +59,6 @@ OPENFOAM_COLLOCATED_TGV = Exclusion(
     "It shrinks as the viscosity grows, so it stands out only at the lowest "
     "viscosities",
 )
-OPENFOAM_NO_SOURCE_TERM = Exclusion(
-    ExclusionCategory.NOT_IMPLEMENTED,
-    "this tesseract runs icoFoam, which has no momentum source term, so it "
-    "cannot apply the body force or the drag. OpenFOAM's foamRun "
-    "incompressibleFluid solver supports both through an fvModel, but this "
-    "tesseract does not use it",
-)
 EXPLICIT_CENTRAL_UNSTABLE = Exclusion(
     ExclusionCategory.ANOMALY_EXPLAINED,
     "the solver advances with explicit Euler and central differences for "
@@ -131,14 +124,7 @@ def register(problem: Problem) -> None:
     )
     problem.exclude("forward/cylinder", _OBSTACLE_GATE)
     problem.exclude("forward/tgv_nu_sweep", {"openfoam": OPENFOAM_COLLOCATED_TGV})
-    problem.exclude("forward/kolmogorov_laminar", {"openfoam": OPENFOAM_NO_SOURCE_TERM})
-    problem.exclude(
-        "forward/kolmogorov",
-        {
-            "openfoam": OPENFOAM_NO_SOURCE_TERM,
-            "warp_ns": EXPLICIT_CENTRAL_UNSTABLE,
-        },
-    )
+    problem.exclude("forward/kolmogorov", {"warp_ns": EXPLICIT_CENTRAL_UNSTABLE})
 
     # Cost
     for key in ("cost/spatial_cost", "cost/temporal_cost", "cost/vjp_cost/by_N"):

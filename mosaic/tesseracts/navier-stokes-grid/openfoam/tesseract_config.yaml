@@ -1,10 +1,12 @@
 name: openfoam_navier_stokes_grid
 version: "0.1.0"
 description: >
-  OpenFOAM icoFoam PISO solver run as a forward-only reference baseline (C++ subprocess). No
+  OpenFOAM icoFoam PISO solver (foamRun incompressibleFluid when a body force or drag is set)
+  run as a forward-only reference baseline (C++ subprocess). No
   reverse-mode AD; used to anchor cross-solver comparisons.
 build_config:
-  package_data: []
+  package_data:
+    - ["./case_templates", "/tesseract/case_templates"]
 
   extra_packages:
     - wget
@@ -27,7 +29,7 @@ metadata:
     name: "OpenFOAM"
     backend: cpp
     family: projection
-    scheme: "icoFoam PISO"
+    scheme: "icoFoam PISO; foamRun PIMPLE with a source"
     discretization: FV
     numerics: "PISO/PIMPLE, Euler"
     ad_strategy: null
@@ -50,7 +52,7 @@ metadata:
         necessity: required
         tuned: true
         what: >
-          The periodic icoFoam case solves the momentum predictor to an
+          The periodic case (icoFoam, or foamRun with a source) solves the momentum predictor to an
           absolute tolerance of 1e-8 instead of the cavity tutorial's 1e-5.
           The 3-D periodic case uses the same file.
         why:
@@ -184,4 +186,26 @@ metadata:
               reference 5.5795.
             evidence: "#269, before/after table; smallest cell from #263."
         provenance: mosaic-team
+      - id: coded-body-force
+        title: Adds the body force through a coded fvModel
+        level: L2
+        necessity: required
+        what: >
+          Runs with a body force use foamRun's incompressibleFluid solver with a
+          coded fvModel that adds the force field, read from 0/F, to the momentum
+          equation. The linear drag is an ordinary semiImplicitSource, written as
+          in the incompressibleFluid/planarPoiseuille tutorial. Runs without a
+          force or drag keep icoFoam.
+        why:
+          ns-2d-kolmogorov:
+            consequences: [cannot-express]
+            symptom: >
+              icoFoam has no momentum source, and semiImplicitSource, which the
+              tutorials use for a body force, takes a uniform force only. The
+              Kolmogorov force varies across the box, so neither applies it.
+            notes: >
+              codedFvModel ships with OpenFOAM 12, but no OpenFOAM 12 tutorial
+              uses it.
+            evidence: "#276; OpenFOAM 12 tutorials incompressibleFluid/planarPoiseuille and boxTurb16."
+        provenance: contributor
     deviations: []

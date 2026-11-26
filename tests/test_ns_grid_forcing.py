@@ -183,24 +183,11 @@ def test_snapshots_match_runs_that_stop_there(solver):
 
 
 @pytest.mark.skipif(not image_available(_OPENFOAM), reason=f"{_OPENFOAM} not built")
-def test_openfoam_rejects_snapshots():
+def test_openfoam_forward():
+    """OpenFOAM has no VJP, so it runs the forward checks only."""
     from tesseract_core import Tesseract
 
-    v0 = np.zeros((8, 8, 1, 2), np.float32)
-    with (
-        Tesseract.from_image(_OPENFOAM) as t,
-        pytest.raises(Exception, match="snapshots"),
-    ):
-        t.apply(_inputs(v0, nu=0.01, dt=0.01, steps=2, extra={}, snapshot_every=1))
-
-
-@pytest.mark.skipif(not image_available(_OPENFOAM), reason=f"{_OPENFOAM} not built")
-def test_openfoam_rejects_forcing():
-    from tesseract_core import Tesseract
-
-    v0 = np.zeros((8, 8, 1, 2), np.float32)
-    with (
-        Tesseract.from_image(_OPENFOAM) as t,
-        pytest.raises(Exception, match="icoFoam"),
-    ):
-        t.apply(_inputs(v0, nu=0.01, dt=0.01, steps=1, extra={}, forcing=v0))
+    with Tesseract.from_image(_OPENFOAM) as t:
+        test_laminar_kolmogorov_transient(("openfoam", t, {}))
+        test_zero_force_and_drag_change_nothing(("openfoam", t, {}))
+        test_snapshots_match_runs_that_stop_there(("openfoam", t, {}))

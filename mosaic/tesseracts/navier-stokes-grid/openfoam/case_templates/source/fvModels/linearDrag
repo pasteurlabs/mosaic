@@ -1,0 +1,14 @@
+linearDrag
+{
+    type            semiImplicitSource;
+    select          all;
+    volumeMode      specific;
+    sources
+    {
+        U
+        {
+            explicit    (0 0 0);
+            implicit    @@IMPLICIT@@;
+        }
+    }
+}
