@@ -30,5 +30,29 @@ metadata:
     # What it took to run Firedrake here, beyond expressing the setup in UFL.
     # Format: mosaic/benchmarks/core/interventions.py.
     abstraction: framework
-    interventions: []
+    interventions:
+      - id: integer-simp-exponent
+        title: Passes an integer-valued SIMP exponent as an integer
+        level: L0
+        necessity: choice
+        what: >
+          Uses rho**int(penal) when penal is integer-valued, which it always
+          is in the benchmark (3.0), instead of rho**Constant(penal).
+        why:
+          structural:
+            consequences: []
+            symptom: >
+              UFL estimates a non-integer power, including a Constant
+              exponent, as degree(rho) + 2, so every volume form is
+              integrated 2 degrees higher than needed (7 instead of 5 on
+              hexahedra).
+            notes: >
+              Not timed in Firedrake. The same change, together with an
+              exact quadrature rule, made the FEniCS tesseract 2.25 times
+              faster at nx = 128 (see its affine-hex-quadrature record). It
+              could be avoided by passing the exponent to the tesseract as an
+              integer: that needs the input field declared as int | float
+              with default 3, since Pydantic turns an integer input into 3.0
+              for the current float field.
+        provenance: contributor
     deviations: []

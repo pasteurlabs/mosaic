@@ -355,7 +355,7 @@ def _build_reduced_functional(
 
     u, v = TrialFunction(V), TestFunction(V)
 
-    # mosaic intervention (L0): affine-hex-quadrature
+    # Intervention affine-hex-quadrature (L0), see tesseract_config.yaml.
     q_deg = _estimate_quadrature_degree_of_geometry(pts, cells)
     dx_q = Measure(
         "dx",

@@ -76,4 +76,56 @@ metadata:
           Per #182, newer dolfin-adjoint passes linear_solver to the adjoint
           solve.
         provenance: maintainer-authored
+      - id: affine-hex-quadrature
+        title: Integrates exactly on parallelepiped hexahedra
+        level: L0
+        necessity: choice
+        what: >
+          When every input hexahedron is a parallelepiped, sets
+          quadrature_degree 2 (2x2x2 Gauss points) on the volume measure.
+          That rule is exact there, since the reference map is affine and the
+          Q1 stiffness integrand with a cellwise-constant E has degree at most
+          2 per direction. Other meshes keep UFL's estimate.
+        why:
+          structural:
+            consequences: [too-slow]
+            symptom: >
+              Without it, apply plus VJP at nx = 128 takes 16.8 s against
+              7.4 s, 2.25 times as long, with compliance and gradient equal
+              to 1e-12.
+            notes: >
+              UFL treats every hexahedron as a trilinear map and estimates
+              degree 7 for this form (4x4x4 Gauss points): 2 for the Q1
+              gradients, 3 for det(J) and 2 for the non-integer power of rho.
+              On the 48x24x24 corner-load cantilever the gain is 1.42 times
+              (47.5 s against 33.5 s), since MUMPS factorisation is a larger
+              share there. The adjoint and derivative forms dolfin-adjoint
+              derives from the bilinear form inherit the measure's metadata.
+            evidence: >
+              A/B of this tesseract_api.py against main, called outside the
+              container on an i7-7700HQ, one thread, median of 3 iterations,
+              2026-11-28; not yet published.
+        provenance: maintainer-authored
+      - id: integer-simp-exponent
+        title: Passes an integer-valued SIMP exponent as an integer
+        level: L0
+        necessity: choice
+        what: >
+          Uses rho**int(penal) when penal is integer-valued, which it always
+          is in the benchmark (3.0), instead of rho**penal with a float.
+        why:
+          structural:
+            consequences: []
+            symptom: >
+              UFL estimates a non-integer power as degree(rho) + 2, so every
+              volume form is integrated 2 degrees higher than needed.
+            notes: >
+              Has no effect on the benchmark's box meshes, where
+              affine-hex-quadrature fixes the degree. On other meshes it
+              lowers UFL's estimate from 7 to 5. Not timed. It could be
+              avoided by passing the exponent to the tesseract as an integer:
+              that needs the input field declared as int | float with
+              default 3, since Pydantic turns an integer input into 3.0 for
+              the current float field.
+        provenance: maintainer-authored
     deviations: []
