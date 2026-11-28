@@ -146,6 +146,41 @@ def _cell_reorder_map(
 
 
 # ---------------------------------------------------------------------------
+# Quadrature degree for the volume integrals
+# ---------------------------------------------------------------------------
+
+
+def _estimate_quadrature_degree_of_geometry(
+    pts: np.ndarray, cells: np.ndarray
+) -> int | None:
+    """Exact quadrature degree for the Q1 stiffness form, if the geometry allows one.
+
+    UFL estimates the quadrature degree as if every hexahedron were a general
+    trilinear map, adding 3 for det(J). On a parallelepiped J is constant, so
+    the Q1 stiffness integrand with a cellwise-constant E has degree <= 2 in
+    each reference direction and degree 2 (2 Gauss points per direction)
+    integrates it exactly. Forms dolfin-adjoint derives from ``a`` (adjoint,
+    derivative w.r.t. rho) inherit the measure's metadata.
+
+    Args:
+        pts: Node coordinates, shape (n_nodes, 3).
+        cells: HEX8 connectivity in VTK / Abaqus order, shape (n_cells, 8).
+
+    Returns:
+        2 if all cells are parallelepipeds, else None (keep UFL's estimate).
+    """
+    x = pts[cells]  # (n_cells, 8, 3)
+    x0, x1, x3, x4 = x[:, 0], x[:, 1], x[:, 3], x[:, 4]
+    # Vertices 2, 5, 7, 6 of a parallelepiped, from vertex 0 and its 3 edges.
+    expected = np.stack(
+        [x1 + x3 - x0, x1 + x4 - x0, x3 + x4 - x0, x1 + x3 + x4 - 2.0 * x0], axis=1
+    )
+    tol = 1e-10 * float(np.ptp(pts))
+    affine = bool(np.allclose(x[:, [2, 5, 7, 6]], expected, rtol=0.0, atol=tol))
+    return 2 if affine else None
+
+
+# ---------------------------------------------------------------------------
 # Neumann / Dirichlet facet marker helper
 # ---------------------------------------------------------------------------
 
@@ -299,7 +334,10 @@ def _build_reduced_functional(
     # ---- SIMP stiffness ---------------------------------------------------
     # E(rho) = E_min + (E_max - E_min) * rho^penal,  E_min = xmin * E_max
     E_min = Constant(xmin * E_max)
-    E = E_min + (Constant(E_max) - E_min) * rho_fn**penal
+    # An integer-valued exponent is passed as an int: UFL estimates rho**3 as
+    # 3 * degree(rho) = 0, but rho**3.0 as degree(rho) + 2.
+    p = int(penal) if float(penal).is_integer() else penal
+    E = E_min + (Constant(E_max) - E_min) * rho_fn**p
 
     nu_c = Constant(nu)
     lam = E * nu_c / ((1 + nu_c) * (1 - 2 * nu_c))
@@ -317,10 +355,18 @@ def _build_reduced_functional(
 
     u, v = TrialFunction(V), TestFunction(V)
 
-    a = inner(sig(u), eps(v)) * dx
+    # Intervention affine-hex-quadrature (L0), see tesseract_config.yaml.
+    q_deg = _estimate_quadrature_degree_of_geometry(pts, cells)
+    dx_q = Measure(
+        "dx",
+        domain=mesh,
+        metadata={} if q_deg is None else {"quadrature_degree": q_deg},
+    )
+
+    a = inner(sig(u), eps(v)) * dx_q
 
     n_neumann_groups = neumann_values_vals.shape[0]
-    L = dot(Constant((0.0, 0.0, 0.0)), v) * dx  # zero initialiser
+    L = dot(Constant((0.0, 0.0, 0.0)), v) * dx_q  # zero initialiser
     for k in range(n_neumann_groups):
         t_k = Constant(tuple(float(x) for x in neumann_values_vals[k]))
         L = L + dot(t_k, v) * ds_N(k + 1)
