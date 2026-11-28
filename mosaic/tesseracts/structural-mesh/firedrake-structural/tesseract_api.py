@@ -398,7 +398,12 @@ def _build_reduced_functional(
     # ---- SIMP stiffness --------------------------------------------------
     E_min_val = Constant(xmin * E_max)
     E_max_val = Constant(E_max)
-    E_field = E_min_val + (E_max_val - E_min_val) * rho_fn ** Constant(penal)
+    # An integer-valued exponent is passed as a Python int: UFL estimates
+    # rho**3 as 3 * degree(rho) = 0 for DG0 rho, but rho**Constant(3.0) (any
+    # non-integer exponent) as degree(rho) + 2, raising the quadrature degree
+    # of every volume form by 2.
+    p = int(penal) if float(penal).is_integer() else Constant(penal)
+    E_field = E_min_val + (E_max_val - E_min_val) * rho_fn**p
 
     nu_c = Constant(nu)
     lam = E_field * nu_c / ((1 + nu_c) * (1 - 2 * nu_c))

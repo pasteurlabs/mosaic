@@ -334,7 +334,10 @@ def _build_reduced_functional(
     # ---- SIMP stiffness ---------------------------------------------------
     # E(rho) = E_min + (E_max - E_min) * rho^penal,  E_min = xmin * E_max
     E_min = Constant(xmin * E_max)
-    E = E_min + (Constant(E_max) - E_min) * rho_fn**penal
+    # An integer-valued exponent is passed as an int: UFL estimates rho**3 as
+    # 3 * degree(rho) = 0, but rho**3.0 as degree(rho) + 2.
+    p = int(penal) if float(penal).is_integer() else penal
+    E = E_min + (Constant(E_max) - E_min) * rho_fn**p
 
     nu_c = Constant(nu)
     lam = E * nu_c / ((1 + nu_c) * (1 - 2 * nu_c))
